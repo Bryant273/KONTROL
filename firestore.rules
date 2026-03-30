@@ -1,0 +1,149 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // --- Helper Functions ---
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.email == "acherie812@gmail.com" ||
+        request.auth.token.email == "Innov.korp@gmail.com"
+      );
+    }
+
+    function isERPAdmin() {
+      return isSuperAdmin() || (
+        isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMINISTRATEUR_ERP' ||
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'GESTIONNAIRE_ERP')
+      );
+    }
+
+    function isEnterpriseUser(companyId) {
+      return isAuthenticated() && (
+        isERPAdmin() || (
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == companyId
+        )
+      );
+    }
+
+    function isEnterpriseAdmin(companyId) {
+      return isAuthenticated() && (
+        isERPAdmin() || (
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == companyId &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMINISTRATEUR_ENTREPRISE'
+        )
+      );
+    }
+
+    // --- Collection Matches ---
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == userId || 
+        isERPAdmin() || 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == resource.data.companyId)
+      );
+      allow create: if isAuthenticated() && (
+        request.auth.uid == userId || 
+        isERPAdmin() || 
+        isEnterpriseAdmin(request.resource.data.companyId)
+      );
+      allow update: if isAuthenticated() && (
+        request.auth.uid == userId || 
+        isERPAdmin() || 
+        isEnterpriseAdmin(resource.data.companyId)
+      );
+      allow delete: if isERPAdmin();
+    }
+
+    match /transactions/{id} {
+      allow read: if isEnterpriseUser(resource.data.ownerId) || isERPAdmin();
+      allow create: if isEnterpriseUser(request.resource.data.ownerId) && 
+                      request.resource.data.keys().hasAll(['reference', 'montantTotal', 'ownerId']) &&
+                      request.resource.data.reference is string &&
+                      request.resource.data.montantTotal is number;
+      allow update: if isEnterpriseUser(resource.data.ownerId) && 
+                      request.resource.data.ownerId == resource.data.ownerId;
+      allow delete: if isERPAdmin();
+    }
+
+    match /produits/{id} {
+      allow read: if isEnterpriseUser(resource.data.ownerId) || isERPAdmin();
+      allow create: if isEnterpriseUser(request.resource.data.ownerId) && 
+                      request.resource.data.keys().hasAll(['reference', 'stock', 'ownerId']) &&
+                      request.resource.data.reference is string &&
+                      request.resource.data.stock is number;
+      allow update: if isEnterpriseUser(resource.data.ownerId) && 
+                      request.resource.data.ownerId == resource.data.ownerId &&
+                      request.resource.data.stock is number;
+      allow delete: if isERPAdmin();
+    }
+
+    match /stock_movements/{id} {
+      allow read: if isEnterpriseUser(resource.data.ownerId) || isERPAdmin();
+      allow create: if isEnterpriseUser(request.resource.data.ownerId);
+      allow update, delete: if isERPAdmin();
+    }
+
+    match /tiers/{id} {
+      allow read: if isEnterpriseUser(resource.data.ownerId) || isERPAdmin();
+      allow create: if isEnterpriseUser(request.resource.data.ownerId);
+      allow update: if isEnterpriseUser(resource.data.ownerId) && request.resource.data.ownerId == resource.data.ownerId;
+      allow delete: if isERPAdmin();
+    }
+
+    match /charges/{id} {
+      allow read: if isEnterpriseUser(resource.data.ownerId) || isERPAdmin();
+      allow create: if isEnterpriseUser(request.resource.data.ownerId);
+      allow update: if isEnterpriseUser(resource.data.ownerId) && request.resource.data.ownerId == resource.data.ownerId;
+      allow delete: if isERPAdmin();
+    }
+
+    match /wallets/{id} {
+      allow read: if isEnterpriseUser(resource.data.ownerId) || isERPAdmin();
+      allow create: if isEnterpriseUser(request.resource.data.ownerId);
+      allow update: if isEnterpriseUser(resource.data.ownerId) && request.resource.data.ownerId == resource.data.ownerId;
+      allow delete: if isERPAdmin();
+    }
+
+    match /payments/{id} {
+      allow read: if isEnterpriseUser(resource.data.ownerId) || isERPAdmin();
+      allow create: if isEnterpriseUser(request.resource.data.ownerId);
+      allow update: if isEnterpriseUser(resource.data.ownerId) && request.resource.data.ownerId == resource.data.ownerId;
+      allow delete: if isERPAdmin();
+    }
+
+    match /actions/{id} {
+      allow read: if isEnterpriseUser(resource.data.companyId) || isERPAdmin();
+      allow create: if isEnterpriseUser(request.resource.data.companyId) || isERPAdmin();
+      allow update, delete: if isERPAdmin();
+    }
+
+    match /notifications/{id} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /tickets/{id} {
+      allow read: if isERPAdmin();
+      allow create: if true;
+      allow update, delete: if isERPAdmin();
+    }
+
+    match /companies/{id} {
+      allow read: if isERPAdmin() || (isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == id);
+      allow create, update, delete: if isERPAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

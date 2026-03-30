@@ -1,0 +1,57 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  
+  --color-kontrol-blue: #50B0E0;
+  --color-kontrol-orange: #E06020;
+  --color-kontrol-orange-hover: #E05010;
+  --color-kontrol-dark: #003050;
+  --color-kontrol-dark-hover: #103050;
+  --color-kontrol-bg: #F0F0F0;
+  --color-kontrol-border: rgba(0, 48, 80, 0.12);
+  --color-kontrol-ink: #0d1f2d;
+  --color-kontrol-ink-soft: #2d4a60;
+  --color-kontrol-ink-muted: #7a9ab0;
+}
+
+@layer base {
+  body {
+    @apply bg-kontrol-bg text-kontrol-ink font-sans antialiased;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white border border-kontrol-border rounded-lg shadow-sm;
+  }
+  
+  .card-hd {
+    @apply px-4 py-3.5 border-b border-kontrol-border flex items-center justify-between;
+  }
+  
+  .card-title {
+    @apply text-[13.5px] font-bold text-kontrol-dark;
+  }
+  
+  .kpi {
+    @apply bg-white border border-kontrol-border rounded-lg p-4 transition-shadow hover:shadow-md;
+  }
+  
+  .kpi-lbl {
+    @apply text-[10.5px] font-semibold text-kontrol-ink-muted uppercase tracking-wider mb-1.5;
+  }
+  
+  .kpi-val {
+    @apply text-2xl font-extrabold text-kontrol-dark tracking-tight leading-none;
+  }
+  
+  .btn-primary {
+    @apply bg-kontrol-orange text-white font-semibold py-2 px-4 rounded-lg transition-all hover:bg-kontrol-orange-hover hover:-translate-y-0.5 active:translate-y-0 shadow-sm hover:shadow-orange-200;
+  }
+
+  .btn-outline {
+    @apply bg-white border border-kontrol-border text-kontrol-ink font-medium py-2 px-4 rounded-lg hover:bg-kontrol-bg transition-colors;
+  }
+}

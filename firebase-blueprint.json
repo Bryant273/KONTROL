@@ -1,0 +1,250 @@
+{
+  "blueprint_metadata": {
+    "version": "2.0.0",
+    "architecture": "Multi-Tenant Isolated",
+    "description": "Master schema for ERP enterprise instances. Each enterprise is isolated by companyId/ownerId. ERP Admin has telemetry access."
+  },
+  "entities": {
+    "users": {
+      "title": "Utilisateurs",
+      "description": "Profils utilisateurs et entreprises",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["ADMINISTRATEUR_ERP", "GESTIONNAIRE_ERP", "ADMINISTRATEUR_ENTREPRISE", "GESTIONNAIRE_ENTREPRISE"] },
+        "companyId": { "type": "string" },
+        "companyName": { "type": "string" },
+        "companyLogo": { "type": "string", "description": "Base64 image string" },
+        "phone": { "type": "string" },
+        "country": { "type": "string" },
+        "currency": { "type": "string" },
+        "language": { "type": "string" },
+        "active": { "type": "boolean" },
+        "subscriptionStatus": { "type": "string", "enum": ["ACTIVE", "INACTIVE", "none"] },
+        "subscriptionEndDate": { "type": "number" },
+        "isProfileComplete": { "type": "boolean" },
+        "lastLogin": { "type": "number" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["uid", "email", "role", "isProfileComplete", "createdAt"]
+    },
+    "companies": {
+      "title": "Entreprises",
+      "description": "Données des entreprises clientes",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "logo": { "type": "string" },
+        "manager": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE"] },
+        "subscriptionEndDate": { "type": "number" },
+        "userCount": { "type": "number" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["name", "email", "status", "createdAt"]
+    },
+    "tiers": {
+      "title": "Tiers",
+      "description": "Client ou Fournisseur",
+      "type": "object",
+      "properties": {
+        "nom": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "telephone": { "type": "string" },
+        "type": { "type": "string", "enum": ["CLIENT", "FOURNISSEUR"] },
+        "adresse": { "type": "string" },
+        "statut": { "type": "string", "enum": ["ACTIF", "INACTIF"] },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["nom", "type", "statut", "ownerId", "createdAt"]
+    },
+    "produits": {
+      "title": "Produits",
+      "description": "Articles du catalogue",
+      "type": "object",
+      "properties": {
+        "reference": { "type": "string" },
+        "designation": { "type": "string" },
+        "prixAchat": { "type": "number" },
+        "prixVente": { "type": "number" },
+        "stock": { "type": "number" },
+        "alertStock": { "type": "number" },
+        "tva": { "type": "number" },
+        "cump": { "type": "number" },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["reference", "designation", "prixVente", "stock", "ownerId", "createdAt"]
+    },
+    "transactions": {
+      "title": "Transactions",
+      "description": "Ventes et Achats",
+      "type": "object",
+      "properties": {
+        "reference": { "type": "string" },
+        "date": { "type": "number" },
+        "type": { "type": "string", "enum": ["VENTE", "ACHAT"] },
+        "tiersId": { "type": "string" },
+        "tiersNom": { "type": "string" },
+        "montantTotal": { "type": "number" },
+        "devise": { "type": "string" },
+        "statut": { "type": "string", "enum": ["PAYE", "ATTENTE", "ANNULE"] },
+        "modePaiement": { "type": "string" },
+        "articles": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "produitId": { "type": "string" },
+              "designation": { "type": "string" },
+              "quantite": { "type": "number" },
+              "prixUnitaire": { "type": "number" },
+              "total": { "type": "number" }
+            }
+          }
+        },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["reference", "date", "type", "tiersId", "montantTotal", "statut", "ownerId", "createdAt"]
+    },
+    "charges": {
+      "title": "Charges",
+      "description": "Dépenses opérationnelles",
+      "type": "object",
+      "properties": {
+        "date": { "type": "number" },
+        "description": { "type": "string" },
+        "categorie": { "type": "string" },
+        "montant": { "type": "number" },
+        "devise": { "type": "string" },
+        "modePaiement": { "type": "string" },
+        "justificatifUrl": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["date", "description", "montant", "ownerId", "createdAt"]
+    },
+    "wallets": {
+      "title": "Portefeuilles",
+      "description": "Comptes de trésorerie (Caisse, Banque, Mobile Money)",
+      "type": "object",
+      "properties": {
+        "nom": { "type": "string" },
+        "type": { "type": "string", "enum": ["CASH", "BANK", "MOBILE_MONEY"] },
+        "solde": { "type": "number" },
+        "devise": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["nom", "type", "solde", "ownerId", "createdAt"]
+    },
+    "payments": {
+      "title": "Paiements",
+      "description": "Flux de trésorerie (Encaissements/Décaissements)",
+      "type": "object",
+      "properties": {
+        "date": { "type": "number" },
+        "montant": { "type": "number" },
+        "type": { "type": "string", "enum": ["ENCAISSEMENT", "DECAISSEMENT"] },
+        "modePaiement": { "type": "string" },
+        "walletId": { "type": "string" },
+        "transactionId": { "type": "string" },
+        "tiersId": { "type": "string" },
+        "tiersNom": { "type": "string" },
+        "description": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["date", "montant", "type", "modePaiement", "description", "ownerId", "createdAt"]
+    },
+    "stock_movements": {
+      "title": "Mouvements de Stock",
+      "description": "Historique des entrées/sorties",
+      "type": "object",
+      "properties": {
+        "produitId": { "type": "string" },
+        "designation": { "type": "string" },
+        "type": { "type": "string", "enum": ["ENTREE", "SORTIE"] },
+        "quantite": { "type": "number" },
+        "prixUnitaire": { "type": "number" },
+        "source": { "type": "string", "enum": ["INITIAL", "TRANSACTION", "MANUEL"] },
+        "referenceId": { "type": "string" },
+        "date": { "type": "number" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["produitId", "type", "quantite", "source", "date", "ownerId"]
+    },
+    "tickets": {
+      "title": "Tickets Support",
+      "description": "Demandes d'assistance",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "subject": { "type": "string" },
+        "message": { "type": "string" },
+        "status": { "type": "string", "enum": ["NEW", "OPEN", "CLOSED"] },
+        "priority": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH"] },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["name", "email", "subject", "message", "status", "priority", "createdAt"]
+    },
+    "actions": {
+      "title": "Actions",
+      "description": "Journal d'activité",
+      "type": "object",
+      "properties": {
+        "companyId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "action": { "type": "string" },
+        "details": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["companyId", "userId", "userName", "action", "timestamp"]
+    },
+    "notifications": {
+      "title": "Notifications",
+      "description": "Alertes et messages système",
+      "type": "object",
+      "properties": {
+        "companyId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["info", "success", "warning", "error"] },
+        "read": { "type": "boolean" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["companyId", "title", "message", "type", "read", "timestamp"]
+    }
+  },
+  "relations": {
+    "users_companies": { "from": "users.companyId", "to": "companies.id", "type": "one-to-one" },
+    "tiers_owner": { "from": "tiers.ownerId", "to": "companies.id", "type": "many-to-one" },
+    "produits_owner": { "from": "produits.ownerId", "to": "companies.id", "type": "many-to-one" },
+    "transactions_tiers": { "from": "transactions.tiersId", "to": "tiers.id", "type": "many-to-one" },
+    "transactions_owner": { "from": "transactions.ownerId", "to": "companies.id", "type": "many-to-one" },
+    "payments_wallets": { "from": "payments.walletId", "to": "wallets.id", "type": "many-to-one" },
+    "payments_transactions": { "from": "payments.transactionId", "to": "transactions.id", "type": "many-to-one" },
+    "stock_movements_produits": { "from": "stock_movements.produitId", "to": "produits.id", "type": "many-to-one" }
+  },
+  "firestore": {
+    "/users/{userId}": { "schema": "users", "description": "Profils utilisateurs" },
+    "/companies/{id}": { "schema": "companies", "description": "Données entreprises" },
+    "/tiers/{id}": { "schema": "tiers", "description": "Clients et fournisseurs" },
+    "/produits/{id}": { "schema": "produits", "description": "Catalogue produits" },
+    "/transactions/{id}": { "schema": "transactions", "description": "Ventes et achats" },
+    "/charges/{id}": { "schema": "charges", "description": "Dépenses" },
+    "/wallets/{id}": { "schema": "wallets", "description": "Comptes de trésorerie" },
+    "/payments/{id}": { "schema": "payments", "description": "Flux de trésorerie" },
+    "/stock_movements/{id}": { "schema": "stock_movements", "description": "Mouvements de stock" },
+    "/tickets/{id}": { "schema": "tickets", "description": "Support technique" },
+    "/actions/{id}": { "schema": "actions", "description": "Journal d'activité" },
+    "/notifications/{id}": { "schema": "notifications", "description": "Alertes et messages" }
+  }
+}
