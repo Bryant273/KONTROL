@@ -21,6 +21,7 @@ export interface Transaction {
   statut: TransactionStatut;
   modePaiement: string;
   articles: TransactionLine[];
+  invoiceFileUrl?: string;
   ownerId: string;
   createdAt: number;
 }

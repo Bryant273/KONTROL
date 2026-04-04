@@ -14,7 +14,9 @@ import {
   Eye,
   Calendar,
   Phone,
-  Globe
+  Globe,
+  ArrowDownLeft,
+  ArrowUpRight
 } from 'lucide-react';
 import { UserProfile, UserRole } from '../../types';
 import { cn } from '../../lib/utils';
@@ -46,8 +48,11 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
   const [users, setUsers] = React.useState<UserProfile[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [filterDate, setFilterDate] = React.useState<string>(new Date().toISOString().split('T')[0]);
   const [isAdding, setIsAdding] = React.useState(false);
   const [selectedUser, setSelectedUser] = React.useState<UserProfile | null>(null);
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const itemsPerPage = 10;
   const [newUser, setNewUser] = React.useState({
     email: '',
     displayName: '',
@@ -186,15 +191,23 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
   };
 
   const filteredUsers = users
-    .filter(u => 
-      u.displayName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      u.email.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    .filter(u => {
+      const matchesSearch = u.displayName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           u.email.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesDate = !filterDate || new Date(u.createdAt).toISOString().split('T')[0] === filterDate;
+      return matchesSearch && matchesDate;
+    })
     .sort((a, b) => {
       if (a.role === 'ADMINISTRATEUR_ENTREPRISE') return -1;
       if (b.role === 'ADMINISTRATEUR_ENTREPRISE') return 1;
       return 0;
     });
+
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  const paginatedUsers = filteredUsers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   const isOwner = currentUserProfile?.role === 'ADMINISTRATEUR_ENTREPRISE' || 
                   currentUserProfile?.role === 'GESTIONNAIRE_ENTREPRISE' ||
@@ -289,15 +302,15 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
               
               <div className="absolute -bottom-16 left-10 flex items-end gap-6">
                 <div className="w-32 h-32 rounded-[32px] bg-white p-1.5 shadow-2xl">
-                  <div className="w-full h-full rounded-[24px] bg-gradient-to-br from-kontrol-bg to-white flex items-center justify-center text-kontrol-blue font-black text-5xl border border-kontrol-border">
+                  <div className="w-full h-full rounded-[24px] bg-gradient-to-br from-kontrol-bg to-white flex items-center justify-center text-kontrol-blue font-extrabold text-5xl border border-kontrol-border">
                     {selectedUser.displayName.charAt(0).toUpperCase()}
                   </div>
                 </div>
                 <div className="pb-4">
-                  <h3 className="text-3xl font-black text-white tracking-tighter drop-shadow-md">{selectedUser.displayName}</h3>
+                  <h3 className="text-3xl font-extrabold text-white tracking-tighter drop-shadow-md">{selectedUser.displayName}</h3>
                   <div className="flex items-center gap-2 mt-2">
                     <span className={cn(
-                      "text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full backdrop-blur-md border",
+                      "text-[10px] font-extrabold uppercase tracking-[0.2em] px-3 py-1 rounded-full backdrop-blur-md border",
                       selectedUser.role === 'ADMINISTRATEUR_ENTREPRISE' ? "bg-kontrol-orange/20 text-white border-white/20" : 
                       selectedUser.role === 'GESTIONNAIRE_ENTREPRISE' ? "bg-indigo-500/20 text-white border-white/20" :
                       "bg-kontrol-blue/20 text-white border-white/20"
@@ -307,7 +320,7 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
                        selectedUser.role.replace('_', ' ')}
                     </span>
                     <span className={cn(
-                      "text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full backdrop-blur-md border",
+                      "text-[10px] font-extrabold uppercase tracking-[0.2em] px-3 py-1 rounded-full backdrop-blur-md border",
                       selectedUser.active !== false ? "bg-emerald-500/20 text-emerald-100 border-emerald-500/20" : "bg-rose-500/20 text-rose-100 border-rose-500/20"
                     )}>
                       {selectedUser.active !== false ? 'Compte Actif' : 'Compte Suspendu'}
@@ -321,7 +334,7 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
               {/* Information Grid */}
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-6">
-                  <h4 className="text-[11px] font-black text-kontrol-ink-muted uppercase tracking-[0.2em] border-b border-kontrol-border pb-2">Informations Générales</h4>
+                  <h4 className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-[0.2em] border-b border-kontrol-border pb-2">Informations Générales</h4>
                   
                   <div className="space-y-4">
                     <div className="flex items-start gap-3">
@@ -359,7 +372,7 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
                 </div>
 
                 <div className="space-y-6">
-                  <h4 className="text-[11px] font-black text-kontrol-ink-muted uppercase tracking-[0.2em] border-b border-kontrol-border pb-2">Sécurité & Accès</h4>
+                  <h4 className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-[0.2em] border-b border-kontrol-border pb-2">Sécurité & Accès</h4>
                   
                   <div className="space-y-4">
                     <div className="flex items-start gap-3">
@@ -369,13 +382,13 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
                       <div className="min-w-0 flex-1">
                         <p className="text-[10px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Identifiant Unique (UID)</p>
                         <div className="flex items-center justify-between gap-2">
-                          <p className="text-[11px] font-mono text-kontrol-dark truncate">{selectedUser.uid || selectedUser.id}</p>
+                          <p className="text-[11px] text-kontrol-dark truncate">{selectedUser.uid || selectedUser.id}</p>
                           <button 
                             onClick={() => {
                               navigator.clipboard.writeText(selectedUser.uid || selectedUser.id || '');
                               alert('ID copié !');
                             }}
-                            className="text-[10px] font-black text-kontrol-blue hover:underline shrink-0"
+                            className="text-[10px] font-extrabold text-kontrol-blue hover:underline shrink-0"
                           >
                             Copier
                           </button>
@@ -390,11 +403,11 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
                       <div className="min-w-0">
                         <p className="text-[10px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Mot de passe</p>
                         {currentUserProfile?.role === 'ADMINISTRATEUR_ENTREPRISE' || currentUserProfile?.uid === selectedUser.uid ? (
-                          <p className="text-[13px] font-bold text-kontrol-dark font-mono bg-kontrol-bg px-2 py-1 rounded mt-1">
+                          <p className="text-[13px] font-bold text-kontrol-dark bg-kontrol-bg px-2 py-1 rounded mt-1">
                             {selectedUser.password || 'Non défini'}
                           </p>
                         ) : (
-                          <p className="text-[11px] text-kontrol-ink-muted italic leading-tight">
+                          <p className="text-[11px] text-kontrol-ink-muted leading-tight">
                             Chiffré par INNOV'KORP. <br />
                             Non visible pour votre sécurité.
                           </p>
@@ -417,14 +430,14 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
                     <>
                       <button 
                         onClick={() => handleResetPassword(selectedUser.email, selectedUser.displayName)}
-                        className="px-5 py-2.5 bg-white border border-kontrol-border text-kontrol-dark text-[12px] font-black rounded-2xl hover:bg-kontrol-bg transition-all flex items-center gap-2"
+                        className="px-5 py-2.5 bg-white border border-kontrol-border text-kontrol-dark text-[12px] font-extrabold rounded-2xl hover:bg-kontrol-bg transition-all flex items-center gap-2"
                       >
                         <Lock size={14} /> Réinitialiser
                       </button>
                       <button 
                         onClick={() => toggleUserStatus(selectedUser.id!, selectedUser.active !== false, selectedUser.role)}
                         className={cn(
-                          "px-5 py-2.5 text-[12px] font-black rounded-2xl transition-all flex items-center gap-2",
+                          "px-5 py-2.5 text-[12px] font-extrabold rounded-2xl transition-all flex items-center gap-2",
                           selectedUser.active !== false 
                             ? "bg-rose-50 text-rose-600 hover:bg-rose-100" 
                             : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
@@ -463,14 +476,29 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
               placeholder="Rechercher par nom, email, rôle..."
               className="bg-transparent border-none outline-none text-[13px] w-full text-kontrol-ink placeholder:text-kontrol-ink-muted font-medium"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+          <div className="flex items-center gap-2 bg-kontrol-bg/50 border border-kontrol-border rounded-xl px-4 py-2">
+            <Calendar size={16} className="text-kontrol-ink-muted" />
+            <input 
+              type="date"
+              className="bg-transparent border-none outline-none text-[13px] font-medium text-kontrol-ink-soft"
+              value={filterDate}
+              onChange={(e) => {
+                setFilterDate(e.target.value);
+                setCurrentPage(1);
+              }}
             />
           </div>
         </div>
         <div className="bg-kontrol-blue/5 border border-kontrol-blue/10 rounded-2xl p-4 flex items-center justify-between">
           <div>
             <p className="text-[10px] font-bold text-kontrol-blue uppercase tracking-widest">Total Membres</p>
-            <p className="text-2xl font-black text-kontrol-blue">{users.length}</p>
+            <p className="text-2xl font-extrabold text-kontrol-blue">{users.length}</p>
           </div>
           <Users className="text-kontrol-blue/20" size={32} />
         </div>
@@ -496,15 +524,15 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
                     <Loader2 className="animate-spin text-kontrol-blue mx-auto" size={32} />
                   </td>
                 </tr>
-              ) : filteredUsers.length === 0 ? (
+              ) : paginatedUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-kontrol-ink-muted italic text-sm">
+                  <td colSpan={5} className="px-6 py-12 text-center text-kontrol-ink-muted text-sm">
                     Aucun utilisateur trouvé.
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((u) => (
-                  <tr key={u.id} className="hover:bg-kontrol-bg/30 transition-colors group">
+                paginatedUsers.map((u) => (
+                  <tr key={u.id} className="hover:bg-kontrol-bg/30 transition-colors group even:bg-kontrol-bg/10">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-kontrol-bg flex items-center justify-center text-kontrol-blue font-bold text-sm border border-kontrol-border group-hover:border-kontrol-blue/30 transition-colors">
@@ -588,6 +616,32 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
               )}
             </tbody>
           </table>
+        </div>
+        <div className="px-6 py-4 border-t border-kontrol-border bg-kontrol-bg/30 flex items-center justify-between">
+          <span className="text-[11.5px] text-kontrol-ink-muted font-medium">
+            {filteredUsers.length} utilisateurs au total
+          </span>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2">
+                <button 
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(prev => prev - 1)}
+                  className="p-1 rounded hover:bg-kontrol-border disabled:opacity-30 transition-colors"
+                >
+                  <ArrowDownLeft size={16} className="rotate-45" />
+                </button>
+                <span className="text-[11.5px] font-bold text-kontrol-dark">
+                  Page {currentPage} sur {totalPages}
+                </span>
+                <button 
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(prev => prev + 1)}
+                  className="p-1 rounded hover:bg-kontrol-border disabled:opacity-30 transition-colors"
+                >
+                  <ArrowUpRight size={16} className="rotate-45" />
+                </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -46,7 +46,7 @@ export function CompanySelector({ onSelect, selectedId }: CompanySelectorProps) 
         </div>
         <div className="text-left">
           <p className="text-[9px] font-bold text-kontrol-ink-muted uppercase tracking-widest leading-none">Vue Entreprise</p>
-          <p className="text-[12px] font-black text-kontrol-dark truncate max-w-[150px]">
+          <p className="text-[12px] font-extrabold text-kontrol-dark truncate max-w-[150px]">
             {selectedCompany?.name || 'Toutes les entreprises'}
           </p>
         </div>

@@ -12,7 +12,11 @@ import {
   Lock,
   Eye,
   EyeOff,
-  AlertCircle
+  AlertCircle,
+  Trash2,
+  AlertTriangle,
+  MapPin,
+  Globe
 } from 'lucide-react';
 import { UserProfile } from '../../types';
 import { 
@@ -25,6 +29,9 @@ import {
   logAction
 } from '../../firebase';
 import { cn } from '../../lib/utils';
+import { deleteCompanyAccount } from '../../services/dataResetService';
+import { ConfirmModal } from '../../components/common/ConfirmModal';
+import { countries } from '../../lib/countries';
 
 interface ProfileModuleProps {
   profile: UserProfile | null;
@@ -37,12 +44,17 @@ export function ProfileModule({ profile }: ProfileModuleProps) {
   const [passSuccess, setPassSuccess] = React.useState(false);
   const [passError, setPassError] = React.useState('');
   const [showPass, setShowPass] = React.useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+  const [deleteLoading, setDeleteLoading] = React.useState(false);
   
   const [formData, setFormData] = React.useState({
     displayName: profile?.displayName || '',
     email: profile?.email || '',
     companyName: profile?.companyName || '',
-    companyLogo: profile?.companyLogo || ''
+    companyLogo: profile?.companyLogo || '',
+    country: profile?.country || '',
+    city: profile?.city || '',
+    address: profile?.address || ''
   });
 
   const [passData, setPassData] = React.useState({
@@ -57,7 +69,10 @@ export function ProfileModule({ profile }: ProfileModuleProps) {
         displayName: profile.displayName || '',
         email: profile.email || '',
         companyName: profile.companyName || '',
-        companyLogo: profile.companyLogo || ''
+        companyLogo: profile.companyLogo || '',
+        country: profile.country || '',
+        city: profile.city || '',
+        address: profile.address || ''
       });
     }
   }, [profile]);
@@ -153,6 +168,20 @@ export function ProfileModule({ profile }: ProfileModuleProps) {
       }
     } finally {
       setPassLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!profile) return;
+    setDeleteLoading(true);
+    try {
+      await deleteCompanyAccount(profile.companyId);
+      await logout();
+    } catch (error) {
+      console.error("Error deleting account", error);
+    } finally {
+      setDeleteLoading(false);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -265,6 +294,56 @@ export function ProfileModule({ profile }: ProfileModuleProps) {
                   </div>
                 </div>
 
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Pays</label>
+                    <div className="relative">
+                      <select 
+                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px] appearance-none"
+                        value={formData.country}
+                        onChange={(e) => setFormData(prev => ({ ...prev, country: e.target.value, city: '' }))}
+                      >
+                        <option value="">Sélectionner un pays</option>
+                        {countries.map(c => (
+                          <option key={c.name} value={c.name}>{c.name}</option>
+                        ))}
+                      </select>
+                      <Globe size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Ville</label>
+                    <div className="relative">
+                      <select 
+                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px] appearance-none disabled:opacity-50"
+                        value={formData.city}
+                        disabled={!formData.country}
+                        onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                      >
+                        <option value="">Sélectionner une ville</option>
+                        {countries.find(c => c.name === formData.country)?.cities.map(city => (
+                          <option key={city} value={city}>{city}</option>
+                        ))}
+                      </select>
+                      <MapPin size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Adresse complète</label>
+                  <div className="relative">
+                    <input 
+                      type="text"
+                      className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px]"
+                      value={formData.address}
+                      placeholder="N° de rue, Quartier, etc."
+                      onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                    />
+                    <MapPin size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
+                  </div>
+                </div>
+
                 <div className="space-y-1.5">
                   <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Logo de l'entreprise</label>
                   <div className="flex items-center gap-4 p-4 bg-kontrol-bg/50 rounded-xl border border-dashed border-kontrol-border">
@@ -287,7 +366,7 @@ export function ProfileModule({ profile }: ProfileModuleProps) {
                           onChange={handleFileChange}
                         />
                       </label>
-                      <p className="text-[10px] text-kontrol-ink-muted mt-1 italic">Format PNG, JPG ou SVG recommandé</p>
+                      <p className="text-[10px] text-kontrol-ink-muted mt-1">Format PNG, JPG ou SVG recommandé</p>
                     </div>
                   </div>
                 </div>
@@ -393,8 +472,44 @@ export function ProfileModule({ profile }: ProfileModuleProps) {
               </button>
             </div>
           </form>
+
+          {/* Danger Zone for Company Owners */}
+          {profile.role === 'ADMINISTRATEUR_ENTREPRISE' && (
+            <div className="card p-8 space-y-6 mt-8 border-rose-100 bg-rose-50/30">
+              <div className="space-y-2">
+                <h4 className="text-[13px] font-extrabold text-rose-600 flex items-center gap-2">
+                  <AlertTriangle size={16} /> Zone de Danger
+                </h4>
+                <p className="text-[12px] text-rose-500 font-medium">
+                  La suppression de votre compte entreprise est irréversible. Toutes vos données (transactions, produits, clients, utilisateurs) seront définitivement supprimées.
+                </p>
+              </div>
+
+              <div className="pt-2">
+                <button 
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="px-6 py-2.5 bg-rose-600 text-white font-extrabold rounded-xl hover:bg-rose-700 transition-all shadow-md flex items-center gap-2"
+                >
+                  <Trash2 size={16} /> Supprimer définitivement mon compte entreprise
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        onClose={() => !deleteLoading && setShowDeleteConfirm(false)}
+        onConfirm={handleDeleteAccount}
+        title="Supprimer mon compte entreprise ?"
+        message="Cette action est irréversible. Toutes les données de votre entreprise seront supprimées et vous ne pourrez plus vous connecter. Êtes-vous certain de vouloir continuer ?"
+        confirmLabel="Oui, supprimer tout"
+        cancelLabel="Annuler"
+        variant="danger"
+        loading={deleteLoading}
+      />
     </div>
   );
 }

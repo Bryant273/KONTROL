@@ -44,7 +44,7 @@ export function BlueAIModule({ user }: BlueAIModuleProps) {
   return (
     <div className="h-[calc(100vh-8rem)] flex flex-col animate-in fade-in duration-500">
       <div className="mb-6">
-        <h2 className="text-3xl font-bold tracking-tight flex items-center">
+        <h2 className="text-3xl font-extrabold tracking-tight flex items-center">
           Blue AI
           <Sparkles className="ml-2 text-blue-500" size={24} />
         </h2>

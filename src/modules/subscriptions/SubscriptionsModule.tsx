@@ -66,7 +66,7 @@ const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
         <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto">
           <AlertCircle size={32} />
         </div>
-        <h3 className="text-lg font-black text-rose-900 uppercase tracking-tighter">Une erreur est survenue</h3>
+        <h3 className="text-lg font-extrabold text-rose-900 uppercase tracking-tighter">Une erreur est survenue</h3>
         <p className="text-sm text-rose-600 max-w-xs mx-auto">Le module de paiement n'a pas pu être chargé correctement.</p>
         <button 
           onClick={() => setHasError(false)}
@@ -86,9 +86,24 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [isPaying, setIsPaying] = useState(false);
   const [paymentStep, setPaymentStep] = useState<'SELECT' | 'SUCCESS'>('SELECT');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const currency = profile?.currency || 'XOF';
   const price = currency === 'XOF' ? 10000 : (currency === 'EUR' ? 15 : 16);
+
+  const billingHistory = [
+    { date: '15 Mars 2026', desc: 'Abonnement Mensuel Standard', amount: price, status: 'Payé' },
+    { date: '15 Février 2026', desc: 'Abonnement Mensuel Standard', amount: price, status: 'Payé' },
+    { date: '15 Janvier 2026', desc: 'Abonnement Mensuel Standard', amount: price, status: 'Payé' }
+  ];
+
+  const totalPages = Math.ceil(billingHistory.length / itemsPerPage);
+  const paginatedHistory = billingHistory.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   const isExpired = profile?.subscriptionEndDate ? new Date(profile.subscriptionEndDate) < new Date() : true;
 
   if (!profile) return null;
@@ -174,7 +189,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
       <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-black text-kontrol-dark tracking-tighter">Abonnement & Services</h2>
+          <h2 className="text-3xl font-extrabold text-kontrol-dark tracking-tighter">Abonnement & Services</h2>
           <p className="text-[14px] text-kontrol-ink-muted mt-1 font-medium">Gérez votre forfait Premium et accédez à vos factures</p>
         </div>
         <div className="flex items-center gap-2 px-4 py-2 bg-white border border-kontrol-border rounded-2xl shadow-sm">
@@ -195,12 +210,12 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
           <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-12">
             <div className="space-y-6 max-w-xl">
               <div className="flex items-center gap-3">
-                <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-white/10 text-white text-[11px] font-black uppercase tracking-[0.2em] border border-white/10 backdrop-blur-md">
+                <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-white/10 text-white text-[11px] font-extrabold uppercase tracking-[0.2em] border border-white/10 backdrop-blur-md">
                   <Zap size={14} className="mr-2 text-kontrol-blue fill-kontrol-blue" /> 
                   Forfait Actuel: {plan.name}
                 </div>
                 <div className={cn(
-                  "inline-flex items-center px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-[0.2em] border backdrop-blur-md",
+                  "inline-flex items-center px-4 py-1.5 rounded-full text-[11px] font-extrabold uppercase tracking-[0.2em] border backdrop-blur-md",
                   isExpired 
                     ? "bg-rose-500/20 text-rose-400 border-rose-500/30" 
                     : "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
@@ -209,7 +224,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                 </div>
               </div>
               
-              <h3 className="text-4xl sm:text-5xl font-black tracking-tighter leading-none">
+              <h3 className="text-4xl sm:text-5xl font-extrabold tracking-tighter leading-none">
                 Propulsez votre <span className="text-transparent bg-clip-text bg-gradient-to-r from-kontrol-blue to-kontrol-orange">Boutique</span> au niveau supérieur.
               </h3>
               
@@ -219,7 +234,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                     <Calendar size={20} className="text-kontrol-blue" />
                   </div>
                   <div>
-                    <p className="text-[10px] uppercase font-black tracking-widest text-white/40">Prochaine échéance</p>
+                    <p className="text-[10px] uppercase font-extrabold tracking-widest text-white/40">Prochaine échéance</p>
                     <p className="text-lg font-bold text-white">
                       {profile.subscriptionEndDate ? new Date(profile.subscriptionEndDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '15 Avril 2026'}
                     </p>
@@ -230,7 +245,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                     <CreditCard size={20} className="text-kontrol-orange" />
                   </div>
                   <div>
-                    <p className="text-[10px] uppercase font-black tracking-widest text-white/40">Tarif Mensuel</p>
+                    <p className="text-[10px] uppercase font-extrabold tracking-widest text-white/40">Tarif Mensuel</p>
                     <p className="text-lg font-bold text-white">{formatCurrency(price, currency)} <span className="text-xs font-normal text-white/50">/ mois</span></p>
                   </div>
                 </div>
@@ -241,15 +256,15 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
               <div className="bg-white/5 p-8 rounded-3xl border border-white/10 backdrop-blur-xl space-y-6">
                 <div className="text-center">
                   <p className="text-[11px] font-bold text-white/50 uppercase tracking-widest mb-1">Total à payer</p>
-                  <p className="text-3xl font-black text-white">{formatCurrency(price, currency)}</p>
+                  <p className="text-3xl font-extrabold text-white">{formatCurrency(price, currency)}</p>
                 </div>
                 <button 
                   onClick={() => setIsPaying(true)}
-                  className="w-full py-4 bg-white text-kontrol-dark rounded-2xl font-black text-sm hover:bg-kontrol-blue hover:text-white transition-all duration-300 shadow-xl flex items-center justify-center gap-2 group/btn"
+                  className="w-full py-4 bg-white text-kontrol-dark rounded-2xl font-extrabold text-sm hover:bg-kontrol-blue hover:text-white transition-all duration-300 shadow-xl flex items-center justify-center gap-2 group/btn"
                 >
                   Renouveler <ArrowRight size={16} className="group-hover/btn:translate-x-1 transition-transform" />
                 </button>
-                <p className="text-[10px] text-center text-white/30 italic">Paiement sécurisé via Mobile Money ou Carte</p>
+                <p className="text-[10px] text-center text-white/30">Paiement sécurisé via Mobile Money ou Carte</p>
               </div>
             </div>
           </div>
@@ -260,7 +275,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
       <div className="grid md:grid-cols-3 gap-6">
         <div className="md:col-span-2 card p-8 grid sm:grid-cols-2 gap-x-12 gap-y-6">
           <div className="col-span-full mb-2">
-            <h4 className="text-lg font-black text-kontrol-dark flex items-center gap-2">
+            <h4 className="text-lg font-extrabold text-kontrol-dark flex items-center gap-2">
               <Package size={20} className="text-kontrol-blue" /> Inclus dans votre offre
             </h4>
           </div>
@@ -279,7 +294,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
             <Shield size={32} />
           </div>
           <div>
-            <h4 className="text-lg font-black text-kontrol-dark">Protection Totale</h4>
+            <h4 className="text-lg font-extrabold text-kontrol-dark">Protection Totale</h4>
             <p className="text-[12px] text-kontrol-ink-muted mt-2 leading-relaxed">
               Vos données sont chiffrées et sauvegardées quotidiennement sur nos serveurs sécurisés.
             </p>
@@ -290,7 +305,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
       {/* Billing History */}
       <div className="space-y-4">
         <div className="flex items-center justify-between px-2">
-          <h4 className="text-lg font-black text-kontrol-dark flex items-center gap-2">
+          <h4 className="text-lg font-extrabold text-kontrol-dark flex items-center gap-2">
             <HistoryIcon size={20} className="text-kontrol-orange" /> Historique des paiements
           </h4>
           <button className="text-[11px] font-bold text-kontrol-blue uppercase tracking-widest hover:underline">Voir tout</button>
@@ -301,20 +316,16 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-kontrol-bg/50 border-b border-kontrol-border">
-                  <th className="px-8 py-5 text-[11px] font-black uppercase tracking-[0.2em] text-kontrol-ink-muted">Date de paiement</th>
-                  <th className="px-8 py-5 text-[11px] font-black uppercase tracking-[0.2em] text-kontrol-ink-muted">Description</th>
-                  <th className="px-8 py-5 text-[11px] font-black uppercase tracking-[0.2em] text-kontrol-ink-muted">Montant</th>
-                  <th className="px-8 py-5 text-[11px] font-black uppercase tracking-[0.2em] text-kontrol-ink-muted">Statut</th>
-                  <th className="px-8 py-5 text-[11px] font-black uppercase tracking-[0.2em] text-kontrol-ink-muted text-right">Action</th>
+                  <th className="px-8 py-5 text-[11px] font-extrabold uppercase tracking-[0.2em] text-kontrol-ink-muted">Date de paiement</th>
+                  <th className="px-8 py-5 text-[11px] font-extrabold uppercase tracking-[0.2em] text-kontrol-ink-muted">Description</th>
+                  <th className="px-8 py-5 text-[11px] font-extrabold uppercase tracking-[0.2em] text-kontrol-ink-muted">Montant</th>
+                  <th className="px-8 py-5 text-[11px] font-extrabold uppercase tracking-[0.2em] text-kontrol-ink-muted">Statut</th>
+                  <th className="px-8 py-5 text-[11px] font-extrabold uppercase tracking-[0.2em] text-kontrol-ink-muted text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-kontrol-border">
-                {[
-                  { date: '15 Mars 2026', desc: 'Abonnement Mensuel Standard', amount: price, status: 'Payé' },
-                  { date: '15 Février 2026', desc: 'Abonnement Mensuel Standard', amount: price, status: 'Payé' },
-                  { date: '15 Janvier 2026', desc: 'Abonnement Mensuel Standard', amount: price, status: 'Payé' }
-                ].map((item, i) => (
-                  <tr key={i} className="hover:bg-kontrol-bg/30 transition-colors group">
+                {paginatedHistory.map((item, i) => (
+                  <tr key={i} className={cn("hover:bg-kontrol-bg/30 transition-colors group", i % 2 === 0 ? "bg-white" : "bg-kontrol-bg/10")}>
                     <td className="px-8 py-5 text-[13px] text-kontrol-dark font-bold">{item.date}</td>
                     <td className="px-8 py-5">
                       <div className="flex items-center gap-2">
@@ -324,9 +335,9 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                         <span className="text-[13px] text-kontrol-ink-soft font-medium">{item.desc}</span>
                       </div>
                     </td>
-                    <td className="px-8 py-5 text-[14px] font-black text-kontrol-dark">{formatCurrency(item.amount, currency)}</td>
+                    <td className="px-8 py-5 text-[14px] font-extrabold text-kontrol-dark">{formatCurrency(item.amount, currency)}</td>
                     <td className="px-8 py-5">
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-700 uppercase tracking-widest">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-700 uppercase tracking-widest">
                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                         {item.status}
                       </span>
@@ -334,7 +345,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                     <td className="px-8 py-5 text-right">
                       <button 
                         onClick={() => setSelectedInvoice(item)}
-                        className="px-4 py-2 bg-kontrol-bg text-kontrol-ink-soft hover:bg-kontrol-dark hover:text-white rounded-xl text-[11px] font-black transition-all uppercase tracking-widest"
+                        className="px-4 py-2 bg-kontrol-bg text-kontrol-ink-soft hover:bg-kontrol-dark hover:text-white rounded-xl text-[11px] font-extrabold transition-all uppercase tracking-widest"
                       >
                         Facture
                       </button>
@@ -344,6 +355,32 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
               </tbody>
             </table>
           </div>
+          {totalPages > 1 && (
+            <div className="px-8 py-4 border-t border-kontrol-border bg-kontrol-bg/30 flex items-center justify-between">
+              <span className="text-[11px] text-kontrol-ink-muted font-extrabold uppercase tracking-widest">
+                {billingHistory.length} paiements
+              </span>
+              <div className="flex items-center gap-4">
+                <button 
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(prev => prev - 1)}
+                  className="p-2 rounded-xl hover:bg-white disabled:opacity-30 transition-all shadow-sm border border-transparent hover:border-kontrol-border"
+                >
+                  <ArrowRight size={16} className="rotate-180" />
+                </button>
+                <span className="text-[11px] font-extrabold text-kontrol-dark uppercase tracking-widest">
+                  Page {currentPage} / {totalPages}
+                </span>
+                <button 
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(prev => prev + 1)}
+                  className="p-2 rounded-xl hover:bg-white disabled:opacity-30 transition-all shadow-sm border border-transparent hover:border-kontrol-border"
+                >
+                  <ArrowRight size={16} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
       {/* Payment Modal */}
@@ -362,7 +399,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                     <CreditCard size={20} />
                   </div>
                   <div>
-                    <h3 className="text-lg font-black text-kontrol-dark tracking-tight">Renouvellement</h3>
+                    <h3 className="text-lg font-extrabold text-kontrol-dark tracking-tight">Renouvellement</h3>
                     <p className="text-[10px] text-kontrol-ink-muted font-bold uppercase tracking-widest">Paiement Sécurisé</p>
                   </div>
                 </div>
@@ -382,12 +419,12 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                   <div className="space-y-6">
                     <div className="text-center">
                       <p className="text-[10px] font-bold text-kontrol-ink-muted uppercase tracking-widest mb-0.5">Montant à régler</p>
-                      <p className="text-3xl font-black text-kontrol-dark">{formatCurrency(price, currency)}</p>
+                      <p className="text-3xl font-extrabold text-kontrol-dark">{formatCurrency(price, currency)}</p>
                     </div>
 
                     <div className="space-y-4">
                       <div className="p-5 bg-kontrol-bg rounded-2xl border border-kontrol-border space-y-4">
-                        <p className="text-[10px] font-black text-kontrol-ink-muted uppercase tracking-widest text-center">Mobile Money & Carte</p>
+                        <p className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest text-center">Mobile Money & Carte</p>
                         
                         <KkiapayButton 
                           amount={price}
@@ -404,7 +441,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                         <div className="absolute inset-0 flex items-center">
                           <span className="w-full border-t border-kontrol-border"></span>
                         </div>
-                        <div className="relative flex justify-center text-[10px] uppercase font-black tracking-widest">
+                        <div className="relative flex justify-center text-[10px] uppercase font-extrabold tracking-widest">
                           <span className="bg-white px-4 text-kontrol-ink-muted">Ou utiliser le widget officiel</span>
                         </div>
                       </div>
@@ -440,7 +477,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                       <CheckCircle2 size={32} />
                     </div>
                     <div>
-                      <h4 className="text-xl font-black text-kontrol-dark tracking-tight">Paiement Réussi !</h4>
+                      <h4 className="text-xl font-extrabold text-kontrol-dark tracking-tight">Paiement Réussi !</h4>
                       <p className="text-[12px] text-kontrol-ink-muted mt-1.5">
                         Votre abonnement a été prolongé de 30 jours avec succès.
                       </p>
@@ -451,7 +488,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                           setIsPaying(false);
                           setPaymentStep('SELECT');
                         }}
-                        className="w-full py-3.5 bg-kontrol-dark text-white rounded-xl font-black text-xs hover:bg-kontrol-blue transition-all shadow-xl"
+                        className="w-full py-3.5 bg-kontrol-dark text-white rounded-xl font-extrabold text-xs hover:bg-kontrol-blue transition-all shadow-xl"
                       >
                         Terminer
                       </button>
@@ -474,7 +511,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                   <FileText size={24} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-black text-kontrol-dark tracking-tight">Détails Facture</h3>
+                  <h3 className="text-xl font-extrabold text-kontrol-dark tracking-tight">Détails Facture</h3>
                   <p className="text-[11px] text-kontrol-ink-muted font-bold uppercase tracking-widest">KONTROL PREMIUM SERVICES</p>
                 </div>
               </div>
@@ -491,30 +528,30 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                 {profile.companyLogo ? (
                   <img src={profile.companyLogo} alt="Logo" className="h-16 object-contain" />
                 ) : (
-                  <div className="text-2xl font-black text-kontrol-dark tracking-tighter italic">KONTROL</div>
+                  <div className="text-2xl font-extrabold text-kontrol-dark tracking-tighter">KONTROL</div>
                 )}
               </div>
 
               <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-8">
                   <div className="space-y-1">
-                    <p className="text-[10px] font-black text-kontrol-ink-muted uppercase tracking-widest">Période</p>
+                    <p className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">Période</p>
                     <p className="text-sm font-bold text-kontrol-dark">{selectedInvoice.date}</p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[10px] font-black text-kontrol-ink-muted uppercase tracking-widest">Mode de paiement</p>
+                    <p className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">Mode de paiement</p>
                     <p className="text-sm font-bold text-kontrol-dark">Mobile Money / Carte</p>
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <p className="text-[10px] font-black text-kontrol-ink-muted uppercase tracking-widest">Libellé</p>
+                  <p className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">Libellé</p>
                   <p className="text-sm font-bold text-kontrol-dark">{selectedInvoice.desc}</p>
                 </div>
 
                 <div className="pt-6 border-t border-kontrol-border flex items-center justify-between">
-                  <p className="text-lg font-black text-kontrol-dark uppercase tracking-tighter">Montant Total</p>
-                  <p className="text-3xl font-black text-kontrol-blue">{formatCurrency(selectedInvoice.amount, currency)}</p>
+                  <p className="text-lg font-extrabold text-kontrol-dark uppercase tracking-tighter">Montant Total</p>
+                  <p className="text-3xl font-extrabold text-kontrol-blue">{formatCurrency(selectedInvoice.amount, currency)}</p>
                 </div>
               </div>
             </div>
@@ -522,13 +559,13 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
             <div className="p-8 bg-kontrol-bg/30 flex gap-4">
               <button 
                 onClick={() => handleExportInvoice(selectedInvoice)}
-                className="flex-1 btn-primary py-4 font-black text-sm flex items-center justify-center gap-2 shadow-xl"
+                className="flex-1 btn-primary py-4 font-extrabold text-sm flex items-center justify-center gap-2 shadow-xl"
               >
                 <Printer size={18} /> Imprimer PDF
               </button>
               <button 
                 onClick={() => setSelectedInvoice(null)}
-                className="flex-1 btn-outline py-4 font-black text-sm"
+                className="flex-1 btn-outline py-4 font-extrabold text-sm"
               >
                 Fermer
               </button>

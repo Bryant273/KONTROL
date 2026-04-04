@@ -17,6 +17,8 @@ export interface UserProfile {
   logoUrl?: string;
   phone?: string;
   country?: string;
+  city?: string;
+  address?: string;
   currency?: string;
   language?: string;
   active?: boolean;

@@ -204,11 +204,11 @@ export function KkiapayButton({
           <QrCode size={32} />
         </div>
         <div>
-          <h4 className="text-base font-black text-kontrol-dark uppercase tracking-tighter">Scannez pour payer</h4>
+          <h4 className="text-base font-extrabold text-kontrol-dark uppercase tracking-tighter">Scannez pour payer</h4>
           <p className="text-[11px] text-kontrol-ink-muted mt-2 leading-relaxed">
             Ouvrez votre application de paiement et scannez ce code QR pour valider le paiement de <span className="font-bold text-kontrol-dark">{amount} F CFA</span>.
           </p>
-          <div className="mt-2 inline-flex items-center px-3 py-1 rounded-full bg-kontrol-blue/10 text-kontrol-blue text-[9px] font-black uppercase tracking-widest">
+          <div className="mt-2 inline-flex items-center px-3 py-1 rounded-full bg-kontrol-blue/10 text-kontrol-blue text-[9px] font-extrabold uppercase tracking-widest">
             Code QR disponible pour tous les opérateurs
           </div>
         </div>
@@ -224,7 +224,7 @@ export function KkiapayButton({
         
         <button 
           onClick={() => setStep('CHANNEL')}
-          className="text-[9px] font-black text-kontrol-ink-muted uppercase tracking-widest hover:text-kontrol-blue transition-colors"
+          className="text-[9px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest hover:text-kontrol-blue transition-colors"
         >
           Annuler le paiement
         </button>
@@ -250,7 +250,7 @@ export function KkiapayButton({
           </div>
         </div>
         <div>
-          <h4 className="text-base font-black text-kontrol-dark uppercase tracking-tighter">Validation sur mobile</h4>
+          <h4 className="text-base font-extrabold text-kontrol-dark uppercase tracking-tighter">Validation sur mobile</h4>
           <p className="text-[11px] text-kontrol-ink-muted mt-2 leading-relaxed">
             {selectedChannel === 'ORANGE' ? (
               <>
@@ -276,7 +276,7 @@ export function KkiapayButton({
         </div>
 
         <div className="pt-4 border-t border-kontrol-border">
-          <p className="text-[9px] font-black text-kontrol-ink-muted uppercase tracking-widest">Code QR disponible pour tous</p>
+          <p className="text-[9px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">Code QR disponible pour tous</p>
         </div>
       </div>
     );
@@ -289,7 +289,7 @@ export function KkiapayButton({
           <CheckCircle2 size={24} />
         </div>
         <div>
-          <h4 className="text-base font-black text-emerald-900 uppercase tracking-tighter">Paiement Confirmé</h4>
+          <h4 className="text-base font-extrabold text-emerald-900 uppercase tracking-tighter">Paiement Confirmé</h4>
           <p className="text-[11px] text-emerald-600 mt-1">Votre abonnement est maintenant actif.</p>
         </div>
       </div>
@@ -303,12 +303,12 @@ export function KkiapayButton({
           <AlertCircle size={24} />
         </div>
         <div>
-          <h4 className="text-base font-black text-rose-900 uppercase tracking-tighter">Erreur de paiement</h4>
+          <h4 className="text-base font-extrabold text-rose-900 uppercase tracking-tighter">Erreur de paiement</h4>
           <p className="text-[11px] text-rose-500 mt-2 leading-relaxed">{error}</p>
         </div>
         <button 
           onClick={() => setStep('CHANNEL')}
-          className="w-full py-3 bg-rose-600 text-white rounded-xl font-black text-xs hover:bg-rose-700 transition-all shadow-xl shadow-rose-600/20"
+          className="w-full py-3 bg-rose-600 text-white rounded-xl font-extrabold text-xs hover:bg-rose-700 transition-all shadow-xl shadow-rose-600/20"
         >
           Réessayer
         </button>
@@ -320,7 +320,7 @@ export function KkiapayButton({
     <div className="space-y-5 animate-in fade-in duration-500">
       {step === 'CHANNEL' ? (
         <div className="space-y-4">
-          <p className="text-[10px] font-black text-kontrol-ink-muted uppercase tracking-widest text-center">Choisissez votre mode de paiement</p>
+          <p className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest text-center">Choisissez votre mode de paiement</p>
           <div className="grid grid-cols-2 gap-2">
             {channels.map((channel) => (
               <button
@@ -334,7 +334,7 @@ export function KkiapayButton({
                 <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center p-2 shadow-sm group-hover:scale-110 transition-transform", channel.color)}>
                   <img src={channel.logo} alt={channel.name} className="w-full h-full object-contain brightness-0 invert" referrerPolicy="no-referrer" />
                 </div>
-                <span className="text-[10px] font-black text-kontrol-dark uppercase tracking-widest">{channel.name}</span>
+                <span className="text-[10px] font-extrabold text-kontrol-dark uppercase tracking-widest">{channel.name}</span>
                 <div className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                   <ChevronRight size={12} className="text-kontrol-blue" />
                 </div>
@@ -347,12 +347,12 @@ export function KkiapayButton({
           <div className="flex items-center justify-between">
             <button 
               onClick={() => setStep('PHONE')}
-              className="text-[9px] font-black text-kontrol-ink-muted uppercase tracking-widest hover:text-kontrol-blue transition-colors flex items-center gap-1"
+              className="text-[9px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest hover:text-kontrol-blue transition-colors flex items-center gap-1"
             >
               ← Retour
             </button>
             <div className="flex items-center gap-2">
-              <span className="text-[9px] font-black text-kontrol-ink-muted uppercase tracking-widest">Orange Money</span>
+              <span className="text-[9px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">Orange Money</span>
             </div>
           </div>
 
@@ -367,7 +367,7 @@ export function KkiapayButton({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-kontrol-ink-muted uppercase tracking-widest ml-1">Code de paiement (OTP)</label>
+              <label className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest ml-1">Code de paiement (OTP)</label>
               <input 
                 type="text"
                 value={otp}
@@ -380,7 +380,7 @@ export function KkiapayButton({
             <button 
               onClick={handleStartPayment}
               disabled={otp.length < 4 || isLoading}
-              className="w-full h-12 bg-kontrol-dark text-white rounded-xl font-black text-xs hover:bg-kontrol-blue transition-all shadow-xl flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full h-12 bg-kontrol-dark text-white rounded-xl font-extrabold text-xs hover:bg-kontrol-blue transition-all shadow-xl flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <Loader2 size={16} className="animate-spin" />
@@ -397,15 +397,15 @@ export function KkiapayButton({
           <div className="flex items-center justify-between">
             <button 
               onClick={() => setStep('CHANNEL')}
-              className="text-[9px] font-black text-kontrol-ink-muted uppercase tracking-widest hover:text-kontrol-blue transition-colors flex items-center gap-1"
+              className="text-[9px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest hover:text-kontrol-blue transition-colors flex items-center gap-1"
             >
               ← Retour
             </button>
             <div className="flex items-center gap-2">
-              <span className="text-[9px] font-black text-kontrol-ink-muted uppercase tracking-widest">Canal:</span>
+              <span className="text-[9px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">Canal:</span>
               <div className={cn("px-2.5 py-0.5 rounded-full flex items-center gap-1.5", channels.find(c => c.id === selectedChannel)?.color)}>
                 <img src={channels.find(c => c.id === selectedChannel)?.logo} alt="" className="h-2.5 brightness-0 invert" />
-                <span className="text-[8px] font-black text-white uppercase tracking-widest">{selectedChannel}</span>
+                <span className="text-[8px] font-extrabold text-white uppercase tracking-widest">{selectedChannel}</span>
               </div>
             </div>
           </div>
@@ -414,14 +414,14 @@ export function KkiapayButton({
             <div className="space-y-1.5">
               {selectedChannel === 'WAVE' ? (
                 <div className="p-4 bg-kontrol-blue/5 border border-kontrol-blue/10 rounded-xl text-center space-y-2">
-                  <p className="text-[10px] font-black text-kontrol-blue uppercase tracking-widest">Paiement Wave</p>
+                  <p className="text-[10px] font-extrabold text-kontrol-blue uppercase tracking-widest">Paiement Wave</p>
                   <p className="text-[11px] text-kontrol-ink-muted leading-relaxed">
                     Cliquez sur le bouton ci-dessous pour générer votre code QR unique et payer avec l'application Wave.
                   </p>
                 </div>
               ) : (
                 <>
-                  <label className="text-[10px] font-black text-kontrol-ink-muted uppercase tracking-widest ml-1">Numéro de téléphone</label>
+                  <label className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest ml-1">Numéro de téléphone</label>
                   <div className="flex gap-2">
                     {/* Country Selector */}
                     <div className="relative shrink-0">
@@ -481,7 +481,7 @@ export function KkiapayButton({
             <button 
               onClick={handleStartPayment}
               disabled={(selectedChannel !== 'WAVE' && phoneNumber.length < 8) || isLoading}
-              className="w-full h-12 bg-kontrol-dark text-white rounded-xl font-black text-xs hover:bg-kontrol-blue transition-all shadow-xl flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full h-12 bg-kontrol-dark text-white rounded-xl font-extrabold text-xs hover:bg-kontrol-blue transition-all shadow-xl flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <Loader2 size={16} className="animate-spin" />
@@ -496,7 +496,7 @@ export function KkiapayButton({
         </div>
       )}
 
-      <p className="text-[9px] text-center text-kontrol-ink-muted uppercase font-black tracking-widest opacity-50">
+      <p className="text-[9px] text-center text-kontrol-ink-muted uppercase font-extrabold tracking-widest opacity-50">
         Paiement direct via KkiaPay API
       </p>
     </div>

@@ -4,6 +4,8 @@ import {
   Plus, 
   ArrowUpCircle, 
   ArrowDownCircle, 
+  ArrowDownLeft,
+  ArrowUpRight,
   Search, 
   Filter,
   CreditCard,
@@ -17,9 +19,12 @@ import {
   X,
   CheckCircle2,
   Trash2,
-  Calendar
+  Calendar,
+  FileText,
+  Table
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { exportToPDF, exportToExcel } from '../../lib/export';
 import { Wallet, Payment, UserProfile, Tiers } from '../../types';
 import { cn, formatCurrency } from '../../lib/utils';
 import { 
@@ -39,6 +44,7 @@ import {
 } from '../../firebase';
 import { handleFirestoreError, OperationType } from '../../lib/firestore-errors';
 import { ModuleActivityLog } from '../../components/common/ModuleActivityLog';
+import { ConfirmModal } from '../../components/common/ConfirmModal';
 
 interface FinanceModuleProps {
   user: FirebaseUser;
@@ -51,8 +57,11 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
   const [tiers, setTiers] = React.useState<Tiers[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [isAddingPayment, setIsAddingPayment] = React.useState(false);
+  const [isDeletingPayment, setIsDeletingPayment] = React.useState<Payment | null>(null);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [filterType, setFilterType] = React.useState<'ALL' | 'ENCAISSEMENT' | 'DECAISSEMENT'>('ALL');
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const itemsPerPage = 10;
   
   // Period Filter
   const today = new Date();
@@ -137,12 +146,12 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
     }
   };
 
-  const handleDeletePayment = async (payment: Payment) => {
-    if (!window.confirm("Supprimer ce mouvement de trésorerie ?")) return;
+  const handleDeletePayment = async () => {
+    if (!isDeletingPayment) return;
     
     setLoading(true);
     try {
-      await deleteDoc(doc(db, 'payments', payment.id));
+      await deleteDoc(doc(db, 'payments', isDeletingPayment.id));
       
       if (currentUserProfile) {
         await logAction(
@@ -150,9 +159,10 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
           user.uid,
           currentUserProfile.displayName,
           "Mouvement: Supprimé",
-          `Montant: ${formatCurrency(payment.montant)} (${payment.type})`
+          `Montant: ${formatCurrency(isDeletingPayment.montant)} (${isDeletingPayment.type})`
         );
       }
+      setIsDeletingPayment(null);
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, 'payments', user);
     } finally {
@@ -176,6 +186,37 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
     return matchesSearch && matchesType;
   });
 
+  const totalPages = Math.ceil(filteredPayments.length / itemsPerPage);
+  const paginatedPayments = filteredPayments.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const handleExportPDF = () => {
+    const headers = ['Date', 'Description', 'Tiers', 'Mode', 'Type', 'Montant'];
+    const data = filteredPayments.map(p => [
+      new Date(p.date).toLocaleDateString(),
+      p.description,
+      p.tiersNom || '—',
+      p.modePaiement,
+      p.type,
+      formatCurrency(p.montant)
+    ]);
+    exportToPDF('Journal de Trésorerie - KONTROL', headers, data, 'Tresorerie_KONTROL', currentUserProfile?.companyLogo || currentUserProfile?.logoUrl);
+  };
+
+  const handleExportExcel = () => {
+    const data = filteredPayments.map(p => ({
+      Date: new Date(p.date).toLocaleDateString(),
+      Description: p.description,
+      Tiers: p.tiersNom || '—',
+      Mode: p.modePaiement,
+      Type: p.type,
+      Montant: p.montant
+    }));
+    exportToExcel(data, 'Tresorerie_KONTROL');
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -184,6 +225,18 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
           <p className="text-[13px] text-kontrol-ink-muted mt-1">Suivi des flux de trésorerie et mouvements financiers</p>
         </div>
         <div className="flex gap-2">
+          <button 
+            onClick={handleExportPDF}
+            className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2"
+          >
+            <FileText size={14} /> PDF
+          </button>
+          <button 
+            onClick={handleExportExcel}
+            className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2"
+          >
+            <Table size={14} /> Excel
+          </button>
           <button 
             onClick={() => setIsAddingPayment(true)}
             className="btn-primary text-xs py-1.5 px-4 flex items-center gap-2"
@@ -200,7 +253,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
             <WalletIcon size={80} />
           </div>
           <p className="text-[11px] font-bold text-white/40 uppercase tracking-widest mb-1">Trésorerie Totale</p>
-          <h3 className="text-3xl font-black text-kontrol-blue">{formatCurrency(totalBalance)}</h3>
+          <h3 className="text-3xl font-extrabold text-kontrol-blue">{formatCurrency(totalBalance)}</h3>
           <div className="mt-4 flex items-center gap-2 text-[11px] text-white/60">
             <TrendingUp size={14} className="text-emerald-400" />
             <span>Solde actuel de votre trésorerie</span>
@@ -209,7 +262,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
 
         <div className="card p-6 bg-white border border-kontrol-border">
           <p className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest mb-1">Encaissements (Période)</p>
-          <h3 className="text-2xl font-black text-emerald-600">
+          <h3 className="text-2xl font-extrabold text-emerald-600">
             {formatCurrency(periodPayments.filter(p => p.type === 'ENCAISSEMENT').reduce((acc, p) => acc + p.montant, 0))}
           </h3>
           <div className="mt-4 flex items-center gap-2 text-[11px] text-emerald-600/70">
@@ -220,7 +273,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
 
         <div className="card p-6 bg-white border border-kontrol-border">
           <p className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest mb-1">Décaissements (Période)</p>
-          <h3 className="text-2xl font-black text-rose-600">
+          <h3 className="text-2xl font-extrabold text-rose-600">
             {formatCurrency(periodPayments.filter(p => p.type === 'DECAISSEMENT').reduce((acc, p) => acc + p.montant, 0))}
           </h3>
           <div className="mt-4 flex items-center gap-2 text-[11px] text-rose-600/70">
@@ -260,14 +313,20 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
             placeholder="Rechercher description, tiers..."
             className="bg-transparent border-none outline-none text-[13px] w-full text-kontrol-ink placeholder:text-kontrol-ink-muted"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
           />
         </div>
 
         <select 
           className="px-3 py-1.5 bg-white border border-kontrol-border rounded-lg text-[12px] font-bold focus:outline-none focus:border-kontrol-blue"
           value={filterType}
-          onChange={(e) => setFilterType(e.target.value as any)}
+          onChange={(e) => {
+            setFilterType(e.target.value as any);
+            setCurrentPage(1);
+          }}
         >
           <option value="ALL">Tous les flux</option>
           <option value="ENCAISSEMENT">Entrées uniquement</option>
@@ -277,17 +336,17 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
 
       <div className="card overflow-hidden">
         <div className="p-4 border-b border-kontrol-border flex flex-wrap items-center justify-between gap-4 bg-kontrol-bg/30">
-          <h4 className="text-[11px] font-black text-kontrol-ink-muted uppercase tracking-widest">Historique des Flux</h4>
+          <h4 className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">Historique des Flux</h4>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[13px]">
             <thead>
               <tr className="bg-kontrol-bg/50 border-b border-kontrol-border">
-                <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-kontrol-ink-muted">Date</th>
-                <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-kontrol-ink-muted">Description / Tiers</th>
-                <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-kontrol-ink-muted">Mode</th>
-                <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-kontrol-ink-muted text-right">Montant</th>
+                <th className="px-4 py-3 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Date</th>
+                <th className="px-4 py-3 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Description / Tiers</th>
+                <th className="px-4 py-3 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Mode</th>
+                <th className="px-4 py-3 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted text-right">Montant</th>
                 <th className="px-4 py-3 w-10"></th>
               </tr>
             </thead>
@@ -300,13 +359,13 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
                 </tr>
               ) : filteredPayments.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-12 text-center text-kontrol-ink-muted italic">
+                  <td colSpan={5} className="px-4 py-12 text-center text-kontrol-ink-muted">
                     Aucun mouvement enregistré sur cette période.
                   </td>
                 </tr>
               ) : (
-                filteredPayments.map(payment => (
-                  <tr key={payment.id} className="hover:bg-kontrol-bg/50 transition-colors group">
+                paginatedPayments.map((payment, idx) => (
+                  <tr key={payment.id} className={cn("hover:bg-kontrol-bg/50 transition-colors group", idx % 2 === 0 ? "bg-white" : "bg-kontrol-bg/10")}>
                     <td className="px-4 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
                         <div className={cn(
@@ -328,14 +387,14 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
                       </span>
                     </td>
                     <td className={cn(
-                      "px-4 py-4 text-right font-black text-[14px]",
+                      "px-4 py-4 text-right font-extrabold text-[14px]",
                       payment.type === 'ENCAISSEMENT' ? "text-emerald-600" : "text-rose-600"
                     )}>
                       {payment.type === 'ENCAISSEMENT' ? '+' : '-'} {formatCurrency(payment.montant)}
                     </td>
                     <td className="px-4 py-4 text-center">
                       <button 
-                        onClick={() => handleDeletePayment(payment)}
+                        onClick={() => setIsDeletingPayment(payment)}
                         className="opacity-0 group-hover:opacity-100 p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
                       >
                         <Trash2 size={14} />
@@ -347,6 +406,32 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
             </tbody>
           </table>
         </div>
+        {totalPages > 1 && (
+          <div className="px-4 py-3 border-t border-kontrol-border bg-kontrol-bg/30 flex items-center justify-between">
+            <span className="text-[11.5px] text-kontrol-ink-muted font-medium">
+              {filteredPayments.length} flux au total
+            </span>
+            <div className="flex items-center gap-2">
+              <button 
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => prev - 1)}
+                className="p-1 rounded hover:bg-kontrol-border disabled:opacity-30 transition-colors"
+              >
+                <ArrowDownLeft size={16} className="rotate-45" />
+              </button>
+              <span className="text-[11.5px] font-bold text-kontrol-dark">
+                Page {currentPage} sur {totalPages}
+              </span>
+              <button 
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(prev => prev + 1)}
+                className="p-1 rounded hover:bg-kontrol-border disabled:opacity-30 transition-colors"
+              >
+                <ArrowUpRight size={16} className="rotate-45" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Add Payment Modal */}
@@ -369,7 +454,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
                   type="button"
                   onClick={() => setNewPayment({...newPayment, type: 'ENCAISSEMENT'})}
                   className={cn(
-                    "flex-1 py-2 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all",
+                    "flex-1 py-2 rounded-lg text-[11px] font-extrabold uppercase tracking-widest transition-all",
                     newPayment.type === 'ENCAISSEMENT' ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "text-kontrol-ink-muted"
                   )}
                 >
@@ -379,7 +464,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
                   type="button"
                   onClick={() => setNewPayment({...newPayment, type: 'DECAISSEMENT'})}
                   className={cn(
-                    "flex-1 py-2 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all",
+                    "flex-1 py-2 rounded-lg text-[11px] font-extrabold uppercase tracking-widest transition-all",
                     newPayment.type === 'DECAISSEMENT' ? "bg-rose-500 text-white shadow-lg shadow-rose-500/20" : "text-kontrol-ink-muted"
                   )}
                 >
@@ -406,7 +491,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
                   <input 
                     type="number"
                     required
-                    className="w-full px-4 py-2.5 bg-kontrol-bg border border-kontrol-border rounded-xl focus:outline-none focus:border-kontrol-blue font-black text-lg"
+                    className="w-full px-4 py-2.5 bg-kontrol-bg border border-kontrol-border rounded-xl focus:outline-none focus:border-kontrol-blue font-extrabold text-lg"
                     value={newPayment.montant}
                     onChange={(e) => setNewPayment({...newPayment, montant: Number(e.target.value)})}
                   />
@@ -462,7 +547,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
               <button 
                 type="submit" 
                 disabled={loading}
-                className="w-full btn-primary py-4 font-black uppercase tracking-widest text-[12px] flex items-center justify-center gap-2"
+                className="w-full btn-primary py-4 font-extrabold uppercase tracking-widest text-[12px] flex items-center justify-center gap-2"
               >
                 {loading ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
                 Enregistrer le mouvement
@@ -478,6 +563,16 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
           title="Journal financier" 
         />
       </div>
+
+      <ConfirmModal
+        isOpen={!!isDeletingPayment}
+        onClose={() => setIsDeletingPayment(null)}
+        onConfirm={handleDeletePayment}
+        title="Supprimer le mouvement"
+        message={`Êtes-vous sûr de vouloir supprimer ce mouvement de ${isDeletingPayment?.montant ? formatCurrency(isDeletingPayment.montant) : ''} ? Cette action est irréversible.`}
+        confirmLabel="Supprimer"
+        variant="danger"
+      />
     </div>
   );
 }

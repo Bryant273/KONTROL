@@ -11,6 +11,7 @@ import {
   XCircle,
   Clock,
   ArrowUpRight,
+  ArrowDownLeft,
   Mail,
   Phone,
   Globe
@@ -28,15 +29,34 @@ import {
   getDocs,
   updateDoc,
   doc,
-  logAction
+  logAction,
+  deleteDoc
 } from '../../firebase';
+import { deleteCompanyAccount } from '../../services/dataResetService';
 import { UserProfile } from '../../types';
 import { cn } from '../../lib/utils';
+import { Trash2, AlertTriangle } from 'lucide-react';
 
 export function CompaniesModule() {
   const [companies, setCompanies] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [confirmDelete, setConfirmDelete] = React.useState<string | null>(null);
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const itemsPerPage = 10;
+
+  const handleDeleteCompany = async (companyId: string) => {
+    try {
+      setLoading(true);
+      await deleteCompanyAccount(companyId);
+      setConfirmDelete(null);
+      // The onSnapshot will update the list automatically
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'users', auth.currentUser);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   React.useEffect(() => {
     // In this multi-tenant setup, companies are derived from users who are managers
@@ -143,6 +163,12 @@ export function CompaniesModule() {
     c.manager.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const totalPages = Math.ceil(filteredCompanies.length / itemsPerPage);
+  const paginatedCompanies = filteredCompanies.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   if (loading) {
     return (
       <div className="flex justify-center py-24">
@@ -155,7 +181,7 @@ export function CompaniesModule() {
     <div className="space-y-6 animate-in fade-in duration-700">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-black text-kontrol-dark tracking-tight italic">Gestion des Entreprises</h2>
+          <h2 className="text-2xl font-extrabold text-kontrol-dark tracking-tight">Gestion des Entreprises</h2>
           <p className="text-[13px] text-kontrol-ink-muted mt-1">Supervision de toutes les instances KONTROL</p>
         </div>
         <div className="flex items-center gap-3">
@@ -166,7 +192,10 @@ export function CompaniesModule() {
               placeholder="Rechercher une entreprise..."
               className="pl-10 pr-4 py-2 bg-white border border-kontrol-border rounded-xl text-[13px] outline-none focus:border-kontrol-blue w-64 transition-all"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
             />
           </div>
           <button className="p-2 bg-white border border-kontrol-border rounded-xl text-kontrol-ink-muted hover:text-kontrol-blue transition-colors">
@@ -183,7 +212,7 @@ export function CompaniesModule() {
             </div>
             <div>
               <p className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest">Total Entreprises</p>
-              <h3 className="text-2xl font-black text-kontrol-dark tracking-tight">{companies.length}</h3>
+              <h3 className="text-2xl font-extrabold text-kontrol-dark tracking-tight">{companies.length}</h3>
             </div>
           </div>
         </div>
@@ -194,7 +223,7 @@ export function CompaniesModule() {
             </div>
             <div>
               <p className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest">Abonnements Actifs</p>
-              <h3 className="text-2xl font-black text-kontrol-dark tracking-tight">
+              <h3 className="text-2xl font-extrabold text-kontrol-dark tracking-tight">
                 {companies.filter(c => c.status === 'ACTIVE').length}
               </h3>
             </div>
@@ -207,7 +236,7 @@ export function CompaniesModule() {
             </div>
             <div>
               <p className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest">En attente / Expirés</p>
-              <h3 className="text-2xl font-black text-kontrol-dark tracking-tight">
+              <h3 className="text-2xl font-extrabold text-kontrol-dark tracking-tight">
                 {companies.filter(c => c.status !== 'ACTIVE').length}
               </h3>
             </div>
@@ -220,17 +249,17 @@ export function CompaniesModule() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-kontrol-bg/50 border-b border-kontrol-border">
-                <th className="px-6 py-4 text-[11px] font-black uppercase tracking-widest text-kontrol-ink-muted italic">Entreprise</th>
-                <th className="px-6 py-4 text-[11px] font-black uppercase tracking-widest text-kontrol-ink-muted italic">Gestionnaire</th>
-                <th className="px-6 py-4 text-[11px] font-black uppercase tracking-widest text-kontrol-ink-muted italic">Utilisateurs</th>
-                <th className="px-6 py-4 text-[11px] font-black uppercase tracking-widest text-kontrol-ink-muted italic">Statut</th>
-                <th className="px-6 py-4 text-[11px] font-black uppercase tracking-widest text-kontrol-ink-muted italic">Échéance</th>
-                <th className="px-6 py-4 text-[11px] font-black uppercase tracking-widest text-kontrol-ink-muted italic text-right">Actions</th>
+                <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Entreprise</th>
+                <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Gestionnaire</th>
+                <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Utilisateurs</th>
+                <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Statut</th>
+                <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Échéance</th>
+                <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-kontrol-border">
-              {filteredCompanies.map((company) => (
-                <tr key={company.id} className="hover:bg-kontrol-bg/30 transition-colors group">
+              {paginatedCompanies.map((company, idx) => (
+                <tr key={company.id} className={cn("hover:bg-kontrol-bg/30 transition-colors group", idx % 2 === 0 ? "bg-white" : "bg-kontrol-bg/10")}>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-white border border-kontrol-border p-1 shadow-sm overflow-hidden flex items-center justify-center shrink-0">
@@ -262,7 +291,7 @@ export function CompaniesModule() {
                   </td>
                   <td className="px-6 py-4">
                     <span className={cn(
-                      "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border",
+                      "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-widest border",
                       company.status === 'ACTIVE' 
                         ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
                         : "bg-amber-50 text-amber-600 border-amber-100"
@@ -298,6 +327,13 @@ export function CompaniesModule() {
                       >
                         {company.status === 'ACTIVE' ? <XCircle size={18} /> : <CheckCircle2 size={18} />}
                       </button>
+                      <button 
+                        onClick={() => setConfirmDelete(company.id)}
+                        className="p-2 hover:bg-rose-50 rounded-lg text-kontrol-ink-muted hover:text-rose-600 transition-all"
+                        title="Supprimer définitivement"
+                      >
+                        <Trash2 size={18} />
+                      </button>
                       <button className="p-2 hover:bg-white rounded-lg text-kontrol-ink-muted hover:text-kontrol-blue transition-all">
                         <MoreVertical size={18} />
                       </button>
@@ -308,7 +344,64 @@ export function CompaniesModule() {
             </tbody>
           </table>
         </div>
+        {totalPages > 1 && (
+          <div className="px-6 py-4 border-t border-kontrol-border bg-kontrol-bg/30 flex items-center justify-between">
+            <span className="text-[11.5px] text-kontrol-ink-muted font-medium">
+              {filteredCompanies.length} entreprises au total
+            </span>
+            <div className="flex items-center gap-2">
+              <button 
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => prev - 1)}
+                className="p-1 rounded hover:bg-kontrol-border disabled:opacity-30 transition-colors"
+              >
+                <ArrowDownLeft size={16} className="rotate-45" />
+              </button>
+              <span className="text-[11.5px] font-bold text-kontrol-dark">
+                Page {currentPage} sur {totalPages}
+              </span>
+              <button 
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(prev => prev + 1)}
+                className="p-1 rounded hover:bg-kontrol-border disabled:opacity-30 transition-colors"
+              >
+                <ArrowUpRight size={16} className="rotate-45" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Confirmation Modal */}
+      {confirmDelete && (
+        <div className="fixed inset-0 bg-kontrol-dark/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[32px] max-w-md w-full p-8 shadow-2xl animate-in zoom-in duration-300">
+            <div className="w-16 h-16 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-6 mx-auto">
+              <AlertTriangle size={32} />
+            </div>
+            <h3 className="text-2xl font-extrabold text-kontrol-dark tracking-tight text-center mb-2">Suppression Définitive</h3>
+            <p className="text-kontrol-ink-soft text-center mb-8 leading-relaxed">
+              Êtes-vous sûr de vouloir supprimer cette entreprise ? Cette action va désactiver tous les comptes et supprimer toutes les données associées (transactions, produits, clients...). 
+              <br /><br />
+              <span className="font-bold text-rose-600 uppercase tracking-widest text-[10px]">Action irréversible</span>
+            </p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setConfirmDelete(null)}
+                className="flex-1 py-4 bg-kontrol-bg text-kontrol-ink-muted font-bold rounded-2xl hover:bg-kontrol-border transition-all"
+              >
+                Annuler
+              </button>
+              <button 
+                onClick={() => handleDeleteCompany(confirmDelete)}
+                className="flex-1 py-4 bg-rose-600 text-white font-bold rounded-2xl hover:bg-rose-700 transition-all shadow-lg shadow-rose-600/20"
+              >
+                Confirmer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

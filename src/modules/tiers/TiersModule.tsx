@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Search, MoreVertical, Mail, Phone, MapPin, Loader2, X, UserCircle, History, Trash2, Edit2, FileText, Table } from 'lucide-react';
+import { Plus, Search, MoreVertical, Mail, Phone, MapPin, Loader2, X, UserCircle, History, Trash2, Edit2, FileText, Table, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { exportToPDF, exportToExcel } from '../../lib/export';
 import { Tiers, TiersType, UserProfile } from '../../types';
 import { cn } from '../../lib/utils';
@@ -30,12 +30,16 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
   const isERPAdmin = currentUserProfile?.role === 'ADMINISTRATEUR_ERP' || currentUserProfile?.role === 'GESTIONNAIRE_ERP';
   const [selectedCompanyId, setSelectedCompanyId] = React.useState<string | null>(currentUserProfile?.companyId || null);
   
-  const companyId = isERPAdmin ? selectedCompanyId : (currentUserProfile?.companyId || user.uid);
+  const companyId = isERPAdmin 
+    ? (selectedCompanyId || currentUserProfile?.companyId || user.uid) 
+    : (currentUserProfile?.companyId || user.uid);
   const [tiers, setTiers] = React.useState<Tiers[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [filterType, setFilterType] = React.useState<TiersType | 'ALL'>('ALL');
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const itemsPerPage = 10;
 
   const [isAdding, setIsAdding] = React.useState(false);
   const [isEditing, setIsEditing] = React.useState(false);
@@ -194,6 +198,12 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
     return matchesSearch && matchesType;
   });
 
+  const totalPages = Math.ceil(filteredTiers.length / itemsPerPage);
+  const paginatedTiers = filteredTiers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   const handleExportPDF = () => {
     const headers = ['Nom', 'Type', 'Email', 'Téléphone', 'Statut'];
     const data = filteredTiers.map(t => [
@@ -203,7 +213,7 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
       t.telephone || '',
       t.statut
     ]);
-    exportToPDF('Annuaire des Tiers - KONTROL', headers, data, 'Tiers_KONTROL');
+    exportToPDF('Annuaire des Tiers - KONTROL', headers, data, 'Tiers_KONTROL', currentUserProfile?.companyLogo || currentUserProfile?.logoUrl);
   };
 
   const handleExportExcel = () => {
@@ -359,13 +369,19 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
             placeholder="Rechercher nom, email, adresse…"
             className="bg-transparent border-none outline-none text-[13px] w-full text-kontrol-ink placeholder:text-kontrol-ink-muted"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
           />
         </div>
         <select 
           className="bg-white border border-kontrol-border rounded-lg px-3 py-1.5 text-[13px] font-medium text-kontrol-ink-soft outline-none focus:border-kontrol-blue transition-colors"
           value={filterType}
-          onChange={(e) => setFilterType(e.target.value as any)}
+          onChange={(e) => {
+            setFilterType(e.target.value as any);
+            setCurrentPage(1);
+          }}
         >
           <option value="ALL">Tous types</option>
           <option value="CLIENT">Clients</option>
@@ -380,11 +396,11 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
             <table className="w-full text-left border-collapse text-[13px]">
               <thead>
                 <tr className="bg-kontrol-bg border-b border-kontrol-border">
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted italic">ID</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted italic">Nom</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted italic">Type</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted italic">Statut</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted italic"></th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">ID</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Nom</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Type</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Statut</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-kontrol-border">
@@ -394,18 +410,19 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
                       <Loader2 className="animate-spin text-kontrol-blue mx-auto" size={24} />
                     </td>
                   </tr>
-                ) : filteredTiers.length === 0 ? (
+                ) : paginatedTiers.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-12 text-center text-kontrol-ink-muted italic">
+                    <td colSpan={5} className="px-4 py-12 text-center text-kontrol-ink-muted">
                       Aucun tiers trouvé.
                     </td>
                   </tr>
                 ) : (
-                  filteredTiers.map((t) => (
+                  paginatedTiers.map((t, idx) => (
                     <tr 
                       key={t.id} 
                       className={cn(
                         "hover:bg-kontrol-blue/5 cursor-pointer transition-colors",
+                        idx % 2 !== 0 ? "bg-kontrol-bg/10" : "bg-white",
                         selectedId === t.id && "bg-kontrol-blue/10"
                       )}
                       onClick={() => setSelectedId(t.id)}
@@ -439,8 +456,31 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
               </tbody>
             </table>
           </div>
-          <div className="px-4 py-3 border-t border-kontrol-border bg-kontrol-bg/30 text-[11.5px] text-kontrol-ink-muted font-medium">
-            {filteredTiers.length} tiers affichés
+          <div className="px-4 py-3 border-t border-kontrol-border bg-kontrol-bg/30 flex items-center justify-between">
+            <span className="text-[11.5px] text-kontrol-ink-muted font-medium">
+              {filteredTiers.length} tiers affichés
+            </span>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <button 
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(prev => prev - 1)}
+                  className="p-1 rounded hover:bg-kontrol-border disabled:opacity-30 transition-colors"
+                >
+                  <ArrowDownLeft size={16} className="rotate-45" />
+                </button>
+                <span className="text-[11.5px] font-bold text-kontrol-dark">
+                  Page {currentPage} sur {totalPages}
+                </span>
+                <button 
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(prev => prev + 1)}
+                  className="p-1 rounded hover:bg-kontrol-border disabled:opacity-30 transition-colors"
+                >
+                  <ArrowUpRight size={16} className="rotate-45" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -465,7 +505,7 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
                   {selectedTiers.nom.charAt(0)}
                 </div>
                 <h3 className="text-[15px] font-extrabold text-kontrol-dark leading-tight">{selectedTiers.nom}</h3>
-                <p className="text-[11px] text-kontrol-ink-muted mt-0.5 font-mono uppercase tracking-wider">{selectedTiers.id}</p>
+                <p className="text-[11px] text-kontrol-ink-muted mt-0.5 uppercase tracking-wider">{selectedTiers.id}</p>
                 
                 <div className="flex gap-1.5 mt-4 mb-6">
                   <span className={cn(

@@ -153,7 +153,8 @@ export async function ensureUserProfile(user: User, companyName?: string, hashed
   const userRef = doc(db, 'users', user.uid);
   const userDoc = await getDoc(userRef);
   
-  const isAdminEmail = user.email === 'Innov.korp@gmail.com' || user.email === 'acherie812@gmail.com';
+  const userEmail = user.email?.toLowerCase();
+  const isAdminEmail = userEmail === 'innov.korp@gmail.com' || userEmail === 'acherie812@gmail.com';
   const targetRole = isAdminEmail ? 'ADMINISTRATEUR_ERP' : 'ADMINISTRATEUR_ENTREPRISE';
 
   if (!userDoc.exists()) {
@@ -163,7 +164,7 @@ export async function ensureUserProfile(user: User, companyName?: string, hashed
       displayName: user.displayName || '',
       role: targetRole,
       companyId: user.uid,
-      companyName: companyName || (isAdminEmail ? 'KONTROL ERP' : ''),
+      companyName: companyName || (isAdminEmail ? 'KONTROL' : ''),
       isProfileComplete: isAdminEmail,
       createdAt: Date.now(),
       subscriptionStatus: 'TRIAL',
@@ -196,7 +197,7 @@ export async function ensureUserProfile(user: User, companyName?: string, hashed
 }
 
 export const updateUserProfile = async (uid: string, data: Partial<UserProfile>) => {
-  await updateDoc(doc(db, 'users', uid), data);
+  await setDoc(doc(db, 'users', uid), data, { merge: true });
 };
 
 // Action Logger Helper

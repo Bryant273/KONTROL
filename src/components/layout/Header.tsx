@@ -12,11 +12,12 @@ interface HeaderProps {
   user: User;
   profile: UserProfile | null;
   onLogout: () => void;
+  onTabChange: (tab: string, section: string, label: string) => void;
   toggleSidebar: () => void;
   isSidebarOpen: boolean;
 }
 
-export function Header({ section, page, user, profile, onLogout, toggleSidebar, isSidebarOpen }: HeaderProps) {
+export function Header({ section, page, user, profile, onLogout, onTabChange, toggleSidebar, isSidebarOpen }: HeaderProps) {
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
 
@@ -50,10 +51,10 @@ export function Header({ section, page, user, profile, onLogout, toggleSidebar, 
       <div className="flex-1 flex items-center gap-3 min-w-0">
         <div className="hidden lg:flex items-center gap-2 pr-4 border-r border-kontrol-border">
           <Logo size="sm" className="bg-transparent border-none" />
-          <span className="text-xs font-black text-kontrol-dark tracking-tighter">KONTROL</span>
+          <span className="text-xs font-extrabold text-kontrol-dark tracking-tighter">KONTROL</span>
         </div>
         <div className="flex items-center gap-1.5 overflow-hidden">
-          <span className="text-[10px] text-kontrol-ink-muted uppercase font-black tracking-[0.15em] whitespace-nowrap">{section}</span>
+          <span className="text-[10px] text-kontrol-ink-muted uppercase font-extrabold tracking-[0.15em] whitespace-nowrap">{section}</span>
           <span className="text-kontrol-border font-light text-xs">/</span>
           <span className="text-[13px] font-extrabold text-kontrol-dark truncate">{page}</span>
         </div>
@@ -84,11 +85,23 @@ export function Header({ section, page, user, profile, onLogout, toggleSidebar, 
                 <p className="text-[13px] font-bold text-kontrol-dark truncate">{user.displayName || user.email}</p>
                 <p className="text-[11px] text-kontrol-ink-muted mt-0.5 truncate">{user.email}</p>
               </div>
-              <button className="w-full flex items-center gap-2 px-3.5 py-2.5 text-[13px] text-kontrol-ink-soft hover:bg-kontrol-bg transition-colors">
+              <button 
+                onClick={() => {
+                  onTabChange('profil', 'Compte', 'Mon profil');
+                  setIsDropdownOpen(false);
+                }}
+                className="w-full flex items-center gap-2 px-3.5 py-2.5 text-[13px] text-kontrol-ink-soft hover:bg-kontrol-bg transition-colors"
+              >
                 <UserCircle size={16} />
                 Mon profil
               </button>
-              <button className="w-full flex items-center gap-2 px-3.5 py-2.5 text-[13px] text-kontrol-ink-soft hover:bg-kontrol-bg transition-colors">
+              <button 
+                onClick={() => {
+                  onTabChange('utilisateurs', 'Administration', 'Utilisateurs');
+                  setIsDropdownOpen(false);
+                }}
+                className="w-full flex items-center gap-2 px-3.5 py-2.5 text-[13px] text-kontrol-ink-soft hover:bg-kontrol-bg transition-colors"
+              >
                 <Shield size={16} />
                 Utilisateurs
               </button>

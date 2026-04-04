@@ -1,6 +1,7 @@
 import React from 'react';
-import { Plus, Search, Package, AlertCircle, Loader2, X, Boxes, History, Trash2, Edit2, FileText, Table } from 'lucide-react';
+import { Plus, Search, Package, AlertCircle, Loader2, X, Boxes, History, Trash2, Edit2, FileText, Table, Upload, Download, Calendar, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { exportToPDF, exportToExcel } from '../../lib/export';
+import * as XLSX from 'xlsx';
 import { Produit, UserProfile } from '../../types';
 import { cn, formatCurrency } from '../../lib/utils';
 import { logAction } from '../../firebase';
@@ -21,14 +22,20 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
   const isERPAdmin = currentUserProfile?.role === 'ADMINISTRATEUR_ERP' || currentUserProfile?.role === 'GESTIONNAIRE_ERP';
   const [selectedCompanyId, setSelectedCompanyId] = React.useState<string | null>(currentUserProfile?.companyId || null);
   
-  const companyId = isERPAdmin ? selectedCompanyId : (currentUserProfile?.companyId || user.uid);
+  const companyId = isERPAdmin 
+    ? (selectedCompanyId || currentUserProfile?.companyId || user.uid) 
+    : (currentUserProfile?.companyId || user.uid);
   const [produits, setProduits] = React.useState<Produit[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [filterDate, setFilterDate] = React.useState<string>(new Date().toISOString().split('T')[0]);
   const [isAdding, setIsAdding] = React.useState(false);
   const [isEditing, setIsEditing] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [message, setMessage] = React.useState<{ type: 'error' | 'success', text: string } | null>(null);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const itemsPerPage = 10;
 
   const [currentProduit, setCurrentProduit] = React.useState({
     reference: '',
@@ -40,8 +47,96 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
     tva: 18
   });
 
+  const [isImporting, setIsImporting] = React.useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !companyId) return;
+
+    setLoading(true);
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws) as any[];
+
+        let importedCount = 0;
+        for (const item of data) {
+          if (item.designation && item.reference) {
+            const prodData: Produit = {
+              reference: String(item.reference || ''),
+              designation: String(item.designation || ''),
+              prixAchat: Number(item.prixAchat || 0),
+              prixVente: Number(item.prixVente || 0),
+              stock: Number(item.stock || 0),
+              alertStock: Number(item.alertStock || 5),
+              cump: Number(item.prixAchat || 0),
+              tva: Number(item.tva || 18),
+              ownerId: companyId,
+              createdAt: Date.now()
+            } as Produit;
+            await productService.createProduct(prodData, user);
+            importedCount++;
+          }
+        }
+
+        if (currentUserProfile) {
+          await logAction(
+            companyId,
+            user.uid,
+            currentUserProfile.displayName,
+            "Produits: Importés",
+            `${importedCount} produits importés via Excel`
+          );
+        }
+        if (importedCount > 0) {
+          setMessage({ type: 'success', text: `${importedCount} produits importés avec succès.` });
+          setTimeout(() => setMessage(null), 3000);
+        }
+      } catch (error) {
+        console.error("Import error:", error);
+        setMessage({ type: 'error', text: "Erreur lors de l'importation. Vérifiez le format du fichier." });
+        setTimeout(() => setMessage(null), 3000);
+      } finally {
+        setLoading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handleDownloadFiche = (p: Produit) => {
+    const headers = ['Caractéristique', 'Valeur'];
+    const data = [
+      ['Référence', p.reference],
+      ['Désignation', p.designation],
+      ['Prix Achat', formatCurrency(p.prixAchat)],
+      ['Prix Vente', formatCurrency(p.prixVente)],
+      ['TVA', `${p.tva}%`],
+      ['Stock Actuel', `${p.stock} u.`],
+      ['Stock Alerte', `${p.alertStock || 5} u.`],
+      ['Valeur Stock', formatCurrency(p.stock * p.prixVente)],
+      ['Marge Brute', formatCurrency(p.prixVente - p.prixAchat)],
+      ['Date Création', new Date(p.createdAt).toLocaleDateString()]
+    ];
+    exportToPDF(`Fiche Produit - ${p.designation}`, headers, data, `Fiche_${p.reference}`, currentUserProfile?.companyLogo || currentUserProfile?.logoUrl);
+  };
+
   const handleAddProduit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentProduit.reference || !currentProduit.designation) {
+      setMessage({ type: 'error', text: "Veuillez remplir tous les champs obligatoires." });
+      return;
+    }
+    if (!companyId) {
+      setMessage({ type: 'error', text: "Erreur: ID de l'entreprise non trouvé." });
+      return;
+    }
+
     setLoading(true);
     try {
       const initialStock = Number(currentProduit.stockInitial);
@@ -72,10 +167,15 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
         );
       }
 
-      setIsAdding(false);
-      setCurrentProduit({ reference: '', designation: '', prixAchat: 0, prixVente: 0, stockInitial: 0, alertStock: 5, tva: 18 });
+      setMessage({ type: 'success', text: "Produit enregistré avec succès !" });
+      setTimeout(() => {
+        setIsAdding(false);
+        setMessage(null);
+        setCurrentProduit({ reference: '', designation: '', prixAchat: 0, prixVente: 0, stockInitial: 0, alertStock: 5, tva: 18 });
+      }, 1500);
     } catch (error) {
       console.error("Add product error:", error);
+      setMessage({ type: 'error', text: "Erreur lors de l'enregistrement du produit." });
     } finally {
       setLoading(false);
     }
@@ -166,10 +266,18 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
   }, [user, companyId, currentUserProfile, selectedCompanyId]);
 
   const selectedProduit = produits.find(p => p.id === selectedId);
+  
+  const filteredProduits = produits.filter(p => {
+    const matchesSearch = p.designation.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                         p.reference.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesDate = !filterDate || new Date(p.createdAt).toISOString().split('T')[0] === filterDate;
+    return matchesSearch && matchesDate;
+  });
 
-  const filteredProduits = produits.filter(p => 
-    p.designation.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.reference.toLowerCase().includes(searchTerm.toLowerCase())
+  const totalPages = Math.ceil(filteredProduits.length / itemsPerPage);
+  const paginatedProduits = filteredProduits.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   );
 
   const handleExportPDF = () => {
@@ -182,7 +290,7 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
       `${p.stock} u.`,
       formatCurrency(p.stock * p.prixVente)
     ]);
-    exportToPDF('Catalogue Produits - KONTROL', headers, data, 'Produits_KONTROL');
+    exportToPDF('Catalogue Produits - KONTROL', headers, data, 'Produits_KONTROL', currentUserProfile?.companyLogo || currentUserProfile?.logoUrl);
   };
 
   const handleExportExcel = () => {
@@ -218,6 +326,14 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
               </button>
             </div>
             <form onSubmit={isEditing ? handleEditProduit : handleAddProduit} className="p-6 space-y-4">
+              {message && (
+                <div className={cn(
+                  "p-3 rounded-lg text-[13px] font-bold text-center animate-in fade-in slide-in-from-top-2",
+                  message.type === 'success' ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-rose-50 text-rose-600 border border-rose-100"
+                )}>
+                  {message.text}
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Référence *</label>
@@ -244,8 +360,9 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
                   <input 
                     type="number" required
                     className="w-full px-3 py-2 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:border-kontrol-blue"
-                    value={currentProduit.prixAchat}
-                    onChange={(e) => setCurrentProduit({...currentProduit, prixAchat: Number(e.target.value)})}
+                    value={currentProduit.prixAchat || ''}
+                    placeholder="0"
+                    onChange={(e) => setCurrentProduit({...currentProduit, prixAchat: e.target.value === '' ? 0 : Number(e.target.value)})}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -253,8 +370,9 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
                   <input 
                     type="number" required
                     className="w-full px-3 py-2 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:border-kontrol-blue"
-                    value={currentProduit.prixVente}
-                    onChange={(e) => setCurrentProduit({...currentProduit, prixVente: Number(e.target.value)})}
+                    value={currentProduit.prixVente || ''}
+                    placeholder="0"
+                    onChange={(e) => setCurrentProduit({...currentProduit, prixVente: e.target.value === '' ? 0 : Number(e.target.value)})}
                   />
                 </div>
               </div>
@@ -265,8 +383,9 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
                     type="number" required
                     disabled={isEditing}
                     className="w-full px-3 py-2 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:border-kontrol-blue disabled:opacity-50"
-                    value={currentProduit.stockInitial}
-                    onChange={(e) => setCurrentProduit({...currentProduit, stockInitial: Number(e.target.value)})}
+                    value={currentProduit.stockInitial || ''}
+                    placeholder="0"
+                    onChange={(e) => setCurrentProduit({...currentProduit, stockInitial: e.target.value === '' ? 0 : Number(e.target.value)})}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -274,8 +393,9 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
                   <input 
                     type="number" required
                     className="w-full px-3 py-2 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:border-kontrol-blue"
-                    value={currentProduit.alertStock}
-                    onChange={(e) => setCurrentProduit({...currentProduit, alertStock: Number(e.target.value)})}
+                    value={currentProduit.alertStock || ''}
+                    placeholder="0"
+                    onChange={(e) => setCurrentProduit({...currentProduit, alertStock: e.target.value === '' ? 0 : Number(e.target.value)})}
                   />
                 </div>
               </div>
@@ -285,8 +405,9 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
                   <input 
                     type="number"
                     className="w-full px-3 py-2 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:border-kontrol-blue"
-                    value={currentProduit.tva}
-                    onChange={(e) => setCurrentProduit({...currentProduit, tva: Number(e.target.value)})}
+                    value={currentProduit.tva || ''}
+                    placeholder="0"
+                    onChange={(e) => setCurrentProduit({...currentProduit, tva: e.target.value === '' ? 0 : Number(e.target.value)})}
                   />
                 </div>
               </div>
@@ -316,6 +437,19 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
           )}
         </div>
         <div className="flex gap-2">
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2"
+          >
+            <Upload size={14} /> Importer
+          </button>
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            className="hidden" 
+            accept=".xlsx, .xls, .csv" 
+            onChange={handleImportExcel} 
+          />
           <button 
             onClick={handleExportPDF}
             className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2"
@@ -349,7 +483,22 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
             placeholder="Rechercher désignation, référence…"
             className="bg-transparent border-none outline-none text-[13px] w-full text-kontrol-ink placeholder:text-kontrol-ink-muted"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
+          />
+        </div>
+        <div className="flex items-center gap-2 bg-kontrol-bg border border-kontrol-border rounded-lg px-3 py-1.5">
+          <Calendar size={14} className="text-kontrol-ink-muted" />
+          <input 
+            type="date"
+            className="bg-transparent border-none outline-none text-[13px] font-medium text-kontrol-ink-soft"
+            value={filterDate}
+            onChange={(e) => {
+              setFilterDate(e.target.value);
+              setCurrentPage(1);
+            }}
           />
         </div>
       </div>
@@ -361,11 +510,11 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
             <table className="w-full text-left border-collapse text-[13px]">
               <thead>
                 <tr className="bg-kontrol-bg border-b border-kontrol-border">
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted italic">Référence</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted italic">Désignation</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted italic text-right">Prix Vente</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted italic text-center">Stock</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted italic">Statut</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Référence</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Désignation</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted text-right">Prix Vente</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted text-center">Stock</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Statut</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-kontrol-border">
@@ -375,14 +524,14 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
                       <Loader2 className="animate-spin text-kontrol-blue mx-auto" size={24} />
                     </td>
                   </tr>
-                ) : filteredProduits.length === 0 ? (
+                ) : paginatedProduits.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-12 text-center text-kontrol-ink-muted italic">
+                    <td colSpan={5} className="px-4 py-12 text-center text-kontrol-ink-muted">
                       Aucun produit trouvé.
                     </td>
                   </tr>
                 ) : (
-                  filteredProduits.map((p) => {
+                  paginatedProduits.map((p) => {
                     const [scls, slbl] = p.stock <= 0 ? ["bg-rose-50 text-rose-600", "Rupture"] : 
                                        p.stock <= (p.alertStock || 5) ? ["bg-orange-50 text-orange-600", "Stock bas"] : 
                                        ["bg-emerald-50 text-emerald-600", "En stock"];
@@ -390,13 +539,13 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
                       <tr 
                         key={p.id} 
                         className={cn(
-                          "hover:bg-kontrol-blue/5 cursor-pointer transition-colors",
+                          "hover:bg-kontrol-blue/5 cursor-pointer transition-colors even:bg-kontrol-bg/30",
                           selectedId === p.id && "bg-kontrol-blue/10"
                         )}
                         onClick={() => setSelectedId(p.id)}
                       >
                         <td className="px-4 py-3">
-                          <span className="font-mono text-[11px] font-bold bg-kontrol-bg px-2 py-0.5 rounded text-kontrol-ink-muted">
+                          <span className="text-[11px] font-bold bg-kontrol-bg px-2 py-0.5 rounded text-kontrol-ink-muted">
                             {p.reference}
                           </span>
                         </td>
@@ -418,8 +567,31 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
               </tbody>
             </table>
           </div>
-          <div className="px-4 py-3 border-t border-kontrol-border bg-kontrol-bg/30 text-[11.5px] text-kontrol-ink-muted font-medium">
-            {filteredProduits.length} produits affichés
+          <div className="px-4 py-3 border-t border-kontrol-border bg-kontrol-bg/30 flex items-center justify-between">
+            <span className="text-[11.5px] text-kontrol-ink-muted font-medium">
+              {filteredProduits.length} produits au total
+            </span>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <button 
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(prev => prev - 1)}
+                  className="p-1 rounded hover:bg-kontrol-border disabled:opacity-30 transition-colors"
+                >
+                  <ArrowDownLeft size={16} className="rotate-45" />
+                </button>
+                <span className="text-[11.5px] font-bold text-kontrol-dark">
+                  Page {currentPage} sur {totalPages}
+                </span>
+                <button 
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(prev => prev + 1)}
+                  className="p-1 rounded hover:bg-kontrol-border disabled:opacity-30 transition-colors"
+                >
+                  <ArrowUpRight size={16} className="rotate-45" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -441,7 +613,7 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
                   <Package size={24} strokeWidth={1.5} />
                 </div>
                 <h3 className="text-[15px] font-extrabold text-kontrol-dark leading-tight">{selectedProduit.designation}</h3>
-                <p className="text-[11px] text-kontrol-ink-muted mt-0.5 font-mono uppercase tracking-wider">{selectedProduit.reference} · {selectedProduit.id.slice(0,8)}</p>
+                <p className="text-[11px] text-kontrol-ink-muted mt-0.5 uppercase tracking-wider">{selectedProduit.reference} · {selectedProduit.id.slice(0,8)}</p>
                 
                 <div className="grid grid-cols-2 gap-2 mt-6 mb-6">
                   <div className="bg-kontrol-bg rounded-lg p-3">
@@ -482,12 +654,20 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
                 <div className="flex gap-2 mt-8">
                   <button 
                     className="flex-1 btn-outline text-xs py-2.5 font-bold flex items-center justify-center gap-2"
+                    onClick={() => handleDownloadFiche(selectedProduit)}
+                  >
+                    <Download size={14} /> Fiche
+                  </button>
+                  <button 
+                    className="flex-1 btn-outline text-xs py-2.5 font-bold flex items-center justify-center gap-2"
                     onClick={() => openEdit(selectedProduit)}
                   >
                     <Edit2 size={14} /> Modifier
                   </button>
+                </div>
+                <div className="mt-2">
                   <button 
-                    className="flex-1 bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs py-2.5 font-bold rounded-xl transition-all flex items-center justify-center gap-2"
+                    className="w-full bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs py-2.5 font-bold rounded-xl transition-all flex items-center justify-center gap-2"
                     onClick={() => setIsDeleting(true)}
                   >
                     <Trash2 size={14} /> Supprimer

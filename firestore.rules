@@ -10,8 +10,7 @@ service cloud.firestore {
 
     function isSuperAdmin() {
       return isAuthenticated() && (
-        request.auth.token.email == "acherie812@gmail.com" ||
-        request.auth.token.email == "Innov.korp@gmail.com"
+        request.auth.token.email in ["acherie812@gmail.com", "innov.korp@gmail.com", "Innov.korp@gmail.com", "Acherie812@gmail.com"]
       );
     }
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Search, Receipt, Loader2, X, History, Calendar, Tag, CreditCard, ArrowDownRight, Edit2, Trash2, FileText, Table } from 'lucide-react';
+import { Plus, Search, Receipt, Loader2, X, History, Calendar, Tag, CreditCard, ArrowDownLeft, ArrowUpRight, ArrowDownRight, Edit2, Trash2, FileText, Table } from 'lucide-react';
 import { exportToPDF, exportToExcel } from '../../lib/export';
 import { Charge, UserProfile } from '../../types';
 import { cn, formatCurrency } from '../../lib/utils';
@@ -32,18 +32,40 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
   const [charges, setCharges] = React.useState<Charge[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [filterDate, setFilterDate] = React.useState<string>(new Date().toISOString().split('T')[0]);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
 
   const [isAdding, setIsAdding] = React.useState(false);
   const [isEditing, setIsEditing] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const itemsPerPage = 10;
   const [currentCharge, setCurrentCharge] = React.useState({
     description: '',
     categorie: 'Loyer',
     montant: 0,
     modePaiement: 'Espèces',
-    date: new Date().toISOString().split('T')[0]
+    date: new Date().toISOString().split('T')[0],
+    justificatifUrl: ''
   });
+
+  const [isViewingJustificatif, setIsViewingJustificatif] = React.useState(false);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Check file size (limit to 1MB for Firestore base64 storage)
+      if (file.size > 1024 * 1024) {
+        alert("Le fichier est trop volumineux (max 1Mo).");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCurrentCharge(prev => ({ ...prev, justificatifUrl: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleAddCharge = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,7 +82,7 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
           companyId,
           user.uid,
           userName,
-          'Produit: Modifié', // Using standardized prefix
+          'Mouvement: Modifié',
           `Modification de la charge: ${currentCharge.description} (${formatCurrency(currentCharge.montant)})`
         );
 
@@ -79,13 +101,13 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
           companyId,
           user.uid,
           userName,
-          'Mouvement: Décaissement', // Using standardized prefix
+          'Mouvement: Décaissement',
           `Nouvelle charge: ${currentCharge.description} (${formatCurrency(currentCharge.montant)})`
         );
 
         setIsAdding(false);
       }
-      setCurrentCharge({ description: '', categorie: 'Loyer', montant: 0, modePaiement: 'Espèces', date: new Date().toISOString().split('T')[0] });
+      setCurrentCharge({ description: '', categorie: 'Loyer', montant: 0, modePaiement: 'Espèces', date: new Date().toISOString().split('T')[0], justificatifUrl: '' });
     } catch (error) {
       // Error handled in service
     } finally {
@@ -126,7 +148,8 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
       categorie: selectedCharge.categorie,
       montant: selectedCharge.montant,
       modePaiement: selectedCharge.modePaiement || 'Espèces',
-      date: new Date(selectedCharge.date).toISOString().split('T')[0]
+      date: new Date(selectedCharge.date).toISOString().split('T')[0],
+      justificatifUrl: selectedCharge.justificatifUrl || ''
     });
     setIsEditing(true);
   };
@@ -160,9 +183,17 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
 
   const selectedCharge = charges.find(c => c.id === selectedId);
 
-  const filteredCharges = charges.filter(c => 
-    c.description.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    c.categorie.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredCharges = charges.filter(c => {
+    const matchesSearch = c.description.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                         c.categorie.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesDate = !filterDate || new Date(c.date).toISOString().split('T')[0] === filterDate;
+    return matchesSearch && matchesDate;
+  });
+
+  const totalPages = Math.ceil(filteredCharges.length / itemsPerPage);
+  const paginatedCharges = filteredCharges.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   );
 
   const totalCharges = filteredCharges.reduce((acc, c) => acc + c.montant, 0);
@@ -176,7 +207,7 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
       formatCurrency(c.montant),
       c.modePaiement
     ]);
-    exportToPDF('Journal des Charges - KONTROL', headers, data, 'Charges_KONTROL');
+    exportToPDF('Journal des Charges - KONTROL', headers, data, 'Charges_KONTROL', currentUserProfile?.companyLogo || currentUserProfile?.logoUrl);
   };
 
   const handleExportExcel = () => {
@@ -264,8 +295,9 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
                     type="number"
                     required
                     className="w-full px-3 py-2 bg-kontrol-bg border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px]"
-                    value={currentCharge.montant}
-                    onChange={(e) => setCurrentCharge({ ...currentCharge, montant: Number(e.target.value) })}
+                    value={currentCharge.montant || ''}
+                    placeholder="0"
+                    onChange={(e) => setCurrentCharge({ ...currentCharge, montant: e.target.value === '' ? 0 : Number(e.target.value) })}
                   />
                 </div>
               </div>
@@ -294,6 +326,52 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
                     value={currentCharge.date}
                     onChange={(e) => setCurrentCharge({ ...currentCharge, date: e.target.value })}
                   />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Justificatif (Image/PDF)</label>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <input 
+                      type="file"
+                      accept="image/*,application/pdf"
+                      onChange={handleFileChange}
+                      className="hidden"
+                      id="justificatif-upload"
+                    />
+                    <label 
+                      htmlFor="justificatif-upload"
+                      className="flex-1 px-3 py-2 bg-kontrol-bg border border-dashed border-kontrol-border rounded-lg cursor-pointer hover:border-kontrol-blue transition-all text-[13px] text-center text-kontrol-ink-muted"
+                    >
+                      {currentCharge.justificatifUrl ? 'Changer le fichier' : 'Choisir un fichier'}
+                    </label>
+                    {currentCharge.justificatifUrl && (
+                      <button 
+                        type="button"
+                        onClick={() => setCurrentCharge(prev => ({ ...prev, justificatifUrl: '' }))}
+                        className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                      >
+                        <X size={16} />
+                      </button>
+                    )}
+                  </div>
+                  {currentCharge.justificatifUrl && currentCharge.justificatifUrl.startsWith('data:image/') && (
+                    <div className="relative w-full h-32 rounded-lg overflow-hidden border border-kontrol-border bg-kontrol-bg">
+                      <img 
+                        src={currentCharge.justificatifUrl} 
+                        alt="Aperçu" 
+                        className="w-full h-full object-contain"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                  )}
+                  {currentCharge.justificatifUrl && currentCharge.justificatifUrl.startsWith('data:application/pdf') && (
+                    <div className="flex items-center gap-2 p-3 bg-blue-50 text-blue-600 rounded-lg border border-blue-100">
+                      <FileText size={18} />
+                      <span className="text-[12px] font-medium">Document PDF joint</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -358,7 +436,22 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
             placeholder="Rechercher description, catégorie…"
             className="bg-transparent border-none outline-none text-[13px] w-full text-kontrol-ink placeholder:text-kontrol-ink-muted"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
+          />
+        </div>
+        <div className="flex items-center gap-2 bg-kontrol-bg border border-kontrol-border rounded-lg px-3 py-1.5">
+          <Calendar size={14} className="text-kontrol-ink-muted" />
+          <input 
+            type="date"
+            className="bg-transparent border-none outline-none text-[13px] font-medium text-kontrol-ink-soft"
+            value={filterDate}
+            onChange={(e) => {
+              setFilterDate(e.target.value);
+              setCurrentPage(1);
+            }}
           />
         </div>
       </div>
@@ -370,10 +463,10 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
             <table className="w-full text-left border-collapse text-[13px]">
               <thead>
                 <tr className="bg-kontrol-bg border-b border-kontrol-border">
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted italic">Date</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted italic">Catégorie</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted italic">Description</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted italic text-right">Montant</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Date</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Catégorie</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Description</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted text-right">Montant</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-kontrol-border">
@@ -383,18 +476,18 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
                       <Loader2 className="animate-spin text-kontrol-blue mx-auto" size={24} />
                     </td>
                   </tr>
-                ) : filteredCharges.length === 0 ? (
+                ) : paginatedCharges.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-4 py-12 text-center text-kontrol-ink-muted italic">
+                    <td colSpan={4} className="px-4 py-12 text-center text-kontrol-ink-muted">
                       Aucune charge trouvée.
                     </td>
                   </tr>
                 ) : (
-                  filteredCharges.map((c) => (
+                  paginatedCharges.map((c) => (
                     <tr 
                       key={c.id} 
                       className={cn(
-                        "hover:bg-kontrol-blue/5 cursor-pointer transition-colors",
+                        "hover:bg-kontrol-blue/5 cursor-pointer transition-colors even:bg-kontrol-bg/30",
                         selectedId === c.id && "bg-kontrol-blue/10"
                       )}
                       onClick={() => setSelectedId(c.id)}
@@ -413,8 +506,31 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
               </tbody>
             </table>
           </div>
-          <div className="px-4 py-3 border-t border-kontrol-border bg-kontrol-bg/30 text-[11.5px] text-kontrol-ink-muted font-medium">
-            {filteredCharges.length} charges affichées
+          <div className="px-4 py-3 border-t border-kontrol-border bg-kontrol-bg/30 flex items-center justify-between">
+            <span className="text-[11.5px] text-kontrol-ink-muted font-medium">
+              {filteredCharges.length} charges au total
+            </span>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <button 
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(prev => prev - 1)}
+                  className="p-1 rounded hover:bg-kontrol-border disabled:opacity-30 transition-colors"
+                >
+                  <ArrowDownLeft size={16} className="rotate-45" />
+                </button>
+                <span className="text-[11.5px] font-bold text-kontrol-dark">
+                  Page {currentPage} sur {totalPages}
+                </span>
+                <button 
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(prev => prev + 1)}
+                  className="p-1 rounded hover:bg-kontrol-border disabled:opacity-30 transition-colors"
+                >
+                  <ArrowUpRight size={16} className="rotate-45" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -436,7 +552,7 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
                   <ArrowDownRight size={24} />
                 </div>
                 <h3 className="text-[15px] font-extrabold text-kontrol-dark leading-tight">{selectedCharge.description}</h3>
-                <p className="text-[11px] text-kontrol-ink-muted mt-0.5 font-mono uppercase tracking-wider">{selectedCharge.categorie} · {selectedCharge.id.slice(0,8)}</p>
+                <p className="text-[11px] text-kontrol-ink-muted mt-0.5 uppercase tracking-wider">{selectedCharge.categorie} · {selectedCharge.id.slice(0,8)}</p>
                 
                 <div className="bg-kontrol-dark rounded-lg p-4 mt-6 mb-6">
                   <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-1">Montant Décaissé</p>
@@ -468,7 +584,19 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
                 </div>
 
                 <div className="flex gap-2 mt-8">
-                  <button className="flex-1 btn-outline text-xs py-2.5 font-bold flex items-center justify-center gap-2">
+                  <button 
+                    onClick={() => {
+                      if (selectedCharge.justificatifUrl) {
+                        setIsViewingJustificatif(true);
+                      } else {
+                        alert("Aucun justificatif n'a été joint à cette charge.");
+                      }
+                    }}
+                    className={cn(
+                      "flex-1 btn-outline text-xs py-2.5 font-bold flex items-center justify-center gap-2",
+                      !selectedCharge.justificatifUrl && "opacity-50 cursor-not-allowed"
+                    )}
+                  >
                     <Receipt size={14} /> Justificatif
                   </button>
                   <button 
@@ -498,6 +626,57 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
           )}
         </div>
       </div>
+
+      {/* Justificatif Viewer Modal */}
+      {isViewingJustificatif && selectedCharge?.justificatifUrl && (
+        <div className="fixed inset-0 bg-kontrol-dark/80 backdrop-blur-md z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-4 border-b border-kontrol-border flex items-center justify-between bg-kontrol-bg/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                  <Receipt size={20} />
+                </div>
+                <div>
+                  <h3 className="text-[14px] font-extrabold text-kontrol-dark">Justificatif de charge</h3>
+                  <p className="text-[11px] text-kontrol-ink-muted uppercase tracking-wider">{selectedCharge.description}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <a 
+                  href={selectedCharge.justificatifUrl} 
+                  download={`justificatif_${selectedCharge.id.slice(0,8)}`}
+                  className="p-2 text-kontrol-ink-muted hover:text-kontrol-blue hover:bg-kontrol-bg rounded-xl transition-all"
+                  title="Télécharger"
+                >
+                  <ArrowDownRight size={20} className="rotate-90" />
+                </a>
+                <button 
+                  onClick={() => setIsViewingJustificatif(false)}
+                  className="p-2 text-kontrol-ink-muted hover:text-kontrol-dark hover:bg-kontrol-bg rounded-xl transition-all"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 bg-kontrol-bg overflow-auto p-4 flex items-center justify-center">
+              {selectedCharge.justificatifUrl.startsWith('data:image/') ? (
+                <img 
+                  src={selectedCharge.justificatifUrl} 
+                  alt="Justificatif" 
+                  className="max-w-full max-h-full object-contain shadow-lg rounded-lg"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <iframe 
+                  src={selectedCharge.justificatifUrl} 
+                  className="w-full h-full rounded-lg border border-kontrol-border shadow-lg"
+                  title="PDF Viewer"
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

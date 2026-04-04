@@ -1,5 +1,5 @@
 import React from 'react';
-import { History, Clock, ArrowRight, Activity, Loader2 } from 'lucide-react';
+import { History, Clock, ArrowRight, Activity, Loader2, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { 
   db, 
   collection, 
@@ -28,9 +28,11 @@ interface ModuleActivityLogProps {
   title?: string;
 }
 
-export function ModuleActivityLog({ companyId, moduleName, limitCount = 5, title = "Activité du module" }: ModuleActivityLogProps) {
+export function ModuleActivityLog({ companyId, moduleName, limitCount = 50, title = "Activité du module" }: ModuleActivityLogProps) {
   const [actions, setActions] = React.useState<ActionLog[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const itemsPerPage = 10;
 
   React.useEffect(() => {
     if (!companyId) return;
@@ -65,6 +67,12 @@ export function ModuleActivityLog({ companyId, moduleName, limitCount = 5, title
     return () => unsubscribe();
   }, [companyId, moduleName, limitCount]);
 
+  const totalPages = Math.ceil(actions.length / itemsPerPage);
+  const paginatedActions = actions.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -87,13 +95,16 @@ export function ModuleActivityLog({ companyId, moduleName, limitCount = 5, title
             <tbody className="divide-y divide-kontrol-border">
               {actions.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-8 text-center text-kontrol-ink-muted italic">
+                  <td className="px-4 py-8 text-center text-kontrol-ink-muted">
                     Aucune activité récente.
                   </td>
                 </tr>
               ) : (
-                actions.map((action) => (
-                  <tr key={action.id} className="hover:bg-kontrol-bg/30 transition-colors">
+                paginatedActions.map((action, idx) => (
+                  <tr key={action.id} className={cn(
+                    "hover:bg-kontrol-bg/30 transition-colors",
+                    idx % 2 === 0 ? "bg-white" : "bg-kontrol-bg/10"
+                  )}>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="w-7 h-7 rounded-lg bg-kontrol-bg flex items-center justify-center text-kontrol-ink-muted">
@@ -110,7 +121,7 @@ export function ModuleActivityLog({ companyId, moduleName, limitCount = 5, title
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <ArrowRight size={10} className="text-kontrol-ink-muted opacity-30" />
-                        <span className="text-kontrol-ink-soft italic truncate max-w-[200px]">
+                        <span className="text-kontrol-ink-soft truncate max-w-[200px]">
                           {action.details || '-'}
                         </span>
                       </div>
@@ -121,6 +132,29 @@ export function ModuleActivityLog({ companyId, moduleName, limitCount = 5, title
             </tbody>
           </table>
         </div>
+        {totalPages > 1 && (
+          <div className="px-4 py-3 border-t border-kontrol-border bg-kontrol-bg/30 flex items-center justify-between">
+            <span className="text-[11px] text-kontrol-ink-muted font-bold uppercase tracking-widest">
+              Page {currentPage} sur {totalPages}
+            </span>
+            <div className="flex items-center gap-2">
+              <button 
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => prev - 1)}
+                className="p-1 rounded hover:bg-kontrol-border disabled:opacity-30 transition-colors"
+              >
+                <ArrowDownLeft size={14} className="rotate-45" />
+              </button>
+              <button 
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(prev => prev + 1)}
+                className="p-1 rounded hover:bg-kontrol-border disabled:opacity-30 transition-colors"
+              >
+                <ArrowUpRight size={14} className="rotate-45" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -91,9 +91,9 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
             <div className="space-y-6">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/5 border border-white/10 rounded-full">
                 <Zap size={14} className="text-kontrol-blue" />
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60">Propulsé par INNOV'KORP</span>
+                <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-white/60">Propulsé par INNOV'KORP</span>
               </div>
-              <h2 className="text-5xl font-black text-white tracking-tighter leading-[1.1]">
+              <h2 className="text-5xl font-extrabold text-white tracking-tighter leading-[1.1]">
                 La gestion de demain, <br />
                 <span className="text-kontrol-blue">disponible aujourd'hui.</span>
               </h2>
@@ -126,30 +126,7 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
               ))}
             </div>
 
-            {/* Floating UI Mockup */}
-            <motion.div 
-              animate={{ y: [0, -10, 0] }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-              className="mt-12 p-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-[32px] shadow-2xl relative"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex gap-2">
-                  <div className="w-3 h-3 rounded-full bg-rose-500/50" />
-                  <div className="w-3 h-3 rounded-full bg-amber-500/50" />
-                  <div className="w-3 h-3 rounded-full bg-emerald-500/50" />
-                </div>
-                <div className="px-3 py-1 bg-white/10 rounded-lg text-[10px] font-bold text-white/40 uppercase tracking-widest">Aperçu Dashboard</div>
-              </div>
-              <div className="space-y-4">
-                <div className="h-4 w-2/3 bg-white/10 rounded-full" />
-                <div className="h-4 w-full bg-white/5 rounded-full" />
-                <div className="grid grid-cols-3 gap-4 pt-2">
-                  <div className="h-16 bg-kontrol-blue/20 rounded-2xl border border-kontrol-blue/30" />
-                  <div className="h-16 bg-white/5 rounded-2xl border border-white/10" />
-                  <div className="h-16 bg-white/5 rounded-2xl border border-white/10" />
-                </div>
-              </div>
-            </motion.div>
+            {/* Floating UI Mockup - Removed as requested */}
           </motion.div>
         </div>
       </div>
@@ -171,7 +148,7 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
         <div className="max-w-[400px] mx-auto w-full flex-1 flex flex-col justify-center">
           <div className="mb-10">
             <Logo size="lg" className="mb-6 shadow-xl shadow-kontrol-blue/10 border-none" />
-            <h1 className="text-3xl font-black text-kontrol-dark tracking-tighter leading-tight mb-3">
+            <h1 className="text-3xl font-extrabold text-kontrol-dark tracking-tighter leading-tight mb-3">
               {authMode === 'login' ? 'Bon retour parmi nous.' : 'Propulsez votre boutique.'}
             </h1>
             <p className="text-kontrol-ink-soft font-medium leading-relaxed">
@@ -226,7 +203,7 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
                   className="space-y-5"
                 >
                   <div className="space-y-2">
-                    <label className="text-[11px] font-black text-kontrol-ink-muted uppercase tracking-widest ml-1">Nom de l'entreprise</label>
+                    <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest ml-1">Nom de l'entreprise</label>
                     <div className="relative group">
                       <input 
                         type="text"
@@ -241,7 +218,7 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[11px] font-black text-kontrol-ink-muted uppercase tracking-widest ml-1">Nom du gérant</label>
+                    <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest ml-1">Nom du gérant</label>
                     <div className="relative group">
                       <input 
                         type="text"
@@ -259,7 +236,7 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
             </AnimatePresence>
 
             <div className="space-y-2">
-              <label className="text-[11px] font-black text-kontrol-ink-muted uppercase tracking-widest ml-1">Adresse e-mail</label>
+              <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest ml-1">Adresse e-mail</label>
               <div className="relative group">
                 <input 
                   type="email"
@@ -275,7 +252,7 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
 
             <div className="space-y-2">
               <div className="flex justify-between items-center ml-1">
-                <label className="text-[11px] font-black text-kontrol-ink-muted uppercase tracking-widest">Mot de passe</label>
+                <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">Mot de passe</label>
                 {authMode === 'login' && <button type="button" className="text-[11px] font-bold text-kontrol-blue hover:underline">Oublié ?</button>}
               </div>
               <div className="relative group">
@@ -296,7 +273,7 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
               whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={authLoading}
-              className="w-full py-4 bg-kontrol-dark text-white font-black rounded-2xl hover:bg-kontrol-blue transition-all shadow-xl shadow-kontrol-dark/10 flex items-center justify-center gap-3 disabled:opacity-50 mt-4"
+              className="w-full py-4 bg-kontrol-dark text-white font-extrabold rounded-2xl hover:bg-kontrol-blue transition-all shadow-xl shadow-kontrol-dark/10 flex items-center justify-center gap-3 disabled:opacity-50 mt-4"
             >
               {authLoading ? <Loader2 className="animate-spin" size={20} /> : (
                 <>
@@ -310,7 +287,7 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-kontrol-border"></div>
               </div>
-              <div className="relative flex justify-center text-[10px] uppercase tracking-[0.2em] font-black">
+              <div className="relative flex justify-center text-[10px] uppercase tracking-[0.2em] font-extrabold">
                 <span className="bg-white px-6 text-kontrol-ink-muted">ou continuer avec</span>
               </div>
             </div>

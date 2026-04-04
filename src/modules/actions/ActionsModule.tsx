@@ -13,7 +13,9 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
-  X
+  X,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { 
@@ -49,11 +51,15 @@ export function ActionsModule({ user, currentUserProfile }: ActionsModuleProps) 
   const isERPAdmin = currentUserProfile?.role === 'ADMINISTRATEUR_ERP' || currentUserProfile?.role === 'GESTIONNAIRE_ERP';
   const [selectedCompanyId, setSelectedCompanyId] = React.useState<string | null>(currentUserProfile?.companyId || null);
   
-  const companyId = isERPAdmin ? selectedCompanyId : (currentUserProfile?.companyId || user.uid);
+  const companyId = isERPAdmin 
+    ? (selectedCompanyId || currentUserProfile?.companyId || user.uid) 
+    : (currentUserProfile?.companyId || user.uid);
   const [actions, setActions] = React.useState<ActionLog[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [filterType, setFilterType] = React.useState<string>('ALL');
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const itemsPerPage = 10;
 
   React.useEffect(() => {
     if (!currentUserProfile) return;
@@ -88,6 +94,12 @@ export function ActionsModule({ user, currentUserProfile }: ActionsModuleProps) 
     return matchesSearch && matchesType;
   });
 
+  const totalPages = Math.ceil(filteredActions.length / itemsPerPage);
+  const paginatedActions = filteredActions.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   const getActionIcon = (action: string) => {
     if (action.includes('CONNEXION')) return <CheckCircle2 size={14} className="text-emerald-500" />;
     if (action.includes('DÉCONNEXION')) return <LogOutIcon size={14} className="text-rose-500" />;
@@ -115,13 +127,13 @@ export function ActionsModule({ user, currentUserProfile }: ActionsModuleProps) 
           </div>
           <div>
             <h2 className="text-xl font-extrabold text-kontrol-dark tracking-tight">Journal des Actions</h2>
-            <p className="text-[13px] text-kontrol-ink-muted mt-1 italic">Traçabilité complète des opérations système</p>
+            <p className="text-[13px] text-kontrol-ink-muted mt-1">Traçabilité complète des opérations système</p>
           </div>
         </div>
         
         {isERPAdmin && (
           <div className="flex items-center gap-3">
-            <span className="text-[10px] font-black uppercase tracking-widest text-kontrol-ink-muted italic">Filtrer par entité :</span>
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Filtrer par entité :</span>
             <CompanySelector 
               selectedId={selectedCompanyId} 
               onSelect={setSelectedCompanyId} 
@@ -167,10 +179,10 @@ export function ActionsModule({ user, currentUserProfile }: ActionsModuleProps) 
           <table className="w-full text-left text-[13px]">
             <thead>
               <tr className="bg-kontrol-dark text-white/40 border-b border-white/10">
-                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest italic">Horodatage</th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest italic">Utilisateur</th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest italic">Action</th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest italic">Détails de l'opération</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest">Horodatage</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest">Utilisateur</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest">Action</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest">Détails de l'opération</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-kontrol-border">
@@ -188,18 +200,21 @@ export function ActionsModule({ user, currentUserProfile }: ActionsModuleProps) 
                   <td colSpan={4} className="px-6 py-20 text-center">
                     <div className="flex flex-col items-center gap-3 opacity-30">
                       <History size={48} strokeWidth={1} />
-                      <p className="text-[13px] font-medium italic">Aucune action enregistrée pour le moment.</p>
+                      <p className="text-[13px] font-medium">Aucune action enregistrée pour le moment.</p>
                     </div>
                   </td>
                 </tr>
               ) : (
-                filteredActions.map((action, idx) => (
+                paginatedActions.map((action, idx) => (
                   <motion.tr 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.03 }}
                     key={action.id} 
-                    className="hover:bg-kontrol-bg/50 transition-colors group"
+                    className={cn(
+                      "hover:bg-kontrol-bg/50 transition-colors group",
+                      idx % 2 === 0 ? "bg-white" : "bg-kontrol-bg/20"
+                    )}
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
@@ -210,7 +225,7 @@ export function ActionsModule({ user, currentUserProfile }: ActionsModuleProps) 
                           <span className="text-kontrol-dark font-bold">
                             {action.timestamp?.toDate ? action.timestamp.toDate().toLocaleDateString() : new Date(action.timestamp).toLocaleDateString()}
                           </span>
-                          <span className="text-[10px] text-kontrol-ink-muted font-mono">
+                          <span className="text-[10px] text-kontrol-ink-muted">
                             {action.timestamp?.toDate ? action.timestamp.toDate().toLocaleTimeString() : new Date(action.timestamp).toLocaleTimeString()}
                           </span>
                         </div>
@@ -218,7 +233,7 @@ export function ActionsModule({ user, currentUserProfile }: ActionsModuleProps) 
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-7 h-7 rounded-full bg-kontrol-blue/10 flex items-center justify-center text-[10px] font-black text-kontrol-blue">
+                        <div className="w-7 h-7 rounded-full bg-kontrol-blue/10 flex items-center justify-center text-[10px] font-extrabold text-kontrol-blue">
                           {action.userName.charAt(0).toUpperCase()}
                         </div>
                         <span className="font-extrabold text-kontrol-dark">{action.userName}</span>
@@ -226,7 +241,7 @@ export function ActionsModule({ user, currentUserProfile }: ActionsModuleProps) 
                     </td>
                     <td className="px-6 py-4">
                       <span className={cn(
-                        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border",
+                        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-wider border",
                         getActionColor(action.action)
                       )}>
                         {getActionIcon(action.action)}
@@ -236,7 +251,7 @@ export function ActionsModule({ user, currentUserProfile }: ActionsModuleProps) 
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <ArrowRight size={12} className="text-kontrol-ink-muted opacity-30" />
-                        <span className="text-kontrol-ink-soft font-medium italic">
+                        <span className="text-kontrol-ink-soft font-medium">
                           {action.details || 'Aucun détail supplémentaire'}
                         </span>
                       </div>
@@ -248,11 +263,47 @@ export function ActionsModule({ user, currentUserProfile }: ActionsModuleProps) 
           </table>
         </div>
         <div className="px-6 py-4 border-t border-kontrol-border bg-kontrol-bg/30 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest italic">
+          <div className="flex items-center gap-2 text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest">
             <Activity size={12} />
             {filteredActions.length} opérations tracées
           </div>
-          <div className="text-[10px] text-kontrol-ink-muted italic">
+          
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="p-1.5 rounded-lg border border-kontrol-border bg-white text-kontrol-ink-muted hover:text-kontrol-dark disabled:opacity-50 transition-colors"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={cn(
+                      "w-8 h-8 rounded-lg text-[11px] font-extrabold transition-all",
+                      currentPage === page
+                        ? "bg-kontrol-dark text-white shadow-md"
+                        : "bg-white border border-kontrol-border text-kontrol-ink-muted hover:border-kontrol-blue hover:text-kontrol-blue"
+                    )}
+                  >
+                    {page}
+                  </button>
+                )).slice(Math.max(0, currentPage - 3), Math.min(totalPages, currentPage + 2))}
+              </div>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="p-1.5 rounded-lg border border-kontrol-border bg-white text-kontrol-ink-muted hover:text-kontrol-dark disabled:opacity-50 transition-colors"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
+
+          <div className="text-[10px] text-kontrol-ink-muted">
             Les données sont synchronisées en temps réel avec le serveur
           </div>
         </div>

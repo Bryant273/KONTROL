@@ -11,6 +11,7 @@ import {
   Package,
   Info
 } from 'lucide-react';
+import { exportToPDF, exportToExcel } from '../../lib/export';
 import { StockMovement, Produit, UserProfile } from '../../types';
 import { cn, formatCurrency } from '../../lib/utils';
 import { 
@@ -36,6 +37,12 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
   const [loading, setLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [activeView, setActiveView] = React.useState<'MOVEMENTS' | 'INVENTORY'>('MOVEMENTS');
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const itemsPerPage = 10;
+
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [activeView, searchTerm]);
 
   React.useEffect(() => {
     if (!currentUserProfile || !companyId) return;
@@ -85,6 +92,61 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
     p.designation.toLowerCase().includes(searchTerm.toLowerCase()) || 
     p.reference.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const totalPages = Math.ceil((activeView === 'MOVEMENTS' ? filteredMovements.length : filteredInventory.length) / itemsPerPage);
+  const paginatedData = (activeView === 'MOVEMENTS' ? filteredMovements : filteredInventory).slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const handleExportPDF = () => {
+    const headers = activeView === 'MOVEMENTS' ? ['Date', 'Type', 'Produit', 'Quantité', 'P.U.', 'Source'] : ['Réf', 'Désignation', 'Stock', 'CUMP', 'Valeur Stock', 'Statut'];
+    const data = activeView === 'MOVEMENTS' 
+      ? filteredMovements.map(m => [
+          new Date(m.date).toLocaleDateString(),
+          m.type,
+          m.designation,
+          m.quantite.toString(),
+          formatCurrency(m.prixUnitaire),
+          m.source
+        ])
+      : filteredInventory.map(p => [
+          p.reference,
+          p.designation,
+          p.stock.toString(),
+          formatCurrency(p.cump || p.prixAchat),
+          formatCurrency(p.stock * (p.cump || p.prixAchat)),
+          p.stock <= 0 ? 'Rupture' : p.stock <= 10 ? 'Bas' : 'OK'
+        ]);
+    
+    const title = activeView === 'MOVEMENTS' ? 'Historique des Mouvements - KONTROL' : 'État de l\'Inventaire - KONTROL';
+    const filename = activeView === 'MOVEMENTS' ? 'Mouvements_Stock_KONTROL' : 'Inventaire_KONTROL';
+    
+    exportToPDF(title, headers, data, filename, currentUserProfile?.companyLogo || currentUserProfile?.logoUrl);
+  };
+
+  const handleExportExcel = () => {
+    const data = activeView === 'MOVEMENTS'
+      ? filteredMovements.map(m => ({
+          Date: new Date(m.date).toLocaleDateString(),
+          Type: m.type,
+          Produit: m.designation,
+          Quantité: m.quantite,
+          'Prix Unitaire': m.prixUnitaire,
+          Source: m.source
+        }))
+      : filteredInventory.map(p => ({
+          Référence: p.reference,
+          Désignation: p.designation,
+          Stock: p.stock,
+          CUMP: p.cump || p.prixAchat,
+          'Valeur Stock': p.stock * (p.cump || p.prixAchat),
+          Statut: p.stock <= 0 ? 'Rupture' : p.stock <= 10 ? 'Bas' : 'OK'
+        }));
+    
+    const filename = activeView === 'MOVEMENTS' ? 'Mouvements_Stock_KONTROL' : 'Inventaire_KONTROL';
+    exportToExcel(data, filename);
+  };
 
   return (
     <div className="space-y-6">
@@ -155,9 +217,20 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <button className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2">
-          <History size={14} /> Exporter
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={handleExportPDF}
+            className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2"
+          >
+            <History size={14} /> PDF
+          </button>
+          <button 
+            onClick={handleExportExcel}
+            className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2"
+          >
+            <History size={14} /> Excel
+          </button>
+        </div>
       </div>
 
       {activeView === 'MOVEMENTS' ? (
@@ -169,12 +242,12 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
             <table className="w-full text-left border-collapse text-[13px]">
               <thead>
                 <tr className="bg-kontrol-bg border-b border-kontrol-border">
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted italic">Date</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted italic">Type</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted italic">Produit</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted italic text-center">Quantité</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted italic text-right">P.U.</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted italic">Source</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Date</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Type</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Produit</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted text-center">Quantité</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted text-right">P.U.</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Source</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-kontrol-border">
@@ -186,13 +259,13 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
                   </tr>
                 ) : filteredMovements.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center text-kontrol-ink-muted italic">
+                    <td colSpan={6} className="px-4 py-12 text-center text-kontrol-ink-muted">
                       Aucun mouvement enregistré.
                     </td>
                   </tr>
                 ) : (
-                  filteredMovements.map((m) => (
-                    <tr key={m.id} className="hover:bg-kontrol-bg/30 transition-colors">
+                  paginatedData.map((m: any, idx) => (
+                    <tr key={m.id} className={cn("hover:bg-kontrol-bg/30 transition-colors", idx % 2 === 0 ? "bg-white" : "bg-kontrol-bg/10")}>
                       <td className="px-4 py-3 text-kontrol-ink-muted">{new Date(m.date).toLocaleDateString()}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
@@ -223,6 +296,32 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
               </tbody>
             </table>
           </div>
+          {totalPages > 1 && (
+            <div className="px-4 py-3 border-t border-kontrol-border bg-kontrol-bg/30 flex items-center justify-between">
+              <span className="text-[11.5px] text-kontrol-ink-muted font-medium">
+                {filteredMovements.length} mouvements au total
+              </span>
+              <div className="flex items-center gap-2">
+                <button 
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(prev => prev - 1)}
+                  className="p-1 rounded hover:bg-kontrol-border disabled:opacity-30 transition-colors"
+                >
+                  <ArrowDownLeft size={16} className="rotate-45" />
+                </button>
+                <span className="text-[11.5px] font-bold text-kontrol-dark">
+                  Page {currentPage} sur {totalPages}
+                </span>
+                <button 
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(prev => prev + 1)}
+                  className="p-1 rounded hover:bg-kontrol-border disabled:opacity-30 transition-colors"
+                >
+                  <ArrowUpRight size={16} className="rotate-45" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <div className="card overflow-hidden">
@@ -236,12 +335,12 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
             <table className="w-full text-left border-collapse text-[13px]">
               <thead>
                 <tr className="bg-kontrol-bg border-b border-kontrol-border">
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted italic">Réf</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted italic">Désignation</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted italic text-center">Stock</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted italic text-right">CUMP</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted italic text-right">Valeur Stock</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted italic">Statut</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Réf</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Désignation</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted text-center">Stock</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted text-right">CUMP</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted text-right">Valeur Stock</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Statut</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-kontrol-border">
@@ -253,16 +352,16 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
                   </tr>
                 ) : filteredInventory.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center text-kontrol-ink-muted italic">
+                    <td colSpan={6} className="px-4 py-12 text-center text-kontrol-ink-muted">
                       Aucun produit en stock.
                     </td>
                   </tr>
                 ) : (
-                  filteredInventory.map((p) => {
+                  paginatedData.map((p: any, idx) => {
                     const value = p.stock * (p.cump || p.prixAchat);
                     return (
-                      <tr key={p.id} className="hover:bg-kontrol-bg/30 transition-colors">
-                        <td className="px-4 py-3 font-mono text-[11px] text-kontrol-ink-muted">{p.reference}</td>
+                      <tr key={p.id} className={cn("hover:bg-kontrol-bg/30 transition-colors", idx % 2 === 0 ? "bg-white" : "bg-kontrol-bg/10")}>
+                        <td className="px-4 py-3 text-[11px] text-kontrol-ink-muted">{p.reference}</td>
                         <td className="px-4 py-3 font-bold text-kontrol-dark">{p.designation}</td>
                         <td className="px-4 py-3 text-center font-extrabold">{p.stock}</td>
                         <td className="px-4 py-3 text-right font-bold text-kontrol-blue">{formatCurrency(p.cump || p.prixAchat)}</td>
@@ -284,6 +383,32 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
               </tbody>
             </table>
           </div>
+          {totalPages > 1 && (
+            <div className="px-4 py-3 border-t border-kontrol-border bg-kontrol-bg/30 flex items-center justify-between">
+              <span className="text-[11.5px] text-kontrol-ink-muted font-medium">
+                {filteredInventory.length} produits au total
+              </span>
+              <div className="flex items-center gap-2">
+                <button 
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(prev => prev - 1)}
+                  className="p-1 rounded hover:bg-kontrol-border disabled:opacity-30 transition-colors"
+                >
+                  <ArrowDownLeft size={16} className="rotate-45" />
+                </button>
+                <span className="text-[11.5px] font-bold text-kontrol-dark">
+                  Page {currentPage} sur {totalPages}
+                </span>
+                <button 
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(prev => prev + 1)}
+                  className="p-1 rounded hover:bg-kontrol-border disabled:opacity-30 transition-colors"
+                >
+                  <ArrowUpRight size={16} className="rotate-45" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

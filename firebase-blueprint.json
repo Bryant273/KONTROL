@@ -19,6 +19,8 @@
         "companyLogo": { "type": "string", "description": "Base64 image string" },
         "phone": { "type": "string" },
         "country": { "type": "string" },
+        "city": { "type": "string" },
+        "address": { "type": "string" },
         "currency": { "type": "string" },
         "language": { "type": "string" },
         "active": { "type": "boolean" },

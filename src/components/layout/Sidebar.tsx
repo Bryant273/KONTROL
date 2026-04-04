@@ -205,7 +205,7 @@ export function Sidebar({ activeTab, setActiveTab, user, profile, onLogout, isOp
           <div className="px-4 py-3 border-t border-white/10 mt-auto">
             <div className="p-2.5 bg-white/5 rounded-xl border border-white/10">
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[9px] font-black uppercase tracking-widest text-white/30 italic">Santé Système</span>
+                <span className="text-[9px] font-extrabold uppercase tracking-widest text-white/30">Santé Système</span>
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               </div>
               <div className="space-y-1">

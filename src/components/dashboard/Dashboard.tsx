@@ -26,10 +26,12 @@ import Markdown from 'react-markdown';
 import { 
   BarChart, 
   Bar, 
+  Cell,
   XAxis, 
   YAxis, 
   CartesianGrid, 
   Tooltip, 
+  Legend,
   ResponsiveContainer,
   AreaChart,
   Area
@@ -60,6 +62,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
   const companyId = currentUserProfile?.companyId || user.uid;
 
   const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
   const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
   const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999).getTime();
@@ -90,6 +93,11 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
   const [aiAnalysis, setAiAnalysis] = React.useState('');
   const [isAnalyzing, setIsAnalyzing] = React.useState(false);
   const [isSeeding, setIsSeeding] = React.useState(false);
+  
+  // Pagination states
+  const [ticketsPage, setTicketsPage] = React.useState(1);
+  const [actionsPage, setActionsPage] = React.useState(1);
+  const itemsPerPage = 10;
   const [globalStats, setGlobalStats] = React.useState({
     totalRevenue: 0,
     totalUsers: 0,
@@ -141,7 +149,12 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
       setGlobalStats(prev => ({ ...prev, totalTreasury: total }));
     });
 
-    const unsubActions = onSnapshot(query(collection(db, 'actions'), orderBy('timestamp', 'desc'), limit(5)), (snap) => {
+    const unsubActions = onSnapshot(query(
+      collection(db, 'actions'), 
+      where('timestamp', '>=', startOfToday),
+      orderBy('timestamp', 'desc'), 
+      limit(5)
+    ), (snap) => {
       setGlobalStats(prev => ({ ...prev, recentActions: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
     });
 
@@ -234,10 +247,9 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
         createdAt: Date.now()
       });
 
-      alert("Base de données initialisée avec succès !");
+      console.log("Base de données initialisée avec succès !");
     } catch (error) {
       console.error("Erreur lors du seeding:", error);
-      alert("Erreur lors de l'initialisation.");
     } finally {
       setIsSeeding(false);
     }
@@ -289,7 +301,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
     if (!aiAnalysis) return;
     const headers = ['Analyse IA - KONTROL'];
     const data = [[aiAnalysis]];
-    exportToPDF('Rapport d\'Analyse Stratégique IA', headers, data, 'Analyse_IA_KONTROL');
+    exportToPDF('Rapport d\'Analyse Stratégique IA', headers, data, 'Analyse_IA_KONTROL', currentUserProfile?.companyLogo || currentUserProfile?.logoUrl);
   };
 
   React.useEffect(() => {
@@ -310,13 +322,17 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
         }));
       }, (error) => handleFirestoreError(error, OperationType.LIST, 'users', user)));
 
-      const qTickets = query(collection(db, 'tickets'), orderBy('createdAt', 'desc'), limit(5));
+      const qTickets = query(collection(db, 'tickets'), orderBy('createdAt', 'desc'));
       unsubscribes.push(onSnapshot(qTickets, (snapshot) => {
         setRecentTickets(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         setStats(prev => ({ ...prev, totalTickets: snapshot.size }));
       }, (error) => handleFirestoreError(error, OperationType.LIST, 'tickets', user)));
 
-      const qActions = query(collection(db, 'actions'), orderBy('timestamp', 'desc'), limit(5));
+      const qActions = query(
+        collection(db, 'actions'), 
+        where('timestamp', '>=', startOfToday),
+        orderBy('timestamp', 'desc')
+      );
       unsubscribes.push(onSnapshot(qActions, (snapshot) => {
         setRecentActions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         setLoading(false);
@@ -410,7 +426,12 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
         checkLoading();
       }, (error) => handleFirestoreError(error, OperationType.LIST, 'produits', user)));
 
-      const qActions = query(collection(db, 'actions'), where('companyId', '==', companyId), orderBy('timestamp', 'desc'), limit(5));
+      const qActions = query(
+        collection(db, 'actions'), 
+        where('companyId', '==', companyId), 
+        where('timestamp', '>=', startOfToday),
+        orderBy('timestamp', 'desc')
+      );
       unsubscribes.push(onSnapshot(qActions, (snapshot) => {
         setRecentActions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         checkLoading();
@@ -420,15 +441,37 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
     return () => unsubscribes.forEach(unsub => unsub());
   }, [user, companyId, currentUserProfile, isERPAdmin]);
 
-  const totalExpenses = stats.depenses + stats.achats;
-  const totalExpensesMois = stats.depensesMois + stats.achatsMois;
-  const totalExpensesMoisPrecedent = stats.depensesMoisPrecedent + stats.achatsMoisPrecedent;
+  const { totalExpenses, totalExpensesMois, totalExpensesMoisPrecedent, benefice, beneficeMois, beneficeMoisPrecedent, rendement, performanceData } = React.useMemo(() => {
+    const totalExpenses = stats.depenses + stats.achats;
+    const totalExpensesMois = stats.depensesMois + stats.achatsMois;
+    const totalExpensesMoisPrecedent = stats.depensesMoisPrecedent + stats.achatsMoisPrecedent;
 
-  const benefice = stats.ca - totalExpenses;
-  const beneficeMois = stats.caMois - totalExpensesMois;
-  const beneficeMoisPrecedent = stats.caMoisPrecedent - totalExpensesMoisPrecedent;
+    const benefice = stats.ca - totalExpenses;
+    const beneficeMois = stats.caMois - totalExpensesMois;
+    const beneficeMoisPrecedent = stats.caMoisPrecedent - totalExpensesMoisPrecedent;
 
-  const rendement = stats.ca > 0 ? (benefice / stats.ca) * 100 : 0;
+    const rendement = stats.ca > 0 ? (benefice / stats.ca) * 100 : 0;
+
+    const performanceData = [
+      {
+        name: 'Performance',
+        'CA': stats.ca,
+        'Dépenses': totalExpenses,
+        'Profit': Math.max(0, stats.ca - totalExpenses),
+      }
+    ];
+
+    return { 
+      totalExpenses, 
+      totalExpensesMois, 
+      totalExpensesMoisPrecedent, 
+      benefice, 
+      beneficeMois, 
+      beneficeMoisPrecedent, 
+      rendement, 
+      performanceData 
+    };
+  }, [stats]);
 
   const getKPICommentary = (current: number, previous: number, type: 'positive' | 'negative' | 'neutral' = 'positive') => {
     if (previous === 0) {
@@ -492,12 +535,6 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
     { text: "Trésorerie équilibrée", color: "text-emerald-400", Icon: ShieldCheck } :
     { text: "Trésorerie sous tension", color: "text-rose-500", Icon: AlertTriangle };
 
-  const chartData = [
-    { name: 'CA', value: stats.ca, color: '#50B0E0' },
-    { name: 'Dépenses', value: totalExpenses, color: '#E06020' },
-    { name: 'Profit', value: Math.max(0, stats.ca - totalExpenses), color: '#10B981' },
-  ];
-
   if (loading) {
     return (
       <div className="flex justify-center py-24">
@@ -508,14 +545,14 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
 
   if (isERPAdmin) {
     return (
-      <div className="space-y-8 animate-in fade-in duration-700 pb-10 font-mono">
+      <div className="space-y-8 animate-in fade-in duration-700 pb-10">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-kontrol-dark/10 pb-6">
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-kontrol-blue mb-1">
               <Activity size={18} className="animate-pulse" />
-              <span className="text-[10px] font-black uppercase tracking-[0.3em]">System Status: Operational</span>
+              <span className="text-[10px] font-extrabold uppercase tracking-[0.3em]">System Status: Operational</span>
             </div>
-            <h2 className="text-4xl font-black text-kontrol-dark tracking-tighter uppercase italic">Mission Control KONTROL</h2>
+            <h2 className="text-4xl font-extrabold text-kontrol-dark tracking-tighter uppercase">Mission Control KONTROL</h2>
             <p className="text-[12px] text-kontrol-ink-muted">Supervision de l'écosystème global • v2.4.0-stable</p>
           </div>
           <div className="flex items-center gap-3">
@@ -530,7 +567,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
             <button 
               onClick={handleSeedData}
               disabled={isSeeding}
-              className="px-4 py-2 bg-kontrol-dark text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-kontrol-blue transition-all disabled:opacity-50"
+              className="px-4 py-2 bg-kontrol-dark text-white text-[10px] font-extrabold uppercase tracking-widest flex items-center gap-2 hover:bg-kontrol-blue transition-all disabled:opacity-50"
             >
               {isSeeding ? <Loader2 className="animate-spin" size={12} /> : <Zap size={12} />}
               System Init
@@ -541,9 +578,9 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
         {/* Global KPIs - Technical Grid Style */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-0 border border-kontrol-dark/10 divide-x divide-y md:divide-y-0 divide-kontrol-dark/10">
           <div className="p-8 bg-white hover:bg-kontrol-bg transition-colors group">
-            <p className="text-[10px] font-black text-kontrol-ink-muted uppercase tracking-[0.2em] mb-4">Global Treasury Balance</p>
+            <p className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-[0.2em] mb-4">Global Treasury Balance</p>
             <div className="flex items-baseline gap-2">
-              <h3 className="text-3xl font-black text-kontrol-dark tracking-tighter">{formatCurrency(globalStats.totalTreasury)}</h3>
+              <h3 className="text-3xl font-extrabold text-kontrol-dark tracking-tighter">{formatCurrency(globalStats.totalTreasury)}</h3>
               <span className="text-[10px] font-bold text-emerald-500">Net</span>
             </div>
             <div className="mt-4 h-1 w-full bg-kontrol-border rounded-full overflow-hidden">
@@ -552,9 +589,9 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
           </div>
 
           <div className="p-8 bg-white hover:bg-kontrol-bg transition-colors group">
-            <p className="text-[10px] font-black text-kontrol-ink-muted uppercase tracking-[0.2em] mb-4">Total Revenue Flow</p>
+            <p className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-[0.2em] mb-4">Total Revenue Flow</p>
             <div className="flex items-baseline gap-2">
-              <h3 className="text-3xl font-black text-kontrol-dark tracking-tighter">{formatCurrency(globalStats.totalRevenue)}</h3>
+              <h3 className="text-3xl font-extrabold text-kontrol-dark tracking-tighter">{formatCurrency(globalStats.totalRevenue)}</h3>
               <span className="text-[10px] font-bold text-kontrol-blue">Gross</span>
             </div>
             <div className="mt-4 h-1 w-full bg-kontrol-border rounded-full overflow-hidden">
@@ -563,9 +600,9 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
           </div>
 
           <div className="p-8 bg-white hover:bg-kontrol-bg transition-colors group">
-            <p className="text-[10px] font-black text-kontrol-ink-muted uppercase tracking-[0.2em] mb-4">Active Nodes (Users)</p>
+            <p className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-[0.2em] mb-4">Active Nodes (Users)</p>
             <div className="flex items-baseline gap-2">
-              <h3 className="text-3xl font-black text-kontrol-dark tracking-tighter">{globalStats.totalUsers}</h3>
+              <h3 className="text-3xl font-extrabold text-kontrol-dark tracking-tighter">{globalStats.totalUsers}</h3>
               <span className="text-[10px] font-bold text-kontrol-blue">Live</span>
             </div>
             <div className="mt-4 flex gap-1">
@@ -576,9 +613,9 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
           </div>
 
           <div className="p-8 bg-white hover:bg-kontrol-bg transition-colors group">
-            <p className="text-[10px] font-black text-kontrol-ink-muted uppercase tracking-[0.2em] mb-4">Company Instances</p>
+            <p className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-[0.2em] mb-4">Company Instances</p>
             <div className="flex items-baseline gap-2">
-              <h3 className="text-3xl font-black text-kontrol-dark tracking-tighter">{globalStats.activeCompanies}</h3>
+              <h3 className="text-3xl font-extrabold text-kontrol-dark tracking-tighter">{globalStats.activeCompanies}</h3>
               <span className="text-[10px] font-bold text-purple-500">Scale</span>
             </div>
             <div className="mt-4 flex items-center gap-2">
@@ -588,9 +625,9 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
           </div>
 
           <div className="p-8 bg-white hover:bg-kontrol-bg transition-colors group">
-            <p className="text-[10px] font-black text-kontrol-ink-muted uppercase tracking-[0.2em] mb-4">System Alerts</p>
+            <p className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-[0.2em] mb-4">System Alerts</p>
             <div className="flex items-baseline gap-2">
-              <h3 className="text-3xl font-black text-kontrol-dark tracking-tighter">{globalStats.pendingTickets}</h3>
+              <h3 className="text-3xl font-extrabold text-kontrol-dark tracking-tighter">{globalStats.pendingTickets}</h3>
               <span className="text-[10px] font-bold text-rose-500">Critical</span>
             </div>
             <div className="mt-4 flex items-center gap-2">
@@ -606,7 +643,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
             <div className="p-6 border-b border-kontrol-dark/10 flex items-center justify-between bg-kontrol-bg/30">
               <div className="flex items-center gap-3">
                 <TrendingUp size={16} className="text-kontrol-blue" />
-                <h3 className="text-[11px] font-black uppercase tracking-[0.2em]">Ecosystem Revenue Analytics</h3>
+                <h3 className="text-[11px] font-extrabold uppercase tracking-[0.2em]">Ecosystem Revenue Analytics</h3>
               </div>
               <div className="flex gap-4">
                 <div className="flex items-center gap-2">
@@ -622,7 +659,8 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
                   <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#9ca3af', fontWeight: 'bold' }} />
                   <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#9ca3af', fontWeight: 'bold' }} />
                   <Tooltip 
-                    contentStyle={{ backgroundColor: '#141414', borderRadius: '0px', border: 'none', color: '#fff', fontSize: '10px', fontFamily: 'monospace' }}
+                    shared={false}
+                    contentStyle={{ backgroundColor: '#141414', borderRadius: '0px', border: 'none', color: '#fff', fontSize: '10px' }}
                   />
                   <Area 
                     type="stepAfter" 
@@ -641,26 +679,26 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
           <div className="border border-kontrol-dark/10 bg-white flex flex-col">
             <div className="p-6 border-b border-kontrol-dark/10 flex items-center gap-3 bg-kontrol-bg/30">
               <Activity size={16} className="text-amber-600" />
-              <h3 className="text-[11px] font-black uppercase tracking-[0.2em]">Real-time Event Log</h3>
+              <h3 className="text-[11px] font-extrabold uppercase tracking-[0.2em]">Real-time Event Log</h3>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-2 max-h-[320px] font-mono">
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 max-h-[320px]">
               {globalStats.recentActions.map((action) => (
                 <div key={action.id} className="text-[10px] border-l-2 border-kontrol-blue pl-3 py-1 hover:bg-kontrol-bg transition-colors">
                   <div className="flex justify-between text-kontrol-ink-muted mb-1">
                     <span>[{new Date(action.timestamp).toLocaleTimeString()}]</span>
-                    <span className="uppercase font-black">{action.userName}</span>
+                    <span className="uppercase font-extrabold">{action.userName}</span>
                   </div>
                   <p className="text-kontrol-dark font-bold">{action.action.toUpperCase()}</p>
-                  <p className="text-kontrol-ink-soft opacity-70 italic">{action.details}</p>
+                  <p className="text-kontrol-ink-soft opacity-70">{action.details}</p>
                 </div>
               ))}
               {globalStats.recentActions.length === 0 && (
-                <div className="p-12 text-center text-kontrol-ink-muted italic text-[10px]">
-                  NO EVENTS RECORDED
+                <div className="p-12 text-center text-kontrol-ink-muted text-[10px] uppercase font-bold tracking-widest">
+                  AUCUNE ACTION ENREGISTRÉE AUJOURD'HUI
                 </div>
               )}
             </div>
-            <button className="w-full py-4 text-[10px] font-black uppercase tracking-widest text-kontrol-blue hover:bg-kontrol-dark hover:text-white transition-all border-t border-kontrol-dark/10">
+            <button className="w-full py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-blue hover:bg-kontrol-dark hover:text-white transition-all border-t border-kontrol-dark/10">
               Access Full Audit Trail
             </button>
           </div>
@@ -672,30 +710,33 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
             <div className="p-6 border-b border-kontrol-dark/10 flex items-center justify-between bg-kontrol-bg/30">
               <div className="flex items-center gap-3">
                 <MessageCircle size={16} className="text-rose-600" />
-                <h3 className="text-[11px] font-black uppercase tracking-[0.2em]">Support Incident Queue</h3>
+                <h3 className="text-[11px] font-extrabold uppercase tracking-[0.2em]">Support Incident Queue</h3>
               </div>
-              <span className="text-[9px] font-black bg-rose-100 text-rose-600 px-2 py-0.5 rounded uppercase">Priority: High</span>
+              <span className="text-[9px] font-extrabold bg-rose-100 text-rose-600 px-2 py-0.5 rounded uppercase">Priority: High</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-kontrol-bg/50 border-b border-kontrol-dark/10">
-                    <th className="px-6 py-3 text-[9px] font-black uppercase tracking-widest text-kontrol-ink-muted">Origin</th>
-                    <th className="px-6 py-3 text-[9px] font-black uppercase tracking-widest text-kontrol-ink-muted">Incident</th>
-                    <th className="px-6 py-3 text-[9px] font-black uppercase tracking-widest text-kontrol-ink-muted">Status</th>
+                    <th className="px-6 py-3 text-[9px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Origin</th>
+                    <th className="px-6 py-3 text-[9px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Incident</th>
+                    <th className="px-6 py-3 text-[9px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-kontrol-dark/10">
-                  {recentTickets.slice(0, 5).map((ticket) => (
-                    <tr key={ticket.id} className="hover:bg-kontrol-bg/30 transition-colors">
+                  {recentTickets.slice((ticketsPage - 1) * itemsPerPage, ticketsPage * itemsPerPage).map((ticket, idx) => (
+                    <tr key={ticket.id} className={cn(
+                      "hover:bg-kontrol-bg/30 transition-colors",
+                      idx % 2 === 0 ? "bg-white" : "bg-kontrol-bg/10"
+                    )}>
                       <td className="px-6 py-4">
                         <p className="text-[11px] font-bold text-kontrol-dark uppercase">{ticket.name}</p>
                         <p className="text-[9px] text-kontrol-ink-muted">{ticket.email}</p>
                       </td>
-                      <td className="px-6 py-4 text-[11px] text-kontrol-ink-soft italic">{ticket.subject}</td>
+                      <td className="px-6 py-4 text-[11px] text-kontrol-ink-soft">{ticket.subject}</td>
                       <td className="px-6 py-4">
                         <span className={cn(
-                          "px-2 py-0.5 text-[8px] font-black uppercase tracking-widest border",
+                          "px-2 py-0.5 text-[8px] font-extrabold uppercase tracking-widest border",
                           ticket.status === 'NEW' ? 'bg-rose-50 text-rose-600 border-rose-200' :
                           ticket.status === 'OPEN' ? 'bg-amber-50 text-amber-600 border-amber-200' :
                           'bg-emerald-50 text-emerald-600 border-emerald-200'
@@ -708,25 +749,48 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
                 </tbody>
               </table>
             </div>
+            {recentTickets.length > itemsPerPage && (
+              <div className="p-4 border-t border-kontrol-dark/10 flex items-center justify-between bg-kontrol-bg/20">
+                <p className="text-[10px] font-bold text-kontrol-ink-muted uppercase tracking-widest">
+                  Page {ticketsPage} sur {Math.ceil(recentTickets.length / itemsPerPage)}
+                </p>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setTicketsPage(p => Math.max(1, p - 1))}
+                    disabled={ticketsPage === 1}
+                    className="p-1.5 border border-kontrol-dark/10 hover:bg-white disabled:opacity-30 transition-colors"
+                  >
+                    <ArrowDownRight size={14} className="rotate-180" />
+                  </button>
+                  <button 
+                    onClick={() => setTicketsPage(p => Math.min(Math.ceil(recentTickets.length / itemsPerPage), p + 1))}
+                    disabled={ticketsPage === Math.ceil(recentTickets.length / itemsPerPage)}
+                    className="p-1.5 border border-kontrol-dark/10 hover:bg-white disabled:opacity-30 transition-colors"
+                  >
+                    <ArrowUpRight size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Quick Control Panel - Technical Style */}
           <div className="grid grid-cols-2 gap-4">
             <button className="border border-kontrol-dark/10 p-8 flex flex-col items-center justify-center gap-4 bg-white hover:bg-kontrol-dark hover:text-white transition-all group">
               <Building2 size={24} className="text-kontrol-blue group-hover:text-white" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em]">Provision Instance</span>
+              <span className="text-[10px] font-extrabold uppercase tracking-[0.2em]">Provision Instance</span>
             </button>
             <button className="border border-kontrol-dark/10 p-8 flex flex-col items-center justify-center gap-4 bg-white hover:bg-emerald-600 hover:text-white transition-all group">
               <ShieldCheck size={24} className="text-emerald-600 group-hover:text-white" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em]">Security Protocol</span>
+              <span className="text-[10px] font-extrabold uppercase tracking-[0.2em]">Security Protocol</span>
             </button>
             <button className="border border-kontrol-dark/10 p-8 flex flex-col items-center justify-center gap-4 bg-white hover:bg-amber-500 hover:text-white transition-all group">
               <Zap size={24} className="text-amber-600 group-hover:text-white" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em]">Maintenance Mode</span>
+              <span className="text-[10px] font-extrabold uppercase tracking-[0.2em]">Maintenance Mode</span>
             </button>
             <button className="border border-kontrol-dark/10 p-8 flex flex-col items-center justify-center gap-4 bg-white hover:bg-purple-600 hover:text-white transition-all group">
               <FileText size={24} className="text-purple-600 group-hover:text-white" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em]">Generate Global Report</span>
+              <span className="text-[10px] font-extrabold uppercase tracking-[0.2em]">Generate Global Report</span>
             </button>
           </div>
         </div>
@@ -751,12 +815,16 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <button 
-            onClick={handleAIAnalysis}
-            className="btn-primary py-1.5 px-4 text-xs flex items-center gap-2 bg-gradient-to-r from-kontrol-blue to-kontrol-orange border-none shadow-lg hover:scale-105 transition-all"
-          >
-            <Sparkles size={14} /> Analyse IA
-          </button>
+          <div className="relative group">
+            <button 
+              className="btn-primary py-1.5 px-4 text-xs flex items-center gap-2 bg-gradient-to-r from-kontrol-blue to-kontrol-orange border-none shadow-lg opacity-80 cursor-not-allowed"
+            >
+              <Sparkles size={14} /> Analyse IA
+            </button>
+            <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-3 py-1 bg-kontrol-dark text-white text-[10px] font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+              Bientôt disponible
+            </div>
+          </div>
           <select className="bg-white border border-kontrol-border rounded-lg px-3 py-1.5 text-[13px] font-medium text-kontrol-ink-soft outline-none focus:border-kontrol-blue transition-colors">
             <option>Ce mois</option>
             <option>Cette année</option>
@@ -831,19 +899,24 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
           </div>
           <div className="p-4 h-[250px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
+              <BarChart data={performanceData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,48,80,0.05)" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#7a9ab0'}} />
                 <YAxis axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#7a9ab0'}} tickFormatter={(val) => `${val/1000}k`} />
                 <Tooltip 
+                  shared={false}
                   contentStyle={{ borderRadius: '8px', border: '1px solid rgba(0,48,80,0.1)', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.05)' }}
                   formatter={(value: any) => formatCurrency(value)}
                 />
-                <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={40}>
-                  {chartData.map((entry, index) => (
-                    <Bar key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Bar>
+                <Legend 
+                  verticalAlign="top" 
+                  align="right" 
+                  iconType="circle"
+                  wrapperStyle={{ fontSize: '11px', paddingBottom: '10px' }}
+                />
+                <Bar dataKey="CA" fill="#50B0E0" radius={[4, 4, 0, 0]} barSize={40} />
+                <Bar dataKey="Dépenses" fill="#E06020" radius={[4, 4, 0, 0]} barSize={40} />
+                <Bar dataKey="Profit" fill="#10B981" radius={[4, 4, 0, 0]} barSize={40} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -866,6 +939,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#7a9ab0'}} />
                 <YAxis axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#7a9ab0'}} tickFormatter={(val) => `${val/1000}k`} />
                 <Tooltip 
+                  shared={false}
                   contentStyle={{ borderRadius: '8px', border: '1px solid rgba(0,48,80,0.1)', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.05)' }}
                   formatter={(value: any) => formatCurrency(value)}
                 />
@@ -886,38 +960,64 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-kontrol-bg/50 border-b border-kontrol-border">
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted italic">Action</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted italic">Module</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted italic">Date</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Action</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Module</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Date</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-kontrol-border">
-                {recentActions.map((action) => (
-                  <tr key={action.id} className="hover:bg-kontrol-bg/30 transition-colors">
-                    <td className="px-4 py-3 text-[13px] font-medium text-kontrol-dark">
-                      <div className="flex flex-col">
-                        <span>{action.action}</span>
-                        <span className="text-[10px] text-kontrol-ink-muted">{action.userName}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-[12px] text-kontrol-ink-soft italic">
-                      {action.details || '-'}
-                    </td>
-                    <td className="px-4 py-3 text-[12px] text-kontrol-ink-muted">
-                      {new Date(action.timestamp).toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
+                <tbody className="divide-y divide-kontrol-border">
+                  {recentActions.slice((actionsPage - 1) * itemsPerPage, actionsPage * itemsPerPage).map((action, idx) => (
+                    <tr key={action.id} className={cn(
+                      "hover:bg-kontrol-bg/30 transition-colors",
+                      idx % 2 === 0 ? "bg-white" : "bg-kontrol-bg/40"
+                    )}>
+                      <td className="px-4 py-3 text-[13px] font-medium text-kontrol-dark">
+                        <div className="flex flex-col">
+                          <span>{action.action}</span>
+                          <span className="text-[10px] text-kontrol-ink-muted">{action.userName}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-[12px] text-kontrol-ink-soft">
+                        {action.details || '-'}
+                      </td>
+                      <td className="px-4 py-3 text-[12px] text-kontrol-ink-muted">
+                        {new Date(action.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                    </tr>
+                  ))}
                 {recentActions.length === 0 && (
                   <tr>
-                    <td colSpan={3} className="px-4 py-8 text-center text-[13px] text-kontrol-ink-muted italic">
-                      Aucune activité récente.
+                    <td colSpan={3} className="px-4 py-8 text-center text-[13px] text-kontrol-ink-muted">
+                      Aucune action enregistrée aujourd'hui.
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
+          {recentActions.length > itemsPerPage && (
+            <div className="p-4 border-t border-kontrol-border flex items-center justify-between bg-kontrol-bg/20">
+              <p className="text-[10px] font-bold text-kontrol-ink-muted uppercase tracking-widest">
+                Page {actionsPage} sur {Math.ceil(recentActions.length / itemsPerPage)}
+              </p>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setActionsPage(p => Math.max(1, p - 1))}
+                  disabled={actionsPage === 1}
+                  className="p-1.5 border border-kontrol-border hover:bg-white disabled:opacity-30 transition-colors"
+                >
+                  <ArrowDownRight size={14} className="rotate-180" />
+                </button>
+                <button 
+                  onClick={() => setActionsPage(p => Math.min(Math.ceil(recentActions.length / itemsPerPage), p + 1))}
+                  disabled={actionsPage === Math.ceil(recentActions.length / itemsPerPage)}
+                  className="p-1.5 border border-kontrol-border hover:bg-white disabled:opacity-30 transition-colors"
+                >
+                  <ArrowUpRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
       {/* AI Analysis Modal */}

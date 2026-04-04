@@ -29,6 +29,7 @@ import { SubscriptionsModule } from './modules/subscriptions/SubscriptionsModule
 import { CompanySetupModal } from './components/auth/CompanySetupModal';
 import { LandingPage } from './components/landing/LandingPage';
 import { AuthPage } from './components/auth/AuthPage';
+import { Chatbot } from './components/common/Chatbot';
 import { cn, formatCurrency } from './lib/utils';
 import { UserProfile } from './types';
 import { AlertTriangle, Clock, X } from 'lucide-react';
@@ -110,6 +111,10 @@ export default function App() {
     if (!profile || (profile.role !== 'ADMINISTRATEUR_ENTREPRISE' && profile.role !== 'GESTIONNAIRE_ENTREPRISE')) return;
 
     const checkSubscription = () => {
+      if (profile.active === false) {
+        setIsBlocked(true);
+        return;
+      }
       // Logic disabled: users use the app for free
       setIsBlocked(false);
       setShowReminder(null);
@@ -158,7 +163,7 @@ export default function App() {
           <div className="absolute inset-0 border-4 border-kontrol-blue/20 rounded-full" />
           <div className="absolute inset-0 border-4 border-t-kontrol-blue rounded-full animate-spin" />
         </div>
-        <p className="text-[13px] font-black tracking-widest text-kontrol-dark uppercase animate-pulse">KONTROL</p>
+        <p className="text-[13px] font-extrabold tracking-widest text-kontrol-dark uppercase animate-pulse">KONTROL</p>
         <p className="text-[11px] text-kontrol-ink-muted mt-2">Initialisation sécurisée par INNOV'KORP...</p>
       </div>
     );
@@ -205,6 +210,7 @@ export default function App() {
         user={user} 
         profile={profile}
         onLogout={handleLogout}
+        onTabChange={handleTabChange}
         toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         isSidebarOpen={isSidebarOpen}
       />
@@ -219,16 +225,30 @@ export default function App() {
               <div className="w-20 h-20 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mb-6 animate-bounce">
                 <AlertTriangle size={40} />
               </div>
-              <h2 className="text-2xl font-black text-kontrol-dark mb-2 tracking-tighter">Accès restreint</h2>
+              <h2 className="text-2xl font-extrabold text-kontrol-dark mb-2 tracking-tighter">
+                {profile?.active === false ? "Compte désactivé" : "Accès restreint"}
+              </h2>
               <p className="text-kontrol-ink-muted max-w-md mb-8 font-medium">
-                Votre abonnement KONTROL a expiré. Veuillez renouveler votre forfait pour continuer à accéder à vos outils de gestion.
+                {profile?.active === false 
+                  ? "Votre compte entreprise a été supprimé ou désactivé. Veuillez contacter le support si vous pensez qu'il s'agit d'une erreur."
+                  : "Votre abonnement KONTROL a expiré. Veuillez renouveler votre forfait pour continuer à accéder à vos outils de gestion."}
               </p>
-              <button 
-                onClick={() => handleTabChange('abonnements', 'Compte', 'Abonnement')}
-                className="btn-primary px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-kontrol-blue/20"
-              >
-                Renouveler maintenant
-              </button>
+              {profile?.active !== false && (
+                <button 
+                  onClick={() => handleTabChange('abonnements', 'Compte', 'Abonnement')}
+                  className="btn-primary px-8 py-4 rounded-2xl font-extrabold text-sm uppercase tracking-widest shadow-xl shadow-kontrol-blue/20"
+                >
+                  Renouveler maintenant
+                </button>
+              )}
+              {profile?.active === false && (
+                <button 
+                  onClick={handleLogout}
+                  className="btn-primary px-8 py-4 rounded-2xl font-extrabold text-sm uppercase tracking-widest shadow-xl shadow-kontrol-blue/20"
+                >
+                  Déconnexion
+                </button>
+              )}
             </div>
           ) : (
             <>
@@ -271,13 +291,13 @@ export default function App() {
               <Clock size={20} className="text-white" />
             </div>
             <div className="flex-1">
-              <h4 className="text-sm font-black tracking-tight">Renouvellement proche</h4>
+              <h4 className="text-sm font-extrabold tracking-tight">Renouvellement proche</h4>
               <p className="text-[12px] text-white/60 mt-1 leading-relaxed">
                 Votre abonnement expire dans <span className="text-white font-bold">{showReminder.days} jours</span>. Évitez toute interruption de service.
               </p>
               <button 
                 onClick={() => handleTabChange('abonnements', 'Compte', 'Abonnement')}
-                className="mt-3 text-[11px] font-black uppercase tracking-widest text-kontrol-blue hover:text-white transition-colors"
+                className="mt-3 text-[11px] font-extrabold uppercase tracking-widest text-kontrol-blue hover:text-white transition-colors"
               >
                 Renouveler →
               </button>
@@ -288,6 +308,8 @@ export default function App() {
           </div>
         </div>
       )}
+
+      <Chatbot />
     </div>
   );
 }

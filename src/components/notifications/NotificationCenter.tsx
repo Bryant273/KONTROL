@@ -152,7 +152,7 @@ export function NotificationCenter({ profile }: NotificationCenterProps) {
                 <div className="w-12 h-12 rounded-full bg-kontrol-bg flex items-center justify-center text-kontrol-ink-muted mx-auto mb-3">
                   <Bell size={24} />
                 </div>
-                <p className="text-[13px] text-kontrol-ink-muted italic">Aucune notification pour le moment</p>
+                <p className="text-[13px] text-kontrol-ink-muted">Aucune notification pour le moment</p>
               </div>
             ) : (
               notifications.map((notif) => (
