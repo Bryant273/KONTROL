@@ -32,9 +32,15 @@ import {
   query, 
   orderBy, 
   limit,
-  auth 
+  auth,
+  addDoc,
+  logAction
 } from '../../../api/firebase';
 import { CompanySelector } from '../../components/common/CompanySelector';
+import { transactionService } from '../../../api/services/transactionService';
+import { tiersService } from '../../../api/services/tiersService';
+import { productService } from '../../../api/services/productService';
+import { Tiers, Produit } from '../../types';
 
 export function ControlTowerTransactionsView() {
   const [transactions, setTransactions] = React.useState<Transaction[]>([]);
@@ -45,14 +51,95 @@ export function ControlTowerTransactionsView() {
   const [currentPage, setCurrentPage] = React.useState(1);
   const itemsPerPage = 15;
 
+  const [isAdding, setIsAdding] = React.useState(false);
+  const [tiers, setTiers] = React.useState<Tiers[]>([]);
+  const [produits, setProduits] = React.useState<Produit[]>([]);
+  const [message, setMessage] = React.useState<{ type: 'error' | 'success', text: string } | null>(null);
+  const [newTrans, setNewTrans] = React.useState({
+    type: 'VENTE' as 'VENTE' | 'ACHAT',
+    tiersId: '',
+    tiersNom: '',
+    modePaiement: 'Espèces',
+    devise: 'XOF',
+    articles: [] as any[]
+  });
+
   React.useEffect(() => {
     const q = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'), limit(500));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Transaction[]);
       setLoading(false);
     });
-    return () => unsubscribe();
+
+    // Fetch Tiers and Products for the modal
+    const unsubTiers = tiersService.subscribeToAll(setTiers, auth.currentUser!);
+    const unsubProds = productService.subscribeToAll(setProduits, auth.currentUser!);
+
+    return () => {
+      unsubscribe();
+      unsubTiers();
+      unsubProds();
+    };
   }, []);
+
+  const handleAddTransaction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTrans.tiersId || newTrans.articles.length === 0 || !selectedCompanyId) {
+      setMessage({ type: 'error', text: "Veuillez remplir tous les champs et sélectionner une entreprise." });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const montantTotal = newTrans.articles.reduce((acc, art) => acc + art.total, 0);
+      const transData: any = {
+        ...newTrans,
+        reference: `TR-${Date.now().toString().slice(-6)}`,
+        date: Date.now(),
+        montantTotal,
+        statut: 'PAYE',
+        ownerId: selectedCompanyId,
+        createdAt: Date.now()
+      };
+
+      await transactionService.createTransaction(transData, auth.currentUser!);
+      
+      await logAction(
+        selectedCompanyId,
+        auth.currentUser?.uid || 'SYSTEM',
+        auth.currentUser?.displayName || 'Admin',
+        "Transaction: Créée par Admin",
+        `Réf: ${transData.reference}`
+      );
+
+      setMessage({ type: 'success', text: "Transaction enregistrée !" });
+      setTimeout(() => {
+        setIsAdding(false);
+        setMessage(null);
+        setNewTrans({ type: 'VENTE', tiersId: '', tiersNom: '', modePaiement: 'Espèces', devise: 'XOF', articles: [] });
+      }, 1500);
+    } catch (error) {
+      console.error(error);
+      setMessage({ type: 'error', text: "Erreur lors de l'enregistrement." });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addArticle = (produitId: string) => {
+    const prod = produits.find(p => p.id === produitId);
+    if (!prod) return;
+    setNewTrans({
+      ...newTrans,
+      articles: [...newTrans.articles, {
+        produitId: prod.id,
+        designation: prod.designation,
+        quantite: 1,
+        prixUnitaire: newTrans.type === 'VENTE' ? prod.prixVente : prod.prixAchat,
+        total: newTrans.type === 'VENTE' ? prod.prixVente : prod.prixAchat
+      }]
+    });
+  };
 
   const filteredTransactions = transactions.filter(t => {
     const matchesSearch = t.reference.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -92,6 +179,9 @@ export function ControlTowerTransactionsView() {
           <p className="text-[13px] text-kontrol-ink-muted mt-1">Observabilité en temps réel de toutes les transactions de l'écosystème</p>
         </div>
         <div className="flex gap-2">
+          <button onClick={() => setIsAdding(true)} className="btn-primary text-xs py-1.5 px-4 flex items-center gap-2">
+            <Plus size={14} /> Nouvelle Transaction
+          </button>
           <button onClick={handleExportPDF} className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2">
             <FileText size={14} /> PDF
           </button>
@@ -178,6 +268,102 @@ export function ControlTowerTransactionsView() {
           </div>
         )}
       </div>
+
+      {/* Add Transaction Modal */}
+      <AnimatePresence>
+        {isAdding && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-kontrol-dark/60 backdrop-blur-sm p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+              <div className="p-8 border-b border-kontrol-border flex items-center justify-between bg-kontrol-bg/30">
+                <h3 className="text-xl font-extrabold text-kontrol-dark tracking-tight">Enregistrer une Transaction</h3>
+                <button onClick={() => setIsAdding(false)} className="p-2 hover:bg-kontrol-border rounded-xl transition-colors"><X size={20} /></button>
+              </div>
+              
+              <div className="p-8 overflow-y-auto space-y-6">
+                {message && (
+                  <div className={cn("p-4 rounded-xl text-sm font-bold text-center", message.type === 'success' ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600")}>
+                    {message.text}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Entreprise Cible</label>
+                    <CompanySelector selectedId={selectedCompanyId} onSelect={setSelectedCompanyId} />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Type</label>
+                    <select className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl text-[13px]" value={newTrans.type} onChange={(e) => setNewTrans({...newTrans, type: e.target.value as any})}>
+                      <option value="VENTE">Vente</option>
+                      <option value="ACHAT">Achat</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Tiers</label>
+                    <select className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl text-[13px]" value={newTrans.tiersId} onChange={(e) => {
+                      const t = tiers.find(x => x.id === e.target.value);
+                      setNewTrans({...newTrans, tiersId: e.target.value, tiersNom: t?.nom || ''});
+                    }}>
+                      <option value="">Sélectionner...</option>
+                      {tiers.filter(t => newTrans.type === 'VENTE' ? t.type === 'CLIENT' : t.type === 'FOURNISSEUR').map(t => (
+                        <option key={t.id} value={t.id}>{t.nom}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Paiement</label>
+                    <select className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl text-[13px]" value={newTrans.modePaiement} onChange={(e) => setNewTrans({...newTrans, modePaiement: e.target.value})}>
+                      <option value="Espèces">Espèces</option>
+                      <option value="Virement">Virement</option>
+                      <option value="Mobile Money">Mobile Money</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-[11px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Articles</h4>
+                    <select className="px-4 py-2 bg-kontrol-bg border border-kontrol-border rounded-xl text-[12px]" onChange={(e) => { if(e.target.value) { addArticle(e.target.value); e.target.value = ''; } }}>
+                      <option value="">Ajouter un produit...</option>
+                      {produits.map(p => <option key={p.id} value={p.id}>{p.designation}</option>)}
+                    </select>
+                  </div>
+                  <div className="border border-kontrol-border rounded-2xl overflow-hidden">
+                    <table className="w-full text-left text-[12px]">
+                      <thead className="bg-kontrol-bg">
+                        <tr>
+                          <th className="px-4 py-2">Désignation</th>
+                          <th className="px-4 py-2 text-center">Qté</th>
+                          <th className="px-4 py-2 text-right">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-kontrol-border">
+                        {newTrans.articles.map((art, idx) => (
+                          <tr key={idx}>
+                            <td className="px-4 py-2 font-bold">{art.designation}</td>
+                            <td className="px-4 py-2 text-center">{art.quantite}</td>
+                            <td className="px-4 py-2 text-right font-bold">{formatCurrency(art.total)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-8 bg-kontrol-bg/30 border-t border-kontrol-border">
+                <button onClick={handleAddTransaction} disabled={loading} className="w-full btn-primary py-4 font-extrabold uppercase tracking-widest text-[12px] flex items-center justify-center gap-2 shadow-xl shadow-kontrol-blue/20">
+                  {loading ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle2 size={18} />}
+                  Enregistrer la Transaction
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

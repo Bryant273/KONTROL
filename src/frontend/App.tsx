@@ -310,6 +310,7 @@ export default function App() {
               {activeTab === 'utilisateurs' && (isERPAdmin ? <ControlTower activeSubTab="utilisateurs" /> : <UsersModule user={user} currentUserProfile={profile} />)}
               {activeTab === 'gestionnaires' && <ControlTower activeSubTab="gestionnaires" />}
               {activeTab === 'tickets' && (isERPAdmin ? <ControlTower activeSubTab="tickets" /> : <TicketsModule user={user} currentUserProfile={profile} />)}
+              {activeTab === 'gmail' && <ControlTower activeSubTab="gmail" />}
               {activeTab === 'entreprises' && (isERPAdmin ? <ControlTower activeSubTab="entreprises" /> : <CompaniesModule />)}
               {activeTab === 'system' && (isERPAdmin ? <ControlTower activeSubTab="telemetry" /> : <SystemModule currentUserProfile={profile} />)}
               {activeTab === 'actions' && (isERPAdmin ? <ControlTower activeSubTab="audit" /> : <ActionsModule user={user} currentUserProfile={profile} />)}

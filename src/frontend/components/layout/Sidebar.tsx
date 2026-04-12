@@ -52,12 +52,13 @@ const erpNavSections: NavSection[] = [
     ]
   },
   {
-    title: 'Business & Revenus',
+    title: 'Gestion Financière',
     icon: CreditCard,
     items: [
       { id: 'subscriptions', label: 'Abonnements', icon: CreditCard },
-      { id: 'revenue', label: 'Revenus', icon: TrendingUp },
-      { id: 'accounting', label: 'Comptabilité', icon: Receipt },
+      { id: 'revenue', label: 'Analyses & Croissance', icon: TrendingUp },
+      { id: 'transactions', label: 'Transactions Globales', icon: ArrowLeftRight },
+      { id: 'accounting', label: 'Journal de Trésorerie', icon: Receipt },
     ]
   },
   {
@@ -89,6 +90,7 @@ const erpNavSections: NavSection[] = [
     items: [
       { id: 'actions', label: 'Audit Trail', icon: History },
       { id: 'tickets', label: 'Support & Tickets', icon: MessageCircle },
+      { id: 'gmail', label: 'Gmail Innov\'Korp', icon: MessageCircle },
     ]
   },
   {

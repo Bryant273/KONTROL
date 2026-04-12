@@ -70,6 +70,8 @@ import {
   doc,
   setDoc,
   updateDoc,
+  addDoc,
+  deleteDoc,
   serverTimestamp,
   handleFirestoreError,
   OperationType,
@@ -81,7 +83,9 @@ import Markdown from 'react-markdown';
 import { blueAIService, BlueFunction } from '../../../api/services/blueAIService';
 import { ControlTowerTreasuryView } from './ControlTowerTreasuryView';
 import { ControlTowerTransactionsView } from './ControlTowerTransactionsView';
+import { ControlGmailView } from './ControlGmailView';
 import { emailService } from '../../../api/services/emailService';
+import { ConfirmModal } from '../../components/common/ConfirmModal';
 
 interface ControlTowerProps {
   activeSubTab?: string;
@@ -106,10 +110,74 @@ export function ControlTower({ activeSubTab = 'dashboard' }: ControlTowerProps) 
   const [revenueData, setRevenueData] = useState<any[]>([]);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [addType, setAddType] = useState<'COMPANY' | 'MANAGER'>('COMPANY');
 
   const openDetail = (item: any) => {
     setSelectedItem(item);
     setIsDetailModalOpen(true);
+  };
+
+  const openEdit = (item: any) => {
+    setSelectedItem(item);
+    setIsEditModalOpen(true);
+  };
+
+  const openDelete = (item: any) => {
+    setSelectedItem(item);
+    setIsDeleteModalOpen(true);
+  };
+
+  const openAdd = (type: 'COMPANY' | 'MANAGER') => {
+    setAddType(type);
+    setIsAddModalOpen(true);
+  };
+
+  const handleAdd = async (newData: any) => {
+    try {
+      if (addType === 'COMPANY') {
+        // For company, we usually create a user with role CLIENT and company info
+        await addDoc(collection(db, 'users'), {
+          ...newData,
+          role: 'CLIENT',
+          subscriptionStatus: 'TRIAL',
+          isDemo: true,
+          createdAt: Date.now()
+        });
+      } else {
+        await addDoc(collection(db, 'users'), {
+          ...newData,
+          createdAt: Date.now()
+        });
+      }
+      setIsAddModalOpen(false);
+    } catch (error) {
+      console.error("Add error:", error);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedItem) return;
+    try {
+      await deleteDoc(doc(db, 'users', selectedItem.id));
+      setIsDeleteModalOpen(false);
+      setSelectedItem(null);
+    } catch (error) {
+      console.error("Delete error:", error);
+    }
+  };
+
+  const handleUpdate = async (updatedData: any) => {
+    if (!selectedItem) return;
+    try {
+      await updateDoc(doc(db, 'users', selectedItem.id), updatedData);
+      setIsEditModalOpen(false);
+      setSelectedItem(null);
+    } catch (error) {
+      console.error("Update error:", error);
+    }
   };
 
   const [treasuryBalance, setTreasuryBalance] = useState(0);
@@ -197,7 +265,7 @@ export function ControlTower({ activeSubTab = 'dashboard' }: ControlTowerProps) 
           </div>
           <h2 className="text-4xl font-extrabold text-kontrol-dark tracking-tighter uppercase">
             {activeSubTab === 'dashboard' ? 'Command Center' : 
-             activeSubTab === 'subscriptions' || activeSubTab === 'revenue' || activeSubTab === 'accounting' ? 'Business & Revenus' :
+             activeSubTab === 'subscriptions' || activeSubTab === 'revenue' || activeSubTab === 'accounting' ? 'Gestion Financière' :
              activeSubTab === 'entreprises' || activeSubTab === 'utilisateurs' ? 'Écosystème' :
              activeSubTab === 'ai_core' ? 'Intelligence Blue AI' :
              activeSubTab === 'telemetry' || activeSubTab === 'system' ? 'Système & Télémétrie' :
@@ -223,13 +291,167 @@ export function ControlTower({ activeSubTab = 'dashboard' }: ControlTowerProps) 
         {activeSubTab === 'revenue' && <BusinessRevenueView stats={stats} revenueData={revenueData} />}
         {activeSubTab === 'accounting' && <ControlTowerTreasuryView />}
         {activeSubTab === 'transactions' && <ControlTowerTransactionsView />}
-        {activeSubTab === 'entreprises' && <EcosystemCompaniesView companies={companies} onDetail={openDetail} />}
-        {activeSubTab === 'utilisateurs' && <EcosystemUsersView users={allUsers} onDetail={openDetail} />}
-        {activeSubTab === 'gestionnaires' && <AdminManagersView users={allUsers} onDetail={openDetail} />}
+        {activeSubTab === 'entreprises' && <EcosystemCompaniesView companies={companies} onDetail={openDetail} onEdit={openEdit} onDelete={openDelete} onAdd={() => openAdd('COMPANY')} />}
+        {activeSubTab === 'utilisateurs' && <EcosystemUsersView users={allUsers} onDetail={openDetail} onEdit={openEdit} onDelete={openDelete} />}
+        {activeSubTab === 'gestionnaires' && <AdminManagersView users={allUsers} onDetail={openDetail} onEdit={openEdit} onDelete={openDelete} onAdd={() => openAdd('MANAGER')} />}
         {activeSubTab === 'ai_core' && <IntelligenceAIView stats={stats} />}
         {activeSubTab === 'telemetry' && <SystemTelemetryView stats={stats} />}
         {activeSubTab === 'audit' && <ControlAuditView actions={recentActions} />}
         {activeSubTab === 'tickets' && <ControlSupportView tickets={tickets} />}
+        {activeSubTab === 'gmail' && <ControlGmailView />}
+      </AnimatePresence>
+
+      {/* Detail Modal */}
+      <AnimatePresence>
+        {isDetailModalOpen && selectedItem && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-kontrol-dark/60 backdrop-blur-sm p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden">
+              <div className="p-8 border-b border-kontrol-border flex items-center justify-between bg-kontrol-bg/30">
+                <h3 className="text-xl font-extrabold text-kontrol-dark tracking-tight">Détails de l'entité</h3>
+                <button onClick={() => setIsDetailModalOpen(false)} className="p-2 hover:bg-kontrol-border rounded-xl transition-colors"><X size={20} /></button>
+              </div>
+              <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <p className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted mb-1">Nom / Entreprise</p>
+                    <p className="text-[15px] font-extrabold text-kontrol-dark">{selectedItem.companyName || selectedItem.displayName}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted mb-1">Email</p>
+                    <p className="text-[15px] font-bold text-kontrol-dark">{selectedItem.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted mb-1">Rôle / Statut</p>
+                    <p className="text-[13px] font-bold text-kontrol-blue uppercase tracking-widest">{selectedItem.role || selectedItem.subscriptionStatus}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted mb-1">Date de création</p>
+                    <p className="text-[13px] font-bold text-kontrol-dark">{selectedItem.createdAt ? new Date(selectedItem.createdAt).toLocaleDateString() : 'N/A'}</p>
+                  </div>
+                </div>
+                {selectedItem.role === 'ADMINISTRATEUR_ERP' && (
+                  <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl">
+                    <p className="text-[11px] text-amber-800 font-bold">Cet utilisateur possède des privilèges d'administration globale.</p>
+                  </div>
+                )}
+              </div>
+              <div className="p-6 bg-kontrol-bg/30 border-t border-kontrol-border flex justify-end">
+                <button onClick={() => setIsDetailModalOpen(false)} className="btn-primary px-8 py-3 text-[11px] font-extrabold uppercase tracking-widest">Fermer</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Modal */}
+      <AnimatePresence>
+        {isEditModalOpen && selectedItem && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-kontrol-dark/60 backdrop-blur-sm p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden">
+              <div className="p-8 border-b border-kontrol-border flex items-center justify-between bg-kontrol-bg/30">
+                <h3 className="text-xl font-extrabold text-kontrol-dark tracking-tight">Modifier l'entité</h3>
+                <button onClick={() => setIsEditModalOpen(false)} className="p-2 hover:bg-kontrol-border rounded-xl transition-colors"><X size={20} /></button>
+              </div>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                handleUpdate({
+                  displayName: formData.get('displayName'),
+                  companyName: formData.get('companyName'),
+                  role: formData.get('role')
+                });
+              }} className="p-8 space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Nom d'affichage</label>
+                  <input name="displayName" type="text" defaultValue={selectedItem.displayName} className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl text-[13px] outline-none focus:border-kontrol-blue" />
+                </div>
+                {selectedItem.companyName && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Nom de l'entreprise</label>
+                    <input name="companyName" type="text" defaultValue={selectedItem.companyName} className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl text-[13px] outline-none focus:border-kontrol-blue" />
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Rôle</label>
+                  <select name="role" defaultValue={selectedItem.role} className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl text-[13px] outline-none focus:border-kontrol-blue">
+                    <option value="CLIENT">Client</option>
+                    <option value="GESTIONNAIRE_ERP">Gestionnaire KONTROL</option>
+                    <option value="ADMINISTRATEUR_ERP">Administrateur KONTROL</option>
+                  </select>
+                </div>
+                <button type="submit" className="w-full btn-primary py-4 font-extrabold uppercase tracking-widest text-[12px] flex items-center justify-center gap-2 shadow-xl shadow-kontrol-blue/20">
+                  <CheckCircle2 size={18} /> Enregistrer les modifications
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <ConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDelete}
+        title="Supprimer l'entité"
+        message="Êtes-vous sûr de vouloir supprimer cette entité ? Toutes les données associées seront définitivement perdues."
+        confirmLabel="Supprimer"
+        variant="danger"
+      />
+
+      {/* Add Modal */}
+      <AnimatePresence>
+        {isAddModalOpen && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-kontrol-dark/60 backdrop-blur-sm p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden">
+              <div className="p-8 border-b border-kontrol-border flex items-center justify-between bg-kontrol-bg/30">
+                <h3 className="text-xl font-extrabold text-kontrol-dark tracking-tight">
+                  {addType === 'COMPANY' ? 'Nouvelle Entreprise' : 'Nouveau Gestionnaire'}
+                </h3>
+                <button onClick={() => setIsAddModalOpen(false)} className="p-2 hover:bg-kontrol-border rounded-xl transition-colors"><X size={20} /></button>
+              </div>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                const data: any = {
+                  displayName: formData.get('displayName'),
+                  email: formData.get('email'),
+                };
+                if (addType === 'COMPANY') {
+                  data.companyName = formData.get('companyName');
+                } else {
+                  data.role = formData.get('role');
+                }
+                handleAdd(data);
+              }} className="p-8 space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Nom complet</label>
+                  <input name="displayName" type="text" required className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl text-[13px] outline-none focus:border-kontrol-blue" placeholder="Jean Dupont" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Email</label>
+                  <input name="email" type="email" required className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl text-[13px] outline-none focus:border-kontrol-blue" placeholder="jean@exemple.com" />
+                </div>
+                {addType === 'COMPANY' ? (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Nom de l'entreprise</label>
+                    <input name="companyName" type="text" required className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl text-[13px] outline-none focus:border-kontrol-blue" placeholder="Ma Super Entreprise" />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Rôle</label>
+                    <select name="role" required className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl text-[13px] outline-none focus:border-kontrol-blue">
+                      <option value="GESTIONNAIRE_ERP">Gestionnaire KONTROL</option>
+                      <option value="ADMINISTRATEUR_ERP">Administrateur KONTROL</option>
+                    </select>
+                  </div>
+                )}
+                <button type="submit" className="w-full btn-primary py-4 font-extrabold uppercase tracking-widest text-[12px] flex items-center justify-center gap-2 shadow-xl shadow-kontrol-blue/20">
+                  <CheckCircle2 size={18} /> Créer {addType === 'COMPANY' ? "l'entreprise" : "le gestionnaire"}
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
       </AnimatePresence>
     </div>
   );
@@ -238,9 +460,22 @@ export function ControlTower({ activeSubTab = 'dashboard' }: ControlTowerProps) 
 // --- SUB-VIEWS ---
 
 function VisionView({ stats, companies, recentActions, treasuryBalance }: any) {
+  const [period, setPeriod] = useState<'7' | '30'>('30');
   const topCompanies = [...companies]
     .sort((a, b) => (b.revenue || 0) - (a.revenue || 0))
     .slice(0, 5);
+
+  const chartData = [
+    { date: '01/03', mrr: 450000, churn: 12000 },
+    { date: '05/03', mrr: 520000, churn: 15000 },
+    { date: '10/03', mrr: 480000, churn: 10000 },
+    { date: '15/03', mrr: 610000, churn: 18000 },
+    { date: '20/03', mrr: 590000, churn: 14000 },
+    { date: '25/03', mrr: 720000, churn: 22000 },
+    { date: '30/03', mrr: 850000, churn: 19000 },
+  ];
+
+  const filteredChartData = period === '7' ? chartData.slice(-3) : chartData;
 
   return (
     <motion.div 
@@ -250,10 +485,10 @@ function VisionView({ stats, companies, recentActions, treasuryBalance }: any) {
     >
       {/* Global KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="MRR Global" value={formatCurrency(stats.mrr)} change="+12.5%" icon={TrendingUp} color="blue" />
-        <StatCard title="Trésorerie KONTROL" value={formatCurrency(treasuryBalance)} change="Live" icon={WalletIcon} color="amber" />
-        <StatCard title="Noeuds Actifs" value={stats.totalUsers} change="+45" icon={Users} color="blue" />
-        <StatCard title="Santé Système" value="99.9%" change="Stable" icon={Activity} color="emerald" />
+        <StatCard title="MRR Global" value={formatCurrency(stats.mrr)} change="+12.5%" icon={TrendingUp} color="blue" trend="up" />
+        <StatCard title="Trésorerie KONTROL" value={formatCurrency(treasuryBalance)} change="Live" icon={WalletIcon} color="amber" trend="up" />
+        <StatCard title="Noeuds Actifs" value={stats.totalUsers} change="+45" icon={Users} color="blue" trend="up" />
+        <StatCard title="Santé Système" value="99.9%" change="Stable" icon={Activity} color="emerald" trend="up" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -264,22 +499,30 @@ function VisionView({ stats, companies, recentActions, treasuryBalance }: any) {
               <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted mb-1">Croissance des Revenus</h3>
               <p className="text-2xl font-extrabold text-kontrol-dark tracking-tight">Analyse MRR vs Churn</p>
             </div>
-            <div className="flex gap-2">
-              <button className="px-4 py-2 bg-kontrol-bg text-kontrol-ink-soft text-[10px] font-extrabold uppercase tracking-widest rounded-xl border border-kontrol-border">7 Jours</button>
-              <button className="px-4 py-2 bg-kontrol-blue text-white text-[10px] font-extrabold uppercase tracking-widest rounded-xl shadow-lg shadow-kontrol-blue/20">30 Jours</button>
+            <div className="flex bg-kontrol-bg p-1 rounded-2xl border border-kontrol-border">
+              <button 
+                onClick={() => setPeriod('7')}
+                className={cn(
+                  "px-4 py-2 text-[10px] font-extrabold uppercase tracking-widest rounded-xl transition-all",
+                  period === '7' ? "bg-kontrol-blue text-white shadow-lg shadow-kontrol-blue/20" : "text-kontrol-ink-soft hover:bg-kontrol-border"
+                )}
+              >
+                7 Jours
+              </button>
+              <button 
+                onClick={() => setPeriod('30')}
+                className={cn(
+                  "px-4 py-2 text-[10px] font-extrabold uppercase tracking-widest rounded-xl transition-all",
+                  period === '30' ? "bg-kontrol-blue text-white shadow-lg shadow-kontrol-blue/20" : "text-kontrol-ink-soft hover:bg-kontrol-border"
+                )}
+              >
+                30 Jours
+              </button>
             </div>
           </div>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={[
-                { date: '01/03', mrr: 450000, churn: 12000 },
-                { date: '05/03', mrr: 520000, churn: 15000 },
-                { date: '10/03', mrr: 480000, churn: 10000 },
-                { date: '15/03', mrr: 610000, churn: 18000 },
-                { date: '20/03', mrr: 590000, churn: 14000 },
-                { date: '25/03', mrr: 720000, churn: 22000 },
-                { date: '30/03', mrr: 850000, churn: 19000 },
-              ]}>
+              <AreaChart data={filteredChartData}>
                 <defs>
                   <linearGradient id="colorMrr" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
@@ -420,6 +663,19 @@ function BusinessSubscriptionsView({ companies }: any) {
     }
   };
 
+  const handleExport = () => {
+    const data = companies.map((c: any) => ({
+      Entreprise: c.companyName || c.displayName,
+      Email: c.email,
+      Statut: c.subscriptionStatus || 'INACTIF',
+      Expiration: c.subscriptionEndDate ? new Date(c.subscriptionEndDate).toLocaleDateString() : 'N/A',
+      Demo: c.isDemo ? 'OUI' : 'NON'
+    }));
+    import('../../lib/export').then(({ exportToExcel }) => {
+      exportToExcel(data, 'Abonnements_KONTROL');
+    });
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0, x: 20 }}
@@ -451,7 +707,12 @@ function BusinessSubscriptionsView({ companies }: any) {
       <div className="card overflow-hidden">
         <div className="p-6 border-b border-kontrol-border flex items-center justify-between">
           <h3 className="text-[11px] font-extrabold uppercase tracking-widest">Gestion des Abonnements</h3>
-          <button className="px-4 py-2 bg-kontrol-blue text-white text-[10px] font-extrabold uppercase tracking-widest rounded-xl hover:bg-blue-600 transition-all">Exporter la Liste</button>
+          <button 
+            onClick={handleExport}
+            className="px-4 py-2 bg-kontrol-blue text-white text-[10px] font-extrabold uppercase tracking-widest rounded-xl hover:bg-blue-600 transition-all"
+          >
+            Exporter la Liste
+          </button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -511,7 +772,7 @@ function BusinessSubscriptionsView({ companies }: any) {
   );
 }
 
-function AdminManagersView({ users, onDetail }: any) {
+function AdminManagersView({ users, onDetail, onEdit, onDelete, onAdd }: any) {
   const managers = users.filter((u: any) => u.role === 'ADMINISTRATEUR_ERP' || u.role === 'GESTIONNAIRE_ERP');
   
   return (
@@ -522,7 +783,10 @@ function AdminManagersView({ users, onDetail }: any) {
     >
       <div className="flex items-center justify-between">
         <h3 className="text-[11px] font-extrabold uppercase tracking-widest">Gestionnaires de la Plateforme</h3>
-        <button className="px-6 py-3 bg-kontrol-blue text-white rounded-2xl text-[11px] font-extrabold uppercase tracking-widest hover:bg-blue-600 transition-all flex items-center gap-2 shadow-lg shadow-kontrol-blue/20">
+        <button 
+          onClick={onAdd}
+          className="px-6 py-3 bg-kontrol-blue text-white rounded-2xl text-[11px] font-extrabold uppercase tracking-widest hover:bg-blue-600 transition-all flex items-center gap-2 shadow-lg shadow-kontrol-blue/20"
+        >
           <Plus size={16} /> Nouveau Gestionnaire
         </button>
       </div>
@@ -550,7 +814,16 @@ function AdminManagersView({ users, onDetail }: any) {
               >
                 <Eye size={14} /> Voir
               </button>
-              <button className="flex-1 py-2.5 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-extrabold uppercase tracking-widest hover:bg-rose-100 transition-all flex items-center justify-center gap-2">
+              <button 
+                onClick={() => onEdit(manager)}
+                className="p-2.5 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-100 transition-all" title="Modifier"
+              >
+                <Edit2 size={14} />
+              </button>
+              <button 
+                onClick={() => onDelete(manager)}
+                className="flex-1 py-2.5 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-extrabold uppercase tracking-widest hover:bg-rose-100 transition-all flex items-center justify-center gap-2"
+              >
                 <Trash2 size={14} /> Révoquer
               </button>
             </div>
@@ -562,6 +835,40 @@ function AdminManagersView({ users, onDetail }: any) {
 }
 
 function BusinessRevenueView({ stats, revenueData }: any) {
+  const [showAddMovement, setShowAddMovement] = useState(false);
+  const [movements, setMovements] = useState<any[]>([]);
+  const [newMovement, setNewMovement] = useState({
+    type: 'ENCAISSEMENT',
+    description: '',
+    montant: 0,
+    date: Date.now()
+  });
+
+  useEffect(() => {
+    const q = query(collection(db, 'treasury_movements'), orderBy('date', 'desc'), limit(50));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setMovements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleAddMovement = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMovement.description || !newMovement.montant) return;
+    try {
+      await addDoc(collection(db, 'treasury_movements'), {
+        ...newMovement,
+        date: Date.now(),
+        createdAt: Date.now(),
+        createdBy: auth.currentUser?.uid
+      });
+      setShowAddMovement(false);
+      setNewMovement({ type: 'ENCAISSEMENT', description: '', montant: 0, date: Date.now() });
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0, x: 20 }}
@@ -732,21 +1039,53 @@ function BusinessAccountingView({ stats }: any) {
                   <X size={20} />
                 </button>
               </div>
-              <form className="p-8 space-y-6" onSubmit={(e) => { e.preventDefault(); setShowAddMovement(false); }}>
+              <form className="p-8 space-y-6" onSubmit={handleAddMovement}>
                 <div className="space-y-2">
                   <label className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Type de Mouvement</label>
                   <div className="grid grid-cols-2 gap-3">
-                    <button type="button" className="py-3 bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-xl text-[11px] font-extrabold uppercase tracking-widest">Encaissement</button>
-                    <button type="button" className="py-3 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl text-[11px] font-extrabold uppercase tracking-widest">Décaissement</button>
+                    <button 
+                      type="button" 
+                      onClick={() => setNewMovement({...newMovement, type: 'ENCAISSEMENT'})}
+                      className={cn(
+                        "py-3 rounded-xl text-[11px] font-extrabold uppercase tracking-widest transition-all",
+                        newMovement.type === 'ENCAISSEMENT' ? "bg-emerald-600 text-white shadow-lg shadow-emerald-200" : "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                      )}
+                    >
+                      Encaissement
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={() => setNewMovement({...newMovement, type: 'DECAISSEMENT'})}
+                      className={cn(
+                        "py-3 rounded-xl text-[11px] font-extrabold uppercase tracking-widest transition-all",
+                        newMovement.type === 'DECAISSEMENT' ? "bg-rose-600 text-white shadow-lg shadow-rose-200" : "bg-rose-50 text-rose-600 border border-rose-200"
+                      )}
+                    >
+                      Décaissement
+                    </button>
                   </div>
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Description</label>
-                  <input type="text" className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl focus:outline-none focus:border-kontrol-blue text-[13px]" placeholder="Ex: Achat fournitures bureau" />
+                  <input 
+                    type="text" 
+                    required
+                    value={newMovement.description}
+                    onChange={(e) => setNewMovement({...newMovement, description: e.target.value})}
+                    className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl focus:outline-none focus:border-kontrol-blue text-[13px]" 
+                    placeholder="Ex: Achat fournitures bureau" 
+                  />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Montant (XOF)</label>
-                  <input type="number" className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl focus:outline-none focus:border-kontrol-blue text-[13px]" placeholder="0" />
+                  <input 
+                    type="number" 
+                    required
+                    value={newMovement.montant || ''}
+                    onChange={(e) => setNewMovement({...newMovement, montant: Number(e.target.value)})}
+                    className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl focus:outline-none focus:border-kontrol-blue text-[13px]" 
+                    placeholder="0" 
+                  />
                 </div>
                 <button type="submit" className="w-full py-4 bg-kontrol-blue text-white rounded-2xl font-extrabold text-sm uppercase tracking-widest hover:bg-blue-600 transition-all shadow-xl shadow-kontrol-blue/20">
                   Enregistrer le Mouvement
@@ -760,7 +1099,7 @@ function BusinessAccountingView({ stats }: any) {
   );
 }
 
-function EcosystemCompaniesView({ companies, onDetail }: any) {
+function EcosystemCompaniesView({ companies, onDetail, onEdit, onDelete, onAdd }: any) {
   return (
     <motion.div 
       initial={{ opacity: 0, x: 20 }}
@@ -780,7 +1119,10 @@ function EcosystemCompaniesView({ companies, onDetail }: any) {
           <button className="px-6 py-3 bg-white border border-kontrol-border text-kontrol-ink-soft rounded-2xl text-[11px] font-extrabold uppercase tracking-widest hover:bg-kontrol-bg transition-all flex items-center gap-2">
             <Filter size={16} /> Filtres
           </button>
-          <button className="px-6 py-3 bg-kontrol-blue text-white rounded-2xl text-[11px] font-extrabold uppercase tracking-widest hover:bg-blue-600 transition-all flex items-center gap-2 shadow-lg shadow-kontrol-blue/20">
+          <button 
+            onClick={onAdd}
+            className="px-6 py-3 bg-kontrol-blue text-white rounded-2xl text-[11px] font-extrabold uppercase tracking-widest hover:bg-blue-600 transition-all flex items-center gap-2 shadow-lg shadow-kontrol-blue/20"
+          >
             <Plus size={16} /> Nouvelle Entreprise
           </button>
         </div>
@@ -811,10 +1153,16 @@ function EcosystemCompaniesView({ companies, onDetail }: any) {
                   >
                     <Eye size={14} />
                   </button>
-                  <button className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg transition-all" title="Modifier">
-                    <Code size={14} />
+                  <button 
+                    onClick={() => onEdit(company)}
+                    className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg transition-all" title="Modifier"
+                  >
+                    <Edit2 size={14} />
                   </button>
-                  <button className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-all" title="Supprimer">
+                  <button 
+                    onClick={() => onDelete(company)}
+                    className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-all" title="Supprimer"
+                  >
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -845,7 +1193,7 @@ function EcosystemCompaniesView({ companies, onDetail }: any) {
   );
 }
 
-function EcosystemUsersView({ users, onDetail }: any) {
+function EcosystemUsersView({ users, onDetail, onEdit, onDelete }: any) {
   return (
     <motion.div 
       initial={{ opacity: 0, x: 20 }}
@@ -903,10 +1251,16 @@ function EcosystemUsersView({ users, onDetail }: any) {
                       >
                         <Eye size={16} />
                       </button>
-                      <button className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-all" title="Modifier">
-                        <Code size={16} />
+                      <button 
+                        onClick={() => onEdit(user)}
+                        className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-all" title="Modifier"
+                      >
+                        <Edit2 size={16} />
                       </button>
-                      <button className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-all" title="Supprimer">
+                      <button 
+                        onClick={() => onDelete(user)}
+                        className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-all" title="Supprimer"
+                      >
                         <Trash2 size={16} />
                       </button>
                     </div>
@@ -992,7 +1346,43 @@ function IntelligenceAIView({ stats }: any) {
   );
 }
 
-function SystemTelemetryView() {
+function SystemTelemetryView({ stats }: any) {
+  const [isResetting, setIsResetting] = useState(false);
+  
+  const handleResetDB = async () => {
+    if (!window.confirm("Êtes-vous sûr de vouloir réinitialiser la base de données ? Cette action est irréversible.")) return;
+    setIsResetting(true);
+    try {
+      // 1. Delete all users except the two main ones
+      const usersSnap = await getDocs(collection(db, 'users'));
+      const allowedEmails = ['acherie812@gmail.com', 'innov.korp@gmail.com'];
+      
+      for (const userDoc of usersSnap.docs) {
+        const userData = userDoc.data();
+        if (!allowedEmails.includes(userData.email?.toLowerCase())) {
+          await deleteDoc(userDoc.ref);
+        }
+      }
+
+      // 2. Delete all other collections
+      const collections = ['companies', 'tiers', 'produits', 'transactions', 'charges', 'wallets', 'payments', 'stock_movements', 'tickets', 'actions', 'notifications', 'conversations', 'messages'];
+      for (const colName of collections) {
+        const snap = await getDocs(collection(db, colName));
+        for (const d of snap.docs) {
+          await deleteDoc(d.ref);
+        }
+      }
+
+      alert("Base de données réinitialisée avec succès.");
+      window.location.reload();
+    } catch (error) {
+      console.error("Reset DB error:", error);
+      alert("Erreur lors de la réinitialisation.");
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   const [metrics, setMetrics] = useState({
     cpu: [12, 15, 14, 18, 12, 10, 15],
     ram: [4.2, 4.3, 4.2, 4.5, 4.4, 4.2, 4.3],
@@ -1023,6 +1413,21 @@ function SystemTelemetryView() {
         <TelemetryCard title="Mémoire RAM" value={`${metrics.ram[metrics.ram.length-1].toFixed(1)}GB`} status="Optimal" icon={Server} />
         <TelemetryCard title="Latence API" value={`${metrics.latency[metrics.latency.length-1].toFixed(0)}ms`} status="Rapide" icon={Zap} />
         <TelemetryCard title="Taux d'Erreur" value={`${(metrics.errors.reduce((a,b)=>a+b,0)/7).toFixed(2)}%`} status="Nominal" icon={AlertCircle} />
+      </div>
+
+      <div className="card p-8 bg-rose-50 border border-rose-100 flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-extrabold text-rose-900">Maintenance & Réinitialisation</h3>
+          <p className="text-[12px] text-rose-700 mt-1">Réinitialiser l'écosystème KONTROL à son état initial (Acherie812 & Innov'Korp uniquement).</p>
+        </div>
+        <button 
+          onClick={handleResetDB}
+          disabled={isResetting}
+          className="px-6 py-3 bg-rose-600 text-white rounded-xl text-[11px] font-extrabold uppercase tracking-widest hover:bg-rose-700 transition-all flex items-center gap-2 shadow-lg shadow-rose-200"
+        >
+          {isResetting ? <Loader2 className="animate-spin" size={16} /> : <RefreshCw size={16} />}
+          Réinitialiser la DB
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -1078,20 +1483,54 @@ function SystemTelemetryView() {
 }
 
 function ControlAuditView({ actions }: any) {
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const filteredActions = actions.filter((a: any) => 
+    a.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    a.action?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    a.details?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleExport = () => {
+    const data = filteredActions.map((a: any) => ({
+      Date: new Date(a.timestamp).toLocaleString(),
+      Utilisateur: a.userName,
+      Action: a.action,
+      Details: a.details
+    }));
+    import('../../lib/export').then(({ exportToExcel }) => {
+      exportToExcel(data, 'Audit_KONTROL');
+    });
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       className="space-y-6"
     >
+      <div className="flex items-center justify-between">
+        <div className="relative w-96">
+          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
+          <input 
+            type="text" 
+            placeholder="Rechercher dans les logs..." 
+            className="w-full pl-12 pr-4 py-3 bg-white border border-kontrol-border rounded-2xl focus:outline-none focus:border-kontrol-blue shadow-sm text-[13px]"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <button 
+          onClick={handleExport}
+          className="px-6 py-3 bg-white border border-kontrol-border text-kontrol-ink-soft rounded-2xl text-[11px] font-extrabold uppercase tracking-widest hover:bg-kontrol-bg transition-all flex items-center gap-2"
+        >
+          <Download size={16} /> Exporter CSV
+        </button>
+      </div>
+
       <div className="card overflow-hidden">
-        <div className="p-6 border-b border-kontrol-border flex items-center justify-between bg-kontrol-bg/30">
+        <div className="p-6 border-b border-kontrol-border bg-kontrol-bg/30">
           <h3 className="text-[11px] font-extrabold uppercase tracking-widest">Journal d'Audit Global</h3>
-          <div className="flex gap-3">
-            <button className="px-4 py-2 bg-white border border-kontrol-border text-kontrol-ink-soft rounded-xl text-[10px] font-extrabold uppercase tracking-widest hover:bg-kontrol-bg transition-all flex items-center gap-2">
-              <Download size={14} /> Exporter CSV
-            </button>
-          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -1105,7 +1544,7 @@ function ControlAuditView({ actions }: any) {
               </tr>
             </thead>
             <tbody className="divide-y divide-kontrol-border">
-              {actions.map((action: any) => (
+              {filteredActions.map((action: any) => (
                 <tr key={action.id} className="hover:bg-kontrol-bg/30 transition-colors">
                   <td className="px-6 py-4 text-[11px] font-mono text-kontrol-ink-muted">
                     {new Date(action.timestamp).toLocaleString()}
@@ -1142,6 +1581,16 @@ function ControlAuditView({ actions }: any) {
 function ControlSupportView({ tickets }: any) {
   const [showNoReply, setShowNoReply] = useState(false);
   const [noReplyData, setNoReplyData] = useState({ to: '', subject: '', body: '' });
+  const [replyingTicket, setReplyingTicket] = useState<any>(null);
+  const [replyMessage, setReplyMessage] = useState('');
+  const [isDeletingTicket, setIsDeletingTicket] = useState<any>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredTickets = tickets.filter((t: any) => 
+    t.subject?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    t.message?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    t.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const handleSendNoReply = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1154,6 +1603,29 @@ function ControlSupportView({ tickets }: any) {
     }
   };
 
+  const handleReply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!replyingTicket || !replyMessage.trim()) return;
+
+    try {
+      await emailService.sendReply(replyingTicket.id, replyMessage);
+      setReplyingTicket(null);
+      setReplyMessage('');
+    } catch (error) {
+      console.error("Reply error:", error);
+    }
+  };
+
+  const handleDeleteTicket = async () => {
+    if (!isDeletingTicket) return;
+    try {
+      await deleteDoc(doc(db, 'tickets', isDeletingTicket.id));
+      setIsDeletingTicket(null);
+    } catch (error) {
+      console.error("Delete ticket error:", error);
+    }
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0, x: 20 }}
@@ -1161,7 +1633,19 @@ function ControlSupportView({ tickets }: any) {
       className="space-y-6"
     >
       <div className="flex items-center justify-between">
-        <h3 className="text-[11px] font-extrabold uppercase tracking-widest">Support & Tickets (Innov.korp@gmail.com)</h3>
+        <div className="flex items-center gap-6">
+          <h3 className="text-[11px] font-extrabold uppercase tracking-widest">Support & Tickets (Innov.korp@gmail.com)</h3>
+          <div className="relative w-64">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
+            <input 
+              type="text" 
+              placeholder="Rechercher un ticket..." 
+              className="w-full pl-10 pr-4 py-2 bg-white border border-kontrol-border rounded-xl text-[12px] focus:outline-none focus:border-kontrol-blue"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+        </div>
         <button 
           onClick={() => setShowNoReply(true)}
           className="px-6 py-3 bg-kontrol-dark text-white rounded-2xl text-[11px] font-extrabold uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2 shadow-lg"
@@ -1171,7 +1655,7 @@ function ControlSupportView({ tickets }: any) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {tickets.map((ticket: any) => (
+        {filteredTickets.map((ticket: any) => (
           <div key={ticket.id} className="card p-6 space-y-4 hover:shadow-lg transition-all border-transparent hover:border-rose-100 group">
             <div className="flex items-center justify-between">
               <span className={cn(
@@ -1194,10 +1678,16 @@ function ControlSupportView({ tickets }: any) {
                 <span className="text-[11px] font-bold text-kontrol-ink-muted truncate max-w-[100px]">{ticket.name || ticket.email}</span>
               </div>
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button className="p-1.5 text-kontrol-blue hover:bg-kontrol-blue/10 rounded-lg transition-all" title="Répondre">
+                <button 
+                  onClick={() => setReplyingTicket(ticket)}
+                  className="p-1.5 text-kontrol-blue hover:bg-kontrol-blue/10 rounded-lg transition-all" title="Répondre"
+                >
                   <MessageCircle size={14} />
                 </button>
-                <button className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-all" title="Supprimer">
+                <button 
+                  onClick={() => setIsDeletingTicket(ticket)}
+                  className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-all" title="Supprimer"
+                >
                   <Trash2 size={14} />
                 </button>
               </div>
@@ -1233,6 +1723,42 @@ function ControlSupportView({ tickets }: any) {
           </motion.div>
         </div>
       )}
+
+      {replyingTicket && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-kontrol-dark/60 backdrop-blur-sm p-4">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden">
+            <div className="p-8 border-b border-kontrol-border flex items-center justify-between bg-kontrol-bg/30">
+              <h3 className="text-xl font-extrabold text-kontrol-dark tracking-tight">Répondre au Ticket</h3>
+              <button onClick={() => setReplyingTicket(null)} className="p-2 hover:bg-kontrol-border rounded-xl transition-colors"><X size={20} /></button>
+            </div>
+            <div className="p-8 space-y-6">
+              <div className="bg-kontrol-bg p-4 rounded-xl border border-kontrol-border">
+                <p className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted mb-2">Message Original</p>
+                <p className="text-[12px] text-kontrol-dark italic">"{replyingTicket.message}"</p>
+              </div>
+              <form onSubmit={handleReply} className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Votre Réponse</label>
+                  <textarea required rows={4} className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl text-[13px] outline-none focus:border-kontrol-blue resize-none" placeholder="Tapez votre réponse ici..." value={replyMessage} onChange={(e) => setReplyMessage(e.target.value)} />
+                </div>
+                <button type="submit" className="w-full btn-primary py-4 font-extrabold uppercase tracking-widest text-[12px] flex items-center justify-center gap-2 shadow-xl shadow-kontrol-blue/20">
+                  <CheckCircle2 size={18} /> Envoyer la Réponse
+                </button>
+              </form>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      <ConfirmModal
+        isOpen={!!isDeletingTicket}
+        onClose={() => setIsDeletingTicket(null)}
+        onConfirm={handleDeleteTicket}
+        title="Supprimer le ticket"
+        message="Êtes-vous sûr de vouloir supprimer ce ticket ? Cette action est irréversible."
+        confirmLabel="Supprimer"
+        variant="danger"
+      />
     </motion.div>
   );
 }
