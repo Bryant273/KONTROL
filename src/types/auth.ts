@@ -2,7 +2,8 @@ export type UserRole =
   | 'ADMINISTRATEUR_ERP' 
   | 'GESTIONNAIRE_ERP' 
   | 'ADMINISTRATEUR_ENTREPRISE' 
-  | 'GESTIONNAIRE_ENTREPRISE';
+  | 'GESTIONNAIRE_ENTREPRISE'
+  | 'ADMIN';
 
 export interface UserProfile {
   uid: string;

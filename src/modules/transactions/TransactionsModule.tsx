@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   Package,
   Printer,
+  Receipt,
   Download,
   Edit2,
   Table,
@@ -26,7 +27,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Transaction, Tiers, Produit, UserProfile } from '../../types';
 import { cn, formatCurrency } from '../../lib/utils';
 import { logAction } from '../../firebase';
-import { generateInvoicePDF } from '../../lib/invoice';
+import { generateInvoicePDF, generateReceiptPDF } from '../../lib/invoice';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { CompanySelector } from '../../components/common/CompanySelector';
 import { transactionService } from '../../services/transactionService';
@@ -145,6 +146,21 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
 
     setLoading(true);
     try {
+      // Stock Control Check for Sales
+      if (newTrans.type === 'VENTE') {
+        for (const art of newTrans.articles) {
+          const prod = produits.find(p => p.id === art.produitId);
+          if (prod && prod.stock < art.quantite) {
+            setMessage({ 
+              type: 'error', 
+              text: `Stock insuffisant : ${art.designation} (${prod.stock} disponibles)` 
+            });
+            setLoading(false);
+            return;
+          }
+        }
+      }
+
       const montantTotal = newTrans.articles.reduce((acc, art) => acc + art.total, 0);
       const transData: Transaction = {
         ...newTrans,
@@ -808,9 +824,15 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
                   <div className="flex gap-2">
                     <button 
                       onClick={() => generateInvoicePDF(selectedTrans, currentUserProfile)}
-                      className="flex-1 btn-outline text-xs py-2.5 font-bold flex items-center justify-center gap-2"
+                      className="flex-1 btn-outline text-[10px] py-2.5 font-bold flex items-center justify-center gap-2 uppercase tracking-widest"
                     >
-                      <Printer size={14} /> {selectedTrans.type === 'VENTE' ? 'Facture' : 'Format KONTROL'}
+                      <Printer size={14} /> Facture
+                    </button>
+                    <button 
+                      onClick={() => generateReceiptPDF(selectedTrans, currentUserProfile)}
+                      className="flex-1 btn-outline text-[10px] py-2.5 font-bold flex items-center justify-center gap-2 uppercase tracking-widest"
+                    >
+                      <Receipt size={14} /> Reçu
                     </button>
                     {selectedTrans.invoiceFileUrl && (
                       <a 

@@ -119,7 +119,7 @@ export function CompaniesModule() {
         await logAction(
           'SYSTEM',
           auth.currentUser?.uid || 'SYSTEM',
-          auth.currentUser?.displayName || 'Administrateur ERP',
+          auth.currentUser?.displayName || 'Administrateur KONTROL',
           'Statut entreprise modifié',
           `L'entreprise ${userData.companyName} est désormais ${newStatus === 'ACTIVE' ? 'Active' : 'Inactive'}`
         );
@@ -148,7 +148,7 @@ export function CompaniesModule() {
         await logAction(
           'SYSTEM',
           auth.currentUser?.uid || 'SYSTEM',
-          auth.currentUser?.displayName || 'Administrateur ERP',
+          auth.currentUser?.displayName || 'Administrateur KONTROL',
           'Abonnement prolongé',
           `Abonnement de ${currentData.companyName} prolongé jusqu'au ${new Date(newEnd).toLocaleDateString()}`
         );

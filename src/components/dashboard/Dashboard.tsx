@@ -18,7 +18,8 @@ import {
   Zap,
   Settings,
   Building2,
-  AlertTriangle
+  AlertTriangle,
+  BrainCircuit
 } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 import { exportToPDF } from '../../lib/export';
@@ -90,8 +91,11 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
   const [recentTickets, setRecentTickets] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [isAIModalOpen, setIsAIModalOpen] = React.useState(false);
+  const [isCodeModalOpen, setIsCodeModalOpen] = React.useState(false);
   const [aiAnalysis, setAiAnalysis] = React.useState('');
+  const [codeAnalysis, setCodeAnalysis] = React.useState('');
   const [isAnalyzing, setIsAnalyzing] = React.useState(false);
+  const [isAnalyzingCode, setIsAnalyzingCode] = React.useState(false);
   const [isSeeding, setIsSeeding] = React.useState(false);
   
   // Pagination states
@@ -261,7 +265,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
     setAiAnalysis('');
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
       const prompt = `
         En tant qu'expert en gestion d'entreprise pour l'application KONTROL, analyse les données suivantes et fournis des conseils stratégiques concrets :
         - Chiffre d'Affaires (CA) : ${formatCurrency(stats.ca)}
@@ -288,12 +292,51 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
         contents: prompt,
       });
 
+      console.log("AI Analysis Response received:", response.text?.substring(0, 50) + "...");
       setAiAnalysis(response.text || "Désolé, je n'ai pas pu générer d'analyse pour le moment.");
     } catch (error) {
       console.error("AI Analysis Error:", error);
       setAiAnalysis("Une erreur est survenue lors de l'analyse IA. Veuillez réessayer plus tard.");
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const handleCodeAnalysis = async () => {
+    setIsCodeModalOpen(true);
+    setIsAnalyzingCode(true);
+    setCodeAnalysis('');
+
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+      const prompt = `
+        En tant qu'expert en sécurité et architecture logicielle pour l'application KONTROL (Full-stack React/Firebase/Express), 
+        analyse l'état actuel du système et fournis des recommandations techniques :
+        - Nombre d'utilisateurs : ${globalStats.totalUsers}
+        - Nombre d'entreprises : ${globalStats.activeCompanies}
+        - Volume de transactions : ${globalStats.totalRevenue}
+        - Tickets en attente : ${globalStats.pendingTickets}
+
+        Analyse les aspects suivants :
+        1. Sécurité des données et règles Firestore.
+        2. Performance et scalabilité de l'architecture.
+        3. Optimisation du code et des requêtes.
+        4. Suggestions de nouvelles fonctionnalités techniques.
+
+        Réponds en français, avec un ton technique et précis.
+      `;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt,
+      });
+
+      setCodeAnalysis(response.text || "Désolé, je n'ai pas pu générer d'analyse de code pour le moment.");
+    } catch (error) {
+      console.error("Code Analysis Error:", error);
+      setCodeAnalysis("Une erreur est survenue lors de l'analyse du code. Veuillez réessayer plus tard.");
+    } finally {
+      setIsAnalyzingCode(false);
     }
   };
 
@@ -523,7 +566,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
       text = `${isIncrease ? '+' : '-'}${absChange}% vs mois dernier`;
     }
 
-    return { text, color, Icon };
+    return { text, color, Icon, change };
   };
 
   const caComment = getKPICommentary(stats.caMois, stats.caMoisPrecedent, 'positive');
@@ -780,9 +823,13 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
               <Building2 size={24} className="text-kontrol-blue group-hover:text-white" />
               <span className="text-[10px] font-extrabold uppercase tracking-[0.2em]">Provision Instance</span>
             </button>
-            <button className="border border-kontrol-dark/10 p-8 flex flex-col items-center justify-center gap-4 bg-white hover:bg-emerald-600 hover:text-white transition-all group">
-              <ShieldCheck size={24} className="text-emerald-600 group-hover:text-white" />
-              <span className="text-[10px] font-extrabold uppercase tracking-[0.2em]">Security Protocol</span>
+            <button 
+              onClick={handleCodeAnalysis}
+              disabled={isAnalyzingCode}
+              className="border border-kontrol-dark/10 p-8 flex flex-col items-center justify-center gap-4 bg-white hover:bg-kontrol-dark hover:text-white transition-all group disabled:opacity-50"
+            >
+              {isAnalyzingCode ? <Loader2 className="animate-spin" size={24} /> : <ShieldCheck size={24} className="text-emerald-600 group-hover:text-white" />}
+              <span className="text-[10px] font-extrabold uppercase tracking-[0.2em]">Code Analyzer</span>
             </button>
             <button className="border border-kontrol-dark/10 p-8 flex flex-col items-center justify-center gap-4 bg-white hover:bg-amber-500 hover:text-white transition-all group">
               <Zap size={24} className="text-amber-600 group-hover:text-white" />
@@ -815,16 +862,14 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="relative group">
-            <button 
-              className="btn-primary py-1.5 px-4 text-xs flex items-center gap-2 bg-gradient-to-r from-kontrol-blue to-kontrol-orange border-none shadow-lg opacity-80 cursor-not-allowed"
-            >
-              <Sparkles size={14} /> Analyse IA
-            </button>
-            <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-3 py-1 bg-kontrol-dark text-white text-[10px] font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-              Bientôt disponible
-            </div>
-          </div>
+          <button 
+            onClick={handleAIAnalysis}
+            disabled={isAnalyzing}
+            className="btn-primary py-1.5 px-4 text-xs flex items-center gap-2 bg-gradient-to-r from-kontrol-blue to-kontrol-orange border-none shadow-lg hover:scale-105 transition-transform disabled:opacity-50"
+          >
+            {isAnalyzing ? <Loader2 className="animate-spin" size={14} /> : <BrainCircuit size={14} />}
+            Analyse IA
+          </button>
           <select className="bg-white border border-kontrol-border rounded-lg px-3 py-1.5 text-[13px] font-medium text-kontrol-ink-soft outline-none focus:border-kontrol-blue transition-colors">
             <option>Ce mois</option>
             <option>Cette année</option>
@@ -838,14 +883,18 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
         <div className="kpi bg-emerald-600 border-emerald-600">
           <p className="kpi-lbl text-white/70">Trésorerie (Solde)</p>
           <h3 className="kpi-val text-white">{formatCurrency(stats.tresorerie)}</h3>
-          <p className={cn("text-[11px] mt-1.5 flex items-center gap-1 font-bold", tresorerieComment.color)}>
+          <p className={cn("text-[11px] mt-1.5 flex items-center gap-1 font-bold", 
+            tresorerieComment.color.includes('emerald') ? 'text-emerald-200' : 'text-rose-200'
+          )}>
             <tresorerieComment.Icon size={10} /> {tresorerieComment.text}
           </p>
         </div>
         <div className="kpi bg-kontrol-dark border-kontrol-dark">
           <p className="kpi-lbl text-white/50">CA (Ventes TTC)</p>
           <h3 className="kpi-val text-kontrol-blue">{formatCurrency(stats.ca)}</h3>
-          <p className={cn("text-[11px] mt-1.5 flex items-center gap-1 font-bold", caComment.color)}>
+          <p className={cn("text-[11px] mt-1.5 flex items-center gap-1 font-bold", 
+            caComment.color.includes('emerald') ? 'text-emerald-400' : 'text-rose-400'
+          )}>
             <caComment.Icon size={10} /> {caComment.text}
           </p>
         </div>
@@ -1073,6 +1122,58 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
                 className="flex-1 bg-kontrol-dark text-white py-3 rounded-xl font-bold hover:bg-kontrol-dark/90 transition-all"
               >
                 Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Code Analysis Modal */}
+      {isCodeModalOpen && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-kontrol-dark/60 backdrop-blur-md p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-[800px] max-h-[85vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-kontrol-border flex items-center justify-between bg-kontrol-dark">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-600 rounded-xl text-white shadow-md">
+                  <ShieldCheck size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-extrabold text-white">Blue AI Code Analyzer</h3>
+                  <p className="text-[11px] text-white/60 font-medium uppercase tracking-wider">Audit de sécurité & architecture</p>
+                </div>
+              </div>
+              <button onClick={() => setIsCodeModalOpen(false)} className="p-2 hover:bg-white/10 rounded-full text-white/60 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-8 bg-kontrol-bg/10">
+              {isAnalyzingCode ? (
+                <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                  <div className="relative">
+                    <div className="w-16 h-16 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
+                    <Activity className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-emerald-500 animate-pulse" size={24} />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-lg font-bold text-kontrol-dark">Audit en cours...</p>
+                    <p className="text-sm text-kontrol-ink-muted">Analyse des vulnérabilités et de la structure du code</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="prose prose-sm max-w-none text-kontrol-ink-soft leading-relaxed">
+                  <div className="markdown-body">
+                    <Markdown>{codeAnalysis}</Markdown>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-kontrol-border bg-white flex gap-3">
+              <button 
+                onClick={() => setIsCodeModalOpen(false)}
+                className="flex-1 bg-kontrol-dark text-white py-3 rounded-xl font-bold hover:bg-kontrol-dark/90 transition-all"
+              >
+                Fermer l'audit
               </button>
             </div>
           </div>

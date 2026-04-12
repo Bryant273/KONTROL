@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, Bell, ChevronDown, UserCircle, Shield, LogOut } from 'lucide-react';
+import { Menu, Bell, ChevronDown, UserCircle, Shield, LogOut, Globe } from 'lucide-react';
 import { User } from '../../firebase';
 import { cn } from '../../lib/utils';
 import { UserProfile } from '../../types';
@@ -61,6 +61,22 @@ export function Header({ section, page, user, profile, onLogout, onTabChange, to
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
+        <div className="relative group">
+          <button className="flex items-center gap-2 px-3 py-1.5 bg-kontrol-bg border border-kontrol-border rounded-lg hover:bg-kontrol-border transition-colors">
+            <Globe size={14} className="text-kontrol-blue" />
+            <span className="text-[11px] font-bold uppercase">FR</span>
+            <ChevronDown size={10} className="text-kontrol-ink-muted" />
+          </button>
+          <div className="absolute top-full right-0 mt-2 w-32 bg-white border border-kontrol-border rounded-xl shadow-xl overflow-hidden opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-[110]">
+            <button className="w-full px-4 py-2 text-left text-[11px] font-bold hover:bg-kontrol-bg transition-colors flex items-center justify-between">
+              Français <span className="text-[9px] text-kontrol-blue">ACTIF</span>
+            </button>
+            <button className="w-full px-4 py-2 text-left text-[11px] font-bold hover:bg-kontrol-bg transition-colors">Wolof</button>
+            <button className="w-full px-4 py-2 text-left text-[11px] font-bold hover:bg-kontrol-bg transition-colors">Fon</button>
+            <button className="w-full px-4 py-2 text-left text-[11px] font-bold hover:bg-kontrol-bg transition-colors">Bambara</button>
+          </div>
+        </div>
+
         <div className="hidden sm:block text-[11.5px] text-kontrol-ink-muted px-2.5 py-1.5 bg-kontrol-bg border border-kontrol-border rounded-md whitespace-nowrap">
           {new Date().toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
         </div>

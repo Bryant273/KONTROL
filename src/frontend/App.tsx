@@ -4,12 +4,14 @@ import {
   auth, 
   logout, 
   onAuthStateChanged, 
+  signInAnonymously,
   db,
   doc,
   onSnapshot,
   ensureUserProfile,
   type User 
-} from './firebase';
+} from '../api/firebase';
+import { ControlTower } from './modules/admin/ControlTower';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { Dashboard } from './components/dashboard/Dashboard';
@@ -32,7 +34,7 @@ import { AuthPage } from './components/auth/AuthPage';
 import { Chatbot } from './components/common/Chatbot';
 import { cn, formatCurrency } from './lib/utils';
 import { UserProfile } from './types';
-import { AlertTriangle, Clock, X } from 'lucide-react';
+import { AlertTriangle, Clock, X, Loader2 } from 'lucide-react';
 
 import { SystemModule } from './modules/system/SystemModule';
 
@@ -40,15 +42,17 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [activeSection, setActiveSection] = useState('Pilotage');
-  const [activeLabel, setActiveLabel] = useState('Tableau de bord');
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('activeTab') || 'dashboard');
+  const [activeSection, setActiveSection] = useState(() => localStorage.getItem('activeSection') || 'Pilotage');
+  const [activeLabel, setActiveLabel] = useState(() => localStorage.getItem('activeLabel') || 'Tableau de bord');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showSetup, setShowSetup] = useState(false);
   const [showReminder, setShowReminder] = useState<{ days: number } | null>(null);
   const [isBlocked, setIsBlocked] = useState(false);
   const [authView, setAuthView] = useState<'landing' | 'auth'>('landing');
   const [authInitialMode, setAuthInitialMode] = useState<'login' | 'register'>('login');
+
+  const isERPAdmin = profile?.role === 'ADMINISTRATEUR_ERP' || profile?.role === 'ADMIN';
   
   // Auth state listener
   useEffect(() => {
@@ -61,11 +65,18 @@ export default function App() {
         const saved = localStorage.getItem('customUser');
         if (saved) {
           setUser(JSON.parse(saved));
+          setLoading(false);
         } else {
-          setUser(null);
-          setProfile(null);
+          // Sign in anonymously if no user is found
+          signInAnonymously(auth).catch(err => {
+            if (err.code === 'auth/admin-restricted-operation') {
+              console.warn("L'authentification anonyme n'est pas activée dans la console Firebase. Le chatbot pour les invités pourrait ne pas fonctionner correctement.");
+            } else {
+              console.error("Anonymous sign-in error:", err);
+            }
+            setLoading(false);
+          });
         }
-        setLoading(false);
       }
     });
     return () => unsubscribe();
@@ -106,18 +117,42 @@ export default function App() {
     };
   }, [user]);
 
-  // Subscription Logic - Disabled for now (Free access)
+  // Subscription Logic
   useEffect(() => {
-    if (!profile || (profile.role !== 'ADMINISTRATEUR_ENTREPRISE' && profile.role !== 'GESTIONNAIRE_ENTREPRISE')) return;
+    if (!profile) return;
+    
+    // ERP Admins and Managers are exempt from subscription requirements
+    if (profile.role === 'ADMINISTRATEUR_ERP' || profile.role === 'GESTIONNAIRE_ERP') {
+      setIsBlocked(false);
+      setShowReminder(null);
+      return;
+    }
 
     const checkSubscription = () => {
+      // If account is explicitly deactivated
       if (profile.active === false) {
         setIsBlocked(true);
         return;
       }
-      // Logic disabled: users use the app for free
-      setIsBlocked(false);
-      setShowReminder(null);
+
+      const now = Date.now();
+      const expiry = profile.subscriptionEndDate || 0;
+      const status = profile.subscriptionStatus;
+
+      // Block if not active or expired
+      if (status !== 'ACTIVE' || expiry < now) {
+        setIsBlocked(true);
+      } else {
+        setIsBlocked(false);
+        
+        // Show reminder if less than 7 days left
+        const daysLeft = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+        if (daysLeft <= 7 && daysLeft > 0) {
+          setShowReminder({ days: daysLeft });
+        } else {
+          setShowReminder(null);
+        }
+      }
     };
 
     checkSubscription();
@@ -126,7 +161,7 @@ export default function App() {
   // Action Logging - Login
   useEffect(() => {
     if (profile && !sessionStorage.getItem(`logged_in_${profile.uid}`)) {
-      import('./firebase').then(({ logAction }) => {
+      import('../api/firebase').then(({ logAction }) => {
         logAction(
           profile.companyId, 
           profile.uid, 
@@ -145,12 +180,18 @@ export default function App() {
     setUser(null);
     setProfile(null);
     setAuthView('landing');
+    localStorage.removeItem('activeTab');
+    localStorage.removeItem('activeSection');
+    localStorage.removeItem('activeLabel');
   };
 
   const handleTabChange = (tab: string, section: string, label: string) => {
     setActiveTab(tab);
     setActiveSection(section);
     setActiveLabel(label);
+    localStorage.setItem('activeTab', tab);
+    localStorage.setItem('activeSection', section);
+    localStorage.setItem('activeLabel', label);
     if (window.innerWidth < 1024) {
       setIsSidebarOpen(false);
     }
@@ -252,19 +293,26 @@ export default function App() {
             </div>
           ) : (
             <>
-              {activeTab === 'dashboard' && <Dashboard user={user} currentUserProfile={profile} />}
+              {activeTab === 'dashboard' && (isERPAdmin ? <ControlTower /> : <Dashboard user={user} currentUserProfile={profile} />)}
+              {activeTab === 'subscriptions' && (isERPAdmin ? <ControlTower activeSubTab="subscriptions" /> : <SubscriptionsModule profile={profile} />)}
+              {activeTab === 'revenue' && <ControlTower activeSubTab="revenue" />}
+              {activeTab === 'accounting' && <ControlTower activeSubTab="accounting" />}
+              {activeTab === 'ai_core' && <ControlTower activeSubTab="ai_core" />}
+              {activeTab === 'telemetry' && <ControlTower activeSubTab="telemetry" />}
+              {activeTab === 'audit' && <ControlTower activeSubTab="audit" />}
               {activeTab === 'tiers' && <TiersModule user={user} currentUserProfile={profile} />}
               {activeTab === 'produits' && <ProduitsModule user={user} currentUserProfile={profile} />}
               {activeTab === 'transactions' && <TransactionsModule user={user} currentUserProfile={profile} />}
               {activeTab === 'charges' && <ChargesModule user={user} currentUserProfile={profile} />}
               {activeTab === 'stocks' && <StocksModule user={user} currentUserProfile={profile} />}
               {activeTab === 'finance' && <FinanceModule user={user} currentUserProfile={profile} />}
-              {activeTab === 'ai' && <BlueAIModule user={user} currentUserProfile={profile} />}
-              {activeTab === 'utilisateurs' && <UsersModule user={user} currentUserProfile={profile} />}
-              {activeTab === 'tickets' && <TicketsModule user={user} currentUserProfile={profile} />}
-              {activeTab === 'entreprises' && <CompaniesModule />}
-              {activeTab === 'system' && <SystemModule currentUserProfile={profile} />}
-              {activeTab === 'actions' && <ActionsModule user={user} currentUserProfile={profile} />}
+              {activeTab === 'ai' && (isERPAdmin ? <ControlTower activeSubTab="ai_core" /> : <BlueAIModule user={user} currentUserProfile={profile} />)}
+              {activeTab === 'utilisateurs' && (isERPAdmin ? <ControlTower activeSubTab="utilisateurs" /> : <UsersModule user={user} currentUserProfile={profile} />)}
+              {activeTab === 'gestionnaires' && <ControlTower activeSubTab="gestionnaires" />}
+              {activeTab === 'tickets' && (isERPAdmin ? <ControlTower activeSubTab="tickets" /> : <TicketsModule user={user} currentUserProfile={profile} />)}
+              {activeTab === 'entreprises' && (isERPAdmin ? <ControlTower activeSubTab="entreprises" /> : <CompaniesModule />)}
+              {activeTab === 'system' && (isERPAdmin ? <ControlTower activeSubTab="telemetry" /> : <SystemModule currentUserProfile={profile} />)}
+              {activeTab === 'actions' && (isERPAdmin ? <ControlTower activeSubTab="audit" /> : <ActionsModule user={user} currentUserProfile={profile} />)}
               {activeTab === 'abonnements' && <SubscriptionsModule profile={profile} />}
               {activeTab === 'profil' && <ProfileModule profile={profile} />}
             </>

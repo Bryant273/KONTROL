@@ -21,7 +21,22 @@ const phoneToCountry: Record<string, { country: string, currency: string, langua
   '236': { country: 'Centrafrique', currency: 'XAF', language: 'fr' },
   '240': { country: 'Guinée Équatoriale', currency: 'XAF', language: 'fr' },
   '33': { country: 'France', currency: 'EUR', language: 'fr' },
-  '1': { country: 'USA', currency: 'USD', language: 'en' },
+  '32': { country: 'Belgique', currency: 'EUR', language: 'fr' },
+  '41': { country: 'Suisse', currency: 'CHF', language: 'fr' },
+  '44': { country: 'Royaume-Uni', currency: 'GBP', language: 'en' },
+  '49': { country: 'Allemagne', currency: 'EUR', language: 'de' },
+  '34': { country: 'Espagne', currency: 'EUR', language: 'es' },
+  '39': { country: 'Italie', currency: 'EUR', language: 'it' },
+  '1': { country: 'USA/Canada', currency: 'USD', language: 'en' },
+  '86': { country: 'Chine', currency: 'CNY', language: 'zh' },
+  '81': { country: 'Japon', currency: 'JPY', language: 'ja' },
+  '971': { country: 'Émirats Arabes Unis', currency: 'AED', language: 'ar' },
+  '966': { country: 'Arabie Saoudite', currency: 'SAR', language: 'ar' },
+  '212': { country: 'Maroc', currency: 'MAD', language: 'fr' },
+  '213': { country: 'Algérie', currency: 'DZD', language: 'fr' },
+  '216': { country: 'Tunisie', currency: 'TND', language: 'fr' },
+  '55': { country: 'Brésil', currency: 'BRL', language: 'pt' },
+  '91': { country: 'Inde', currency: 'INR', language: 'en' },
 };
 
 interface CompanySetupModalProps {

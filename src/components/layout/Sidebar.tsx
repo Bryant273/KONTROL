@@ -17,6 +17,9 @@ import {
   CreditCard,
   MessageCircle,
   Building2,
+  Brain,
+  TrendingUp,
+  Activity,
   Wallet as WalletIcon
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -42,10 +45,19 @@ interface NavSection {
 
 const erpNavSections: NavSection[] = [
   {
-    title: 'Pilotage Global',
+    title: 'Command Center',
     icon: LayoutDashboard,
     items: [
       { id: 'dashboard', label: 'Vue d\'ensemble', icon: PieChart },
+    ]
+  },
+  {
+    title: 'Business & Revenus',
+    icon: CreditCard,
+    items: [
+      { id: 'subscriptions', label: 'Abonnements', icon: CreditCard },
+      { id: 'revenue', label: 'Revenus', icon: TrendingUp },
+      { id: 'accounting', label: 'Comptabilité', icon: Receipt },
     ]
   },
   {
@@ -54,15 +66,29 @@ const erpNavSections: NavSection[] = [
     items: [
       { id: 'entreprises', label: 'Entreprises', icon: Building2 },
       { id: 'utilisateurs', label: 'Utilisateurs Globaux', icon: Users },
+      { id: 'gestionnaires', label: 'Gestionnaires KONTROL', icon: Shield },
     ]
   },
   {
-    title: 'Support & Maintenance',
+    title: 'Blue AI',
+    icon: Brain,
+    items: [
+      { id: 'ai', label: 'AI Core', icon: Brain },
+    ]
+  },
+  {
+    title: 'Système & Télémétrie',
+    icon: Settings,
+    items: [
+      { id: 'system', label: 'Télémétrie', icon: Activity },
+    ]
+  },
+  {
+    title: 'Contrôle & Sécurité',
     icon: Shield,
     items: [
+      { id: 'actions', label: 'Audit Trail', icon: History },
       { id: 'tickets', label: 'Support & Tickets', icon: MessageCircle },
-      { id: 'system', label: 'Maintenance', icon: Settings },
-      { id: 'actions', label: 'Journal des actions', icon: History },
     ]
   },
   {
@@ -104,7 +130,7 @@ const companyNavSections: NavSection[] = [
     title: 'Système',
     icon: Settings,
     items: [
-      { id: 'ai', label: 'Blue AI', icon: Shield },
+      { id: 'ai', label: 'Blue AI', icon: Brain },
       { id: 'profil', label: 'Mon profil', icon: UserCircle },
       { id: 'utilisateurs', label: 'Utilisateurs', icon: Users },
       { id: 'actions', label: 'Journal des actions', icon: History },
@@ -117,7 +143,9 @@ export function Sidebar({ activeTab, setActiveTab, user, profile, onLogout, isOp
   const navSections = isERPAdmin ? erpNavSections : companyNavSections;
 
   const [openSections, setOpenSections] = React.useState<string[]>(
-    isERPAdmin ? ['Pilotage Global', 'Écosystème', 'Support & Maintenance'] : ['Pilotage', 'Gestion', 'Stocks', 'Système']
+    isERPAdmin 
+      ? [erpNavSections[0].title, erpNavSections[1].title] 
+      : [companyNavSections[0].title, companyNavSections[1].title]
   );
 
   const toggleSection = (title: string) => {

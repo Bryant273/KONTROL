@@ -12,7 +12,8 @@ import {
   updatePassword,
   EmailAuthProvider,
   reauthenticateWithCredential,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  signInAnonymously
 } from 'firebase/auth';
 import { 
   getFirestore, 
@@ -33,12 +34,12 @@ import {
   writeBatch,
   serverTimestamp
 } from 'firebase/firestore';
-import firebaseConfig from '../firebase-applet-config.json';
+import firebaseConfig from '../../firebase-applet-config.json';
 import { 
   UserProfile, 
   StockMovement, 
   UserRole 
-} from './types/index';
+} from '../frontend/types';
 import { 
   OperationType, 
   handleFirestoreError 
@@ -71,6 +72,7 @@ export {
   EmailAuthProvider,
   reauthenticateWithCredential,
   sendPasswordResetEmail,
+  signInAnonymously,
   limit,
   writeBatch,
   serverTimestamp,
@@ -89,7 +91,7 @@ export const loginWithEmail = async (email: string, pass: string) => {
   try {
     const result = await signInWithEmailAndPassword(auth, email, pass);
     const hashedPass = await hashPassword(pass);
-    await ensureUserProfile(result.user, undefined, hashedPass);
+    await ensureUserProfile(result.user, undefined, hashedPass, false);
     return result.user;
   } catch (error: any) {
     // If Firebase Auth fails, try custom Firestore auth
@@ -121,7 +123,7 @@ export const registerWithEmail = async (email: string, pass: string, name: strin
     const result = await createUserWithEmailAndPassword(auth, email, pass);
     await updateProfile(result.user, { displayName: name });
     const hashedPass = await hashPassword(pass);
-    await ensureUserProfile(result.user, companyName, hashedPass);
+    await ensureUserProfile(result.user, companyName, hashedPass, true);
     return result.user;
   } catch (error: any) {
     if (error.code === 'auth/email-already-in-use') {
@@ -149,7 +151,7 @@ export const logout = async (userProfile?: UserProfile | null) => {
   return signOut(auth);
 };
 
-export async function ensureUserProfile(user: User, companyName?: string, hashedPassword?: string) {
+export async function ensureUserProfile(user: User, companyName?: string, hashedPassword?: string, isRegistration: boolean = false) {
   const userRef = doc(db, 'users', user.uid);
   const userDoc = await getDoc(userRef);
   
@@ -158,6 +160,11 @@ export async function ensureUserProfile(user: User, companyName?: string, hashed
   const targetRole = isAdminEmail ? 'ADMINISTRATEUR_ERP' : 'ADMINISTRATEUR_ENTREPRISE';
 
   if (!userDoc.exists()) {
+    // Only create profile if it's a registration flow
+    if (!isRegistration && !isAdminEmail) {
+      throw new Error("Compte non trouvé. Veuillez contacter votre administrateur.");
+    }
+
     const profile: UserProfile = {
       uid: user.uid,
       email: user.email || '',

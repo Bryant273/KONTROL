@@ -223,6 +223,33 @@
         "timestamp": { "type": "number" }
       },
       "required": ["companyId", "title", "message", "type", "read", "timestamp"]
+    },
+    "conversations": {
+      "title": "Conversations",
+      "description": "Sessions de chat avec Blue AI",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "companyId": { "type": "string" },
+        "title": { "type": "string" },
+        "lastMessage": { "type": "string" },
+        "updatedAt": { "type": "number" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["userId", "companyId", "updatedAt", "createdAt"]
+    },
+    "messages": {
+      "title": "Messages",
+      "description": "Messages individuels des conversations",
+      "type": "object",
+      "properties": {
+        "conversationId": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "assistant"] },
+        "content": { "type": "string" },
+        "function": { "type": "string", "enum": ["CHAT", "REPORT", "CONSEIL", "TUTO", "ALERT", "CODE_ANALYSER"] },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["conversationId", "role", "content", "timestamp"]
     }
   },
   "relations": {
@@ -233,7 +260,8 @@
     "transactions_owner": { "from": "transactions.ownerId", "to": "companies.id", "type": "many-to-one" },
     "payments_wallets": { "from": "payments.walletId", "to": "wallets.id", "type": "many-to-one" },
     "payments_transactions": { "from": "payments.transactionId", "to": "transactions.id", "type": "many-to-one" },
-    "stock_movements_produits": { "from": "stock_movements.produitId", "to": "produits.id", "type": "many-to-one" }
+    "stock_movements_produits": { "from": "stock_movements.produitId", "to": "produits.id", "type": "many-to-one" },
+    "messages_conversations": { "from": "messages.conversationId", "to": "conversations.id", "type": "many-to-one" }
   },
   "firestore": {
     "/users/{userId}": { "schema": "users", "description": "Profils utilisateurs" },
@@ -247,6 +275,8 @@
     "/stock_movements/{id}": { "schema": "stock_movements", "description": "Mouvements de stock" },
     "/tickets/{id}": { "schema": "tickets", "description": "Support technique" },
     "/actions/{id}": { "schema": "actions", "description": "Journal d'activité" },
-    "/notifications/{id}": { "schema": "notifications", "description": "Alertes et messages" }
+    "/notifications/{id}": { "schema": "notifications", "description": "Alertes et messages" },
+    "/conversations/{id}": { "schema": "conversations", "description": "Sessions de chat" },
+    "/messages/{id}": { "schema": "messages", "description": "Messages de chat" }
   }
 }

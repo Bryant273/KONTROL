@@ -8,7 +8,7 @@ export async function askBlueAI(prompt: string, context: string = "") {
       model: "gemini-2.0-flash",
       contents: [
         {
-          text: `Tu es Blue AI, l'assistant intelligent de l'ERP KONTROL. 
+          text: `Tu es Blue AI, l'assistant intelligent de KONTROL. 
           Ton rôle est d'aider les entrepreneurs africains à gérer leur entreprise.
           Réponds de manière professionnelle, concise et encourageante.
           

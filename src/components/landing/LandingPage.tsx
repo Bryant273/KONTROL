@@ -46,12 +46,18 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
   }, []);
 
   useEffect(() => {
-    // Basic currency detection based on locale
+    // Advanced currency detection based on locale and timezone
     const locale = navigator.language;
-    if (locale.includes('fr-FR') || locale.includes('de') || locale.includes('it') || locale.includes('es')) {
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    
+    if (locale.includes('fr-FR') || locale.includes('de') || locale.includes('it') || locale.includes('es') || timezone.includes('Europe')) {
       setCurrency({ code: 'EUR', symbol: '€', rate: 0.0015, label: 'EUR' });
-    } else if (locale.includes('en-US')) {
+    } else if (locale.includes('en-US') || locale.includes('en-CA') || timezone.includes('America')) {
       setCurrency({ code: 'USD', symbol: '$', rate: 0.0016, label: 'USD' });
+    } else if (timezone.includes('Asia')) {
+      setCurrency({ code: 'CNY', symbol: '¥', rate: 0.012, label: 'CNY' });
+    } else if (timezone.includes('London') || locale.includes('en-GB')) {
+      setCurrency({ code: 'GBP', symbol: '£', rate: 0.0013, label: 'GBP' });
     } else {
       // Default to XOF for West Africa or others
       setCurrency({ code: 'XOF', symbol: 'F CFA', rate: 1, label: 'XOF' });
@@ -488,7 +494,7 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
       <button
         onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
         className={cn(
-          "fixed bottom-8 right-8 w-12 h-12 bg-kontrol-dark text-white rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 z-[110] hover:bg-kontrol-blue hover:-translate-y-1 active:scale-90",
+          "fixed bottom-24 right-8 w-12 h-12 bg-kontrol-dark text-white rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 z-[110] hover:bg-kontrol-blue hover:-translate-y-1 active:scale-90",
           showScrollTop ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10 pointer-events-none"
         )}
       >

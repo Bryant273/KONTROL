@@ -44,7 +44,7 @@ const UPDATE_HISTORY = [
   { version: "1.2.0", date: "24/03/2026", title: "Refonte de l'Architecture", description: "Passage à une architecture multi-tenant robuste et sécurisée." },
   { version: "1.1.5", date: "20/03/2026", title: "Gestion des Stocks Avancée", description: "Ajout du calcul CUMP et des mouvements de stock automatiques." },
   { version: "1.1.0", date: "15/03/2026", title: "Module Tiers", description: "Gestion complète des clients et fournisseurs avec exports PDF/Excel." },
-  { version: "1.0.0", date: "01/03/2026", title: "Lancement KONTROL", description: "Version initiale de l'ERP avec modules de base." }
+  { version: "1.0.0", date: "01/03/2026", title: "Lancement KONTROL", description: "Version initiale de KONTROL avec modules de base." }
 ];
 
 interface SystemModuleProps {
@@ -69,12 +69,12 @@ export function SystemModule({ currentUserProfile }: SystemModuleProps) {
     totalTransactions: 0,
     growthData: [] as any[],
     serviceHealth: [
-      { name: 'Go Gateway', tech: 'Fiber v2', status: 'ok', cpu: 28, mem: 42, latency: '12ms', uptime: '99.99%' },
-      { name: 'Spring Boot', tech: 'Spring Boot 3.2', status: 'ok', cpu: 51, mem: 68, latency: '24ms', uptime: '99.97%' },
-      { name: 'Rust Auth', tech: 'Actix-web 4', status: 'ok', cpu: 18, mem: 31, latency: '8ms', uptime: '99.99%' },
-      { name: 'Blue AI', tech: 'FastAPI + LLM', status: 'warn', cpu: 87, mem: 74, latency: '340ms', uptime: '99.82%' },
-      { name: 'PostgreSQL', tech: 'PostgreSQL 16', status: 'ok', cpu: 34, mem: 61, latency: '3ms', uptime: '99.99%' },
-      { name: 'Redis', tech: 'Redis 7', status: 'ok', cpu: 8, mem: 22, latency: '0.4ms', uptime: '100%' }
+      { name: 'Frontend App', tech: 'React 18 + Vite', status: 'ok', cpu: 12, mem: 34, latency: '15ms', uptime: '99.99%' },
+      { name: 'Auth Service', tech: 'Firebase Auth', status: 'ok', cpu: 5, mem: 12, latency: '45ms', uptime: '100%' },
+      { name: 'Database', tech: 'Firestore NoSQL', status: 'ok', cpu: 22, mem: 45, latency: '32ms', uptime: '99.99%' },
+      { name: 'Blue AI Core', tech: 'Gemini 3.1 Flash', status: 'ok', cpu: 45, mem: 62, latency: '450ms', uptime: '99.95%' },
+      { name: 'Storage', tech: 'Firebase Storage', status: 'ok', cpu: 8, mem: 28, latency: '85ms', uptime: '99.99%' },
+      { name: 'Cloud Runtime', tech: 'Google Cloud Run', status: 'ok', cpu: 15, mem: 42, latency: '10ms', uptime: '100%' }
     ],
     flags: [
       { key: 'blue_ai_chat', desc: 'Chat comptable RAG', scope: 'Global', enabled: true },
@@ -970,7 +970,7 @@ export function SystemModule({ currentUserProfile }: SystemModuleProps) {
             </h3>
             <p className="text-[13px] text-kontrol-ink-soft mb-6">
               {showResetConfirm === 'total' 
-                ? "Cette action effacera ABSOLUMENT TOUT (utilisateurs, entreprises, transactions, etc.). Seuls les administrateurs ERP pourront se reconnecter."
+                ? "Cette action effacera ABSOLUMENT TOUT (utilisateurs, entreprises, transactions, etc.). Seuls les administrateurs KONTROL pourront se reconnecter."
                 : "Cette action effacera toutes les données métier (produits, transactions, tiers) de TOUTES les entreprises."}
             </p>
             

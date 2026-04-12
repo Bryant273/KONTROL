@@ -189,3 +189,93 @@ export const generateInvoicePDF = (transaction: Transaction, profile: UserProfil
 
   doc.save(`Facture_${transaction.reference}.pdf`);
 };
+
+export const generateReceiptPDF = (transaction: Transaction, profile: UserProfile | null) => {
+  // Standard 80mm thermal paper width is approx 226 points
+  const doc = new jsPDF({
+    unit: 'mm',
+    format: [80, 150] // 80mm width, height will be adjusted if needed
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 5;
+  let currentY = 10;
+
+  // Header
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text(profile?.companyName?.toUpperCase() || 'KONTROL', pageWidth / 2, currentY, { align: 'center' });
+  currentY += 6;
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text(profile?.address || '', pageWidth / 2, currentY, { align: 'center' });
+  currentY += 4;
+  doc.text(`${profile?.city || ''} ${profile?.country || ''}`, pageWidth / 2, currentY, { align: 'center' });
+  currentY += 4;
+  doc.text(`Tél: ${profile?.phone || 'N/A'}`, pageWidth / 2, currentY, { align: 'center' });
+  currentY += 8;
+
+  // Receipt Info
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('REÇU DE CAISSE', pageWidth / 2, currentY, { align: 'center' });
+  currentY += 6;
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Réf: ${transaction.reference}`, margin, currentY);
+  currentY += 4;
+  doc.text(`Date: ${new Date(transaction.date).toLocaleString('fr-FR')}`, margin, currentY);
+  currentY += 6;
+
+  doc.line(margin, currentY, pageWidth - margin, currentY);
+  currentY += 6;
+
+  // Items
+  doc.setFont('helvetica', 'bold');
+  doc.text('Désignation', margin, currentY);
+  doc.text('Qté', pageWidth - 25, currentY, { align: 'right' });
+  doc.text('Total', pageWidth - margin, currentY, { align: 'right' });
+  currentY += 4;
+  doc.line(margin, currentY, pageWidth - margin, currentY);
+  currentY += 6;
+
+  doc.setFont('helvetica', 'normal');
+  transaction.articles.forEach(art => {
+    // Designation (wrap if too long)
+    const lines = doc.splitTextToSize(art.designation.toUpperCase(), pageWidth - 40);
+    doc.text(lines, margin, currentY);
+    
+    const lineCount = lines.length;
+    doc.text(art.quantite.toString(), pageWidth - 25, currentY, { align: 'right' });
+    doc.text(formatCurrency(art.total), pageWidth - margin, currentY, { align: 'right' });
+    
+    currentY += (lineCount * 4) + 2;
+  });
+
+  currentY += 4;
+  doc.line(margin, currentY, pageWidth - margin, currentY);
+  currentY += 8;
+
+  // Total
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('TOTAL TTC:', margin, currentY);
+  doc.text(formatCurrency(transaction.montantTotal), pageWidth - margin, currentY, { align: 'right' });
+  currentY += 10;
+
+  // Footer
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Paiement: ${transaction.modePaiement}`, pageWidth / 2, currentY, { align: 'center' });
+  currentY += 6;
+  doc.setFont('helvetica', 'bold');
+  doc.text('MERCI DE VOTRE VISITE !', pageWidth / 2, currentY, { align: 'center' });
+  currentY += 6;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6);
+  doc.text('Logiciel KONTROL par INNOV\'KORP', pageWidth / 2, currentY, { align: 'center' });
+
+  doc.save(`Recu_${transaction.reference}.pdf`);
+};

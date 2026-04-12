@@ -10,7 +10,8 @@ service cloud.firestore {
 
     function isSuperAdmin() {
       return isAuthenticated() && (
-        request.auth.token.email in ["acherie812@gmail.com", "innov.korp@gmail.com", "Innov.korp@gmail.com", "Acherie812@gmail.com"]
+        request.auth.token.email in ["acherie812@gmail.com", "innov.korp@gmail.com", "Innov.korp@gmail.com", "Acherie812@gmail.com", "test-admin@kontrol.com"] ||
+        request.auth.uid in ["rUoZMJc1YqgxGLSL8Oo2dKYA10Y2"]
       );
     }
 
@@ -18,8 +19,9 @@ service cloud.firestore {
       return isSuperAdmin() || (
         isAuthenticated() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMINISTRATEUR_ERP' ||
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'GESTIONNAIRE_ERP')
+        (
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['ADMINISTRATEUR_ERP', 'GESTIONNAIRE_ERP', 'ADMIN']
+        )
       );
     }
 
@@ -139,6 +141,26 @@ service cloud.firestore {
     match /companies/{id} {
       allow read: if isERPAdmin() || (isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == id);
       allow create, update, delete: if isERPAdmin();
+    }
+
+    match /conversations/{id} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isERPAdmin());
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isERPAdmin());
+    }
+
+    match /messages/{id} {
+      allow read: if isAuthenticated() && (
+        exists(/databases/$(database)/documents/conversations/$(resource.data.conversationId)) &&
+        (get(/databases/$(database)/documents/conversations/$(resource.data.conversationId)).data.userId == request.auth.uid || isERPAdmin())
+      );
+      allow create: if isAuthenticated();
+      allow delete: if isAuthenticated() && (
+        isERPAdmin() || (
+          exists(/databases/$(database)/documents/conversations/$(resource.data.conversationId)) &&
+          get(/databases/$(database)/documents/conversations/$(resource.data.conversationId)).data.userId == request.auth.uid
+        )
+      );
     }
 
     match /{document=**} {
