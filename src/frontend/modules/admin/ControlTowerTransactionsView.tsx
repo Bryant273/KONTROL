@@ -21,7 +21,7 @@ import {
   Table,
   Filter
 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { exportToPDF, exportToExcel } from '../../lib/export';
 import { Transaction, UserProfile } from '../../types';
 import { cn, formatCurrency } from '../../lib/utils';
@@ -68,6 +68,9 @@ export function ControlTowerTransactionsView() {
     const q = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'), limit(500));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Transaction[]);
+      setLoading(false);
+    }, (error) => {
+      if (error.code !== 'permission-denied') console.error("Transactions fetch error:", error);
       setLoading(false);
     });
 

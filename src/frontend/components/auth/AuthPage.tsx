@@ -94,16 +94,12 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
             className="space-y-8"
           >
             <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/10 rounded-full">
-                <Zap size={12} className="text-kontrol-blue" />
-                <span className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-white/60">Propulsé par INNOV'KORP</span>
-              </div>
               <h2 className="text-4xl font-extrabold text-white tracking-tighter leading-[1.1]">
                 La gestion de demain, <br />
                 <span className="text-kontrol-blue">disponible aujourd'hui.</span>
               </h2>
               <p className="text-lg text-white/50 font-medium leading-relaxed">
-                Rejoignez les entrepreneurs qui ont déjà transformé leur boutique avec KONTROL.
+                Rejoignez l'écosystème <strong>INNOV'KORP</strong> et transformez votre boutique avec KONTROL.
               </p>
             </div>
 
@@ -149,15 +145,18 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
         </button>
 
         <div className="max-w-[380px] mx-auto w-full flex-1 flex flex-col justify-center py-4">
-          <div className="mb-6">
-            <Logo size="md" className="mb-4 shadow-lg shadow-kontrol-blue/10 border-none" />
+          <div className="mb-6 flex flex-col items-center text-center">
+            <div className="flex items-center gap-3 mb-4">
+              <Logo size="md" className="shadow-lg shadow-kontrol-blue/10 border-none" />
+              <span className="text-3xl font-extrabold text-kontrol-dark tracking-tighter uppercase">KONTROL</span>
+            </div>
             <h1 className="text-2xl font-extrabold text-kontrol-dark tracking-tighter leading-tight mb-2">
               {authMode === 'login' ? 'Bon retour.' : 'Propulsez votre boutique.'}
             </h1>
             <p className="text-sm text-kontrol-ink-soft font-medium leading-relaxed">
               {authMode === 'login' 
                 ? 'Connectez-vous pour reprendre le contrôle.' 
-                : 'Rejoignez INNOV\'KORP et simplifiez votre gestion.'}
+                : 'Simplifiez votre gestion dès maintenant.'}
             </p>
           </div>
 

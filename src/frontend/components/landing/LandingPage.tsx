@@ -73,7 +73,7 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
       <nav className="fixed top-0 left-0 right-0 h-20 bg-white/80 backdrop-blur-md border-b border-kontrol-border z-[100] px-6 lg:px-12 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Logo size="md" className="border-none shadow-none" />
-          <span className="text-xl font-extrabold tracking-tighter">KONTROL</span>
+          <span className="text-2xl font-extrabold tracking-tighter text-kontrol-dark uppercase">KONTROL</span>
         </div>
         
         <div className="hidden md:flex items-center gap-8">
@@ -96,7 +96,7 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
         
         <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-kontrol-bg border border-kontrol-border rounded-full mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
           <Sparkles size={14} className="text-kontrol-orange" />
-          <span className="text-[11px] font-bold uppercase tracking-widest text-kontrol-ink-muted">Propulsé par Blue AI & INNOV'KORP</span>
+          <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-kontrol-ink-muted">PROPULSÉ PAR BLUE AI & INNOV'KORP</span>
         </div>
 
         <h1 className="text-4xl lg:text-6xl font-extrabold tracking-tighter leading-[0.9] mb-6 animate-in fade-in slide-in-from-bottom-6 duration-700 delay-100">
@@ -105,7 +105,7 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
         </h1>
 
         <p className="text-base text-kontrol-ink-soft max-w-xl mx-auto mb-8 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
-          KONTROL est la solution tout-en-un conçue par INNOV'KORP pour simplifier la gestion des stocks, des ventes et de la comptabilité des <strong>TPE, boutiques et petits commerces</strong>.
+          La solution tout-en-un conçue pour simplifier la gestion des stocks, des ventes et de la comptabilité des <strong>TPE, boutiques et petits commerces</strong>.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-in fade-in slide-in-from-bottom-10 duration-700 delay-300">
@@ -293,7 +293,7 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
         </div>
       </section>
 
-      {/* About / INNOV'KORP */}
+      {/* About Section */}
       <section id="about" className="py-24 px-6 lg:px-12 bg-kontrol-dark text-white overflow-hidden relative">
         <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
           <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-kontrol-blue rounded-full blur-[150px]" />
@@ -311,7 +311,7 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
               <span className="text-kontrol-blue">votre croissance.</span>
             </h2>
             <p className="text-base text-white/60 mb-8 leading-relaxed">
-              KONTROL est une création de <strong>INNOV'KORP</strong>, une entreprise technologique dédiée à la transformation numérique des <strong>TPE et boutiques</strong>. Notre mission est de démocratiser les outils de gestion de pointe pour permettre à chaque petit commerçant de réussir.
+              KONTROL est une solution technologique de pointe développée par <strong>INNOV'KORP</strong>, dédiée à la transformation numérique des <strong>TPE et boutiques</strong>. Notre mission est de démocratiser les outils de gestion de pointe pour permettre à chaque petit commerçant de réussir.
             </p>
             <div className="grid grid-cols-2 gap-6">
               <div>
@@ -339,8 +339,7 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
               
               <div className="space-y-6">
                 <div className="p-6 bg-white/5 rounded-3xl border border-white/10">
-                  <p className="text-white/60 text-sm">"Notre vision est de créer des outils si intuitifs qu'ils deviennent invisibles, laissant l'entrepreneur se concentrer sur ce qu'il aime."</p>
-                  <p className="mt-4 font-bold text-sm">— Direction INNOV'KORP</p>
+                  <p className="text-white/60 text-sm">"Sous la direction d'INNOV'KORP, notre vision est de créer des outils si intuitifs qu'ils deviennent invisibles, laissant l'entrepreneur se concentrer sur son coeur de métier."</p>
                 </div>
               </div>
 
@@ -468,7 +467,7 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
           <div className="flex flex-col md:flex-row justify-between items-center gap-8 mb-8">
             <div className="flex items-center gap-3">
               <Logo size="sm" className="border-none shadow-none" />
-              <span className="text-sm font-extrabold tracking-tighter">KONTROL by INNOV'KORP</span>
+              <span className="text-xl font-extrabold tracking-tighter text-kontrol-dark uppercase">KONTROL</span>
             </div>
             <div className="flex gap-8">
               <a href="mailto:Innov.korp@gmail.com" className="text-[13px] font-bold text-kontrol-ink-soft hover:text-kontrol-blue transition-colors flex items-center gap-2">
@@ -479,9 +478,14 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
             </div>
           </div>
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-8 border-t border-kontrol-border">
-            <p className="text-[11px] text-kontrol-ink-muted font-medium uppercase tracking-widest">
-              © 2026 INNOV'KORP. Tous droits réservés.
-            </p>
+            <div className="flex flex-col items-center md:items-start gap-1">
+              <p className="text-[11px] text-kontrol-ink-muted font-medium uppercase tracking-widest">
+                © 2026 KONTROL. Tous droits réservés.
+              </p>
+              <p className="text-[9px] text-kontrol-ink-muted/60 font-bold uppercase tracking-[0.2em]">
+                Propulsé par <span className="text-kontrol-blue">BLUE AI</span> & <span className="text-kontrol-orange">INNOV'KORP</span>
+              </p>
+            </div>
             <div className="flex gap-6">
               <a href="#" className="text-kontrol-ink-muted hover:text-kontrol-dark transition-colors"><Globe size={18} /></a>
               <a href="#" className="text-kontrol-ink-muted hover:text-kontrol-dark transition-colors"><CreditCard size={18} /></a>

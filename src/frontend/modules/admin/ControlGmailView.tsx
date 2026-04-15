@@ -17,7 +17,8 @@ import {
   ArrowLeft,
   User,
   ExternalLink,
-  Loader2
+  Loader2,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils';
@@ -74,12 +75,53 @@ const MOCK_EMAILS: Email[] = [
   }
 ];
 
-export function ControlGmailView() {
+interface ControlGmailViewProps {
+  tickets?: any[];
+}
+
+export function ControlGmailView({ tickets = [] }: ControlGmailViewProps) {
   const [emails, setEmails] = useState<Email[]>(MOCK_EMAILS);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFolder, setActiveFolder] = useState('inbox');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isComposing, setIsComposing] = useState(false);
+  const [composeData, setComposeData] = useState({ to: '', subject: '', body: '' });
+  const [isSending, setIsSending] = useState(false);
+
+  const handleSendEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!composeData.to || !composeData.subject) return;
+    setIsSending(true);
+    try {
+      // Simulate sending
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      setIsComposing(false);
+      setComposeData({ to: '', subject: '', body: '' });
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  useEffect(() => {
+    // Map tickets to emails
+    const ticketEmails: Email[] = tickets.map(t => ({
+      id: `ticket-${t.id}`,
+      from: t.userName || t.email?.split('@')[0] || 'Client',
+      fromEmail: t.email || 'Innov.korp@gmail.com',
+      subject: `[TICKET #${t.id.slice(-4)}] ${t.subject}`,
+      snippet: t.message?.slice(0, 100) + '...',
+      body: t.message || '',
+      date: new Date(t.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
+      isRead: t.status === 'RESOLVED',
+      isStarred: t.priority === 'HIGH',
+      labels: ['Support', t.category || 'Général']
+    }));
+
+    setEmails([...MOCK_EMAILS, ...ticketEmails]);
+  }, [tickets]);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -100,7 +142,10 @@ export function ControlGmailView() {
       {/* Sidebar */}
       <div className="w-64 border-r border-kontrol-border bg-kontrol-bg/30 flex flex-col">
         <div className="p-6">
-          <button className="w-full bg-white border border-kontrol-border hover:border-kontrol-blue hover:shadow-lg hover:shadow-kontrol-blue/10 transition-all py-3 px-4 rounded-2xl flex items-center justify-center gap-3 text-sm font-extrabold text-kontrol-dark uppercase tracking-widest">
+          <button 
+            onClick={() => setIsComposing(true)}
+            className="w-full bg-white border border-kontrol-border hover:border-kontrol-blue hover:shadow-lg hover:shadow-kontrol-blue/10 transition-all py-3 px-4 rounded-2xl flex items-center justify-center gap-3 text-sm font-extrabold text-kontrol-dark uppercase tracking-widest"
+          >
             <Send size={16} className="text-kontrol-blue" />
             Nouveau Message
           </button>
@@ -119,8 +164,8 @@ export function ControlGmailView() {
           <div className="flex items-center gap-3 p-3 bg-white border border-kontrol-border rounded-xl">
             <div className="w-8 h-8 rounded-full bg-kontrol-blue flex items-center justify-center text-[10px] font-bold text-white">IK</div>
             <div className="overflow-hidden">
-              <p className="text-[11px] font-bold text-kontrol-dark truncate">Innov'Korp</p>
-              <p className="text-[9px] text-kontrol-ink-muted truncate">innov.korp@gmail.com</p>
+              <p className="text-[11px] font-bold text-kontrol-dark truncate">Innov'Korp Support</p>
+              <p className="text-[9px] text-kontrol-ink-muted truncate">Innov.korp@gmail.com</p>
             </div>
           </div>
         </div>
@@ -207,6 +252,69 @@ export function ControlGmailView() {
           </>
         )}
       </div>
+      {/* Compose Modal */}
+      <AnimatePresence>
+        {isComposing && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-kontrol-dark/60 backdrop-blur-sm p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden flex flex-col"
+            >
+              <div className="p-6 border-b border-kontrol-border flex items-center justify-between bg-kontrol-bg/30">
+                <h3 className="text-lg font-extrabold text-kontrol-dark tracking-tight">Nouveau Message</h3>
+                <button onClick={() => setIsComposing(false)} className="p-2 hover:bg-kontrol-border rounded-xl transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+              <form onSubmit={handleSendEmail} className="p-8 space-y-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Destinataire</label>
+                  <input 
+                    type="email" 
+                    required
+                    className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl text-[13px] outline-none focus:border-kontrol-blue transition-all"
+                    placeholder="email@exemple.com"
+                    value={composeData.to}
+                    onChange={e => setComposeData({...composeData, to: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Objet</label>
+                  <input 
+                    type="text" 
+                    required
+                    className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl text-[13px] outline-none focus:border-kontrol-blue transition-all"
+                    placeholder="Sujet du message"
+                    value={composeData.subject}
+                    onChange={e => setComposeData({...composeData, subject: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Message</label>
+                  <textarea 
+                    required
+                    rows={6}
+                    className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl text-[13px] outline-none focus:border-kontrol-blue transition-all resize-none"
+                    placeholder="Écrivez votre message ici..."
+                    value={composeData.body}
+                    onChange={e => setComposeData({...composeData, body: e.target.value})}
+                  />
+                </div>
+                <button 
+                  type="submit" 
+                  disabled={isSending}
+                  className="w-full btn-primary py-4 font-extrabold uppercase tracking-widest text-[12px] flex items-center justify-center gap-2 shadow-xl shadow-kontrol-blue/20 mt-4"
+                >
+                  {isSending ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
+                  Envoyer le message
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
@@ -269,7 +377,7 @@ function EmailDetail({ email, onBack }: { email: Email, onBack: () => void }) {
                   <span className="font-extrabold text-kontrol-dark">{email.from}</span>
                   <span className="text-xs text-kontrol-ink-muted">&lt;{email.fromEmail}&gt;</span>
                 </div>
-                <p className="text-[11px] text-kontrol-ink-muted mt-0.5">À : moi (innov.korp@gmail.com)</p>
+                <p className="text-[11px] text-kontrol-ink-muted mt-0.5">À : moi (Innov.korp@gmail.com)</p>
               </div>
             </div>
             <div className="flex items-center gap-4">

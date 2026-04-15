@@ -82,7 +82,7 @@ export function ControlTowerTreasuryView() {
       setPayments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Payment[]);
       setLoading(false);
     }, (error) => {
-      console.error("Payments fetch error:", error);
+      if (error.code !== 'permission-denied') console.error("Payments fetch error:", error);
       setLoading(false);
     }));
 

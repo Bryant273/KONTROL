@@ -411,7 +411,7 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
                           </p>
                         ) : (
                           <p className="text-[11px] text-kontrol-ink-muted leading-tight">
-                            Chiffré par INNOV'KORP. <br />
+                            Chiffré et sécurisé. <br />
                             Non visible pour votre sécurité.
                           </p>
                         )}

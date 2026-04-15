@@ -84,6 +84,8 @@ import { blueAIService, BlueFunction } from '../../../api/services/blueAIService
 import { ControlTowerTreasuryView } from './ControlTowerTreasuryView';
 import { ControlTowerTransactionsView } from './ControlTowerTransactionsView';
 import { ControlGmailView } from './ControlGmailView';
+import { VersionControlView } from './VersionControlView';
+import { UpdatesView } from './UpdatesView';
 import { emailService } from '../../../api/services/emailService';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
 
@@ -243,12 +245,16 @@ export function ControlTower({ activeSubTab = 'dashboard' }: ControlTowerProps) 
     const qActions = query(collection(db, 'actions'), orderBy('timestamp', 'desc'), limit(20));
     unsubscribes.push(onSnapshot(qActions, (snap) => {
       setRecentActions(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (error) => {
+      if (error.code !== 'permission-denied') console.error("Actions fetch error:", error);
     }));
 
     const qTickets = query(collection(db, 'tickets'), orderBy('createdAt', 'desc'), limit(10));
     unsubscribes.push(onSnapshot(qTickets, (snap) => {
       setTickets(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       setStats(prev => ({ ...prev, pendingTickets: snap.docs.filter(d => d.data().status === 'NEW').length }));
+    }, (error) => {
+      if (error.code !== 'permission-denied') console.error("Tickets fetch error:", error);
     }));
 
     return () => unsubscribes.forEach(un => un());
@@ -268,10 +274,10 @@ export function ControlTower({ activeSubTab = 'dashboard' }: ControlTowerProps) 
              activeSubTab === 'subscriptions' || activeSubTab === 'revenue' || activeSubTab === 'accounting' ? 'Gestion Financière' :
              activeSubTab === 'entreprises' || activeSubTab === 'utilisateurs' ? 'Écosystème' :
              activeSubTab === 'ai_core' ? 'Intelligence Blue AI' :
-             activeSubTab === 'telemetry' || activeSubTab === 'system' ? 'Système & Télémétrie' :
+             activeSubTab === 'telemetry' || activeSubTab === 'system' || activeSubTab === 'versions' || activeSubTab === 'updates' ? 'Système & Télémétrie' :
              'Contrôle & Sécurité'}
           </h2>
-          <p className="text-[12px] text-kontrol-ink-muted font-bold uppercase tracking-widest">KONTROL CONTROL TOWER • v3.0.0-PRO</p>
+          <p className="text-[12px] text-kontrol-ink-muted font-bold uppercase tracking-widest">CONTROL TOWER • v3.0.0-PRO</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="px-4 py-2 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center gap-2">
@@ -288,7 +294,7 @@ export function ControlTower({ activeSubTab = 'dashboard' }: ControlTowerProps) 
       <AnimatePresence mode="wait">
         {activeSubTab === 'dashboard' && <VisionView stats={stats} companies={companies} recentActions={recentActions} treasuryBalance={treasuryBalance} />}
         {activeSubTab === 'subscriptions' && <BusinessSubscriptionsView companies={companies} />}
-        {activeSubTab === 'revenue' && <BusinessRevenueView stats={stats} revenueData={revenueData} />}
+        {activeSubTab === 'revenue' && <FinancialAnalyticsView stats={stats} revenueData={revenueData} />}
         {activeSubTab === 'accounting' && <ControlTowerTreasuryView />}
         {activeSubTab === 'transactions' && <ControlTowerTransactionsView />}
         {activeSubTab === 'entreprises' && <EcosystemCompaniesView companies={companies} onDetail={openDetail} onEdit={openEdit} onDelete={openDelete} onAdd={() => openAdd('COMPANY')} />}
@@ -296,9 +302,11 @@ export function ControlTower({ activeSubTab = 'dashboard' }: ControlTowerProps) 
         {activeSubTab === 'gestionnaires' && <AdminManagersView users={allUsers} onDetail={openDetail} onEdit={openEdit} onDelete={openDelete} onAdd={() => openAdd('MANAGER')} />}
         {activeSubTab === 'ai_core' && <IntelligenceAIView stats={stats} />}
         {activeSubTab === 'telemetry' && <SystemTelemetryView stats={stats} />}
+        {activeSubTab === 'versions' && <VersionControlView />}
+        {activeSubTab === 'updates' && <UpdatesView />}
         {activeSubTab === 'audit' && <ControlAuditView actions={recentActions} />}
         {activeSubTab === 'tickets' && <ControlSupportView tickets={tickets} />}
-        {activeSubTab === 'gmail' && <ControlGmailView />}
+        {activeSubTab === 'gmail' && <ControlGmailView tickets={tickets} />}
       </AnimatePresence>
 
       {/* Detail Modal */}
@@ -486,7 +494,7 @@ function VisionView({ stats, companies, recentActions, treasuryBalance }: any) {
       {/* Global KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard title="MRR Global" value={formatCurrency(stats.mrr)} change="+12.5%" icon={TrendingUp} color="blue" trend="up" />
-        <StatCard title="Trésorerie KONTROL" value={formatCurrency(treasuryBalance)} change="Live" icon={WalletIcon} color="amber" trend="up" />
+        <StatCard title="Trésorerie Globale" value={formatCurrency(treasuryBalance)} change="Live" icon={WalletIcon} color="amber" trend="up" />
         <StatCard title="Noeuds Actifs" value={stats.totalUsers} change="+45" icon={Users} color="blue" trend="up" />
         <StatCard title="Santé Système" value="99.9%" change="Stable" icon={Activity} color="emerald" trend="up" />
       </div>
@@ -834,7 +842,7 @@ function AdminManagersView({ users, onDetail, onEdit, onDelete, onAdd }: any) {
   );
 }
 
-function BusinessRevenueView({ stats, revenueData }: any) {
+function FinancialAnalyticsView({ stats, revenueData }: any) {
   const [showAddMovement, setShowAddMovement] = useState(false);
   const [movements, setMovements] = useState<any[]>([]);
   const [newMovement, setNewMovement] = useState({
@@ -910,191 +918,6 @@ function BusinessRevenueView({ stats, revenueData }: any) {
           </ResponsiveContainer>
         </div>
       </div>
-    </motion.div>
-  );
-}
-
-function BusinessAccountingView({ stats }: any) {
-  const [movements, setMovements] = useState<any[]>([
-    { id: '1', date: Date.now(), type: 'ENCAISSEMENT', montant: 10000, description: 'Abonnement Innov\'Korp', mode: 'Kkiapay' },
-    { id: '2', date: Date.now() - 86400000, type: 'DECAISSEMENT', montant: 5000, description: 'Frais Serveur Cloud', mode: 'Virement' },
-    { id: '3', date: Date.now() - 172800000, type: 'ENCAISSEMENT', montant: 10000, description: 'Renouvellement Global Tech', mode: 'Kkiapay' },
-  ]);
-  const [showAddMovement, setShowAddMovement] = useState(false);
-
-  return (
-    <motion.div 
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      className="space-y-6"
-    >
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <StatCard title="Revenus Totaux" value={formatCurrency(stats.totalRevenue)} change="+8%" icon={ArrowUpRight} color="emerald" />
-        <StatCard title="Charges & Achats" value={formatCurrency(stats.totalRevenue * 0.3)} change="-2%" icon={ArrowDownRight} color="rose" />
-        <StatCard title="Bénéfice Net" value={formatCurrency(stats.totalRevenue * 0.7)} change="+15%" icon={TrendingUp} color="blue" />
-        <StatCard title="Flux de Trésorerie" value={formatCurrency(stats.totalRevenue * 0.5)} change="Stable" icon={Activity} color="amber" />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 card overflow-hidden">
-          <div className="p-6 border-b border-kontrol-border flex items-center justify-between bg-kontrol-bg/30">
-            <h3 className="text-[11px] font-extrabold uppercase tracking-widest">Journal de Trésorerie (Plateforme)</h3>
-            <button 
-              onClick={() => setShowAddMovement(true)}
-              className="px-4 py-2 bg-kontrol-blue text-white text-[10px] font-extrabold uppercase tracking-widest rounded-xl hover:bg-blue-600 transition-all flex items-center gap-2"
-            >
-              <Plus size={14} /> Nouveau Mouvement
-            </button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-kontrol-bg/50 border-b border-kontrol-border">
-                  <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Date</th>
-                  <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Description</th>
-                  <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Type</th>
-                  <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Montant</th>
-                  <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-kontrol-border">
-                {movements.map((m) => (
-                  <tr key={m.id} className="hover:bg-kontrol-bg/30 transition-colors">
-                    <td className="px-6 py-4 text-[11px] text-kontrol-ink-muted">
-                      {new Date(m.date).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="text-[13px] font-bold text-kontrol-dark">{m.description}</p>
-                      <p className="text-[10px] text-kontrol-ink-muted">Mode: {m.mode}</p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={cn(
-                        "px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-widest rounded",
-                        m.type === 'ENCAISSEMENT' ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
-                      )}>
-                        {m.type}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className={cn(
-                        "text-[13px] font-extrabold",
-                        m.type === 'ENCAISSEMENT' ? "text-emerald-600" : "text-rose-600"
-                      )}>
-                        {m.type === 'ENCAISSEMENT' ? '+' : '-'}{formatCurrency(m.montant)}
-                      </p>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button className="p-2 text-kontrol-ink-muted hover:bg-kontrol-bg rounded-lg transition-all">
-                          <Eye size={14} />
-                        </button>
-                        <button className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-all">
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="card p-8">
-          <h3 className="text-[11px] font-extrabold uppercase tracking-widest mb-6">Prévisions Financières (6 Mois)</h3>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={[
-                { month: 'Juil', forecast: stats.mrr * 1.1 },
-                { month: 'Août', forecast: stats.mrr * 1.25 },
-                { month: 'Sept', forecast: stats.mrr * 1.4 },
-                { month: 'Oct', forecast: stats.mrr * 1.6 },
-                { month: 'Nov', forecast: stats.mrr * 1.85 },
-                { month: 'Déc', forecast: stats.mrr * 2.2 },
-              ]}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af', fontWeight: 'bold' }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af', fontWeight: 'bold' }} />
-                <Tooltip />
-                <Area type="monotone" dataKey="forecast" stroke="#8b5cf6" strokeWidth={3} fillOpacity={0.1} fill="#8b5cf6" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-
-      {/* Modal Ajout Mouvement */}
-      <AnimatePresence>
-        {showAddMovement && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-kontrol-dark/60 backdrop-blur-sm">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden"
-            >
-              <div className="p-8 border-b border-kontrol-border flex items-center justify-between bg-kontrol-bg/30">
-                <h3 className="text-xl font-extrabold text-kontrol-dark tracking-tight">Nouveau Mouvement</h3>
-                <button onClick={() => setShowAddMovement(false)} className="p-2 hover:bg-kontrol-border rounded-xl transition-colors">
-                  <X size={20} />
-                </button>
-              </div>
-              <form className="p-8 space-y-6" onSubmit={handleAddMovement}>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Type de Mouvement</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button 
-                      type="button" 
-                      onClick={() => setNewMovement({...newMovement, type: 'ENCAISSEMENT'})}
-                      className={cn(
-                        "py-3 rounded-xl text-[11px] font-extrabold uppercase tracking-widest transition-all",
-                        newMovement.type === 'ENCAISSEMENT' ? "bg-emerald-600 text-white shadow-lg shadow-emerald-200" : "bg-emerald-50 text-emerald-600 border border-emerald-200"
-                      )}
-                    >
-                      Encaissement
-                    </button>
-                    <button 
-                      type="button" 
-                      onClick={() => setNewMovement({...newMovement, type: 'DECAISSEMENT'})}
-                      className={cn(
-                        "py-3 rounded-xl text-[11px] font-extrabold uppercase tracking-widest transition-all",
-                        newMovement.type === 'DECAISSEMENT' ? "bg-rose-600 text-white shadow-lg shadow-rose-200" : "bg-rose-50 text-rose-600 border border-rose-200"
-                      )}
-                    >
-                      Décaissement
-                    </button>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Description</label>
-                  <input 
-                    type="text" 
-                    required
-                    value={newMovement.description}
-                    onChange={(e) => setNewMovement({...newMovement, description: e.target.value})}
-                    className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl focus:outline-none focus:border-kontrol-blue text-[13px]" 
-                    placeholder="Ex: Achat fournitures bureau" 
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Montant (XOF)</label>
-                  <input 
-                    type="number" 
-                    required
-                    value={newMovement.montant || ''}
-                    onChange={(e) => setNewMovement({...newMovement, montant: Number(e.target.value)})}
-                    className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl focus:outline-none focus:border-kontrol-blue text-[13px]" 
-                    placeholder="0" 
-                  />
-                </div>
-                <button type="submit" className="w-full py-4 bg-kontrol-blue text-white rounded-2xl font-extrabold text-sm uppercase tracking-widest hover:bg-blue-600 transition-all shadow-xl shadow-kontrol-blue/20">
-                  Enregistrer le Mouvement
-                </button>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </motion.div>
   );
 }
@@ -1348,9 +1171,9 @@ function IntelligenceAIView({ stats }: any) {
 
 function SystemTelemetryView({ stats }: any) {
   const [isResetting, setIsResetting] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   
   const handleResetDB = async () => {
-    if (!window.confirm("Êtes-vous sûr de vouloir réinitialiser la base de données ? Cette action est irréversible.")) return;
     setIsResetting(true);
     try {
       // 1. Delete all users except the two main ones
@@ -1373,13 +1196,12 @@ function SystemTelemetryView({ stats }: any) {
         }
       }
 
-      alert("Base de données réinitialisée avec succès.");
       window.location.reload();
     } catch (error) {
       console.error("Reset DB error:", error);
-      alert("Erreur lors de la réinitialisation.");
     } finally {
       setIsResetting(false);
+      setShowResetConfirm(false);
     }
   };
 
@@ -1418,16 +1240,27 @@ function SystemTelemetryView({ stats }: any) {
       <div className="card p-8 bg-rose-50 border border-rose-100 flex items-center justify-between">
         <div>
           <h3 className="text-lg font-extrabold text-rose-900">Maintenance & Réinitialisation</h3>
-          <p className="text-[12px] text-rose-700 mt-1">Réinitialiser l'écosystème KONTROL à son état initial (Acherie812 & Innov'Korp uniquement).</p>
+          <p className="text-[12px] text-rose-700 mt-1">Réinitialiser l'écosystème KONTROL à son état initial (Administrateurs uniquement).</p>
         </div>
         <button 
-          onClick={handleResetDB}
+          onClick={() => setShowResetConfirm(true)}
           disabled={isResetting}
           className="px-6 py-3 bg-rose-600 text-white rounded-xl text-[11px] font-extrabold uppercase tracking-widest hover:bg-rose-700 transition-all flex items-center gap-2 shadow-lg shadow-rose-200"
         >
           {isResetting ? <Loader2 className="animate-spin" size={16} /> : <RefreshCw size={16} />}
           Réinitialiser la DB
         </button>
+
+        <ConfirmModal
+          isOpen={showResetConfirm}
+          onClose={() => setShowResetConfirm(false)}
+          onConfirm={handleResetDB}
+          title="Réinitialisation Totale"
+          message="Êtes-vous absolument sûr de vouloir réinitialiser toute la base de données ? Cette action supprimera toutes les entreprises, transactions et utilisateurs (sauf les administrateurs principaux). Cette action est irréversible."
+          confirmLabel="Réinitialiser tout"
+          variant="danger"
+          loading={isResetting}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -1634,7 +1467,7 @@ function ControlSupportView({ tickets }: any) {
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-6">
-          <h3 className="text-[11px] font-extrabold uppercase tracking-widest">Support & Tickets (Innov.korp@gmail.com)</h3>
+          <h3 className="text-[11px] font-extrabold uppercase tracking-widest">Support & Tickets</h3>
           <div className="relative w-64">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
             <input 

@@ -20,7 +20,8 @@ import {
   Brain,
   TrendingUp,
   Activity,
-  Wallet as WalletIcon
+  Wallet as WalletIcon,
+  Sparkles
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { User } from '../../../api/firebase';
@@ -82,6 +83,8 @@ const erpNavSections: NavSection[] = [
     icon: Settings,
     items: [
       { id: 'system', label: 'Télémétrie', icon: Activity },
+      { id: 'versions', label: 'Journal des Versions', icon: History },
+      { id: 'updates', label: 'Mises à jour IA', icon: Sparkles },
     ]
   },
   {
@@ -90,7 +93,7 @@ const erpNavSections: NavSection[] = [
     items: [
       { id: 'actions', label: 'Audit Trail', icon: History },
       { id: 'tickets', label: 'Support & Tickets', icon: MessageCircle },
-      { id: 'gmail', label: 'Gmail Innov\'Korp', icon: MessageCircle },
+      { id: 'gmail', label: 'Gmail Support', icon: MessageCircle },
     ]
   },
   {
@@ -176,9 +179,11 @@ export function Sidebar({ activeTab, setActiveTab, user, profile, onLogout, isOp
         <div className="h-14 flex items-center justify-between px-4 border-b border-white/10 shrink-0">
           <div className="flex items-center gap-2 overflow-hidden">
             <Logo companyLogo={profile?.companyLogo} size="sm" className="bg-transparent border-white/10" />
-            <span className="text-lg font-extrabold text-white tracking-tighter truncate">
-              {profile?.companyName || 'KONTROL'}
-            </span>
+            {profile?.companyName && profile.companyName !== 'KONTROL' && (
+              <span className="text-lg font-extrabold text-white tracking-tighter truncate">
+                {profile.companyName}
+              </span>
+            )}
           </div>
           <button 
             className="lg:hidden text-white/50 hover:text-white p-1.5 rounded-md hover:bg-white/10 transition-colors"
@@ -264,6 +269,11 @@ export function Sidebar({ activeTab, setActiveTab, user, profile, onLogout, isOp
                 {profile?.role?.replace('_', ' ')}
               </p>
             </div>
+          </div>
+          <div className="mt-2 text-center">
+            <p className="text-[8px] text-white/20 font-bold uppercase tracking-[0.2em]">
+              Propulsé par <span className="text-kontrol-blue">BLUE AI</span> & <span className="text-kontrol-orange">INNOV'KORP</span>
+            </p>
           </div>
         </div>
       </aside>

@@ -291,7 +291,7 @@ export function Chatbot() {
                         <User size={24} />
                       </div>
                       <h4 className="text-sm font-extrabold text-kontrol-dark uppercase tracking-tight mb-2">Bienvenue chez KONTROL</h4>
-                      <p className="text-[11px] text-kontrol-ink-muted mb-6 font-medium">Laissez-nous vos coordonnées pour que Blue puisse mieux vous assister.</p>
+                      <p className="text-[11px] text-kontrol-ink-muted mb-6 font-medium">Une solution <strong>INNOV'KORP</strong>. Laissez-nous vos coordonnées pour que Blue puisse mieux vous assister.</p>
                       
                       <form onSubmit={handleLeadSubmit} className="w-full space-y-3">
                         <input 
@@ -414,7 +414,7 @@ export function Chatbot() {
                   </div>
                   <div className="flex items-center justify-center gap-4 mt-3">
                     <p className="text-[10px] text-kontrol-ink-muted font-bold uppercase tracking-widest">
-                      Propulsé par <span className="text-kontrol-blue">BLUE AI</span>
+                      Propulsé par <span className="text-kontrol-blue">BLUE AI & INNOV'KORP</span>
                     </p>
                     <div className="h-3 w-px bg-kontrol-border" />
                     <button 

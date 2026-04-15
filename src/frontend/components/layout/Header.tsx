@@ -51,7 +51,7 @@ export function Header({ section, page, user, profile, onLogout, onTabChange, to
       <div className="flex-1 flex items-center gap-3 min-w-0">
         <div className="hidden lg:flex items-center gap-2 pr-4 border-r border-kontrol-border">
           <Logo size="sm" className="bg-transparent border-none" />
-          <span className="text-xs font-extrabold text-kontrol-dark tracking-tighter">KONTROL</span>
+          <span className="text-lg font-extrabold tracking-tighter text-kontrol-dark uppercase">KONTROL</span>
         </div>
         <div className="flex items-center gap-1.5 overflow-hidden">
           <span className="text-[10px] text-kontrol-ink-muted uppercase font-extrabold tracking-[0.15em] whitespace-nowrap">{section}</span>

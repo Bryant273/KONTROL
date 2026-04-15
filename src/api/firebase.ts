@@ -173,6 +173,7 @@ export async function ensureUserProfile(user: User, companyName?: string, hashed
       companyId: user.uid,
       companyName: companyName || (isAdminEmail ? 'KONTROL' : ''),
       isProfileComplete: isAdminEmail,
+      active: true,
       createdAt: Date.now(),
       subscriptionStatus: 'TRIAL',
       subscriptionEndDate: Date.now() + (14 * 24 * 60 * 60 * 1000) // 14 days trial

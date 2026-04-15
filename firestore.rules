@@ -65,6 +65,10 @@ service cloud.firestore {
       allow delete: if isERPAdmin();
     }
 
+    match /treasury_movements/{id} {
+      allow read, write: if isERPAdmin();
+    }
+
     match /transactions/{id} {
       allow read: if isEnterpriseUser(resource.data.ownerId) || isERPAdmin();
       allow create: if isEnterpriseUser(request.resource.data.ownerId) && 
@@ -141,6 +145,21 @@ service cloud.firestore {
     match /companies/{id} {
       allow read: if isERPAdmin() || (isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == id);
       allow create, update, delete: if isERPAdmin();
+    }
+
+    match /app_versions/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isERPAdmin();
+    }
+
+    match /ai_proposals/{id} {
+      allow read: if isERPAdmin();
+      allow write: if isERPAdmin();
+    }
+
+    match /system/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isERPAdmin();
     }
 
     match /conversations/{id} {

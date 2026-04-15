@@ -129,30 +129,19 @@ export default function App() {
     }
 
     const checkSubscription = () => {
-      // If account is explicitly deactivated
+      // For now, we disable blocking while the payment system is being finalized
+      setIsBlocked(false);
+      setShowReminder(null);
+      return;
+
+      // Original logic (commented out)
+      /*
       if (profile.active === false) {
         setIsBlocked(true);
         return;
       }
-
-      const now = Date.now();
-      const expiry = profile.subscriptionEndDate || 0;
-      const status = profile.subscriptionStatus;
-
-      // Block if not active or expired
-      if (status !== 'ACTIVE' || expiry < now) {
-        setIsBlocked(true);
-      } else {
-        setIsBlocked(false);
-        
-        // Show reminder if less than 7 days left
-        const daysLeft = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
-        if (daysLeft <= 7 && daysLeft > 0) {
-          setShowReminder({ days: daysLeft });
-        } else {
-          setShowReminder(null);
-        }
-      }
+      ...
+      */
     };
 
     checkSubscription();
@@ -204,8 +193,7 @@ export default function App() {
           <div className="absolute inset-0 border-4 border-kontrol-blue/20 rounded-full" />
           <div className="absolute inset-0 border-4 border-t-kontrol-blue rounded-full animate-spin" />
         </div>
-        <p className="text-[13px] font-extrabold tracking-widest text-kontrol-dark uppercase animate-pulse">KONTROL</p>
-        <p className="text-[11px] text-kontrol-ink-muted mt-2">Initialisation sécurisée par INNOV'KORP...</p>
+        <p className="text-[11px] text-kontrol-ink-muted mt-2">Initialisation sécurisée...</p>
       </div>
     );
   }
@@ -313,6 +301,8 @@ export default function App() {
               {activeTab === 'gmail' && <ControlTower activeSubTab="gmail" />}
               {activeTab === 'entreprises' && (isERPAdmin ? <ControlTower activeSubTab="entreprises" /> : <CompaniesModule />)}
               {activeTab === 'system' && (isERPAdmin ? <ControlTower activeSubTab="telemetry" /> : <SystemModule currentUserProfile={profile} />)}
+              {activeTab === 'versions' && (isERPAdmin ? <ControlTower activeSubTab="versions" /> : null)}
+              {activeTab === 'updates' && (isERPAdmin ? <ControlTower activeSubTab="updates" /> : null)}
               {activeTab === 'actions' && (isERPAdmin ? <ControlTower activeSubTab="audit" /> : <ActionsModule user={user} currentUserProfile={profile} />)}
               {activeTab === 'abonnements' && <SubscriptionsModule profile={profile} />}
               {activeTab === 'profil' && <ProfileModule profile={profile} />}
