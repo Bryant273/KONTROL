@@ -24,7 +24,8 @@ import {
   orderBy, 
   doc, 
   updateDoc, 
-  deleteDoc 
+  deleteDoc,
+  where 
 } from 'firebase/firestore';
 import { 
   db,
@@ -76,7 +77,13 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
   };
 
   React.useEffect(() => {
-    const q = query(collection(db, 'tickets'), orderBy('createdAt', 'desc'));
+    if (!user?.email) return;
+
+    const isKontrolAdmin = ['ADMINISTRATEUR_ERP', 'GESTIONNAIRE_ERP', 'ADMINISTRATEUR_KONTROL', 'GESTIONNAIRE_KONTROL', 'ADMIN'].includes(currentUserProfile?.role || '');
+    
+    const q = isKontrolAdmin 
+      ? query(collection(db, 'tickets'), orderBy('createdAt', 'desc'))
+      : query(collection(db, 'tickets'), where('email', '==', user.email), orderBy('createdAt', 'desc'));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setTickets(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Ticket)));
@@ -87,7 +94,7 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [user, currentUserProfile]);
 
   const handleUpdateStatus = async (ticketId: string, newStatus: Ticket['status']) => {
     try {

@@ -20,11 +20,21 @@
   body {
     @apply bg-kontrol-bg text-kontrol-ink font-sans antialiased;
   }
+
+  button, 
+  [role="button"],
+  .cursor-pointer {
+    cursor: pointer !important;
+  }
+
+  button:disabled {
+    cursor: not-allowed !important;
+  }
 }
 
 @layer components {
   .card {
-    @apply bg-white border border-kontrol-border rounded-lg shadow-sm;
+    @apply bg-white border border-kontrol-border rounded-lg shadow-sm cursor-pointer;
   }
   
   .card-hd {
@@ -36,7 +46,7 @@
   }
   
   .kpi {
-    @apply bg-white border border-kontrol-border rounded-lg p-4 transition-shadow hover:shadow-md;
+    @apply bg-white border border-kontrol-border rounded-lg p-4 transition-shadow hover:shadow-md cursor-pointer;
   }
   
   .kpi-lbl {

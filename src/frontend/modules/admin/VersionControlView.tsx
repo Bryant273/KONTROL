@@ -88,7 +88,7 @@ export function VersionControlView() {
             status: 'ACTIVE',
             releaseDate: Date.now() - 1000 * 60 * 60 * 24 * 5,
             description: 'Version actuelle avec intégration complète de Blue AI et Control Tower.',
-            features: ['Control Tower ERP', 'Blue AI Chatbot', 'Gestion Multi-entreprises', 'Audit Trail'],
+            features: ['Control Tower KONTROL', 'Blue AI Chatbot', 'Gestion Multi-entreprises', 'Audit Trail'],
             author: 'Innov\'Korp Team'
           },
           {
@@ -138,7 +138,7 @@ export function VersionControlView() {
       await logAction(
         'SYSTEM',
         auth.currentUser?.uid || 'SYSTEM',
-        auth.currentUser?.displayName || 'Admin ERP',
+        auth.currentUser?.displayName || 'Administrateur KONTROL',
         'VERSION_SWITCH',
         `Bascule réelle du système vers la version ${version}`
       );

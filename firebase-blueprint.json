@@ -225,31 +225,36 @@
       "required": ["companyId", "title", "message", "type", "read", "timestamp"]
     },
     "conversations": {
-      "title": "Conversations",
-      "description": "Sessions de chat avec Blue AI",
+      "title": "K-Chat Conversations",
+      "description": "Sessions de chat entre utilisateurs ou avec le support",
       "type": "object",
       "properties": {
-        "userId": { "type": "string" },
-        "companyId": { "type": "string" },
+        "participants": { "type": "array", "items": { "type": "string" }, "description": "Liste des UIDs des participants" },
+        "type": { "type": "string", "enum": ["DIRECT", "GROUP", "SUPPORT"] },
+        "companyId": { "type": "string", "description": "Lié à une entreprise si interne" },
         "title": { "type": "string" },
         "lastMessage": { "type": "string" },
+        "lastMessageAt": { "type": "number" },
+        "lastMessageSenderId": { "type": "string" },
         "updatedAt": { "type": "number" },
         "createdAt": { "type": "number" }
       },
-      "required": ["userId", "companyId", "updatedAt", "createdAt"]
+      "required": ["participants", "type", "updatedAt", "createdAt"]
     },
     "messages": {
-      "title": "Messages",
-      "description": "Messages individuels des conversations",
+      "title": "K-Chat Messages",
+      "description": "Messages individuels dans les conversations K-Chat",
       "type": "object",
       "properties": {
         "conversationId": { "type": "string" },
-        "role": { "type": "string", "enum": ["user", "assistant"] },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
         "content": { "type": "string" },
-        "function": { "type": "string", "enum": ["CHAT", "REPORT", "CONSEIL", "TUTO", "ALERT", "CODE_ANALYSER"] },
-        "timestamp": { "type": "number" }
+        "type": { "type": "string", "enum": ["text", "image", "file"] },
+        "timestamp": { "type": "number" },
+        "readBy": { "type": "array", "items": { "type": "string" } }
       },
-      "required": ["conversationId", "role", "content", "timestamp"]
+      "required": ["conversationId", "senderId", "content", "timestamp"]
     }
   },
   "relations": {

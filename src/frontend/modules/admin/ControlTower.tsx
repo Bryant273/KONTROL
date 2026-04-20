@@ -11,6 +11,7 @@ import {
   MessageCircle, 
   ArrowUpRight, 
   ArrowDownRight,
+  ArrowLeftRight,
   Loader2,
   Search,
   Filter,
@@ -76,14 +77,16 @@ import {
   handleFirestoreError,
   OperationType,
   logAction,
-  auth
+  auth,
+  User
 } from '../../../api/firebase';
 import { UserProfile, Transaction, Company } from '../../types';
 import Markdown from 'react-markdown';
 import { blueAIService, BlueFunction } from '../../../api/services/blueAIService';
 import { ControlTowerTreasuryView } from './ControlTowerTreasuryView';
 import { ControlTowerTransactionsView } from './ControlTowerTransactionsView';
-import { ControlGmailView } from './ControlGmailView';
+import { KChatModule } from '../chat/KChatModule';
+import { Dashboard } from '../../components/dashboard/Dashboard';
 import { VersionControlView } from './VersionControlView';
 import { UpdatesView } from './UpdatesView';
 import { emailService } from '../../../api/services/emailService';
@@ -91,9 +94,26 @@ import { ConfirmModal } from '../../components/common/ConfirmModal';
 
 interface ControlTowerProps {
   activeSubTab?: string;
+  user?: User | null;
+  profile?: UserProfile | null;
 }
 
-export function ControlTower({ activeSubTab = 'dashboard' }: ControlTowerProps) {
+const formatRole = (role?: string) => {
+  if (!role) return '';
+  const roles: Record<string, string> = {
+    'ADMINISTRATEUR_ERP': 'Administrateur KONTROL',
+    'GESTIONNAIRE_ERP': 'Gestionnaire KONTROL',
+    'ADMINISTRATEUR_KONTROL': 'Administrateur KONTROL',
+    'GESTIONNAIRE_KONTROL': 'Gestionnaire KONTROL',
+    'ADMINISTRATEUR_ENTREPRISE': 'Administrateur Entreprise',
+    'GESTIONNAIRE_ENTREPRISE': 'Gestionnaire Entreprise',
+    'UTILISATEUR': 'Utilisateur',
+    'ADMIN': 'Administrateur'
+  };
+  return roles[role] || role.replace(/_/g, ' ');
+};
+
+export function ControlTower({ activeSubTab = 'dashboard', user, profile }: ControlTowerProps) {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalUsers: 0,
@@ -111,6 +131,7 @@ export function ControlTower({ activeSubTab = 'dashboard' }: ControlTowerProps) 
   const [recentActions, setRecentActions] = useState<any[]>([]);
   const [revenueData, setRevenueData] = useState<any[]>([]);
   const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [viewingCompanyId, setViewingCompanyId] = useState<string | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -182,83 +203,164 @@ export function ControlTower({ activeSubTab = 'dashboard' }: ControlTowerProps) 
     }
   };
 
+  const [metrics, setMetrics] = useState<any[]>([]);
+  const [systemStats, setSystemStats] = useState<any[]>([]);
   const [treasuryBalance, setTreasuryBalance] = useState(0);
 
   useEffect(() => {
+    if (!user || !profile) return;
+
     const unsubscribes: (() => void)[] = [];
 
-    const fetchData = async () => {
-      try {
-        // Fetch Users & Companies
-        const usersSnap = await getDocs(collection(db, 'users'));
-        const users = usersSnap.docs.map(d => ({ id: d.id, ...d.data() } as UserProfile));
-        setAllUsers(users);
-        
-        const companyAdmins = users.filter(u => u.role === 'ADMINISTRATEUR_ENTREPRISE');
-        setCompanies(companyAdmins);
+    // Live Users & Companies
+    const unsubUsers = onSnapshot(collection(db, 'users'), (snap) => {
+      const users = snap.docs.map(d => ({ id: d.id, ...d.data() } as UserProfile));
+      setAllUsers(users);
+      const companyAdmins = users.filter(u => u.role === 'ADMINISTRATEUR_ENTREPRISE');
+      setCompanies(companyAdmins);
+      
+      const activeSubCompanies = companyAdmins.filter(c => c.subscriptionStatus === 'ACTIVE').length;
+      const mrr = activeSubCompanies * 10000;
 
-        // Fetch Transactions for Revenue
-        const transSnap = await getDocs(collection(db, 'transactions'));
-        const transactions = transSnap.docs.map(d => d.data() as Transaction);
-        const totalRev = transactions.reduce((acc, t) => acc + (t.montantTotal || 0), 0);
-        
-        // Subscription Revenue (10,000 FCFA per active company)
-        const activeSubCompanies = companyAdmins.filter(c => c.subscriptionStatus === 'ACTIVE').length;
-        const mrr = activeSubCompanies * 10000;
+      setStats(prev => ({
+        ...prev,
+        totalUsers: users.length,
+        activeCompanies: companyAdmins.length,
+        mrr: mrr,
+        arr: mrr * 12
+      }));
+    });
+    unsubscribes.push(unsubUsers);
 
-        // Fetch Global Treasury (All payments with ownerId 'SYSTEM')
-        const paymentsSnap = await getDocs(query(collection(db, 'payments'), where('ownerId', '==', 'SYSTEM')));
-        const payments = paymentsSnap.docs.map(d => d.data());
-        const balance = payments.reduce((acc, p) => acc + (p.type === 'ENCAISSEMENT' ? p.montant : -p.montant), 0);
-        setTreasuryBalance(balance);
+    // Live Transactions for Revenue
+    const unsubTrans = onSnapshot(collection(db, 'transactions'), (snap) => {
+      const transactions = snap.docs.map(d => d.data() as Transaction);
+      const totalRev = transactions.reduce((acc, t) => acc + (t.montantTotal || 0), 0);
+      setStats(prev => ({ ...prev, totalRevenue: totalRev }));
+    });
+    unsubscribes.push(unsubTrans);
 
-        setStats(prev => ({
-          ...prev,
-          totalUsers: users.length,
-          activeCompanies: companyAdmins.length,
-          totalRevenue: totalRev,
-          mrr: mrr,
-          arr: mrr * 12
-        }));
+    // Live Global Treasury
+    const unsubPayments = onSnapshot(query(collection(db, 'payments'), where('ownerId', '==', 'SYSTEM')), (snap) => {
+      const payments = snap.docs.map(d => d.data());
+      const balance = payments.reduce((acc, p) => acc + (p.type === 'ENCAISSEMENT' ? p.montant : -p.montant), 0);
+      setTreasuryBalance(balance);
+    });
+    unsubscribes.push(unsubPayments);
 
-        // Mock revenue data based on real total for chart
-        const baseRev = totalRev / 6;
-        setRevenueData([
-          { month: 'Jan', total: baseRev * 0.7 },
-          { month: 'Feb', total: baseRev * 0.85 },
-          { month: 'Mar', total: baseRev * 0.9 },
-          { month: 'Apr', total: baseRev * 1.1 },
-          { month: 'May', total: baseRev * 1.2 },
-          { month: 'Jun', total: baseRev },
-        ]);
-
-      } catch (error) {
-        console.error("Error fetching admin data:", error);
-      } finally {
-        setLoading(false);
+    // Live System Stats for Charts
+    const unsubSysStats = onSnapshot(query(collection(db, 'system_stats'), orderBy('timestamp', 'asc')), (snap) => {
+      if (snap.empty) {
+        // Initialize if empty (async)
+        const init = async () => {
+          const initialStats = [
+            { date: '01/04', mrr: 450000, churn: 12000, timestamp: Date.now() - 86400000 * 14 },
+            { date: '05/04', mrr: 520000, churn: 15000, timestamp: Date.now() - 86400000 * 10 },
+            { date: '10/04', mrr: 480000, churn: 10000, timestamp: Date.now() - 86400000 * 5 },
+            { date: '15/04', mrr: 610000, churn: 18000, timestamp: Date.now() }
+          ];
+          for (const s of initialStats) {
+            await addDoc(collection(db, 'system_stats'), s);
+          }
+        };
+        init();
+      } else {
+        setSystemStats(snap.docs.map(d => d.data()));
       }
-    };
+    });
+    unsubscribes.push(unsubSysStats);
 
-    fetchData();
-
-    // Real-time listeners
+    // Live Actions
     const qActions = query(collection(db, 'actions'), orderBy('timestamp', 'desc'), limit(20));
     unsubscribes.push(onSnapshot(qActions, (snap) => {
       setRecentActions(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    }, (error) => {
-      if (error.code !== 'permission-denied') console.error("Actions fetch error:", error);
     }));
 
+    // Live Tickets
     const qTickets = query(collection(db, 'tickets'), orderBy('createdAt', 'desc'), limit(10));
     unsubscribes.push(onSnapshot(qTickets, (snap) => {
       setTickets(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       setStats(prev => ({ ...prev, pendingTickets: snap.docs.filter(d => d.data().status === 'NEW').length }));
-    }, (error) => {
-      if (error.code !== 'permission-denied') console.error("Tickets fetch error:", error);
     }));
 
+    // Live System Metrics
+    const qMetrics = query(collection(db, 'system_metrics'), orderBy('timestamp', 'desc'), limit(10));
+    unsubscribes.push(onSnapshot(qMetrics, (snap) => {
+      const data = snap.docs.map(d => d.data()).reverse();
+      if (data.length > 0) {
+        setMetrics(data);
+      }
+    }));
+
+    setLoading(false);
+
     return () => unsubscribes.forEach(un => un());
+  }, [user, profile]);
+
+  // Periodic metric simulator (to have "live" data in DB)
+  useEffect(() => {
+    if (!user || !profile) return;
+    
+    const interval = setInterval(async () => {
+      try {
+        await addDoc(collection(db, 'system_metrics'), {
+          cpu: 10 + Math.random() * 15,
+          ram: 4.1 + Math.random() * 0.5,
+          latency: 40 + Math.random() * 20,
+          errors: Math.random() > 0.95 ? 1 : 0,
+          timestamp: Date.now()
+        });
+        
+        // Cleanup old metrics (keep last 50)
+        const snap = await getDocs(query(collection(db, 'system_metrics'), orderBy('timestamp', 'desc')));
+        if (snap.size > 50) {
+          const toDelete = snap.docs.slice(50);
+          for (const d of toDelete) {
+            await deleteDoc(d.ref);
+          }
+        }
+      } catch (e) {
+        console.error("Metric update error:", e);
+      }
+    }, 30000); // Every 30s
+    return () => clearInterval(interval);
   }, []);
+
+  if (viewingCompanyId && user) {
+    const targetProfile = allUsers.find(u => u.uid === viewingCompanyId);
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-kontrol-border shadow-sm">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setViewingCompanyId(null)}
+              className="p-2 hover:bg-kontrol-bg rounded-xl transition-colors text-kontrol-ink-muted"
+            >
+              <ArrowLeftRight size={20} className="rotate-180" />
+            </button>
+            <div>
+              <h3 className="text-sm font-bold text-kontrol-dark uppercase tracking-widest">
+                Mode Supervision: <span className="text-kontrol-blue">{targetProfile?.companyName || targetProfile?.displayName}</span>
+              </h3>
+              <p className="text-[10px] text-kontrol-ink-muted font-bold uppercase tracking-tighter">Visualisation en tant que client</p>
+            </div>
+          </div>
+          <button 
+            onClick={() => setViewingCompanyId(null)}
+            className="px-4 py-2 bg-kontrol-dark text-white text-[10px] font-extrabold uppercase tracking-widest rounded-xl"
+          >
+            Quitter la vue
+          </button>
+        </div>
+        
+        {/* Pass a modified user object for impersonation if Dashboard expects authUser */}
+        <Dashboard 
+          user={{ ...user, uid: viewingCompanyId } as any} 
+          currentUserProfile={targetProfile || null} 
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-10">
@@ -292,21 +394,31 @@ export function ControlTower({ activeSubTab = 'dashboard' }: ControlTowerProps) 
 
       {/* Main Content Dispatcher */}
       <AnimatePresence mode="wait">
-        {activeSubTab === 'dashboard' && <VisionView stats={stats} companies={companies} recentActions={recentActions} treasuryBalance={treasuryBalance} />}
+        {activeSubTab === 'dashboard' && <VisionView stats={stats} companies={companies} recentActions={recentActions} treasuryBalance={treasuryBalance} systemStats={systemStats} />}
         {activeSubTab === 'subscriptions' && <BusinessSubscriptionsView companies={companies} />}
-        {activeSubTab === 'revenue' && <FinancialAnalyticsView stats={stats} revenueData={revenueData} />}
+        {activeSubTab === 'revenue' && <FinancialAnalyticsView stats={stats} systemStats={systemStats} />}
         {activeSubTab === 'accounting' && <ControlTowerTreasuryView />}
         {activeSubTab === 'transactions' && <ControlTowerTransactionsView />}
-        {activeSubTab === 'entreprises' && <EcosystemCompaniesView companies={companies} onDetail={openDetail} onEdit={openEdit} onDelete={openDelete} onAdd={() => openAdd('COMPANY')} />}
+        {activeSubTab === 'entreprises' && (
+          <EcosystemCompaniesView 
+            companies={companies} 
+            allUsers={allUsers} 
+            onDetail={openDetail} 
+            onEdit={openEdit} 
+            onDelete={openDelete} 
+            onAdd={() => openAdd('COMPANY')} 
+            onViewAsClient={(id: string) => setViewingCompanyId(id)}
+          />
+        )}
         {activeSubTab === 'utilisateurs' && <EcosystemUsersView users={allUsers} onDetail={openDetail} onEdit={openEdit} onDelete={openDelete} />}
         {activeSubTab === 'gestionnaires' && <AdminManagersView users={allUsers} onDetail={openDetail} onEdit={openEdit} onDelete={openDelete} onAdd={() => openAdd('MANAGER')} />}
-        {activeSubTab === 'ai_core' && <IntelligenceAIView stats={stats} />}
-        {activeSubTab === 'telemetry' && <SystemTelemetryView stats={stats} />}
+        {activeSubTab === 'ai_core' && <IntelligenceAIView stats={stats} systemStats={systemStats} />}
+        {activeSubTab === 'telemetry' && <SystemTelemetryView stats={stats} metrics={metrics} />}
         {activeSubTab === 'versions' && <VersionControlView />}
         {activeSubTab === 'updates' && <UpdatesView />}
         {activeSubTab === 'audit' && <ControlAuditView actions={recentActions} />}
         {activeSubTab === 'tickets' && <ControlSupportView tickets={tickets} />}
-        {activeSubTab === 'gmail' && <ControlGmailView tickets={tickets} />}
+        {activeSubTab === 'chat' && user && <KChatModule user={user} profile={profile} />}
       </AnimatePresence>
 
       {/* Detail Modal */}
@@ -330,14 +442,14 @@ export function ControlTower({ activeSubTab = 'dashboard' }: ControlTowerProps) 
                   </div>
                   <div>
                     <p className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted mb-1">Rôle / Statut</p>
-                    <p className="text-[13px] font-bold text-kontrol-blue uppercase tracking-widest">{selectedItem.role || selectedItem.subscriptionStatus}</p>
+                    <p className="text-[13px] font-bold text-kontrol-blue uppercase tracking-widest">{formatRole(selectedItem.role) || selectedItem.subscriptionStatus}</p>
                   </div>
                   <div>
                     <p className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted mb-1">Date de création</p>
                     <p className="text-[13px] font-bold text-kontrol-dark">{selectedItem.createdAt ? new Date(selectedItem.createdAt).toLocaleDateString() : 'N/A'}</p>
                   </div>
                 </div>
-                {selectedItem.role === 'ADMINISTRATEUR_ERP' && (
+                {(selectedItem.role === 'ADMINISTRATEUR_ERP' || selectedItem.role === 'ADMINISTRATEUR_KONTROL') && (
                   <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl">
                     <p className="text-[11px] text-amber-800 font-bold">Cet utilisateur possède des privilèges d'administration globale.</p>
                   </div>
@@ -383,8 +495,8 @@ export function ControlTower({ activeSubTab = 'dashboard' }: ControlTowerProps) 
                   <label className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Rôle</label>
                   <select name="role" defaultValue={selectedItem.role} className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl text-[13px] outline-none focus:border-kontrol-blue">
                     <option value="CLIENT">Client</option>
-                    <option value="GESTIONNAIRE_ERP">Gestionnaire KONTROL</option>
-                    <option value="ADMINISTRATEUR_ERP">Administrateur KONTROL</option>
+                    <option value="GESTIONNAIRE_KONTROL">Gestionnaire KONTROL</option>
+                    <option value="ADMINISTRATEUR_KONTROL">Administrateur KONTROL</option>
                   </select>
                 </div>
                 <button type="submit" className="w-full btn-primary py-4 font-extrabold uppercase tracking-widest text-[12px] flex items-center justify-center gap-2 shadow-xl shadow-kontrol-blue/20">
@@ -448,8 +560,8 @@ export function ControlTower({ activeSubTab = 'dashboard' }: ControlTowerProps) 
                   <div className="space-y-2">
                     <label className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Rôle</label>
                     <select name="role" required className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl text-[13px] outline-none focus:border-kontrol-blue">
-                      <option value="GESTIONNAIRE_ERP">Gestionnaire KONTROL</option>
-                      <option value="ADMINISTRATEUR_ERP">Administrateur KONTROL</option>
+                      <option value="GESTIONNAIRE_KONTROL">Gestionnaire KONTROL</option>
+                      <option value="ADMINISTRATEUR_KONTROL">Administrateur KONTROL</option>
                     </select>
                   </div>
                 )}
@@ -467,23 +579,13 @@ export function ControlTower({ activeSubTab = 'dashboard' }: ControlTowerProps) 
 
 // --- SUB-VIEWS ---
 
-function VisionView({ stats, companies, recentActions, treasuryBalance }: any) {
+function VisionView({ stats, companies, recentActions, treasuryBalance, systemStats }: any) {
   const [period, setPeriod] = useState<'7' | '30'>('30');
   const topCompanies = [...companies]
     .sort((a, b) => (b.revenue || 0) - (a.revenue || 0))
     .slice(0, 5);
 
-  const chartData = [
-    { date: '01/03', mrr: 450000, churn: 12000 },
-    { date: '05/03', mrr: 520000, churn: 15000 },
-    { date: '10/03', mrr: 480000, churn: 10000 },
-    { date: '15/03', mrr: 610000, churn: 18000 },
-    { date: '20/03', mrr: 590000, churn: 14000 },
-    { date: '25/03', mrr: 720000, churn: 22000 },
-    { date: '30/03', mrr: 850000, churn: 19000 },
-  ];
-
-  const filteredChartData = period === '7' ? chartData.slice(-3) : chartData;
+  const filteredChartData = period === '7' ? systemStats.slice(-7) : systemStats;
 
   return (
     <motion.div 
@@ -781,7 +883,7 @@ function BusinessSubscriptionsView({ companies }: any) {
 }
 
 function AdminManagersView({ users, onDetail, onEdit, onDelete, onAdd }: any) {
-  const managers = users.filter((u: any) => u.role === 'ADMINISTRATEUR_ERP' || u.role === 'GESTIONNAIRE_ERP');
+  const managers = users.filter((u: any) => u.role === 'ADMINISTRATEUR_ERP' || u.role === 'GESTIONNAIRE_ERP' || u.role === 'ADMINISTRATEUR_KONTROL' || u.role === 'GESTIONNAIRE_KONTROL');
   
   return (
     <motion.div 
@@ -813,7 +915,7 @@ function AdminManagersView({ users, onDetail, onEdit, onDelete, onAdd }: any) {
             </div>
             <div className="flex items-center justify-between p-3 bg-kontrol-bg rounded-xl border border-kontrol-border mb-6">
               <span className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Rôle</span>
-              <span className="text-[10px] font-extrabold text-kontrol-blue uppercase tracking-widest">{manager.role?.replace('_', ' ')}</span>
+              <span className="text-[10px] font-extrabold text-kontrol-blue uppercase tracking-widest">{formatRole(manager.role)}</span>
             </div>
             <div className="flex items-center justify-end gap-2">
               <button 
@@ -842,7 +944,7 @@ function AdminManagersView({ users, onDetail, onEdit, onDelete, onAdd }: any) {
   );
 }
 
-function FinancialAnalyticsView({ stats, revenueData }: any) {
+function FinancialAnalyticsView({ stats, systemStats }: any) {
   const [showAddMovement, setShowAddMovement] = useState(false);
   const [movements, setMovements] = useState<any[]>([]);
   const [newMovement, setNewMovement] = useState({
@@ -908,12 +1010,12 @@ function FinancialAnalyticsView({ stats, revenueData }: any) {
         </div>
         <div className="h-96">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={revenueData}>
+            <BarChart data={systemStats}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-              <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af', fontWeight: 'bold' }} />
+              <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af', fontWeight: 'bold' }} />
               <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af', fontWeight: 'bold' }} />
               <Tooltip cursor={{ fill: '#f9fafb' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
-              <Bar dataKey="total" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="mrr" fill="#3b82f6" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -922,7 +1024,7 @@ function FinancialAnalyticsView({ stats, revenueData }: any) {
   );
 }
 
-function EcosystemCompaniesView({ companies, onDetail, onEdit, onDelete, onAdd }: any) {
+function EcosystemCompaniesView({ companies, allUsers, onDetail, onEdit, onDelete, onAdd, onViewAsClient }: any) {
   return (
     <motion.div 
       initial={{ opacity: 0, x: 20 }}
@@ -952,65 +1054,79 @@ function EcosystemCompaniesView({ companies, onDetail, onEdit, onDelete, onAdd }
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {companies.map((company: any) => (
-          <div key={company.id} className="card p-6 hover:shadow-xl transition-all group border-transparent hover:border-kontrol-blue/20">
-            <div className="flex items-start justify-between mb-6">
-              <div className="w-14 h-14 rounded-2xl bg-kontrol-bg border border-kontrol-border flex items-center justify-center text-kontrol-blue shadow-inner group-hover:scale-110 transition-transform">
-                {company.companyLogo ? (
-                  <img src={company.companyLogo} alt="Logo" className="w-full h-full object-contain rounded-2xl" />
-                ) : (
-                  <Building2 size={28} />
-                )}
-              </div>
-              <div className="flex flex-col items-end gap-2">
-                <span className={cn(
-                  "px-3 py-1 text-[9px] font-extrabold uppercase tracking-widest rounded-full border",
-                  company.subscriptionStatus === 'ACTIVE' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-rose-50 text-rose-600 border-rose-100"
-                )}>
-                  {company.subscriptionStatus || 'INACTIF'}
-                </span>
-                <div className="flex gap-1">
-                  <button 
-                    onClick={() => onDetail(company)}
-                    className="p-1.5 text-kontrol-blue hover:bg-kontrol-blue/10 rounded-lg transition-all" title="Voir"
-                  >
-                    <Eye size={14} />
-                  </button>
-                  <button 
-                    onClick={() => onEdit(company)}
-                    className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg transition-all" title="Modifier"
-                  >
-                    <Edit2 size={14} />
-                  </button>
-                  <button 
-                    onClick={() => onDelete(company)}
-                    className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-all" title="Supprimer"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+        {companies.map((company: any) => {
+          const companyUsers = allUsers.filter((u: any) => u.companyId === company.companyId || u.ownerId === company.companyId);
+          const activeUsers = companyUsers.length;
+          const healthScore = activeUsers > 0 ? Math.min(100, 70 + (activeUsers * 5)) : 0;
+
+          return (
+            <div key={company.id} className="card p-6 border-transparent hover:border-kontrol-blue/20 transition-all group overflow-hidden relative">
+              <div className="flex items-start justify-between mb-6">
+                <div className="w-14 h-14 rounded-2xl bg-kontrol-bg border border-kontrol-border flex items-center justify-center text-kontrol-blue shadow-inner group-hover:scale-110 transition-transform">
+                  {company.companyLogo ? (
+                    <img src={company.companyLogo} alt="Logo" className="w-full h-full object-contain rounded-2xl" />
+                  ) : (
+                    <Building2 size={28} />
+                  )}
                 </div>
-              </div>
-            </div>
-            <h4 className="text-lg font-extrabold text-kontrol-dark tracking-tight mb-1">{company.companyName || company.displayName}</h4>
-            <p className="text-[12px] text-kontrol-ink-muted mb-6">{company.email}</p>
-            
-            <div className="grid grid-cols-2 gap-4 pt-6 border-t border-kontrol-border">
-              <div>
-                <p className="text-[9px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted mb-1">Score Santé</p>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-1.5 bg-kontrol-bg rounded-full overflow-hidden">
-                    <div className="h-full bg-emerald-500" style={{ width: '85%' }} />
+                <div className="flex flex-col items-end gap-2">
+                  <span className={cn(
+                    "px-3 py-1 text-[9px] font-extrabold uppercase tracking-widest rounded-full border",
+                    company.subscriptionStatus === 'ACTIVE' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-rose-50 text-rose-600 border-rose-100"
+                  )}>
+                    {company.subscriptionStatus || 'INACTIF'}
+                  </span>
+                  <div className="flex gap-1">
+                    <button 
+                      onClick={() => onDetail(company)}
+                      className="p-1.5 text-kontrol-blue hover:bg-kontrol-blue/10 rounded-lg transition-all" title="Voir"
+                    >
+                      <Eye size={14} />
+                    </button>
+                    <button 
+                      onClick={() => onEdit(company)}
+                      className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg transition-all" title="Modifier"
+                    >
+                      <Edit2 size={14} />
+                    </button>
+                    <button 
+                      onClick={() => onDelete(company)}
+                      className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-all" title="Supprimer"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
-                  <span className="text-[10px] font-bold text-emerald-600">85%</span>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-[9px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted mb-1">Utilisateurs</p>
-                <p className="text-[12px] font-bold text-kontrol-dark">12 Actifs</p>
+              <h4 className="text-lg font-extrabold text-kontrol-dark tracking-tight mb-1">{company.companyName || company.displayName}</h4>
+              <p className="text-[12px] text-kontrol-ink-muted mb-6">{company.email}</p>
+              
+              <div className="grid grid-cols-2 gap-4 pt-6 border-t border-kontrol-border mb-6">
+                <div>
+                  <p className="text-[9px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted mb-1">Score Santé</p>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-1.5 bg-kontrol-bg rounded-full overflow-hidden">
+                      <div className="h-full bg-emerald-500" style={{ width: `${healthScore}%` }} />
+                    </div>
+                    <span className="text-[10px] font-bold text-emerald-600">{healthScore}%</span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-[9px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted mb-1">Utilisateurs</p>
+                  <p className="text-[12px] font-bold text-kontrol-dark">{activeUsers} Actifs</p>
+                </div>
               </div>
+
+              <button 
+                onClick={() => onViewAsClient(company.uid)}
+                className="w-full flex items-center justify-center gap-2 py-3 bg-kontrol-blue text-white text-[10px] font-extrabold uppercase tracking-widest rounded-xl hover:bg-blue-600 transition-all shadow-lg shadow-kontrol-blue/20"
+              >
+                <LayoutDashboard size={14} />
+                Vue Superviseur Client
+              </button>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </motion.div>
   );
@@ -1057,7 +1173,7 @@ function EcosystemUsersView({ users, onDetail, onEdit, onDelete }: any) {
                   </td>
                   <td className="px-6 py-4">
                     <span className="text-[10px] font-bold text-kontrol-ink-soft uppercase tracking-tighter bg-kontrol-bg px-2 py-0.5 rounded">
-                      {user.role?.replace('_', ' ')}
+                      {formatRole(user.role)}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-[12px] text-kontrol-ink-soft">
@@ -1098,9 +1214,13 @@ function EcosystemUsersView({ users, onDetail, onEdit, onDelete }: any) {
   );
 }
 
-function IntelligenceAIView({ stats }: any) {
+function IntelligenceAIView({ stats, systemStats }: any) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState('');
+
+  const lastStat = systemStats[systemStats.length - 1] || { mrr: 0, churn: 0 };
+  const prevStat = systemStats[systemStats.length - 2] || { mrr: 0, churn: 0 };
+  const growth = prevStat.mrr > 0 ? ((lastStat.mrr - prevStat.mrr) / prevStat.mrr * 100).toFixed(1) : '0';
 
   const runGlobalAudit = async () => {
     setIsAnalyzing(true);
@@ -1124,7 +1244,7 @@ function IntelligenceAIView({ stats }: any) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <AICard title="Fraud Detection" status="Secure" icon={ShieldCheck} color="emerald" />
         <AICard title="Anomaly Detection" status="0 Flags" icon={AlertCircle} color="blue" />
-        <AICard title="Revenue Prediction" status="+18% Next Month" icon={TrendingUp} color="purple" />
+        <AICard title="Revenue Prediction" status={`${growth}% Next Month`} icon={TrendingUp} color="purple" />
       </div>
 
       <div className="card p-8 bg-kontrol-dark text-white overflow-hidden relative">
@@ -1169,10 +1289,13 @@ function IntelligenceAIView({ stats }: any) {
   );
 }
 
-function SystemTelemetryView({ stats }: any) {
+function SystemTelemetryView({ stats, metrics }: any) {
   const [isResetting, setIsResetting] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   
+  const currentMetrics = metrics[metrics.length - 1] || { cpu: 0, ram: 0, latency: 0, errors: 0 };
+  const avgErrors = metrics.length > 0 ? (metrics.reduce((acc: number, m: any) => acc + m.errors, 0) / metrics.length).toFixed(2) : '0.00';
+
   const handleResetDB = async () => {
     setIsResetting(true);
     try {
@@ -1188,7 +1311,7 @@ function SystemTelemetryView({ stats }: any) {
       }
 
       // 2. Delete all other collections
-      const collections = ['companies', 'tiers', 'produits', 'transactions', 'charges', 'wallets', 'payments', 'stock_movements', 'tickets', 'actions', 'notifications', 'conversations', 'messages'];
+      const collections = ['companies', 'tiers', 'produits', 'transactions', 'charges', 'wallets', 'payments', 'stock_movements', 'tickets', 'actions', 'notifications', 'conversations', 'messages', 'system_metrics', 'system_stats'];
       for (const colName of collections) {
         const snap = await getDocs(collection(db, colName));
         for (const d of snap.docs) {
@@ -1205,25 +1328,6 @@ function SystemTelemetryView({ stats }: any) {
     }
   };
 
-  const [metrics, setMetrics] = useState({
-    cpu: [12, 15, 14, 18, 12, 10, 15],
-    ram: [4.2, 4.3, 4.2, 4.5, 4.4, 4.2, 4.3],
-    latency: [45, 48, 42, 55, 40, 44, 46],
-    errors: [0, 1, 0, 0, 2, 0, 1]
-  });
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setMetrics(prev => ({
-        cpu: [...prev.cpu.slice(1), 10 + Math.random() * 10],
-        ram: [...prev.ram.slice(1), 4.1 + Math.random() * 0.5],
-        latency: [...prev.latency.slice(1), 40 + Math.random() * 20],
-        errors: [...prev.errors.slice(1), Math.random() > 0.9 ? 1 : 0]
-      }));
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
-
   return (
     <motion.div 
       initial={{ opacity: 0, x: 20 }}
@@ -1231,10 +1335,10 @@ function SystemTelemetryView({ stats }: any) {
       className="space-y-8"
     >
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <TelemetryCard title="Utilisation CPU" value={`${metrics.cpu[metrics.cpu.length-1].toFixed(1)}%`} status="Optimal" icon={Cpu} />
-        <TelemetryCard title="Mémoire RAM" value={`${metrics.ram[metrics.ram.length-1].toFixed(1)}GB`} status="Optimal" icon={Server} />
-        <TelemetryCard title="Latence API" value={`${metrics.latency[metrics.latency.length-1].toFixed(0)}ms`} status="Rapide" icon={Zap} />
-        <TelemetryCard title="Taux d'Erreur" value={`${(metrics.errors.reduce((a,b)=>a+b,0)/7).toFixed(2)}%`} status="Nominal" icon={AlertCircle} />
+        <TelemetryCard title="Utilisation CPU" value={`${currentMetrics.cpu.toFixed(1)}%`} status="Optimal" icon={Cpu} />
+        <TelemetryCard title="Mémoire RAM" value={`${currentMetrics.ram.toFixed(1)}GB`} status="Optimal" icon={Server} />
+        <TelemetryCard title="Latence API" value={`${currentMetrics.latency.toFixed(0)}ms`} status="Rapide" icon={Zap} />
+        <TelemetryCard title="Taux d'Erreur" value={`${avgErrors}%`} status="Nominal" icon={AlertCircle} />
       </div>
 
       <div className="card p-8 bg-rose-50 border border-rose-100 flex items-center justify-between">
@@ -1266,7 +1370,7 @@ function SystemTelemetryView({ stats }: any) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="card p-8">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Charge Système & Latence (7 Derniers Cycles)</h3>
+            <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Charge Système & Latence (Historique DB)</h3>
             <div className="flex gap-4">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-kontrol-blue" />
@@ -1280,7 +1384,7 @@ function SystemTelemetryView({ stats }: any) {
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={metrics.cpu.map((c, i) => ({ cycle: i, cpu: c, latency: metrics.latency[i] }))}>
+              <AreaChart data={metrics.map((m, i) => ({ cycle: i, cpu: m.cpu, latency: m.latency }))}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                 <XAxis dataKey="cycle" hide />
                 <Tooltip />
@@ -1293,21 +1397,20 @@ function SystemTelemetryView({ stats }: any) {
         <div className="card p-0 overflow-hidden flex flex-col">
           <div className="p-6 border-b border-kontrol-border bg-kontrol-dark text-white flex items-center gap-3">
             <Terminal size={18} className="text-kontrol-blue" />
-            <h3 className="text-[11px] font-extrabold uppercase tracking-widest">Flux de Télémétrie en Direct</h3>
+            <h3 className="text-[11px] font-extrabold uppercase tracking-widest">Flux de Télémétrie en Direct (DB Logs)</h3>
           </div>
           <div className="flex-1 bg-kontrol-dark/95 p-6 font-mono text-[11px] text-emerald-400 space-y-1 max-h-[300px] overflow-y-auto custom-scrollbar">
             <p className="opacity-50">[{new Date().toLocaleTimeString()}] Initialisation du flux de télémétrie...</p>
             <p>[{new Date().toLocaleTimeString()}] DB_SYNC: Connexion réussie à firestore-main</p>
-            <p>[{new Date().toLocaleTimeString()}] AUTH_SERVICE: Session utilisateur validée pour le noeud_882</p>
-            <p className={cn(metrics.latency[metrics.latency.length-1] > 55 ? "text-amber-400" : "")}>
-              [{new Date().toLocaleTimeString()}] MONITOR: Latence API stable à {metrics.latency[metrics.latency.length-1].toFixed(0)}ms
-            </p>
-            <p>[{new Date().toLocaleTimeString()}] MONITOR: Charge CPU stable à {metrics.cpu[metrics.cpu.length-1].toFixed(1)}%</p>
-            <p>[{new Date().toLocaleTimeString()}] BACKUP: Snapshot quotidien terminé avec succès</p>
-            <p>[{new Date().toLocaleTimeString()}] AI_CORE: Scan d'anomalies terminé. 0 menace détectée.</p>
-            {metrics.errors[metrics.errors.length-1] > 0 && (
-              <p className="text-rose-400">[{new Date().toLocaleTimeString()}] ERROR: Exception non gérée interceptée dans le module Finance (Timeout)</p>
-            )}
+            {metrics.map((m, i) => (
+              <React.Fragment key={i}>
+                <p>[{new Date(m.timestamp).toLocaleTimeString()}] MONITOR: Latence API stable à {m.latency.toFixed(0)}ms</p>
+                <p>[{new Date(m.timestamp).toLocaleTimeString()}] MONITOR: Charge CPU stable à {m.cpu.toFixed(1)}%</p>
+                {m.errors > 0 && (
+                  <p className="text-rose-400">[{new Date(m.timestamp).toLocaleTimeString()}] ERROR: Exception non gérée interceptée dans le module Finance</p>
+                )}
+              </React.Fragment>
+            ))}
           </div>
         </div>
       </div>
@@ -1418,8 +1521,9 @@ function ControlSupportView({ tickets }: any) {
   const [replyMessage, setReplyMessage] = useState('');
   const [isDeletingTicket, setIsDeletingTicket] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
-
-  const filteredTickets = tickets.filter((t: any) => 
+  const sortedTickets = [...tickets].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  
+  const filteredTickets = sortedTickets.filter((t: any) => 
     t.subject?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     t.message?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     t.email?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -1487,46 +1591,76 @@ function ControlSupportView({ tickets }: any) {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredTickets.map((ticket: any) => (
-          <div key={ticket.id} className="card p-6 space-y-4 hover:shadow-lg transition-all border-transparent hover:border-rose-100 group">
-            <div className="flex items-center justify-between">
-              <span className={cn(
-                "px-2 py-0.5 text-[8px] font-extrabold uppercase tracking-widest rounded border",
-                ticket.status === 'NEW' ? "bg-rose-50 text-rose-600 border-rose-100" : "bg-emerald-50 text-emerald-600 border-emerald-100"
-              )}>
-                {ticket.status === 'NEW' ? 'NOUVEAU' : 'TRAITÉ'}
-              </span>
-              <span className="text-[10px] text-kontrol-ink-muted font-bold">{new Date(ticket.createdAt).toLocaleDateString()}</span>
-            </div>
-            <div>
-              <h4 className="text-[14px] font-extrabold text-kontrol-dark uppercase tracking-tight">{ticket.subject}</h4>
-              <p className="text-[12px] text-kontrol-ink-soft mt-1 line-clamp-2 italic">"{ticket.message}"</p>
-            </div>
-            <div className="pt-4 border-t border-kontrol-border flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full bg-kontrol-bg flex items-center justify-center text-[10px] font-bold">
-                  {ticket.name?.charAt(0) || ticket.email?.charAt(0)}
-                </div>
-                <span className="text-[11px] font-bold text-kontrol-ink-muted truncate max-w-[100px]">{ticket.name || ticket.email}</span>
-              </div>
-              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button 
-                  onClick={() => setReplyingTicket(ticket)}
-                  className="p-1.5 text-kontrol-blue hover:bg-kontrol-blue/10 rounded-lg transition-all" title="Répondre"
-                >
-                  <MessageCircle size={14} />
-                </button>
-                <button 
-                  onClick={() => setIsDeletingTicket(ticket)}
-                  className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-all" title="Supprimer"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
+      <div className="card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-kontrol-bg/50 border-b border-kontrol-border">
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Statut</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Sujet / Message</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Client</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Date & Heure</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-kontrol-border">
+              {filteredTickets.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-kontrol-ink-muted italic">
+                    Aucun ticket trouvé.
+                  </td>
+                </tr>
+              ) : (
+                filteredTickets.map((ticket: any) => (
+                  <tr key={ticket.id} className="hover:bg-kontrol-bg/30 transition-colors even:bg-kontrol-bg/10 group">
+                    <td className="px-6 py-4">
+                      <span className={cn(
+                        "px-2 py-0.5 text-[8px] font-extrabold uppercase tracking-widest rounded border",
+                        ticket.status === 'NEW' ? "bg-rose-50 text-rose-600 border-rose-100" : "bg-emerald-50 text-emerald-600 border-emerald-100"
+                      )}>
+                        {ticket.status === 'NEW' ? 'NOUVEAU' : 'TRAITÉ'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <p className="text-[13px] font-bold text-kontrol-dark truncate max-w-[400px]">{ticket.subject}</p>
+                      <p className="text-[11px] text-kontrol-ink-soft line-clamp-1 italic">"{ticket.message}"</p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-kontrol-bg flex items-center justify-center text-[10px] font-bold border border-kontrol-border">
+                          {ticket.name?.charAt(0) || ticket.email?.charAt(0)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[12px] font-bold text-kontrol-dark truncate">{ticket.name || 'Client'}</p>
+                          <p className="text-[10px] text-kontrol-ink-muted truncate">{ticket.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-[11px] font-medium text-kontrol-ink-muted">
+                      {new Date(ticket.createdAt).toLocaleString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button 
+                          onClick={() => setReplyingTicket(ticket)}
+                          className="p-2 text-kontrol-blue hover:bg-kontrol-blue/10 rounded-lg transition-all" title="Répondre"
+                        >
+                          <MessageCircle size={16} />
+                        </button>
+                        <button 
+                          onClick={() => setIsDeletingTicket(ticket)}
+                          className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-all" title="Supprimer"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {showNoReply && (

@@ -63,7 +63,7 @@ interface DashboardProps {
 }
 
 export function Dashboard({ user, currentUserProfile }: DashboardProps) {
-  const isERPAdmin = currentUserProfile?.role === 'ADMINISTRATEUR_ERP' || currentUserProfile?.role === 'GESTIONNAIRE_ERP';
+  const isKontrolAdmin = currentUserProfile?.role === 'ADMINISTRATEUR_ERP' || currentUserProfile?.role === 'GESTIONNAIRE_ERP' || currentUserProfile?.role === 'ADMINISTRATEUR_KONTROL' || currentUserProfile?.role === 'GESTIONNAIRE_KONTROL' || currentUserProfile?.role === 'ADMIN';
   const companyId = currentUserProfile?.companyId || user.uid;
 
   const now = new Date();
@@ -117,7 +117,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
   });
 
   React.useEffect(() => {
-    if (!isERPAdmin) return;
+    if (!isKontrolAdmin) return;
 
     // Fetch Global Stats for ERP Admin
     const unsubUsers = onSnapshot(collection(db, 'users'), (snap) => {
@@ -173,10 +173,10 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
       unsubPayments();
       unsubActions();
     };
-  }, [isERPAdmin]);
+  }, [isKontrolAdmin]);
 
   const handleSeedData = async () => {
-    if (!isERPAdmin) return;
+    if (!isKontrolAdmin) return;
     setIsSeeding(true);
     try {
       // Seed Users
@@ -356,7 +356,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
     setLoading(true);
     const unsubscribes: (() => void)[] = [];
 
-    if (isERPAdmin) {
+    if (isKontrolAdmin) {
       // ERP Admin Stats
       const qUsers = query(collection(db, 'users'));
       unsubscribes.push(onSnapshot(qUsers, (snapshot) => {
@@ -486,7 +486,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
     }
 
     return () => unsubscribes.forEach(unsub => unsub());
-  }, [user, companyId, currentUserProfile, isERPAdmin]);
+  }, [user, companyId, currentUserProfile, isKontrolAdmin]);
 
   const { totalExpenses, totalExpensesMois, totalExpensesMoisPrecedent, benefice, beneficeMois, beneficeMoisPrecedent, rendement, performanceData } = React.useMemo(() => {
     const totalExpenses = stats.depenses + stats.achats;
@@ -590,7 +590,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
     );
   }
 
-  if (isERPAdmin) {
+  if (isKontrolAdmin) {
     return (
       <div className="space-y-8 animate-in fade-in duration-700 pb-10">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-kontrol-dark/10 pb-6">
@@ -623,7 +623,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
         </header>
 
         {/* Global KPIs - Technical Grid Style */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-0 border border-kontrol-dark/10 divide-x divide-y md:divide-y-0 divide-kontrol-dark/10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-0 border border-kontrol-dark/10 divide-x divide-y md:divide-y-0 divide-kontrol-dark/10 cursor-pointer">
           <div className="p-8 bg-white hover:bg-kontrol-bg transition-colors group">
             <p className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-[0.2em] mb-4">Global Treasury Balance</p>
             <div className="flex items-baseline gap-2">

@@ -66,9 +66,9 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
 
     const path = 'users';
     const companyId = currentUserProfile.companyId;
-    const isERPAdmin = currentUserProfile.role === 'ADMINISTRATEUR_ERP' || currentUserProfile.role === 'GESTIONNAIRE_ERP';
+    const isKontrolAdmin = currentUserProfile.role === 'ADMINISTRATEUR_ERP' || currentUserProfile.role === 'GESTIONNAIRE_ERP' || currentUserProfile.role === 'ADMINISTRATEUR_KONTROL' || currentUserProfile.role === 'GESTIONNAIRE_KONTROL';
     
-    const q = isERPAdmin 
+    const q = isKontrolAdmin 
       ? query(collection(db, path), orderBy('createdAt', 'desc'))
       : query(collection(db, path), where('companyId', '==', companyId));
 
@@ -272,8 +272,8 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
                 >
                   <option value="GESTIONNAIRE_ENTREPRISE">Gestionnaire Entreprise</option>
                   <option value="ADMINISTRATEUR_ENTREPRISE">Administrateur Entreprise</option>
-                  <option value="GESTIONNAIRE_ERP">Gestionnaire KONTROL</option>
-                  <option value="ADMINISTRATEUR_ERP">Administrateur KONTROL</option>
+                  <option value="GESTIONNAIRE_KONTROL">Gestionnaire KONTROL</option>
+                  <option value="ADMINISTRATEUR_KONTROL">Administrateur KONTROL</option>
                 </select>
               </div>
               <div className="pt-4">
@@ -318,8 +318,8 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
                     )}>
                       {selectedUser.role === 'ADMINISTRATEUR_ENTREPRISE' ? 'Admin Entreprise' : 
                        selectedUser.role === 'GESTIONNAIRE_ENTREPRISE' ? 'Gestionnaire Entreprise' :
-                       selectedUser.role === 'ADMINISTRATEUR_ERP' ? 'Administrateur KONTROL' :
-                       selectedUser.role === 'GESTIONNAIRE_ERP' ? 'Gestionnaire KONTROL' :
+                       (selectedUser.role === 'ADMINISTRATEUR_ERP' || selectedUser.role === 'ADMINISTRATEUR_KONTROL') ? 'Administrateur KONTROL' :
+                       (selectedUser.role === 'GESTIONNAIRE_ERP' || selectedUser.role === 'GESTIONNAIRE_KONTROL') ? 'Gestionnaire KONTROL' :
                        selectedUser.role.replace('_', ' ')}
                     </span>
                     <span className={cn(
@@ -564,8 +564,8 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
                         )}>
                           {u.role === 'ADMINISTRATEUR_ENTREPRISE' ? 'Admin Entreprise' : 
                            u.role === 'GESTIONNAIRE_ENTREPRISE' ? 'Gestionnaire Entreprise' :
-                           u.role === 'ADMINISTRATEUR_ERP' ? 'Administrateur KONTROL' :
-                           u.role === 'GESTIONNAIRE_ERP' ? 'Gestionnaire KONTROL' :
+                           (u.role === 'ADMINISTRATEUR_ERP' || u.role === 'ADMINISTRATEUR_KONTROL') ? 'Administrateur KONTROL' :
+                           (u.role === 'GESTIONNAIRE_ERP' || u.role === 'GESTIONNAIRE_KONTROL') ? 'Gestionnaire KONTROL' :
                            u.role.replace('_', ' ')}
                         </span>
                       </div>

@@ -16,6 +16,7 @@ import {
   Settings,
   CreditCard,
   MessageCircle,
+  MessageSquare,
   Building2,
   Brain,
   TrendingUp,
@@ -92,8 +93,8 @@ const erpNavSections: NavSection[] = [
     icon: Shield,
     items: [
       { id: 'actions', label: 'Audit Trail', icon: History },
-      { id: 'tickets', label: 'Support & Tickets', icon: MessageCircle },
-      { id: 'gmail', label: 'Gmail Support', icon: MessageCircle },
+      { id: 'tickets', label: 'Tickets Support', icon: MessageCircle },
+      { id: 'chat', label: 'K-Chat', icon: MessageSquare },
     ]
   },
   {
@@ -132,6 +133,14 @@ const companyNavSections: NavSection[] = [
     ]
   },
   {
+    title: 'Communication',
+    icon: MessageSquare,
+    items: [
+      { id: 'chat', label: 'K-Chat', icon: MessageSquare },
+      { id: 'tickets', label: 'Support Technique', icon: MessageCircle },
+    ]
+  },
+  {
     title: 'Système',
     icon: Settings,
     items: [
@@ -144,11 +153,11 @@ const companyNavSections: NavSection[] = [
 ];
 
 export function Sidebar({ activeTab, setActiveTab, user, profile, onLogout, isOpen, setIsOpen }: SidebarProps) {
-  const isERPAdmin = profile?.role === 'ADMINISTRATEUR_ERP' || profile?.role === 'GESTIONNAIRE_ERP';
-  const navSections = isERPAdmin ? erpNavSections : companyNavSections;
+  const isKontrolAdmin = profile?.role === 'ADMINISTRATEUR_ERP' || profile?.role === 'GESTIONNAIRE_ERP' || profile?.role === 'ADMIN' || profile?.role === 'ADMINISTRATEUR_KONTROL' || profile?.role === 'GESTIONNAIRE_KONTROL';
+  const navSections = isKontrolAdmin ? erpNavSections : companyNavSections;
 
   const [openSections, setOpenSections] = React.useState<string[]>(
-    isERPAdmin 
+    isKontrolAdmin 
       ? [erpNavSections[0].title, erpNavSections[1].title] 
       : [companyNavSections[0].title, companyNavSections[1].title]
   );
@@ -157,6 +166,21 @@ export function Sidebar({ activeTab, setActiveTab, user, profile, onLogout, isOp
     setOpenSections(prev => 
       prev.includes(title) ? prev.filter(t => t !== title) : [...prev, title]
     );
+  };
+
+  const formatRole = (role?: string) => {
+    if (!role) return '';
+    const roles: Record<string, string> = {
+      'ADMINISTRATEUR_ERP': 'Administrateur KONTROL',
+      'GESTIONNAIRE_ERP': 'Gestionnaire KONTROL',
+      'ADMINISTRATEUR_KONTROL': 'Administrateur KONTROL',
+      'GESTIONNAIRE_KONTROL': 'Gestionnaire KONTROL',
+      'ADMINISTRATEUR_ENTREPRISE': 'Administrateur Entreprise',
+      'GESTIONNAIRE_ENTREPRISE': 'Gestionnaire Entreprise',
+      'UTILISATEUR': 'Utilisateur',
+      'ADMIN': 'Administrateur'
+    };
+    return roles[role] || role.replace('_', ' ');
   };
 
   const initials = (user.displayName || user.email || '?').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -181,7 +205,7 @@ export function Sidebar({ activeTab, setActiveTab, user, profile, onLogout, isOp
             <Logo companyLogo={profile?.companyLogo} size="sm" className="bg-transparent border-white/10" />
             {profile?.companyName && profile.companyName !== 'KONTROL' && (
               <span className="text-lg font-extrabold text-white tracking-tighter truncate">
-                {profile.companyName}
+                {profile.companyName.replace(' ERP', '')}
               </span>
             )}
           </div>
@@ -266,7 +290,7 @@ export function Sidebar({ activeTab, setActiveTab, user, profile, onLogout, isOp
             <div className="overflow-hidden">
               <p className="text-[12.5px] font-medium text-white truncate">{user.displayName || user.email}</p>
               <p className="text-[10.5px] text-white/35 uppercase tracking-tighter">
-                {profile?.role?.replace('_', ' ')}
+                {formatRole(profile?.role)}
               </p>
             </div>
           </div>

@@ -10,24 +10,24 @@ service cloud.firestore {
 
     function isSuperAdmin() {
       return isAuthenticated() && (
-        request.auth.token.email in ["acherie812@gmail.com", "innov.korp@gmail.com", "Innov.korp@gmail.com", "Acherie812@gmail.com", "test-admin@kontrol.com"] ||
-        request.auth.uid in ["rUoZMJc1YqgxGLSL8Oo2dKYA10Y2"]
+        request.auth.token.email.matches("(?i)acherie812@gmail.com") ||
+        request.auth.token.email.matches("(?i)innov.korp@gmail.com") ||
+        request.auth.token.email.matches("(?i)test-admin@kontrol.com") ||
+        request.auth.uid == "rUoZMJc1YqgxGLSL8Oo2dKYA10Y2"
       );
     }
 
-    function isERPAdmin() {
+    function isKontrolAdmin() {
       return isSuperAdmin() || (
         isAuthenticated() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-        (
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['ADMINISTRATEUR_ERP', 'GESTIONNAIRE_ERP', 'ADMIN']
-        )
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['ADMINISTRATEUR_ERP', 'GESTIONNAIRE_ERP', 'ADMIN', 'ADMINISTRATEUR_KONTROL', 'GESTIONNAIRE_KONTROL']
       );
     }
 
     function isEnterpriseUser(companyId) {
       return isAuthenticated() && (
-        isERPAdmin() || (
+        isKontrolAdmin() || (
           exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == companyId
         )
@@ -36,7 +36,7 @@ service cloud.firestore {
 
     function isEnterpriseAdmin(companyId) {
       return isAuthenticated() && (
-        isERPAdmin() || (
+        isKontrolAdmin() || (
           exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == companyId &&
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMINISTRATEUR_ENTREPRISE'
@@ -47,41 +47,37 @@ service cloud.firestore {
     // --- Collection Matches ---
 
     match /users/{userId} {
-      allow read: if isAuthenticated() && (
-        request.auth.uid == userId || 
-        isERPAdmin() || 
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == resource.data.companyId)
-      );
+      allow read: if isAuthenticated();
       allow create: if isAuthenticated() && (
         request.auth.uid == userId || 
-        isERPAdmin() || 
+        isKontrolAdmin() || 
         isEnterpriseAdmin(request.resource.data.companyId)
       );
       allow update: if isAuthenticated() && (
         request.auth.uid == userId || 
-        isERPAdmin() || 
+        isKontrolAdmin() || 
         isEnterpriseAdmin(resource.data.companyId)
       );
-      allow delete: if isERPAdmin();
+      allow delete: if isKontrolAdmin();
     }
 
     match /treasury_movements/{id} {
-      allow read, write: if isERPAdmin();
+      allow read, write: if isKontrolAdmin();
     }
 
     match /transactions/{id} {
-      allow read: if isEnterpriseUser(resource.data.ownerId) || isERPAdmin();
+      allow read: if isEnterpriseUser(resource.data.ownerId) || isKontrolAdmin();
       allow create: if isEnterpriseUser(request.resource.data.ownerId) && 
                       request.resource.data.keys().hasAll(['reference', 'montantTotal', 'ownerId']) &&
                       request.resource.data.reference is string &&
                       request.resource.data.montantTotal is number;
       allow update: if isEnterpriseUser(resource.data.ownerId) && 
                       request.resource.data.ownerId == resource.data.ownerId;
-      allow delete: if isERPAdmin();
+      allow delete: if isKontrolAdmin();
     }
 
     match /produits/{id} {
-      allow read: if isEnterpriseUser(resource.data.ownerId) || isERPAdmin();
+      allow read: if isEnterpriseUser(resource.data.ownerId) || isKontrolAdmin();
       allow create: if isEnterpriseUser(request.resource.data.ownerId) && 
                       request.resource.data.keys().hasAll(['reference', 'stock', 'ownerId']) &&
                       request.resource.data.reference is string &&
@@ -89,47 +85,47 @@ service cloud.firestore {
       allow update: if isEnterpriseUser(resource.data.ownerId) && 
                       request.resource.data.ownerId == resource.data.ownerId &&
                       request.resource.data.stock is number;
-      allow delete: if isERPAdmin();
+      allow delete: if isKontrolAdmin();
     }
 
     match /stock_movements/{id} {
-      allow read: if isEnterpriseUser(resource.data.ownerId) || isERPAdmin();
+      allow read: if isEnterpriseUser(resource.data.ownerId) || isKontrolAdmin();
       allow create: if isEnterpriseUser(request.resource.data.ownerId);
-      allow update, delete: if isERPAdmin();
+      allow update, delete: if isKontrolAdmin();
     }
 
     match /tiers/{id} {
-      allow read: if isEnterpriseUser(resource.data.ownerId) || isERPAdmin();
+      allow read: if isEnterpriseUser(resource.data.ownerId) || isKontrolAdmin();
       allow create: if isEnterpriseUser(request.resource.data.ownerId);
       allow update: if isEnterpriseUser(resource.data.ownerId) && request.resource.data.ownerId == resource.data.ownerId;
-      allow delete: if isERPAdmin();
+      allow delete: if isKontrolAdmin();
     }
 
     match /charges/{id} {
-      allow read: if isEnterpriseUser(resource.data.ownerId) || isERPAdmin();
+      allow read: if isEnterpriseUser(resource.data.ownerId) || isKontrolAdmin();
       allow create: if isEnterpriseUser(request.resource.data.ownerId);
       allow update: if isEnterpriseUser(resource.data.ownerId) && request.resource.data.ownerId == resource.data.ownerId;
-      allow delete: if isERPAdmin();
+      allow delete: if isKontrolAdmin();
     }
 
     match /wallets/{id} {
-      allow read: if isEnterpriseUser(resource.data.ownerId) || isERPAdmin();
+      allow read: if isEnterpriseUser(resource.data.ownerId) || isKontrolAdmin();
       allow create: if isEnterpriseUser(request.resource.data.ownerId);
       allow update: if isEnterpriseUser(resource.data.ownerId) && request.resource.data.ownerId == resource.data.ownerId;
-      allow delete: if isERPAdmin();
+      allow delete: if isKontrolAdmin();
     }
 
     match /payments/{id} {
-      allow read: if isEnterpriseUser(resource.data.ownerId) || isERPAdmin();
+      allow read: if isEnterpriseUser(resource.data.ownerId) || isKontrolAdmin();
       allow create: if isEnterpriseUser(request.resource.data.ownerId);
       allow update: if isEnterpriseUser(resource.data.ownerId) && request.resource.data.ownerId == resource.data.ownerId;
-      allow delete: if isERPAdmin();
+      allow delete: if isKontrolAdmin();
     }
 
     match /actions/{id} {
-      allow read: if isEnterpriseUser(resource.data.companyId) || isERPAdmin();
-      allow create: if isEnterpriseUser(request.resource.data.companyId) || isERPAdmin();
-      allow update, delete: if isERPAdmin();
+      allow read: if isEnterpriseUser(resource.data.companyId) || isKontrolAdmin();
+      allow create: if isEnterpriseUser(request.resource.data.companyId) || isKontrolAdmin();
+      allow update, delete: if isKontrolAdmin();
     }
 
     match /notifications/{id} {
@@ -137,49 +133,63 @@ service cloud.firestore {
     }
 
     match /tickets/{id} {
-      allow read: if isERPAdmin();
+      allow read: if isKontrolAdmin() || (isAuthenticated() && resource.data.email == request.auth.token.email);
       allow create: if true;
-      allow update, delete: if isERPAdmin();
+      allow update, delete: if isKontrolAdmin();
     }
 
     match /companies/{id} {
-      allow read: if isERPAdmin() || (isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == id);
-      allow create, update, delete: if isERPAdmin();
+      allow read: if isKontrolAdmin() || (isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == id);
+      allow create, update, delete: if isKontrolAdmin();
+    }
+
+    match /system_stats/{id} {
+      allow read, write: if isKontrolAdmin();
+    }
+
+    match /system_metrics/{id} {
+      allow read, write: if isKontrolAdmin();
     }
 
     match /app_versions/{id} {
       allow read: if isAuthenticated();
-      allow write: if isERPAdmin();
+      allow write: if isKontrolAdmin();
     }
 
     match /ai_proposals/{id} {
-      allow read: if isERPAdmin();
-      allow write: if isERPAdmin();
+      allow read: if isKontrolAdmin();
+      allow write: if isKontrolAdmin();
     }
 
     match /system/{docId} {
       allow read: if isAuthenticated();
-      allow write: if isERPAdmin();
+      allow write: if isKontrolAdmin();
     }
 
     match /conversations/{id} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isERPAdmin());
+      allow read: if isAuthenticated() && (request.auth.uid in resource.data.participants || isKontrolAdmin());
       allow create: if isAuthenticated();
-      allow update, delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isERPAdmin());
+      allow update: if isAuthenticated() && (request.auth.uid in resource.data.participants || isKontrolAdmin());
+      allow delete: if isKontrolAdmin();
     }
 
     match /messages/{id} {
       allow read: if isAuthenticated() && (
-        exists(/databases/$(database)/documents/conversations/$(resource.data.conversationId)) &&
-        (get(/databases/$(database)/documents/conversations/$(resource.data.conversationId)).data.userId == request.auth.uid || isERPAdmin())
+        isKontrolAdmin() || 
+        (exists(/databases/$(database)/documents/conversations/$(resource.data.conversationId)) &&
+         request.auth.uid in get(/databases/$(database)/documents/conversations/$(resource.data.conversationId)).data.participants)
       );
-      allow create: if isAuthenticated();
-      allow delete: if isAuthenticated() && (
-        isERPAdmin() || (
-          exists(/databases/$(database)/documents/conversations/$(resource.data.conversationId)) &&
-          get(/databases/$(database)/documents/conversations/$(resource.data.conversationId)).data.userId == request.auth.uid
-        )
+      allow create: if isAuthenticated() && (
+        isKontrolAdmin() || 
+        (exists(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId)) &&
+         request.auth.uid in get(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId)).data.participants)
       );
+      allow update: if isAuthenticated() && (
+        isKontrolAdmin() || 
+        (exists(/databases/$(database)/documents/conversations/$(resource.data.conversationId)) &&
+         request.auth.uid in get(/databases/$(database)/documents/conversations/$(resource.data.conversationId)).data.participants)
+      );
+      allow delete: if isKontrolAdmin();
     }
 
     match /{document=**} {

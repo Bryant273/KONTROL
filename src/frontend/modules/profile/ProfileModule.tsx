@@ -321,7 +321,7 @@ export function ProfileModule({ profile }: ProfileModuleProps) {
                         onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
                       >
                         <option value="">Sélectionner une ville</option>
-                        {countries.find(c => c.name === formData.country)?.cities.map(city => (
+                        {countries.find(c => c.name === formData.country)?.cities?.map(city => (
                           <option key={city} value={city}>{city}</option>
                         ))}
                       </select>

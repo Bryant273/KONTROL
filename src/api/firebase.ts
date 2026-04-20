@@ -29,6 +29,7 @@ import {
   limit,
   getDoc,
   getDocs,
+  getDocFromServer,
   setDoc,
   runTransaction,
   writeBatch,
@@ -51,6 +52,19 @@ export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
+// Connection Test
+async function testConnection() {
+  try {
+    await getDocFromServer(doc(db, 'system', 'connection_test'));
+    console.log("Firestore connection successful");
+  } catch (error: any) {
+    if (error.message?.includes('the client is offline') || error.code === 'unavailable') {
+      console.error("Firestore connection failed. Please check your network and Firebase configuration.");
+    }
+  }
+}
+testConnection();
+
 // Export Firestore functions
 export type { User };
 export { 
@@ -65,6 +79,7 @@ export {
   orderBy,
   getDoc,
   getDocs,
+  getDocFromServer,
   setDoc,
   runTransaction,
   onAuthStateChanged,
@@ -157,18 +172,15 @@ export async function ensureUserProfile(user: User, companyName?: string, hashed
   
   const userEmail = user.email?.toLowerCase();
   const isAdminEmail = userEmail === 'innov.korp@gmail.com' || userEmail === 'acherie812@gmail.com';
-  const targetRole = isAdminEmail ? 'ADMINISTRATEUR_ERP' : 'ADMINISTRATEUR_ENTREPRISE';
+  const targetRole = isAdminEmail ? 'ADMINISTRATEUR_KONTROL' : 'ADMINISTRATEUR_ENTREPRISE';
 
   if (!userDoc.exists()) {
-    // Only create profile if it's a registration flow
-    if (!isRegistration && !isAdminEmail) {
-      throw new Error("Compte non trouvé. Veuillez contacter votre administrateur.");
-    }
-
+    // If user exists in Auth but not in Firestore, auto-create a profile
+    // instead of throwing error, to ensure smooth login.
     const profile: UserProfile = {
       uid: user.uid,
       email: user.email || '',
-      displayName: user.displayName || '',
+      displayName: user.displayName || user.email?.split('@')[0] || 'Utilisateur',
       role: targetRole,
       companyId: user.uid,
       companyName: companyName || (isAdminEmail ? 'KONTROL' : ''),
@@ -186,9 +198,9 @@ export async function ensureUserProfile(user: User, companyName?: string, hashed
     const data = userDoc.data();
     const updates: any = {};
     
-    // Force role update for admin emails if they were misconfigured
-    if (isAdminEmail && data.role !== 'ADMINISTRATEUR_ERP') {
-      updates.role = 'ADMINISTRATEUR_ERP';
+    // Force role update for admin emails to ensure they always have access to Control Tower
+    if (isAdminEmail && data.role !== 'ADMINISTRATEUR_KONTROL') {
+      updates.role = 'ADMINISTRATEUR_KONTROL';
       updates.isProfileComplete = true;
     }
 

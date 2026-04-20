@@ -136,7 +136,7 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
                 </div>
                 <div className="flex flex-col gap-4">
                   {[Layout, Box, ArrowLeftRight, Users, BarChart3].map((Icon, i) => (
-                    <div key={i} className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-colors", i === 0 ? "bg-kontrol-blue text-white" : "text-kontrol-ink-muted hover:bg-kontrol-border")}>
+                    <div key={i} className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-colors cursor-pointer", i === 0 ? "bg-kontrol-blue text-white" : "text-kontrol-ink-muted hover:bg-kontrol-border")}>
                       <Icon size={18} />
                     </div>
                   ))}
@@ -228,7 +228,7 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
               { icon: Shield, title: 'Sécurité Maximale', desc: 'Vos données sont chiffrées et protégées par les standards bancaires.' },
               { icon: Sparkles, title: 'Blue AI', desc: 'L\'intelligence artificielle qui vous aide à prendre les meilleures décisions.' },
             ].map((f, i) => (
-              <div key={i} className="bg-white p-6 rounded-[24px] border border-kontrol-border hover:shadow-xl transition-all group">
+              <div key={i} className="bg-white p-6 rounded-[24px] border border-kontrol-border hover:shadow-xl transition-all group cursor-pointer">
                 <div className="w-10 h-10 bg-kontrol-bg rounded-xl flex items-center justify-center mb-4 group-hover:bg-kontrol-blue group-hover:text-white transition-colors">
                   <f.icon size={20} />
                 </div>

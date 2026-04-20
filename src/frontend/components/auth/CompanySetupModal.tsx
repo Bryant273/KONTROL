@@ -247,7 +247,7 @@ export function CompanySetupModal({ profile, onClose, onComplete }: CompanySetup
                     onChange={(e) => setCity(e.target.value)}
                   >
                     <option value="">Sélectionner</option>
-                    {selectedCountryData?.cities.map(c => (
+                    {selectedCountryData?.cities?.map(c => (
                       <option key={c} value={c}>{c}</option>
                     ))}
                   </select>

@@ -52,7 +52,7 @@ interface SystemModuleProps {
 }
 
 export function SystemModule({ currentUserProfile }: SystemModuleProps) {
-  const isAdminERP = currentUserProfile?.role === 'ADMINISTRATEUR_ERP';
+  const isKontrolAdmin = currentUserProfile?.role === 'ADMINISTRATEUR_ERP' || currentUserProfile?.role === 'ADMINISTRATEUR_KONTROL';
   const [activeTab, setActiveTab] = useState<'dashboard' | 'tenants' | 'users' | 'plans' | 'flags' | 'monitoring' | 'audit'>('dashboard');
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeletingUser, setIsDeletingUser] = useState<string | null>(null);
@@ -110,6 +110,21 @@ export function SystemModule({ currentUserProfile }: SystemModuleProps) {
     (usersPage - 1) * itemsPerPage,
     usersPage * itemsPerPage
   );
+
+  const formatRole = (role?: string) => {
+    if (!role) return '';
+    const roles: Record<string, string> = {
+      'ADMINISTRATEUR_ERP': 'Administrateur KONTROL',
+      'GESTIONNAIRE_ERP': 'Gestionnaire KONTROL',
+      'ADMINISTRATEUR_KONTROL': 'Administrateur KONTROL',
+      'GESTIONNAIRE_KONTROL': 'Gestionnaire KONTROL',
+      'ADMINISTRATEUR_ENTREPRISE': 'Administrateur Entreprise',
+      'GESTIONNAIRE_ENTREPRISE': 'Gestionnaire Entreprise',
+      'UTILISATEUR': 'Utilisateur',
+      'ADMIN': 'Administrateur'
+    };
+    return roles[role] || role.replace(/_/g, ' ');
+  };
 
   const fetchGlobalActions = async () => {
     setLoadingActions(true);
@@ -638,9 +653,9 @@ export function SystemModule({ currentUserProfile }: SystemModuleProps) {
                     <td className="px-6 py-4">
                       <span className={cn(
                         "px-2 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider",
-                        user.role === 'ADMINISTRATEUR_ERP' ? "bg-rose-50 text-rose-600" : "bg-kontrol-blue/5 text-kontrol-blue"
+                        (user.role === 'ADMINISTRATEUR_ERP' || user.role === 'ADMINISTRATEUR_KONTROL') ? "bg-rose-50 text-rose-600" : "bg-kontrol-blue/5 text-kontrol-blue"
                       )}>
-                        {user.role.replace(/_/g, ' ')}
+                        {formatRole(user.role)}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -864,7 +879,7 @@ export function SystemModule({ currentUserProfile }: SystemModuleProps) {
         </div>
       )}
 
-      {/* Danger Zone - Always visible at bottom for ERP Admins */}
+      {/* Danger Zone - Always visible at bottom for KONTROL Admins */}
       <div className="card border-rose-100 bg-rose-50/30 mt-12">
         <div className="card-hd border-rose-100">
           <div className="flex items-center gap-2 text-rose-600">

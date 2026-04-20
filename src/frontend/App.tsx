@@ -32,11 +32,13 @@ import { CompanySetupModal } from './components/auth/CompanySetupModal';
 import { LandingPage } from './components/landing/LandingPage';
 import { AuthPage } from './components/auth/AuthPage';
 import { Chatbot } from './components/common/Chatbot';
+import { LoadingScreen } from './components/common/LoadingScreen';
 import { cn, formatCurrency } from './lib/utils';
 import { UserProfile } from './types';
 import { AlertTriangle, Clock, X, Loader2 } from 'lucide-react';
 
 import { SystemModule } from './modules/system/SystemModule';
+import { KChatModule } from './modules/chat/KChatModule';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -52,7 +54,7 @@ export default function App() {
   const [authView, setAuthView] = useState<'landing' | 'auth'>('landing');
   const [authInitialMode, setAuthInitialMode] = useState<'login' | 'register'>('login');
 
-  const isERPAdmin = profile?.role === 'ADMINISTRATEUR_ERP' || profile?.role === 'ADMIN';
+  const isKontrolAdmin = profile?.role === 'ADMINISTRATEUR_ERP' || profile?.role === 'GESTIONNAIRE_ERP' || profile?.role === 'ADMIN' || profile?.role === 'ADMINISTRATEUR_KONTROL' || profile?.role === 'GESTIONNAIRE_KONTROL';
   
   // Auth state listener
   useEffect(() => {
@@ -121,8 +123,8 @@ export default function App() {
   useEffect(() => {
     if (!profile) return;
     
-    // ERP Admins and Managers are exempt from subscription requirements
-    if (profile.role === 'ADMINISTRATEUR_ERP' || profile.role === 'GESTIONNAIRE_ERP') {
+    // KONTROL Admins and Managers are exempt from subscription requirements
+    if (profile.role === 'ADMINISTRATEUR_ERP' || profile.role === 'GESTIONNAIRE_ERP' || profile.role === 'ADMINISTRATEUR_KONTROL' || profile.role === 'GESTIONNAIRE_KONTROL') {
       setIsBlocked(false);
       setShowReminder(null);
       return;
@@ -187,15 +189,7 @@ export default function App() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-white">
-        <div className="relative w-16 h-16 mb-6">
-          <div className="absolute inset-0 border-4 border-kontrol-blue/20 rounded-full" />
-          <div className="absolute inset-0 border-4 border-t-kontrol-blue rounded-full animate-spin" />
-        </div>
-        <p className="text-[11px] text-kontrol-ink-muted mt-2">Initialisation sécurisée...</p>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (!user) {
@@ -281,29 +275,29 @@ export default function App() {
             </div>
           ) : (
             <>
-              {activeTab === 'dashboard' && (isERPAdmin ? <ControlTower /> : <Dashboard user={user} currentUserProfile={profile} />)}
-              {activeTab === 'subscriptions' && (isERPAdmin ? <ControlTower activeSubTab="subscriptions" /> : <SubscriptionsModule profile={profile} />)}
-              {activeTab === 'revenue' && <ControlTower activeSubTab="revenue" />}
-              {activeTab === 'accounting' && <ControlTower activeSubTab="accounting" />}
-              {activeTab === 'ai_core' && <ControlTower activeSubTab="ai_core" />}
-              {activeTab === 'telemetry' && <ControlTower activeSubTab="telemetry" />}
-              {activeTab === 'audit' && <ControlTower activeSubTab="audit" />}
+              {activeTab === 'dashboard' && (isKontrolAdmin ? <ControlTower user={user} profile={profile} /> : <Dashboard user={user} currentUserProfile={profile} />)}
+              {activeTab === 'subscriptions' && (isKontrolAdmin ? <ControlTower activeSubTab="subscriptions" user={user} profile={profile} /> : <SubscriptionsModule profile={profile} />)}
+              {activeTab === 'revenue' && <ControlTower activeSubTab="revenue" user={user} profile={profile} />}
+              {activeTab === 'accounting' && <ControlTower activeSubTab="accounting" user={user} profile={profile} />}
+              {activeTab === 'ai_core' && <ControlTower activeSubTab="ai_core" user={user} profile={profile} />}
+              {activeTab === 'telemetry' && <ControlTower activeSubTab="telemetry" user={user} profile={profile} />}
+              {activeTab === 'audit' && <ControlTower activeSubTab="audit" user={user} profile={profile} />}
               {activeTab === 'tiers' && <TiersModule user={user} currentUserProfile={profile} />}
               {activeTab === 'produits' && <ProduitsModule user={user} currentUserProfile={profile} />}
               {activeTab === 'transactions' && <TransactionsModule user={user} currentUserProfile={profile} />}
               {activeTab === 'charges' && <ChargesModule user={user} currentUserProfile={profile} />}
               {activeTab === 'stocks' && <StocksModule user={user} currentUserProfile={profile} />}
               {activeTab === 'finance' && <FinanceModule user={user} currentUserProfile={profile} />}
-              {activeTab === 'ai' && (isERPAdmin ? <ControlTower activeSubTab="ai_core" /> : <BlueAIModule user={user} currentUserProfile={profile} />)}
-              {activeTab === 'utilisateurs' && (isERPAdmin ? <ControlTower activeSubTab="utilisateurs" /> : <UsersModule user={user} currentUserProfile={profile} />)}
-              {activeTab === 'gestionnaires' && <ControlTower activeSubTab="gestionnaires" />}
-              {activeTab === 'tickets' && (isERPAdmin ? <ControlTower activeSubTab="tickets" /> : <TicketsModule user={user} currentUserProfile={profile} />)}
-              {activeTab === 'gmail' && <ControlTower activeSubTab="gmail" />}
-              {activeTab === 'entreprises' && (isERPAdmin ? <ControlTower activeSubTab="entreprises" /> : <CompaniesModule />)}
-              {activeTab === 'system' && (isERPAdmin ? <ControlTower activeSubTab="telemetry" /> : <SystemModule currentUserProfile={profile} />)}
-              {activeTab === 'versions' && (isERPAdmin ? <ControlTower activeSubTab="versions" /> : null)}
-              {activeTab === 'updates' && (isERPAdmin ? <ControlTower activeSubTab="updates" /> : null)}
-              {activeTab === 'actions' && (isERPAdmin ? <ControlTower activeSubTab="audit" /> : <ActionsModule user={user} currentUserProfile={profile} />)}
+              {activeTab === 'ai' && (isKontrolAdmin ? <ControlTower activeSubTab="ai_core" user={user} profile={profile} /> : <BlueAIModule user={user} currentUserProfile={profile} />)}
+              {activeTab === 'utilisateurs' && (isKontrolAdmin ? <ControlTower activeSubTab="utilisateurs" user={user} profile={profile} /> : <UsersModule user={user} currentUserProfile={profile} />)}
+              {activeTab === 'gestionnaires' && <ControlTower activeSubTab="gestionnaires" user={user} profile={profile} />}
+              {activeTab === 'tickets' && (isKontrolAdmin ? <ControlTower activeSubTab="tickets" user={user} profile={profile} /> : <TicketsModule user={user} currentUserProfile={profile} />)}
+              {activeTab === 'chat' && user && <KChatModule user={user} profile={profile} />}
+              {activeTab === 'entreprises' && (isKontrolAdmin ? <ControlTower activeSubTab="entreprises" user={user} profile={profile} /> : <CompaniesModule />)}
+              {activeTab === 'system' && (isKontrolAdmin ? <ControlTower activeSubTab="telemetry" user={user} profile={profile} /> : <SystemModule currentUserProfile={profile} />)}
+              {activeTab === 'versions' && (isKontrolAdmin ? <ControlTower activeSubTab="versions" user={user} profile={profile} /> : null)}
+              {activeTab === 'updates' && (isKontrolAdmin ? <ControlTower activeSubTab="updates" user={user} profile={profile} /> : null)}
+              {activeTab === 'actions' && (isKontrolAdmin ? <ControlTower activeSubTab="audit" user={user} profile={profile} /> : <ActionsModule user={user} currentUserProfile={profile} />)}
               {activeTab === 'abonnements' && <SubscriptionsModule profile={profile} />}
               {activeTab === 'profil' && <ProfileModule profile={profile} />}
             </>
