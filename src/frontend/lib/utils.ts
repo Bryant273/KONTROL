@@ -6,11 +6,14 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(amount: number, currency: string = 'XOF'): string {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: currency === 'FCFA' ? 'XOF' : currency,
-    minimumFractionDigits: 0,
-  }).format(amount);
+  // Manual formatting to ensure a simple space as thousands separator
+  // This avoids non-renderable characters in PDF exports
+  const amountStr = Math.round(amount).toString();
+  const formattedNumber = amountStr.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+
+  const currencyLabel = (currency === 'XOF' || currency === 'FCFA' || currency === 'CFA') ? 'FCFA' : currency;
+  
+  return `${formattedNumber} ${currencyLabel}`;
 }
 
 export function formatDate(date: number | string | Date): string {

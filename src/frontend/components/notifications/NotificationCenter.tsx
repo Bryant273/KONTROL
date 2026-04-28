@@ -149,12 +149,27 @@ export function NotificationCenter({ profile, onNavigate }: NotificationCenterPr
           <div className="p-4 border-b border-kontrol-border flex items-center justify-between bg-kontrol-bg/30">
             <h3 className="text-[14px] font-extrabold text-kontrol-dark">Notifications</h3>
             <div className="flex items-center gap-2">
+              {notifications.length > 0 && (
+                <button 
+                  onClick={async () => {
+                    if (window.confirm("Tout effacer ?")) {
+                      const batch = writeBatch(db);
+                      notifications.forEach(n => batch.delete(doc(db, 'notifications', n.id)));
+                      await batch.commit();
+                    }
+                  }}
+                  className="p-1 hover:bg-rose-50 text-rose-500 rounded-lg transition-colors"
+                  title="Tout effacer"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
               {unreadCount > 0 && (
                 <button 
                   onClick={markAllAsRead}
                   className="text-[11px] font-bold text-kontrol-blue hover:underline"
                 >
-                  Tout marquer comme lu
+                  Tout lu
                 </button>
               )}
               <button 
@@ -217,7 +232,13 @@ export function NotificationCenter({ profile, onNavigate }: NotificationCenterPr
 
           {notifications.length > 0 && (
             <div className="p-3 border-t border-kontrol-border bg-kontrol-bg/30 text-center">
-              <button className="text-[12px] font-bold text-kontrol-ink-muted hover:text-kontrol-dark transition-colors">
+              <button 
+                onClick={() => {
+                  if (onNavigate) onNavigate('notifications', 'Système', 'Centre de Notifications');
+                  setIsOpen(false);
+                }}
+                className="text-[12px] font-bold text-kontrol-ink-muted hover:text-kontrol-dark transition-colors"
+              >
                 Voir toutes les notifications
               </button>
             </div>

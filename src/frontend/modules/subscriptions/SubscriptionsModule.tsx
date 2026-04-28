@@ -26,6 +26,8 @@ import { db, doc, updateDoc, logAction, serverTimestamp, collection, addDoc, que
 import { sendNotification } from '../../../api/services/notificationService';
 import { motion, AnimatePresence } from 'motion/react';
 
+import { ModuleActivityLog } from '../../components/common/ModuleActivityLog';
+
 interface SubscriptionsModuleProps {
   profile: UserProfile | null;
 }
@@ -92,7 +94,18 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
     phone: profile?.phone || '',
     companyName: profile?.companyName || ''
   });
+
+  useEffect(() => {
+    if (profile) {
+      setPaymentInfo({
+        email: profile.email || '',
+        phone: profile.phone || '',
+        companyName: profile.companyName || profile.displayName || ''
+      });
+    }
+  }, [profile]);
   const [isPendingValidation, setIsPendingValidation] = useState(false);
+  const [manualReference, setManualReference] = useState('');
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
   const itemsPerPage = 10;
 
@@ -104,21 +117,27 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
       e.preventDefault();
     }
     
+    if (!manualReference.trim()) {
+      alert("Veuillez saisir votre référence de paiement pour continuer.");
+      return;
+    }
+    
     setLoading(true);
     try {
       const companyId = profile?.companyId || profile?.uid || '';
-      const autoReference = `PS-${Date.now()}`;
+      const finalReference = manualReference.trim();
+      const currentCompanyName = profile?.companyName || profile?.displayName || profile?.email || 'Client K';
       
       // Enregistrer l'intention de paiement / demande de validation
       await addDoc(collection(db, 'payment_requests'), {
         userId: profile?.uid,
-        email: paymentInfo.email,
-        phone: paymentInfo.phone,
-        companyName: paymentInfo.companyName,
+        email: paymentInfo.email || profile?.email || '',
+        phone: paymentInfo.phone || '',
+        companyName: currentCompanyName,
         companyId: companyId,
         amount: price,
         currency: currency,
-        reference: autoReference,
+        reference: finalReference,
         gateway: 'PAYSTACK',
         status: 'PENDING',
         createdAt: serverTimestamp()
@@ -129,14 +148,24 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
         profile?.uid || '',
         profile?.displayName || profile?.email || '',
         "Demande de validation d'abonnement (Paystack)",
-        `En attente de validation manuelle par l'administrateur. Réf auto: ${autoReference}`
+        `En attente de validation manuelle par l'administrateur. Réf client: ${finalReference}`
       );
+
+      // Notification de confirmation pour l'utilisateur
+      await sendNotification({
+        companyId: companyId,
+        userId: profile?.uid,
+        title: "✨ Demande de paiement reçue",
+        message: `Félicitations ${profile?.displayName || 'cher client'} ! Votre demande pour l'abonnement Standard (${price} ${currency}) est en cours d'examen. Notre équipe vérifie la référence ${finalReference}.`,
+        type: 'info',
+        link: '/subscriptions'
+      });
 
       // Notification Admin
       await sendNotification({
         companyId: 'SYSTEM',
-        title: "Nouvelle demande de validation",
-        message: `Une nouvelle demande de validation de paiement Paystack a été soumise par ${paymentInfo.companyName}. Réf: ${autoReference}`,
+        title: "🚨 Nouvelle validation requise",
+        message: `L'entreprise ${currentCompanyName} vient de soumettre un paiement de ${price} ${currency} (Réf: ${finalReference}). Veuillez vérifier la transaction sur Paystack.`,
         type: 'info',
         link: '/admin?tab=subscriptions'
       });
@@ -178,11 +207,15 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
     const unsubHistory = onSnapshot(qHistory, (snap) => {
       const history = snap.docs.map(doc => {
         const data = doc.data();
-        const date = data.approvedAt ? new Date(data.approvedAt.seconds * 1000).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : 
-                     (data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : 'N/A');
+        const approvedTime = data.approvedAt?.seconds ? data.approvedAt.seconds * 1000 : 
+                             (data.createdAt?.seconds ? data.createdAt.seconds * 1000 : Date.now());
+        const date = new Date(approvedTime).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+        const expiryDate = new Date(approvedTime + (30 * 24 * 60 * 60 * 1000)).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+        
         return {
           id: doc.id,
           date,
+          expiryDate,
           desc: `Renouvellement Abonnement Standard - ${data.reference || 'Paystack'}`,
           amount: data.amount,
           status: 'Payé',
@@ -208,14 +241,33 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
   if (!profile) return null;
 
   const handleExportInvoice = (invoice: any) => {
-    const headers = ['Libellé', 'Période', 'Mode de paiement', 'Montant'];
+    const headers = ['Libellé', 'Émission', 'Prochaine Échéance', 'Référence', 'Montant'];
     const data = [[
       invoice.desc,
       invoice.date,
-      'Mobile Money / Carte',
+      invoice.expiryDate || 'N/A',
+      invoice.fullData?.reference || 'N/A',
       formatCurrency(invoice.amount, currency)
     ]];
-    exportToPDF(`Facture - ${invoice.date}`, headers, data, `Facture_KONTROL_${invoice.date.replace(/ /g, '_')}`);
+    
+    exportToPDF(
+      `Facture d'Abonnement`, 
+      headers, 
+      data, 
+      `Facture_KONTROL_${invoice.date.replace(/ /g, '_')}`,
+      {
+        companyInfo: {
+          name: 'KONTROL ERP',
+          email: 'support@kontrol.app'
+        },
+        clientInfo: {
+          name: profile?.displayName || 'Client',
+          email: profile?.email || '',
+          company: profile?.companyName
+        },
+        footer: 'KONTROL - Solution de gestion intelligente pour entreprises. Merci de votre confiance.'
+      }
+    );
   };
 
   const plan = {
@@ -255,10 +307,16 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
           </div>
           <div className="flex-1">
             <h4 className="text-sm font-extrabold text-amber-900 uppercase tracking-tight">Validation en cours</h4>
-            <p className="text-[12px] text-amber-600 font-medium">
-              Votre demande de renouvellement est en cours de traitement. 
-              Votre abonnement sera prolongé dès validation par nos services.
-            </p>
+            <div className="space-y-1">
+              <p className="text-[12px] text-amber-600 font-medium">
+                Votre demande de renouvellement est en cours de traitement par l'équipe KONTROL.
+              </p>
+              {pendingRequests.map(req => (
+                <p key={req.id} className="text-[10px] font-bold text-amber-700 bg-amber-100/50 px-2 py-1 rounded-lg inline-block mr-2">
+                  Réf checked: {req.reference}
+                </p>
+              ))}
+            </div>
           </div>
           <div className="hidden sm:block px-4 py-2 bg-white border border-amber-200 rounded-xl text-[10px] font-extrabold text-amber-600 uppercase tracking-widest">
             En attente
@@ -477,6 +535,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                   onClick={() => {
                     setIsPaying(false);
                     setPaymentStep('SELECT');
+                    setManualReference('');
                   }}
                   className="p-2 hover:bg-white rounded-full text-kontrol-ink-muted transition-all shadow-sm"
                 >
@@ -512,23 +571,46 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
 
                 {paymentStep === 'PAYSTACK_INFO' && (
                   <div className="space-y-6">
-                    <div className="bg-kontrol-blue/5 p-6 rounded-[2rem] border border-kontrol-blue/10 space-y-4">
+                    <div className="bg-kontrol-blue/5 p-6 rounded-[2rem] border border-kontrol-blue/10 space-y-5">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-kontrol-blue text-white rounded-lg flex items-center justify-center font-bold text-sm">1</div>
-                        <p className="text-sm font-bold text-kontrol-dark">Cliquez sur le bouton ci-dessous pour payer sur Paystack</p>
+                        <p className="text-sm font-bold text-kontrol-dark">Payez via notre lien Paystack sécurisé</p>
                       </div>
                       
                       <a 
                         href="https://paystack.shop/pay/kontrol" 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        onClick={(e) => {
-                          handlePaystackConfirmation(e);
-                        }}
                         className="w-full py-4 bg-[#09a5db] text-white rounded-2xl font-extrabold text-sm hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-xl shadow-[#09a5db]/20"
                       >
-                        {loading ? <Loader2 size={16} className="animate-spin" /> : <>Accéder à la boutique Paystack <ExternalLink size={16} /></>}
+                        Accéder à Paystack <ExternalLink size={16} />
                       </a>
+
+                      <div className="border-t border-kontrol-blue/10 pt-5 space-y-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-kontrol-blue text-white rounded-lg flex items-center justify-center font-bold text-sm">2</div>
+                          <p className="text-sm font-bold text-kontrol-dark">Renseignez votre référence de paiement</p>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold text-kontrol-ink-muted uppercase tracking-widest ml-2">Référence Transaction</label>
+                          <input 
+                            type="text"
+                            value={manualReference}
+                            onChange={(e) => setManualReference(e.target.value)}
+                            placeholder="Ex: T20240428.1234.567890"
+                            className="w-full px-5 py-4 bg-white border-2 border-kontrol-border rounded-xl font-bold text-sm focus:border-kontrol-blue outline-none transition-all"
+                          />
+                        </div>
+
+                        <button 
+                          onClick={(e) => handlePaystackConfirmation(e)}
+                          disabled={loading || !manualReference.trim()}
+                          className="w-full py-4 bg-kontrol-blue text-white rounded-2xl font-extrabold text-sm hover:opacity-95 transition-all flex items-center justify-center gap-2 shadow-xl shadow-kontrol-blue/20 disabled:opacity-50"
+                        >
+                          {loading ? <Loader2 size={16} className="animate-spin" /> : "Confirmer mon paiement"}
+                        </button>
+                      </div>
                     </div>
 
                     <button 
@@ -563,6 +645,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                         onClick={() => {
                           setIsPaying(false);
                           setPaymentStep('SELECT');
+                          setManualReference('');
                         }}
                         className="w-full py-3.5 bg-kontrol-dark text-white rounded-xl font-extrabold text-xs hover:bg-kontrol-blue transition-all shadow-xl"
                       >
@@ -578,77 +661,116 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
       </AnimatePresence>
 
       {/* Invoice Modal */}
-      {selectedInvoice && (
-        <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-kontrol-dark/80 backdrop-blur-md p-4">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-[500px] overflow-hidden animate-in fade-in zoom-in-95 duration-300">
-            <div className="p-8 border-b border-kontrol-border flex items-center justify-between bg-kontrol-bg/30">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-kontrol-dark rounded-2xl flex items-center justify-center text-white shadow-lg">
-                  <FileText size={24} />
-                </div>
-                <div>
-                  <h3 className="text-xl font-extrabold text-kontrol-dark tracking-tight">Détails Facture</h3>
-                  <p className="text-[11px] text-kontrol-ink-muted font-bold uppercase tracking-widest">KONTROL STANDARD SERVICES</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setSelectedInvoice(null)}
-                className="p-2.5 hover:bg-white rounded-full text-kontrol-ink-muted transition-all shadow-sm"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            
-            <div className="p-10 space-y-8">
-              <div className="flex justify-center">
-                {profile.companyLogo ? (
-                  <img src={profile.companyLogo} alt="Logo" className="h-16 object-contain" />
-                ) : (
-                  <div className="text-2xl font-extrabold text-kontrol-dark tracking-tighter">KONTROL</div>
-                )}
-              </div>
-
-              <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-8">
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">Période</p>
-                    <p className="text-sm font-bold text-kontrol-dark">{selectedInvoice.date}</p>
+      <AnimatePresence>
+        {selectedInvoice && (
+          <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-kontrol-dark/80 backdrop-blur-md p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white rounded-[2rem] shadow-2xl w-full max-w-[380px] overflow-hidden border border-white/20"
+            >
+              {/* Modal Header - Professional & Compact */}
+              <div className="p-4 border-b border-kontrol-border flex items-center justify-between bg-kontrol-bg/20">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 bg-kontrol-dark text-white rounded-lg flex items-center justify-center shadow-lg">
+                    <FileText size={16} />
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">Mode de paiement</p>
-                    <p className="text-sm font-bold text-kontrol-dark">Mobile Money / Carte</p>
+                  <div>
+                    <h3 className="text-xs font-black text-kontrol-dark uppercase tracking-tight">Détails Facture</h3>
+                    <p className="text-[9px] text-kontrol-ink-muted font-bold tracking-widest uppercase">Réf: {selectedInvoice.fullData?.reference || 'N/A'}</p>
                   </div>
                 </div>
-
-                <div className="space-y-1">
-                  <p className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">Libellé</p>
-                  <p className="text-sm font-bold text-kontrol-dark">{selectedInvoice.desc}</p>
+                <button 
+                  onClick={() => setSelectedInvoice(null)}
+                  className="p-1.5 hover:bg-white rounded-full text-kontrol-ink-muted transition-all border border-transparent hover:border-kontrol-border"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+              
+              <div className="p-5 space-y-5">
+                {/* Header Layout (Company Left, Client Right) */}
+                <div className="flex justify-between items-start">
+                  <div className="space-y-0.5">
+                    <p className="text-[9px] font-extrabold text-kontrol-blue uppercase tracking-widest">Émetteur</p>
+                    <p className="text-[11px] font-black text-kontrol-dark uppercase">KONTROL ERP</p>
+                    <p className="text-[8px] text-kontrol-ink-muted font-medium">support@kontrol.app</p>
+                  </div>
+                  <div className="text-right space-y-0.5">
+                    <p className="text-[9px] font-extrabold text-kontrol-orange uppercase tracking-widest">Client</p>
+                    <p className="text-[11px] font-black text-kontrol-dark uppercase">{profile.companyName || profile.displayName}</p>
+                    <p className="text-[8px] text-kontrol-ink-muted font-medium">{profile.email}</p>
+                  </div>
                 </div>
 
-                <div className="pt-6 border-t border-kontrol-border flex items-center justify-between">
-                  <p className="text-lg font-extrabold text-kontrol-dark uppercase tracking-tighter">Montant Total</p>
-                  <p className="text-3xl font-extrabold text-kontrol-blue">{formatCurrency(selectedInvoice.amount, currency)}</p>
+                {/* Content Section */}
+                <div className="bg-kontrol-bg/30 p-4 rounded-xl border border-kontrol-border/50">
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                    <div className="space-y-0.5">
+                      <p className="text-[8px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">Émission</p>
+                      <p className="text-[11px] font-bold text-kontrol-dark">{selectedInvoice.date}</p>
+                    </div>
+                    <div className="space-y-0.5 text-right">
+                      <p className="text-[8px] font-extrabold text-rose-600 uppercase tracking-widest">Échéance</p>
+                      <p className="text-[11px] font-bold text-kontrol-dark">{selectedInvoice.expiryDate || 'N/A'}</p>
+                    </div>
+                    <div className="space-y-0.5">
+                      <p className="text-[8px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">Paiement</p>
+                      <p className="text-[11px] font-bold text-kontrol-dark">Paystack</p>
+                    </div>
+                    <div className="space-y-0.5 text-right">
+                      <p className="text-[8px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">Statut</p>
+                      <p className="text-[11px] font-bold text-emerald-600">Payé</p>
+                    </div>
+                    <div className="col-span-full pt-2 border-t border-kontrol-border/50">
+                      <p className="text-[8px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest mb-0.5">Désignation</p>
+                      <p className="text-[11px] font-medium text-kontrol-dark leading-tight">{selectedInvoice.desc}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Total Section */}
+                <div className="flex items-center justify-between px-1 pt-1">
+                  <div className="space-y-0.5">
+                    <p className="text-[10px] font-black text-kontrol-dark uppercase tracking-tight">Net à Payer</p>
+                    <p className="text-[8px] text-emerald-600 font-bold uppercase tracking-widest">Acquittée</p>
+                  </div>
+                  <p className="text-xl font-black text-kontrol-blue tracking-tighter">
+                    {formatCurrency(selectedInvoice.amount, currency)}
+                  </p>
                 </div>
               </div>
-            </div>
 
-            <div className="p-8 bg-kontrol-bg/30 flex gap-4">
-              <button 
-                onClick={() => handleExportInvoice(selectedInvoice)}
-                className="flex-1 btn-primary py-4 font-extrabold text-sm flex items-center justify-center gap-2 shadow-xl"
-              >
-                <Printer size={18} /> Imprimer PDF
-              </button>
-              <button 
-                onClick={() => setSelectedInvoice(null)}
-                className="flex-1 btn-outline py-4 font-extrabold text-sm"
-              >
-                Fermer
-              </button>
-            </div>
+              {/* Actions */}
+              <div className="p-4 bg-kontrol-bg/20 border-t border-kontrol-border flex gap-2">
+                <button 
+                  onClick={() => handleExportInvoice(selectedInvoice)}
+                  className="flex-1 py-2.5 px-4 bg-kontrol-dark text-white rounded-xl font-bold text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 hover:bg-kontrol-blue transition-all shadow-lg active:scale-95"
+                >
+                  <Download size={12} /> Télécharger PDF
+                </button>
+                <button 
+                  onClick={() => setSelectedInvoice(null)}
+                  className="flex-1 py-2.5 px-4 bg-white text-kontrol-ink-soft border border-kontrol-border rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-kontrol-bg transition-all active:scale-95"
+                >
+                  Fermer
+                </button>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
+
+
+      {/* Activity Log */}
+      <div className="mt-8">
+        <ModuleActivityLog 
+          companyId={profile.companyId || profile.uid} 
+          moduleName="Abonnement" 
+          title="Journal des abonnements" 
+        />
+      </div>
     </div>
     </ErrorBoundary>
   );

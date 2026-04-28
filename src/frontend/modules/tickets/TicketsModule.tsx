@@ -67,15 +67,35 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
 
     setIsSubmitting(true);
     try {
-      await addDoc(collection(db, 'tickets'), {
+      const ticketRef = await addDoc(collection(db, 'tickets'), {
         name: currentUserProfile?.displayName || user.displayName || 'Utilisateur K',
         email: user.email,
         subject: newTicket.subject,
         message: newTicket.message,
         status: 'NEW',
         createdAt: new Date().toISOString(),
-        userId: user.uid
+        userId: user.uid,
+        companyId: currentUserProfile?.companyId || user.uid
       });
+
+      // Notification User
+      await sendNotification({
+        companyId: currentUserProfile?.companyId || user.uid,
+        userId: user.uid,
+        title: "🎫 Ticket branché !",
+        message: `Salut ${currentUserProfile?.displayName || 'cher utilisateur'} ! Nous avons bien reçu votre ticket "${newTicket.subject}". Un conseiller KONTROL va prendre le relais rapidement.`,
+        type: 'info'
+      });
+
+      // Notification Admin
+      await sendNotification({
+        companyId: 'SYSTEM',
+        title: "🆘 Nouveau Besoin Support",
+        message: `Alerte support : ${currentUserProfile?.displayName || user.email} a besoin d'aide pour : ${newTicket.subject}`,
+        type: 'info',
+        link: '/admin?tab=tickets'
+      });
+
       setNewTicket({ subject: '', message: '' });
       setIsCreating(false);
     } catch (error) {

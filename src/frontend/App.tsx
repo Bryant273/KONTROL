@@ -39,6 +39,7 @@ import { AlertTriangle, Clock, X, Loader2 } from 'lucide-react';
 
 import { SystemModule } from './modules/system/SystemModule';
 import { KChatModule } from './modules/chat/KChatModule';
+import { NotificationsCenterModule } from './modules/system/NotificationsCenterModule';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -299,6 +300,7 @@ export default function App() {
               {activeTab === 'updates' && (isKontrolAdmin ? <ControlTower activeSubTab="updates" user={user} profile={profile} /> : null)}
               {activeTab === 'actions' && (isKontrolAdmin ? <ControlTower activeSubTab="audit" user={user} profile={profile} /> : <ActionsModule user={user} currentUserProfile={profile} />)}
               {activeTab === 'abonnements' && <SubscriptionsModule profile={profile} />}
+              {activeTab === 'notifications' && <NotificationsCenterModule profile={profile} onNavigate={handleTabChange} />}
               {activeTab === 'profil' && <ProfileModule profile={profile} />}
             </>
           )}

@@ -70,6 +70,7 @@ import {
   limit, 
   onSnapshot,
   doc,
+  getDoc,
   setDoc,
   updateDoc,
   addDoc,
@@ -388,7 +389,7 @@ export function ControlTower({ activeSubTab = 'dashboard', user, profile }: Cont
       {/* Main Content Dispatcher */}
       <AnimatePresence mode="wait">
         {activeSubTab === 'dashboard' && <VisionView stats={stats} companies={companies} recentActions={recentActions} treasuryBalance={treasuryBalance} systemStats={systemStats} />}
-        {activeSubTab === 'subscriptions' && <BusinessSubscriptionsView companies={companies} paymentRequests={paymentRequests} />}
+        {activeSubTab === 'subscriptions' && <BusinessSubscriptionsView companies={companies} paymentRequests={paymentRequests} allUsers={allUsers} />}
         {activeSubTab === 'revenue' && <FinancialAnalyticsView stats={stats} systemStats={systemStats} />}
         {activeSubTab === 'accounting' && <ControlTowerTreasuryView />}
         {activeSubTab === 'transactions' && <ControlTowerTransactionsView />}
@@ -741,7 +742,7 @@ function VisionView({ stats, companies, recentActions, treasuryBalance, systemSt
   );
 }
 
-function BusinessSubscriptionsView({ companies, paymentRequests = [] }: any) {
+function BusinessSubscriptionsView({ companies, paymentRequests = [], allUsers = [] }: any) {
   const [trialDays, setTrialDays] = useState('30');
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
 
@@ -766,13 +767,28 @@ function BusinessSubscriptionsView({ companies, paymentRequests = [] }: any) {
       });
 
       if (foundUser?.companyId) {
-        await updateDoc(doc(db, 'companies', foundUser.companyId), {
-          status: 'ACTIVE',
-          subscriptionEndDate: newEndDate,
-          subscriptionTier: 'STANDARD',
-          autoConvertToSubscriber: asTrial,
-          updatedAt: serverTimestamp()
-        });
+        const companyRef = doc(db, 'companies', foundUser.companyId);
+        const companyDoc = await getDoc(companyRef);
+        if (companyDoc.exists()) {
+          await updateDoc(companyRef, {
+            status: 'ACTIVE',
+            subscriptionEndDate: newEndDate,
+            subscriptionTier: 'STANDARD',
+            autoConvertToSubscriber: asTrial,
+            updatedAt: serverTimestamp()
+          });
+        } else {
+          // If company doc doesn't exist, create it to avoid future errors
+          await setDoc(companyRef, {
+            name: foundUser.companyName || foundUser.displayName || 'Entreprise sans nom',
+            status: 'ACTIVE',
+            subscriptionEndDate: newEndDate,
+            subscriptionTier: 'STANDARD',
+            autoConvertToSubscriber: asTrial,
+            createdAt: Date.now(),
+            updatedAt: serverTimestamp()
+          });
+        }
       }
 
       await logAction(
@@ -802,7 +818,7 @@ function BusinessSubscriptionsView({ companies, paymentRequests = [] }: any) {
 
   const handleApprovePayment = async (request: any) => {
     try {
-      await handleUpgradeToSubscriber(request.companyId || request.userId, 30);
+      await handleUpgradeToSubscriber(request.userId || request.companyId, 30);
       
       await updateDoc(doc(db, 'payment_requests', request.id), {
         status: 'APPROVED',
@@ -825,8 +841,59 @@ function BusinessSubscriptionsView({ companies, paymentRequests = [] }: any) {
         customerName: request.companyName || request.email
       });
 
+      // Notification au client
+      await sendNotification({
+        companyId: request.companyId || request.userId,
+        userId: request.userId,
+        title: "✅ Abonnement Activé !",
+        message: `Bonne nouvelle ! Votre paiement (${request.amount} ${request.currency}) a été validé. Votre compte est désormais actif et vous avez accès à toutes les fonctionnalités.`,
+        type: 'success',
+        link: '/subscriptions'
+      });
+
+      // Notification to Admin
+      await sendNotification({
+        companyId: 'SYSTEM',
+        title: "💰 Recette Encaissée",
+        message: `Le paiement de l'entreprise ${request.companyName || 'un client'} (${request.amount} ${request.currency}) a été traité avec succès par ${auth.currentUser?.displayName || 'le système'}.`,
+        type: 'success'
+      });
+
     } catch (error) {
       console.error("Approve payment error:", error);
+    }
+  };
+
+  const handleRejectPayment = async (request: any) => {
+    const reason = prompt("Raison du refus (optionnel) :");
+    try {
+      await updateDoc(doc(db, 'payment_requests', request.id), {
+        status: 'REJECTED',
+        rejectedAt: serverTimestamp(),
+        rejectedBy: auth.currentUser?.uid,
+        rejectionReason: reason || "Référence non valide ou paiement non reçu."
+      });
+
+      // Notification au client
+      await sendNotification({
+        companyId: request.companyId || request.userId,
+        userId: request.userId,
+        title: "❌ Paiement Non Validé",
+        message: `Désolé, votre demande de validation (Réf: ${request.reference}) a été rejetée. Motif : ${reason || "Référence introuvable ou non conforme"}. Veuillez vérifier ou retenter l'opération.`,
+        type: 'error',
+        link: '/subscriptions'
+      });
+
+      await logAction(
+        'SYSTEM',
+        auth.currentUser?.uid || 'SYSTEM',
+        auth.currentUser?.displayName || 'Admin KONTROL',
+        "Abonnement: Refus de Paiement",
+        `Entreprise: ${request.companyName}. Réf: ${request.reference}. Raison: ${reason || "N/A"}`
+      );
+
+    } catch (error) {
+      console.error("Reject payment error:", error);
     }
   };
 
@@ -893,33 +960,46 @@ function BusinessSubscriptionsView({ companies, paymentRequests = [] }: any) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-amber-100">
-                {paymentRequests.map((req: any) => (
-                  <tr key={req.id} className="hover:bg-white transition-colors">
-                    <td className="px-6 py-4">
-                      <p className="text-sm font-bold text-kontrol-dark">{req.companyName}</p>
-                      <p className="text-[11px] text-kontrol-ink-muted">{req.email}</p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="px-3 py-1 bg-white border border-amber-200 rounded-lg text-[11px] font-mono font-bold text-amber-600">
-                        {req.reference}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm font-extrabold text-kontrol-dark">{formatCurrency(req.amount, req.currency)}</p>
-                    </td>
-                    <td className="px-6 py-4 text-[12px] text-kontrol-ink-soft">
-                      {new Date(req.createdAt?.toMillis ? req.createdAt.toMillis() : req.createdAt).toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button 
-                        onClick={() => handleApprovePayment(req)}
-                        className="px-4 py-2 bg-emerald-500 text-white rounded-xl text-[10px] font-extrabold uppercase tracking-widest hover:bg-emerald-600 transition-all flex items-center gap-2 ml-auto shadow-lg shadow-emerald-500/20"
-                      >
-                        <CheckCircle2 size={14} /> Valider
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {paymentRequests.map((req: any) => {
+                  const userLookup = allUsers.find(u => u.uid === req.userId || u.id === req.userId);
+                  const displayName = req.companyName || userLookup?.companyName || userLookup?.displayName || "Client Inconnu";
+                  
+                  return (
+                    <tr key={req.id} className="hover:bg-white transition-colors">
+                      <td className="px-6 py-4">
+                        <p className="text-sm font-bold text-kontrol-dark">{displayName}</p>
+                        <p className="text-[11px] text-kontrol-ink-muted">{req.email || userLookup?.email}</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="px-3 py-1 bg-white border border-amber-200 rounded-lg text-[11px] font-mono font-bold text-amber-600">
+                          {req.reference}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="text-sm font-extrabold text-kontrol-dark">{formatCurrency(req.amount, req.currency)}</p>
+                      </td>
+                      <td className="px-6 py-4 text-[12px] text-kontrol-ink-soft">
+                        {new Date(req.createdAt?.toMillis ? req.createdAt.toMillis() : req.createdAt).toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button 
+                            onClick={() => handleRejectPayment(req)}
+                            className="px-4 py-2 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-extrabold uppercase tracking-widest hover:bg-rose-100 transition-all border border-rose-100 shadow-sm"
+                          >
+                            Refuser
+                          </button>
+                          <button 
+                            onClick={() => handleApprovePayment(req)}
+                            className="px-4 py-2 bg-emerald-500 text-white rounded-xl text-[10px] font-extrabold uppercase tracking-widest hover:bg-emerald-600 transition-all flex items-center gap-2 shadow-lg shadow-emerald-500/20"
+                          >
+                            <CheckCircle2 size={14} /> Valider
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

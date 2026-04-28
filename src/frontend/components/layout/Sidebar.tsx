@@ -11,6 +11,7 @@ import {
   Shield, 
   LogOut,
   X,
+  Bell,
   LayoutDashboard,
   Boxes,
   Settings,
@@ -84,6 +85,7 @@ const erpNavSections: NavSection[] = [
     icon: Settings,
     items: [
       { id: 'system', label: 'Télémétrie', icon: Activity },
+      { id: 'notifications', label: 'Centre de Notifications', icon: Bell },
       { id: 'versions', label: 'Journal des Versions', icon: History },
       { id: 'updates', label: 'Mises à jour IA', icon: Sparkles },
     ]
@@ -145,6 +147,7 @@ const companyNavSections: NavSection[] = [
     icon: Settings,
     items: [
       { id: 'ai', label: 'Blue AI', icon: Brain },
+      { id: 'notifications', label: 'Notifications', icon: Bell },
       { id: 'profil', label: 'Mon profil', icon: UserCircle },
       { id: 'abonnements', label: 'Abonnement', icon: CreditCard },
       { id: 'utilisateurs', label: 'Utilisateurs', icon: Users },

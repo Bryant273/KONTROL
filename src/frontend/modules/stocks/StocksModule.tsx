@@ -27,6 +27,8 @@ import {
   OperationType
 } from '../../../api/firebase';
 
+import { ModuleActivityLog } from '../../components/common/ModuleActivityLog';
+
 interface StocksModuleProps {
   user: User;
   currentUserProfile: UserProfile | null;
@@ -427,6 +429,14 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
           )}
         </div>
       )}
+      {/* Activity Log */}
+      <div className="mt-8">
+        <ModuleActivityLog 
+          companyId={companyId} 
+          moduleName="Stock" 
+          title="Journal des mouvements" 
+        />
+      </div>
     </div>
   );
 }

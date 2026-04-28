@@ -1,8 +1,8 @@
 import { BaseFirestoreService } from './baseFirestoreService';
-import { Transaction } from '../../frontend/types';
+import { Transaction, UserProfile } from '../../frontend/types';
 import { User } from 'firebase/auth';
 import { where, orderBy, limit, query, collection, getDocs, doc, increment, writeBatch, getDoc, deleteDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, logAction } from '../firebase';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 
 export class TransactionService extends BaseFirestoreService<Transaction> {
@@ -10,7 +10,7 @@ export class TransactionService extends BaseFirestoreService<Transaction> {
     super('transactions');
   }
 
-  async createTransaction(transaction: Transaction, user: User) {
+  async createTransaction(transaction: Transaction, user: User, profile?: UserProfile | null) {
     try {
       const batch = writeBatch(db);
       
@@ -68,6 +68,18 @@ export class TransactionService extends BaseFirestoreService<Transaction> {
       }
 
       await batch.commit();
+
+      // Journalisation
+      if (profile) {
+        await logAction(
+          profile.companyId,
+          profile.uid,
+          profile.displayName,
+          transaction.type === 'VENTE' ? "VENTE" : "ACHAT",
+          `${transaction.type} #${transaction.reference} - Montant: ${transaction.montantTotal} ${transaction.devise}`
+        );
+      }
+
       return transactionId;
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'transactions', user);
@@ -75,7 +87,7 @@ export class TransactionService extends BaseFirestoreService<Transaction> {
     }
   }
 
-  async updateTransaction(id: string, updates: Partial<Transaction>, user: User) {
+  async updateTransaction(id: string, updates: Partial<Transaction>, user: User, profile?: UserProfile | null) {
     try {
       const batch = writeBatch(db);
       const transRef = doc(db, 'transactions', id);
@@ -128,13 +140,24 @@ export class TransactionService extends BaseFirestoreService<Transaction> {
       }
 
       await batch.commit();
+
+      // Journalisation
+      if (profile) {
+        await logAction(
+          profile.companyId,
+          profile.uid,
+          profile.displayName,
+          "MODIFICATION_TRANSACTION",
+          `Modification de la ${oldData.type} #${oldData.reference}`
+        );
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'transactions', user);
       throw error;
     }
   }
 
-  async deleteTransaction(id: string, user: User) {
+  async deleteTransaction(id: string, user: User, profile?: UserProfile | null) {
     try {
       const batch = writeBatch(db);
       
@@ -170,6 +193,17 @@ export class TransactionService extends BaseFirestoreService<Transaction> {
       batch.delete(doc(db, 'transactions', id));
 
       await batch.commit();
+
+      // Journalisation
+      if (profile) {
+        await logAction(
+          profile.companyId,
+          profile.uid,
+          profile.displayName,
+          "SUPPRESSION_TRANSACTION",
+          `Suppression de la ${transaction.type} #${transaction.reference}`
+        );
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, 'transactions', user);
       throw error;

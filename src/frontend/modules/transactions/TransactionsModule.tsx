@@ -70,18 +70,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
     if (!selectedTrans || !selectedId) return;
     setLoading(true);
     try {
-      await transactionService.deleteTransaction(selectedId, user);
-
-      if (currentUserProfile) {
-        await logAction(
-          companyId!,
-          user.uid,
-          currentUserProfile.displayName,
-          "Transaction: Supprimée",
-          `Réf: ${selectedTrans.reference}`
-        );
-      }
-
+      await transactionService.deleteTransaction(selectedId, user, currentUserProfile);
       setSelectedId(null);
       setIsDeleting(false);
     } catch (error) {
@@ -174,25 +163,15 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
         createdAt: Date.now()
       } as Transaction;
 
-      await transactionService.createTransaction(transData, user);
+      await transactionService.createTransaction(transData, user, currentUserProfile);
 
       // Notification
       await sendNotification({
         companyId: companyId,
-        title: newTrans.type === 'VENTE' ? "Nouvelle Vente" : "Nouvel Achat",
-        message: `${newTrans.type === 'VENTE' ? 'Vente effectuée' : 'Achat effectué'} pour un montant de ${formatCurrency(montantTotal)}. Réf: ${transData.reference}`,
+        title: newTrans.type === 'VENTE' ? "🎯 Vente Réalisée" : "🛍️ Achat Effectué",
+        message: `${newTrans.type === 'VENTE' ? 'Bravo ! Une nouvelle vente' : 'Un nouvel achat'} de ${formatCurrency(montantTotal)} vient d'être enregistré (Réf: ${transData.reference}).`,
         type: 'info'
       });
-
-      if (currentUserProfile) {
-        await logAction(
-          companyId,
-          user.uid,
-          currentUserProfile.displayName,
-          newTrans.type === 'VENTE' ? "Transaction: Vente" : "Transaction: Achat",
-          `Montant: ${formatCurrency(montantTotal)}`
-        );
-      }
       
       setMessage({ type: 'success', text: "Transaction enregistrée avec succès !" });
       setTimeout(() => {
@@ -299,16 +278,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
     if (!selectedId || !user) return;
     try {
       setLoading(true);
-      await transactionService.updateTransaction(selectedId, updates, user);
-      if (currentUserProfile) {
-        logAction(
-          companyId!, 
-          user.uid, 
-          currentUserProfile.displayName, 
-          `Transaction: Modifiée (${selectedTrans?.reference})`, 
-          'Mise à jour du statut ou mode de paiement'
-        );
-      }
+      await transactionService.updateTransaction(selectedId, updates, user, currentUserProfile);
     } catch (error) {
       console.error("Update error:", error);
     } finally {

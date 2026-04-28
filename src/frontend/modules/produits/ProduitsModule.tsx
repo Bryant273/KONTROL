@@ -79,7 +79,7 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
               ownerId: companyId,
               createdAt: Date.now()
             } as Produit;
-            await productService.createProduct(prodData, user);
+            await productService.createProduct(prodData, user, currentUserProfile);
             importedCount++;
           }
         }
@@ -155,17 +155,7 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
         createdAt: Date.now()
       } as Produit;
 
-      await productService.createProduct(prodData, user);
-
-      if (currentUserProfile) {
-        await logAction(
-          companyId!,
-          user.uid,
-          currentUserProfile.displayName,
-          "Produit: Créé",
-          `Désignation: ${currentProduit.designation}`
-        );
-      }
+      await productService.createProduct(prodData, user, currentUserProfile);
 
       setMessage({ type: 'success', text: "Produit enregistré avec succès !" });
       setTimeout(() => {
@@ -186,24 +176,14 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
     if (!selectedId) return;
     setLoading(true);
     try {
-      await productService.update(selectedId, {
+      await productService.updateProduct(selectedId, {
         reference: currentProduit.reference,
         designation: currentProduit.designation,
         prixAchat: Number(currentProduit.prixAchat),
         prixVente: Number(currentProduit.prixVente),
         alertStock: Number(currentProduit.alertStock),
         tva: Number(currentProduit.tva)
-      }, user);
-
-      if (currentUserProfile) {
-        await logAction(
-          companyId!,
-          user.uid,
-          currentUserProfile.displayName,
-          "Produit: Modifié",
-          `Désignation: ${currentProduit.designation}`
-        );
-      }
+      }, user, currentUserProfile);
 
       setIsEditing(false);
     } catch (error) {
@@ -217,18 +197,7 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
     if (!selectedId) return;
     setLoading(true);
     try {
-      await productService.delete(selectedId, user);
-
-      if (currentUserProfile) {
-        await logAction(
-          companyId!,
-          user.uid,
-          currentUserProfile.displayName,
-          "Produit: Supprimé",
-          `ID: ${selectedId}`
-        );
-      }
-
+      await productService.deleteProduct(selectedId, user, currentUserProfile);
       setSelectedId(null);
       setIsDeleting(false);
     } catch (error) {
