@@ -24,7 +24,9 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
-  Plus
+  Plus,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -41,7 +43,8 @@ import {
   getDocs,
   setDoc,
   getDoc,
-  deleteDoc
+  deleteDoc,
+  limitToLast
 } from '../../../api/firebase';
 import { UserProfile, UserRole } from '../../types';
 import { cn } from '../../lib/utils';
@@ -87,6 +90,8 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [messageLimit, setMessageLimit] = useState<number | null>(30);
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
   const [isCreatingChannel, setIsCreatingChannel] = useState(false);
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
@@ -155,11 +160,21 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
   useEffect(() => {
     if (!activeConversation) return;
 
-    const q = query(
-      collection(db, 'messages'),
-      where('conversationId', '==', activeConversation.id),
-      orderBy('timestamp', 'asc')
-    );
+    let q;
+    if (messageLimit) {
+      q = query(
+        collection(db, 'messages'),
+        where('conversationId', '==', activeConversation.id),
+        orderBy('timestamp', 'asc'),
+        limitToLast(messageLimit)
+      );
+    } else {
+      q = query(
+        collection(db, 'messages'),
+        where('conversationId', '==', activeConversation.id),
+        orderBy('timestamp', 'asc')
+      );
+    }
 
     const unsub = onSnapshot(q, (snap) => {
       const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Message));
@@ -167,9 +182,15 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
     });
 
     return () => unsub();
-  }, [activeConversation]);
+  }, [activeConversation, messageLimit]);
 
   // Mark messages as read
+  useEffect(() => {
+    if (!activeConversation) return;
+    setMessageLimit(30);
+    setIsExpanded(false);
+  }, [activeConversation?.id]);
+
   useEffect(() => {
     if (!activeConversation || messages.length === 0 || !user.uid) return;
     
@@ -363,6 +384,7 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
     setIsCreatingChannel(false);
     setShowMobileChat(false);
     setViewMode('CHAT');
+    setIsExpanded(false);
   };
 
   const clearChat = async () => {
@@ -398,7 +420,7 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
       {/* Sidebar */}
       <div className={cn(
         "w-full md:w-80 border-r border-kontrol-border flex flex-col bg-kontrol-bg/30 transition-all",
-        (showMobileChat || viewMode === 'MANAGE') ? "hidden md:flex" : "flex"
+        isExpanded ? "hidden" : (showMobileChat || viewMode === 'MANAGE') ? "hidden md:flex" : "flex"
       )}>
         <div className="p-6 space-y-4">
           <div className="flex items-center justify-between">
@@ -595,7 +617,7 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
                                   e.stopPropagation();
                                   setDeleteConfirmId(conv.id);
                                 }}
-                                className="opacity-0 group-hover:opacity-100 p-1 hover:text-rose-500 transition-all disabled:opacity-50"
+                                className="md:opacity-0 md:group-hover:opacity-100 p-1 hover:text-rose-500 transition-all disabled:opacity-50"
                               >
                                 <Trash2 size={12} />
                               </button>
@@ -670,7 +692,7 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
                                   e.stopPropagation();
                                   setDeleteConfirmId(conv.id);
                                 }}
-                                className="opacity-0 group-hover:opacity-100 p-1 hover:text-rose-500 transition-all disabled:opacity-50"
+                                className="md:opacity-0 md:group-hover:opacity-100 p-1 hover:text-rose-500 transition-all disabled:opacity-50"
                               >
                                 <Trash2 size={12} />
                               </button>
@@ -751,7 +773,7 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
                                   e.stopPropagation();
                                   setDeleteConfirmId(conv.id);
                                 }}
-                                className="opacity-0 group-hover:opacity-100 p-1 hover:text-rose-500 transition-all disabled:opacity-50"
+                                className="md:opacity-0 md:group-hover:opacity-100 p-1 hover:text-rose-500 transition-all disabled:opacity-50"
                               >
                                 <Trash2 size={12} />
                               </button>
@@ -784,6 +806,14 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
               )}
             </div>
           )}
+
+          {/* Mobile Floating Action Button */}
+          <button 
+            onClick={() => setIsSearching(true)}
+            className="md:hidden fixed bottom-6 right-6 w-14 h-14 bg-kontrol-blue text-white rounded-2xl shadow-xl shadow-kontrol-blue/40 flex items-center justify-center z-50 active:scale-95 transition-all"
+          >
+            <Plus size={24} strokeWidth={3} />
+          </button>
         </div>
       </div>
 
@@ -930,6 +960,16 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
                 </div>
               </div>
               <div className="flex items-center gap-1 md:gap-2 relative" ref={optionsRef}>
+                <button 
+                  onClick={() => {
+                    setIsExpanded(!isExpanded);
+                    if (!isExpanded) setMessageLimit(null);
+                  }}
+                  className="p-2 text-kontrol-ink-muted hover:text-kontrol-blue hover:bg-kontrol-bg rounded-lg transition-all"
+                  title={isExpanded ? "Réduire" : "Agrandir et voir tous les messages"}
+                >
+                  {isExpanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+                </button>
                 <button className="hidden sm:flex p-2 text-kontrol-ink-muted hover:text-kontrol-blue hover:bg-kontrol-bg rounded-lg transition-all"><Phone size={18} /></button>
                 <button className="hidden sm:flex p-2 text-kontrol-ink-muted hover:text-kontrol-blue hover:bg-kontrol-bg rounded-lg transition-all"><Video size={18} /></button>
                 <div className="hidden sm:block w-px h-6 bg-kontrol-border mx-1" />
@@ -979,6 +1019,16 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-kontrol-bg/10">
+              {messageLimit && messages.length >= messageLimit && (
+                <div className="flex justify-center pb-4">
+                  <button 
+                    onClick={() => setMessageLimit(null)}
+                    className="text-[10px] font-black uppercase tracking-widest text-kontrol-blue hover:bg-kontrol-blue hover:text-white border border-kontrol-blue/20 bg-white px-6 py-2.5 rounded-full transition-all shadow-sm"
+                  >
+                    Afficher tous les messages
+                  </button>
+                </div>
+              )}
               {messages.map((msg, i) => {
                 const isMine = msg.senderId === user.uid;
                 const showSender = i === 0 || messages[i-1].senderId !== msg.senderId;
@@ -1059,7 +1109,7 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
 
       {/* Right Section - Optional Info */}
       {activeConversation && (
-        <div className="w-72 border-l border-kontrol-border bg-white hidden xl:flex flex-col">
+        <div className={cn("w-72 border-l border-kontrol-border bg-white hidden xl:flex flex-col", isExpanded && "xl:hidden")}>
           <div className="p-8 text-center space-y-4">
             <div className="w-20 h-20 rounded-3xl bg-kontrol-blue/10 mx-auto flex items-center justify-center text-2xl font-bold text-kontrol-blue">
               {activeConversation.type === 'GROUP' ? <Users size={32} /> : activeConversation.type === 'CHANNEL' ? <Megaphone size={32} /> : (getOtherParticipant(activeConversation.participants)?.displayName?.charAt(0) || '?')}

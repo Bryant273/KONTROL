@@ -81,7 +81,7 @@ export function Header({ section, page, user, profile, onLogout, onTabChange, to
           {new Date().toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
         </div>
         
-        <NotificationCenter profile={profile} />
+        <NotificationCenter profile={profile} onNavigate={onTabChange} />
 
         <div className="relative" ref={dropdownRef}>
           <button 

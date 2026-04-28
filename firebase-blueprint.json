@@ -255,6 +255,25 @@
         "readBy": { "type": "array", "items": { "type": "string" } }
       },
       "required": ["conversationId", "senderId", "content", "timestamp"]
+    },
+    "payment_requests": {
+      "title": "Demandes de Paiement",
+      "description": "Demandes de validation de renouvellement d'abonnement (Paystack, etc.)",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "companyId": { "type": "string" },
+        "companyName": { "type": "string" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "reference": { "type": "string" },
+        "gateway": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED"] },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["userId", "companyId", "amount", "reference", "status", "createdAt"]
     }
   },
   "relations": {
@@ -282,6 +301,7 @@
     "/actions/{id}": { "schema": "actions", "description": "Journal d'activité" },
     "/notifications/{id}": { "schema": "notifications", "description": "Alertes et messages" },
     "/conversations/{id}": { "schema": "conversations", "description": "Sessions de chat" },
-    "/messages/{id}": { "schema": "messages", "description": "Messages de chat" }
+    "/messages/{id}": { "schema": "messages", "description": "Messages de chat" },
+    "/payment_requests/{id}": { "schema": "payment_requests", "description": "Demandes de validation de paiement" }
   }
 }

@@ -35,17 +35,37 @@ interface Notification {
   read: boolean;
   timestamp: number;
   companyId: string;
+  link?: string;
 }
 
 interface NotificationCenterProps {
   profile: UserProfile | null;
+  onNavigate?: (tab: string, section: string, label: string) => void;
 }
 
-export function NotificationCenter({ profile }: NotificationCenterProps) {
+export function NotificationCenter({ profile, onNavigate }: NotificationCenterProps) {
   const [notifications, setNotifications] = React.useState<Notification[]>([]);
   const [isOpen, setIsOpen] = React.useState(false);
   const [unreadCount, setUnreadCount] = React.useState(0);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  const handleNotificationClick = (notif: Notification) => {
+    if (!notif.read) {
+      markAsRead(notif.id);
+    }
+
+    if (notif.link && onNavigate) {
+      // Basic link parsing (e.g., /admin?tab=subscriptions)
+      if (notif.link.includes('admin')) {
+        onNavigate('admin', 'Système', 'Tour de contrôle');
+      } else if (notif.link.includes('tickets')) {
+        onNavigate('tickets', 'Support', 'Tickets Support');
+      } else if (notif.link.includes('subscriptions')) {
+        onNavigate('subscriptions', 'Entreprise', 'Mon Abonnement');
+      }
+      setIsOpen(false);
+    }
+  };
 
   React.useEffect(() => {
     if (!profile?.companyId) return;
@@ -159,10 +179,10 @@ export function NotificationCenter({ profile }: NotificationCenterProps) {
                 <div 
                   key={notif.id} 
                   className={cn(
-                    "p-4 flex gap-3 hover:bg-kontrol-bg/50 transition-colors group relative",
+                    "p-4 flex gap-3 hover:bg-kontrol-bg/50 transition-colors group relative cursor-pointer text-left w-full",
                     !notif.read && "bg-kontrol-blue/5"
                   )}
-                  onClick={() => !notif.read && markAsRead(notif.id)}
+                  onClick={() => handleNotificationClick(notif)}
                 >
                   <div className="shrink-0 mt-0.5">
                     {getTypeIcon(notif.type)}

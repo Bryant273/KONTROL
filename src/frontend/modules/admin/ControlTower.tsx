@@ -41,7 +41,8 @@ import {
   Download,
   Printer,
   Wallet as WalletIcon,
-  Edit2
+  Edit2,
+  Clock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -91,6 +92,7 @@ import { VersionControlView } from './VersionControlView';
 import { UpdatesView } from './UpdatesView';
 import { emailService } from '../../../api/services/emailService';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
+import { sendNotification } from '../../../api/services/notificationService';
 
 interface ControlTowerProps {
   activeSubTab?: string;
@@ -130,6 +132,7 @@ export function ControlTower({ activeSubTab = 'dashboard', user, profile }: Cont
   const [tickets, setTickets] = useState<any[]>([]);
   const [recentActions, setRecentActions] = useState<any[]>([]);
   const [revenueData, setRevenueData] = useState<any[]>([]);
+  const [paymentRequests, setPaymentRequests] = useState<any[]>([]);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [viewingCompanyId, setViewingCompanyId] = useState<string | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -250,23 +253,7 @@ export function ControlTower({ activeSubTab = 'dashboard', user, profile }: Cont
 
     // Live System Stats for Charts
     const unsubSysStats = onSnapshot(query(collection(db, 'system_stats'), orderBy('timestamp', 'asc')), (snap) => {
-      if (snap.empty) {
-        // Initialize if empty (async)
-        const init = async () => {
-          const initialStats = [
-            { date: '01/04', mrr: 450000, churn: 12000, timestamp: Date.now() - 86400000 * 14 },
-            { date: '05/04', mrr: 520000, churn: 15000, timestamp: Date.now() - 86400000 * 10 },
-            { date: '10/04', mrr: 480000, churn: 10000, timestamp: Date.now() - 86400000 * 5 },
-            { date: '15/04', mrr: 610000, churn: 18000, timestamp: Date.now() }
-          ];
-          for (const s of initialStats) {
-            await addDoc(collection(db, 'system_stats'), s);
-          }
-        };
-        init();
-      } else {
-        setSystemStats(snap.docs.map(d => d.data()));
-      }
+      setSystemStats(snap.docs.map(d => d.data()));
     });
     unsubscribes.push(unsubSysStats);
 
@@ -281,6 +268,12 @@ export function ControlTower({ activeSubTab = 'dashboard', user, profile }: Cont
     unsubscribes.push(onSnapshot(qTickets, (snap) => {
       setTickets(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       setStats(prev => ({ ...prev, pendingTickets: snap.docs.filter(d => d.data().status === 'NEW').length }));
+    }));
+
+    // Live Payment Requests
+    const qPayments = query(collection(db, 'payment_requests'), where('status', '==', 'PENDING'), orderBy('createdAt', 'desc'));
+    unsubscribes.push(onSnapshot(qPayments, (snap) => {
+      setPaymentRequests(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     }));
 
     // Live System Metrics
@@ -395,7 +388,7 @@ export function ControlTower({ activeSubTab = 'dashboard', user, profile }: Cont
       {/* Main Content Dispatcher */}
       <AnimatePresence mode="wait">
         {activeSubTab === 'dashboard' && <VisionView stats={stats} companies={companies} recentActions={recentActions} treasuryBalance={treasuryBalance} systemStats={systemStats} />}
-        {activeSubTab === 'subscriptions' && <BusinessSubscriptionsView companies={companies} />}
+        {activeSubTab === 'subscriptions' && <BusinessSubscriptionsView companies={companies} paymentRequests={paymentRequests} />}
         {activeSubTab === 'revenue' && <FinancialAnalyticsView stats={stats} systemStats={systemStats} />}
         {activeSubTab === 'accounting' && <ControlTowerTreasuryView />}
         {activeSubTab === 'transactions' && <ControlTowerTransactionsView />}
@@ -748,28 +741,92 @@ function VisionView({ stats, companies, recentActions, treasuryBalance, systemSt
   );
 }
 
-function BusinessSubscriptionsView({ companies }: any) {
-  const handleUpgradeToSubscriber = async (companyId: string) => {
+function BusinessSubscriptionsView({ companies, paymentRequests = [] }: any) {
+  const [trialDays, setTrialDays] = useState('30');
+  const [isProcessing, setIsProcessing] = useState<string | null>(null);
+
+  const handleUpgradeToSubscriber = async (companyId: string, daysToAdd: number = 30, asTrial: boolean = false) => {
+    setIsProcessing(companyId);
     try {
-      const companyRef = doc(db, 'users', companyId);
-      const endDate = new Date();
-      endDate.setMonth(endDate.getMonth() + 1);
+      const userRef = doc(db, 'users', companyId);
       
-      await updateDoc(companyRef, {
+      const foundUser = companies.find((u: any) => u.id === companyId || u.uid === companyId || u.companyId === companyId);
+      const currentEnd = foundUser?.subscriptionEndDate ? new Date(foundUser.subscriptionEndDate) : new Date();
+      const baseDate = currentEnd > new Date() ? currentEnd : new Date();
+      baseDate.setDate(baseDate.getDate() + daysToAdd);
+      const newEndDate = baseDate.getTime();
+      
+      await updateDoc(userRef, {
         subscriptionStatus: 'ACTIVE',
-        subscriptionEndDate: endDate.getTime(),
-        isDemo: false
+        subscriptionEndDate: newEndDate,
+        isDemo: asTrial,
+        subscriptionTier: 'STANDARD', // Standard only
+        autoConvertToSubscriber: asTrial,
+        updatedAt: serverTimestamp()
       });
+
+      if (foundUser?.companyId) {
+        await updateDoc(doc(db, 'companies', foundUser.companyId), {
+          status: 'ACTIVE',
+          subscriptionEndDate: newEndDate,
+          subscriptionTier: 'STANDARD',
+          autoConvertToSubscriber: asTrial,
+          updatedAt: serverTimestamp()
+        });
+      }
 
       await logAction(
         'SYSTEM',
         auth.currentUser?.uid || 'SYSTEM',
         auth.currentUser?.displayName || 'Admin KONTROL',
-        "Abonnement: Passage en Abonné",
-        `Entreprise ID: ${companyId}`
+        asTrial ? "Abonnement: Activation Période d'Essai" : "Abonnement: Activation/Prolongation Standard",
+        `Entreprise: ${foundUser?.companyName || foundUser?.displayName}. Nouvelle échéance: ${new Date(newEndDate).toLocaleDateString()} (+${daysToAdd} jours)`
       );
+
+      // Notification au client
+      await sendNotification({
+        companyId: foundUser?.companyId || companyId,
+        userId: companyId,
+        title: asTrial ? "Période d'essai activée" : "Abonnement KONTROL activé",
+        message: asTrial 
+          ? `Votre période d'essai de ${daysToAdd} jours est active. Profitez de toutes les fonctionnalités jusqu'au ${new Date(newEndDate).toLocaleDateString()}.`
+          : `Votre abonnement Standard a été renouvelé avec succès. Prochaine échéance le ${new Date(newEndDate).toLocaleDateString()}.`,
+        type: 'success'
+      });
     } catch (error) {
       console.error("Upgrade error:", error);
+    } finally {
+      setIsProcessing(null);
+    }
+  };
+
+  const handleApprovePayment = async (request: any) => {
+    try {
+      await handleUpgradeToSubscriber(request.companyId || request.userId, 30);
+      
+      await updateDoc(doc(db, 'payment_requests', request.id), {
+        status: 'APPROVED',
+        approvedAt: serverTimestamp(),
+        approvedBy: auth.currentUser?.uid
+      });
+
+      await addDoc(collection(db, 'payments'), {
+        ownerId: 'SYSTEM',
+        type: 'ENCAISSEMENT',
+        montant: request.amount,
+        devise: request.currency,
+        description: `Validation Paystack - ${request.companyName}`,
+        date: Date.now(),
+        timestamp: serverTimestamp(),
+        reference: request.reference,
+        category: 'SUBSCRIPTION',
+        companyId: request.companyId,
+        userId: request.userId,
+        customerName: request.companyName || request.email
+      });
+
+    } catch (error) {
+      console.error("Approve payment error:", error);
     }
   };
 
@@ -805,14 +862,69 @@ function BusinessSubscriptionsView({ companies }: any) {
           </h3>
           <p className="text-[11px] text-emerald-600 font-bold mt-2">Générateurs de Revenus</p>
         </div>
-        <div className="card p-8">
-          <p className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted mb-2">Expirés / Essai</p>
-          <h3 className="text-4xl font-extrabold text-kontrol-dark tracking-tighter">
-            {companies.filter((c: any) => c.subscriptionStatus !== 'ACTIVE').length}
+        <div className="card p-8 bg-amber-50 border-amber-100">
+          <p className="text-[10px] font-extrabold uppercase tracking-widest text-amber-600 mb-2">Validations en Attente</p>
+          <h3 className="text-4xl font-extrabold text-amber-700 tracking-tighter">
+            {paymentRequests.length}
           </h3>
-          <p className="text-[11px] text-rose-600 font-bold mt-2">Action Requise</p>
+          <p className="text-[11px] text-amber-600 font-bold mt-2">Action Requise</p>
         </div>
       </div>
+
+      {paymentRequests.length > 0 && (
+        <div className="card border-amber-200 shadow-xl shadow-amber-500/5">
+          <div className="p-6 border-b border-amber-100 bg-amber-50/50 flex items-center justify-between">
+            <h3 className="text-sm font-extrabold uppercase tracking-tighter text-amber-900 flex items-center gap-2">
+              <Clock size={18} /> Demandes de Validation (Paystack)
+            </h3>
+            <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-lg text-[10px] font-bold uppercase tracking-widest">
+              Action Priority
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-amber-50/30 border-b border-amber-100">
+                  <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-amber-700">Client / Entreprise</th>
+                  <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-amber-700">Référence</th>
+                  <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-amber-700">Montant</th>
+                  <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-amber-700">Date</th>
+                  <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-amber-700 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-amber-100">
+                {paymentRequests.map((req: any) => (
+                  <tr key={req.id} className="hover:bg-white transition-colors">
+                    <td className="px-6 py-4">
+                      <p className="text-sm font-bold text-kontrol-dark">{req.companyName}</p>
+                      <p className="text-[11px] text-kontrol-ink-muted">{req.email}</p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="px-3 py-1 bg-white border border-amber-200 rounded-lg text-[11px] font-mono font-bold text-amber-600">
+                        {req.reference}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <p className="text-sm font-extrabold text-kontrol-dark">{formatCurrency(req.amount, req.currency)}</p>
+                    </td>
+                    <td className="px-6 py-4 text-[12px] text-kontrol-ink-soft">
+                      {new Date(req.createdAt?.toMillis ? req.createdAt.toMillis() : req.createdAt).toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button 
+                        onClick={() => handleApprovePayment(req)}
+                        className="px-4 py-2 bg-emerald-500 text-white rounded-xl text-[10px] font-extrabold uppercase tracking-widest hover:bg-emerald-600 transition-all flex items-center gap-2 ml-auto shadow-lg shadow-emerald-500/20"
+                      >
+                        <CheckCircle2 size={14} /> Valider
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div className="card overflow-hidden">
         <div className="p-6 border-b border-kontrol-border flex items-center justify-between">
@@ -858,18 +970,37 @@ function BusinessSubscriptionsView({ companies }: any) {
                     {company.subscriptionEndDate ? new Date(company.subscriptionEndDate).toLocaleDateString() : 'N/A'}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      {company.isDemo && (
+                    <div className="flex items-center justify-end gap-3">
+                      <div className="flex items-center gap-1.5 bg-kontrol-bg rounded-lg px-2 py-1">
+                        <span className="text-[10px] font-bold text-kontrol-ink-muted">Jours:</span>
+                        <input 
+                          type="number"
+                          className="w-10 bg-transparent text-[11px] font-extrabold focus:outline-none"
+                          value={trialDays}
+                          onChange={(e) => setTrialDays(e.target.value)}
+                        />
+                      </div>
+                      
+                      <div className="flex gap-1">
                         <button 
-                          onClick={() => handleUpgradeToSubscriber(company.id)}
-                          className="px-3 py-1.5 bg-emerald-500 text-white text-[10px] font-extrabold uppercase tracking-widest rounded-lg hover:bg-emerald-600 transition-all flex items-center gap-2"
+                          onClick={() => handleUpgradeToSubscriber(company.id || company.uid, parseInt(trialDays), true)}
+                          disabled={isProcessing === (company.id || company.uid)}
+                          className="px-3 py-2 bg-amber-500 text-white rounded-xl text-[10px] font-extrabold uppercase tracking-widest hover:opacity-90 transition-all flex items-center gap-2"
+                          title="Activer une période d'essai"
                         >
-                          <CheckCircle2 size={12} /> Passer en Abonné
+                          {isProcessing === (company.id || company.uid) ? <Loader2 size={12} className="animate-spin" /> : <Clock size={14} />} 
+                          Essai
                         </button>
-                      )}
-                      <button className="p-2 text-kontrol-blue hover:bg-kontrol-blue/10 rounded-lg transition-all" title="Modifier">
-                        <Edit2 size={16} />
-                      </button>
+                        <button 
+                          onClick={() => handleUpgradeToSubscriber(company.id || company.uid, parseInt(trialDays), false)}
+                          disabled={isProcessing === (company.id || company.uid)}
+                          className="px-3 py-2 bg-kontrol-blue text-white rounded-xl text-[10px] font-extrabold uppercase tracking-widest hover:opacity-90 transition-all flex items-center gap-2"
+                          title="Passer en abonnement payant"
+                        >
+                          {isProcessing === (company.id || company.uid) ? <Loader2 size={12} className="animate-spin" /> : <Zap size={14} />} 
+                          Abonner
+                        </button>
+                      </div>
                     </div>
                   </td>
                 </tr>
@@ -1133,6 +1264,19 @@ function EcosystemCompaniesView({ companies, allUsers, onDetail, onEdit, onDelet
 }
 
 function EcosystemUsersView({ users, onDetail, onEdit, onDelete }: any) {
+  const sortedUsers = [...users].sort((a: any, b: any) => {
+    // Priority: ERP Admin > Enterprise Admin > Others
+    const getPriority = (role: string) => {
+      if (role?.includes('ERP') || role?.includes('KONTROL')) return 0;
+      if (role === 'ADMINISTRATEUR_ENTREPRISE') return 1;
+      return 2;
+    };
+    const pA = getPriority(a.role);
+    const pB = getPriority(b.role);
+    if (pA !== pB) return pA - pB;
+    return (a.companyName || '').localeCompare(b.companyName || '');
+  });
+
   return (
     <motion.div 
       initial={{ opacity: 0, x: 20 }}
@@ -1143,7 +1287,7 @@ function EcosystemUsersView({ users, onDetail, onEdit, onDelete }: any) {
         <div className="p-6 border-b border-kontrol-border flex items-center justify-between bg-kontrol-bg/30">
           <h3 className="text-[11px] font-extrabold uppercase tracking-widest">Répertoire Global des Utilisateurs</h3>
           <div className="flex gap-4">
-            <span className="text-[10px] font-bold text-kontrol-ink-muted uppercase">Total Noeuds: {users.length}</span>
+            <span className="text-[10px] font-bold text-kontrol-ink-muted uppercase">Nodes Totaux: {users.length}</span>
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -1151,35 +1295,50 @@ function EcosystemUsersView({ users, onDetail, onEdit, onDelete }: any) {
             <thead>
               <tr className="bg-kontrol-bg/50 border-b border-kontrol-border">
                 <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Utilisateur</th>
-                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Rôle</th>
-                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Entreprise</th>
-                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Dernière Activité</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Rôle & Rang</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Affiliation</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Activité</th>
                 <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-kontrol-border">
-              {users.map((user: any) => (
-                <tr key={user.id} className="hover:bg-kontrol-bg/30 transition-colors">
+              {sortedUsers.map((user: any) => (
+                <tr key={user.id} className="hover:bg-kontrol-bg/30 transition-colors group">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-kontrol-blue/10 flex items-center justify-center text-kontrol-blue font-bold text-[10px]">
+                      <div className={cn(
+                        "w-8 h-8 rounded-full flex items-center justify-center font-bold text-[10px]",
+                        user.role?.includes('ERP') || user.role?.includes('KONTROL') 
+                          ? "bg-kontrol-blue text-white shadow-lg shadow-kontrol-blue/20" 
+                          : "bg-kontrol-blue/10 text-kontrol-blue"
+                      )}>
                         {user.displayName?.charAt(0) || user.email?.charAt(0)}
                       </div>
                       <div>
-                        <p className="text-[13px] font-bold text-kontrol-dark">{user.displayName || 'N/A'}</p>
+                        <p className="text-[13px] font-bold text-kontrol-dark uppercase tracking-tight">{user.displayName || 'N/A'}</p>
                         <p className="text-[11px] text-kontrol-ink-muted">{user.email}</p>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="text-[10px] font-bold text-kontrol-ink-soft uppercase tracking-tighter bg-kontrol-bg px-2 py-0.5 rounded">
+                    <span className={cn(
+                      "text-[10px] font-extrabold px-2 py-0.5 rounded uppercase tracking-tighter",
+                      user.role?.includes('ERP') || user.role?.includes('KONTROL') 
+                        ? "bg-kontrol-blue/10 text-kontrol-blue border border-kontrol-blue/20" 
+                        : "bg-kontrol-bg text-kontrol-ink-soft border border-kontrol-border"
+                    )}>
                       {formatRole(user.role)}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-[12px] text-kontrol-ink-soft">
-                    {user.companyName || 'Admin Global'}
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                       <Building2 size={12} className="text-kontrol-ink-muted" />
+                       <span className="text-[12px] font-medium text-kontrol-ink-soft">
+                        {user.companyName || 'Système KONTROL'}
+                       </span>
+                    </div>
                   </td>
-                  <td className="px-6 py-4 text-[11px] text-kontrol-ink-muted">
+                  <td className="px-6 py-4 text-[11px] text-kontrol-ink-muted font-mono">
                     {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'Jamais'}
                   </td>
                   <td className="px-6 py-4 text-right">

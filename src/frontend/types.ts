@@ -22,8 +22,11 @@ export interface UserProfile {
   logoUrl?: string;
   isProfileComplete: boolean;
   active: boolean;
+  isDemo?: boolean;
   subscriptionStatus?: 'ACTIVE' | 'EXPIRED' | 'TRIAL';
+  subscriptionTier?: 'STANDARD' | 'PRO' | 'ENTERPRISE';
   subscriptionEndDate?: number;
+  autoConvertToSubscriber?: boolean;
   lastLogin?: number;
   createdAt: number;
   password?: string;
@@ -43,7 +46,10 @@ export interface Company {
   address?: string;
   sector?: string;
   status: 'ACTIVE' | 'INACTIVE' | 'PENDING';
-  subscriptionTier: 'BASIC' | 'PRO' | 'ENTERPRISE';
+  subscriptionTier: 'STANDARD' | 'PRO' | 'ENTERPRISE' | 'BASIC';
+  isDemo?: boolean;
+  subscriptionEndDate?: number;
+  autoConvertToSubscriber?: boolean;
   createdAt: number;
 }
 
@@ -146,6 +152,8 @@ export interface Payment {
 
 export interface Ticket {
   id: string;
+  userId?: string;
+  companyId?: string;
   subject: string;
   message: string;
   email: string;

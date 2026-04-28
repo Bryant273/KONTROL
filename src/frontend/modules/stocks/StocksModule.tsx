@@ -14,6 +14,7 @@ import {
 import { exportToPDF, exportToExcel } from '../../lib/export';
 import { StockMovement, Produit, UserProfile } from '../../types';
 import { cn, formatCurrency } from '../../lib/utils';
+import { sendNotification } from '../../../api/services/notificationService';
 import { 
   db, 
   collection, 
@@ -71,8 +72,22 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
       orderBy('designation', 'asc')
     );
     unsubscribes.push(onSnapshot(qProduits, (snapshot) => {
-      setProduits(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Produit[]);
+      const pData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Produit[];
+      setProduits(pData);
       setLoading(false);
+
+      // Simple low stock detection logic
+      pData.forEach(p => {
+        if (p.stock <= 5 && !sessionStorage.getItem(`notif_low_stock_${p.id}`)) {
+          sendNotification({
+            companyId: companyId,
+            title: "Alerte Stock Bas",
+            message: `Le produit "${p.designation}" est presque en rupture (${p.stock} restants).`,
+            type: 'warning'
+          });
+          sessionStorage.setItem(`notif_low_stock_${p.id}`, 'true');
+        }
+      });
     }, (error) => {
       console.error("Produits list error in Stocks:", error);
       try {

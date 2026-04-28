@@ -24,6 +24,7 @@ import {
 import { GoogleGenAI } from "@google/genai";
 import { exportToPDF } from '../../lib/export';
 import Markdown from 'react-markdown';
+import { sendNotification } from '../../../api/services/notificationService';
 import { 
   BarChart, 
   Bar, 
@@ -100,7 +101,6 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
   const [codeAnalysis, setCodeAnalysis] = React.useState('');
   const [isAnalyzing, setIsAnalyzing] = React.useState(false);
   const [isAnalyzingCode, setIsAnalyzingCode] = React.useState(false);
-  const [isSeeding, setIsSeeding] = React.useState(false);
   
   // Pagination states
   const [ticketsPage, setTicketsPage] = React.useState(1);
@@ -145,7 +145,17 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
         months[month] = (months[month] || 0) + (doc.data().montantTotal || 0);
       });
 
-      const chartData = Object.entries(months).map(([month, total]) => ({ month, total }));
+      const sortedMonths = Object.entries(months).sort((a, b) => {
+        const monthsOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const monthsOrderFr = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+        const getIdx = (m: string) => {
+          const idx = monthsOrder.indexOf(m);
+          return idx !== -1 ? idx : monthsOrderFr.indexOf(m.toLowerCase());
+        };
+        return getIdx(a[0]) - getIdx(b[0]);
+      });
+
+      const chartData = sortedMonths.map(([month, total]) => ({ month, total }));
       setGlobalStats(prev => ({ ...prev, totalRevenue: total, revenueData: chartData }));
     });
 
@@ -174,94 +184,6 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
       unsubActions();
     };
   }, [isKontrolAdmin]);
-
-  const handleSeedData = async () => {
-    if (!isKontrolAdmin) return;
-    setIsSeeding(true);
-    try {
-      // Seed Users
-      await addDoc(collection(db, 'users'), {
-        uid: 'seed-user-1',
-        email: 'seed@kontrol.com',
-        displayName: 'Utilisateur Test',
-        role: 'GESTIONNAIRE_ENTREPRISE',
-        companyId: 'seed-company-1',
-        companyName: 'Entreprise Test',
-        isProfileComplete: true,
-        createdAt: Date.now()
-      });
-
-      // Seed Companies
-      await addDoc(collection(db, 'companies'), {
-        name: 'Entreprise Test',
-        email: 'contact@seed.com',
-        status: 'ACTIVE',
-        createdAt: Date.now()
-      });
-
-      // Seed Tiers
-      await addDoc(collection(db, 'tiers'), {
-        nom: 'Client Test',
-        type: 'CLIENT',
-        statut: 'ACTIF',
-        ownerId: 'seed-company-1',
-        createdAt: Date.now()
-      });
-
-      // Seed Produits
-      await addDoc(collection(db, 'produits'), {
-        reference: 'PROD-001',
-        designation: 'Produit Test',
-        prixVente: 1000,
-        stock: 50,
-        ownerId: 'seed-company-1',
-        createdAt: Date.now()
-      });
-
-      // Seed Transactions
-      await addDoc(collection(db, 'transactions'), {
-        reference: 'V-001',
-        date: Date.now(),
-        type: 'VENTE',
-        tiersId: 'seed-client-1',
-        tiersNom: 'Client Test',
-        montantTotal: 5000,
-        devise: 'FCFA',
-        modePaiement: 'CASH',
-        statut: 'PAYE',
-        ownerId: 'seed-company-1',
-        createdAt: Date.now(),
-        articles: []
-      });
-
-      // Seed Wallets
-      await addDoc(collection(db, 'wallets'), {
-        nom: 'Caisse Centrale',
-        type: 'CASH',
-        solde: 100000,
-        devise: 'FCFA',
-        ownerId: 'seed-company-1',
-        createdAt: Date.now()
-      });
-
-      // Seed Tickets
-      await addDoc(collection(db, 'tickets'), {
-        name: 'John Doe',
-        email: 'john@example.com',
-        subject: 'Besoin d\'aide',
-        message: 'Ceci est un ticket de test.',
-        status: 'NEW',
-        priority: 'MEDIUM',
-        createdAt: Date.now()
-      });
-
-      console.log("Base de données initialisée avec succès !");
-    } catch (error) {
-      console.error("Erreur lors du seeding:", error);
-    } finally {
-      setIsSeeding(false);
-    }
-  };
 
   const handleAIAnalysis = async () => {
     setIsAIModalOpen(true);
@@ -603,7 +525,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
             <p className="text-[12px] text-kontrol-ink-muted">Supervision de l'écosystème global • v2.4.0-stable</p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex flex-col items-end mr-4">
+            <div className="flex flex-col items-end">
               <span className="text-[10px] font-bold text-kontrol-ink-muted uppercase tracking-widest">Server Load</span>
               <div className="flex gap-1 mt-1">
                 {[1, 2, 3, 4, 5].map(i => (
@@ -611,14 +533,6 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
                 ))}
               </div>
             </div>
-            <button 
-              onClick={handleSeedData}
-              disabled={isSeeding}
-              className="px-4 py-2 bg-kontrol-dark text-white text-[10px] font-extrabold uppercase tracking-widest flex items-center gap-2 hover:bg-kontrol-blue transition-all disabled:opacity-50"
-            >
-              {isSeeding ? <Loader2 className="animate-spin" size={12} /> : <Zap size={12} />}
-              System Init
-            </button>
           </div>
         </header>
 

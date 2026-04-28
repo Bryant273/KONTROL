@@ -13,6 +13,7 @@ service cloud.firestore {
         request.auth.token.email.matches("(?i)acherie812@gmail.com") ||
         request.auth.token.email.matches("(?i)innov.korp@gmail.com") ||
         request.auth.token.email.matches("(?i)test-admin@kontrol.com") ||
+        request.auth.token.email.matches("(?i)test-entreprise@kontrol.com") ||
         request.auth.uid == "rUoZMJc1YqgxGLSL8Oo2dKYA10Y2"
       );
     }
@@ -133,7 +134,10 @@ service cloud.firestore {
     }
 
     match /tickets/{id} {
-      allow read: if isKontrolAdmin() || (isAuthenticated() && resource.data.email == request.auth.token.email);
+      allow read: if isKontrolAdmin() || (isAuthenticated() && (
+        resource.data.userId == request.auth.uid || 
+        resource.data.email == request.auth.token.email
+      ));
       allow create: if true;
       allow update, delete: if isKontrolAdmin();
     }
@@ -166,28 +170,48 @@ service cloud.firestore {
       allow write: if isKontrolAdmin();
     }
 
+    match /payment_requests/{id} {
+      allow read: if isKontrolAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isKontrolAdmin();
+    }
+
     match /conversations/{id} {
-      allow read: if isAuthenticated() && (request.auth.uid in resource.data.participants || isKontrolAdmin());
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.userId || 
+        (resource.data.keys().hasAll(['participants']) && request.auth.uid in resource.data.participants) || 
+        isKontrolAdmin()
+      );
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (request.auth.uid in resource.data.participants || isKontrolAdmin());
+      allow update: if isAuthenticated() && (
+        request.auth.uid == resource.data.userId || 
+        (resource.data.keys().hasAll(['participants']) && request.auth.uid in resource.data.participants) || 
+        isKontrolAdmin()
+      );
       allow delete: if isKontrolAdmin();
     }
 
     match /messages/{id} {
       allow read: if isAuthenticated() && (
         isKontrolAdmin() || 
-        (exists(/databases/$(database)/documents/conversations/$(resource.data.conversationId)) &&
-         request.auth.uid in get(/databases/$(database)/documents/conversations/$(resource.data.conversationId)).data.participants)
+        (exists(/databases/$(database)/documents/conversations/$(resource.data.conversationId)) && (
+          get(/databases/$(database)/documents/conversations/$(resource.data.conversationId)).data.userId == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/conversations/$(resource.data.conversationId)).data.participants
+        ))
       );
       allow create: if isAuthenticated() && (
         isKontrolAdmin() || 
-        (exists(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId)) &&
-         request.auth.uid in get(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId)).data.participants)
+        (exists(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId)) && (
+          get(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId)).data.userId == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId)).data.participants
+        ))
       );
       allow update: if isAuthenticated() && (
         isKontrolAdmin() || 
-        (exists(/databases/$(database)/documents/conversations/$(resource.data.conversationId)) &&
-         request.auth.uid in get(/databases/$(database)/documents/conversations/$(resource.data.conversationId)).data.participants)
+        (exists(/databases/$(database)/documents/conversations/$(resource.data.conversationId)) && (
+          get(/databases/$(database)/documents/conversations/$(resource.data.conversationId)).data.userId == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/conversations/$(resource.data.conversationId)).data.participants
+        ))
       );
       allow delete: if isKontrolAdmin();
     }

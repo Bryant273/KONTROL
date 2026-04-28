@@ -15,7 +15,8 @@ import {
   FileText,
   Table,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Plus
 } from 'lucide-react';
 import { 
   collection, 
@@ -25,7 +26,8 @@ import {
   doc, 
   updateDoc, 
   deleteDoc,
-  where 
+  where,
+  addDoc 
 } from 'firebase/firestore';
 import { 
   db,
@@ -37,6 +39,7 @@ import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { exportToPDF, exportToExcel } from '../../lib/export';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
+import { sendNotification } from '../../../api/services/notificationService';
 
 interface TicketsModuleProps {
   user: any;
@@ -50,8 +53,37 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
   const [statusFilter, setStatusFilter] = React.useState<string>('ALL');
   const [selectedTicket, setSelectedTicket] = React.useState<Ticket | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [isCreating, setIsCreating] = React.useState(false);
   const [currentPage, setCurrentPage] = React.useState(1);
+  const [newTicket, setNewTicket] = React.useState({ subject: '', message: '' });
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
   const itemsPerPage = 10;
+
+  const isKontrolAdmin = ['ADMINISTRATEUR_ERP', 'GESTIONNAIRE_ERP', 'ADMINISTRATEUR_KONTROL', 'GESTIONNAIRE_KONTROL', 'ADMIN', 'SUPER_ADMIN'].includes(currentUserProfile?.role || '');
+
+  const handleCreateTicket = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTicket.subject || !newTicket.message) return;
+
+    setIsSubmitting(true);
+    try {
+      await addDoc(collection(db, 'tickets'), {
+        name: currentUserProfile?.displayName || user.displayName || 'Utilisateur K',
+        email: user.email,
+        subject: newTicket.subject,
+        message: newTicket.message,
+        status: 'NEW',
+        createdAt: new Date().toISOString(),
+        userId: user.uid
+      });
+      setNewTicket({ subject: '', message: '' });
+      setIsCreating(false);
+    } catch (error) {
+      console.error("Error creating ticket:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleExportPDF = () => {
     const headers = ['Date', 'Client', 'E-mail', 'Sujet', 'Statut'];
@@ -79,8 +111,6 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
   React.useEffect(() => {
     if (!user?.email) return;
 
-    const isKontrolAdmin = ['ADMINISTRATEUR_ERP', 'GESTIONNAIRE_ERP', 'ADMINISTRATEUR_KONTROL', 'GESTIONNAIRE_KONTROL', 'ADMIN'].includes(currentUserProfile?.role || '');
-    
     const q = isKontrolAdmin 
       ? query(collection(db, 'tickets'), orderBy('createdAt', 'desc'))
       : query(collection(db, 'tickets'), where('email', '==', user.email), orderBy('createdAt', 'desc'));
@@ -98,7 +128,22 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
 
   const handleUpdateStatus = async (ticketId: string, newStatus: Ticket['status']) => {
     try {
-      await updateDoc(doc(db, 'tickets', ticketId), { status: newStatus });
+      await updateDoc(doc(db, 'tickets', ticketId), { 
+        status: newStatus,
+        updatedAt: new Date().toISOString()
+      });
+      
+      const ticketObj = tickets.find(t => t.id === ticketId);
+      if (ticketObj?.userId) {
+        await sendNotification({
+          companyId: ticketObj.companyId || '',
+          userId: ticketObj.userId,
+          title: "Mise à jour de votre ticket",
+          message: `Le statut de votre ticket "${ticketObj.subject}" est passé à : ${getStatusLabel(newStatus)}.`,
+          type: newStatus === 'CLOSED' ? 'success' : 'info'
+        });
+      }
+
       if (selectedTicket?.id === ticketId) {
         setSelectedTicket(prev => prev ? { ...prev, status: newStatus } : null);
       }
@@ -169,6 +214,14 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
           <p className="text-[13px] text-kontrol-ink-muted mt-1">Gérez les demandes d'assistance reçues via le site web</p>
         </div>
         <div className="flex gap-2">
+          {!isKontrolAdmin && (
+            <button 
+              onClick={() => setIsCreating(true)}
+              className="btn-primary text-xs py-1.5 px-4 flex items-center gap-2 shadow-lg shadow-kontrol-blue/20"
+            >
+              <Plus size={14} /> Nouveau Ticket
+            </button>
+          )}
           <button 
             onClick={handleExportPDF}
             className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2"
@@ -461,6 +514,89 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
         confirmLabel="Supprimer"
         variant="danger"
       />
+
+      {/* Creation Modal */}
+      <AnimatePresence>
+        {isCreating && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsCreating(false)}
+              className="absolute inset-0 bg-kontrol-dark/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-lg bg-white rounded-[2rem] shadow-2xl overflow-hidden"
+            >
+              <div className="p-8 border-b border-kontrol-border bg-kontrol-bg/30">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="text-xl font-extrabold text-kontrol-dark tracking-tight">Ouvrir un nouveau ticket</h3>
+                    <p className="text-[13px] text-kontrol-ink-muted">Expliquez-nous votre problème en détail.</p>
+                  </div>
+                  <button 
+                    onClick={() => setIsCreating(false)}
+                    className="p-2 hover:bg-white rounded-xl text-kontrol-ink-muted transition-all"
+                  >
+                    <Trash2 size={20} className="rotate-45" />
+                  </button>
+                </div>
+              </div>
+
+              <form onSubmit={handleCreateTicket} className="p-8 space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest pl-1">Sujet</label>
+                  <input 
+                    type="text" 
+                    required
+                    placeholder="De quoi s'agit-il ?"
+                    className="w-full p-4 bg-kontrol-bg border-none rounded-2xl text-[14px] focus:ring-2 focus:ring-kontrol-blue/20 outline-none transition-all"
+                    value={newTicket.subject}
+                    onChange={(e) => setNewTicket(prev => ({ ...prev, subject: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest pl-1">Message</label>
+                  <textarea 
+                    required
+                    rows={5}
+                    placeholder="Décrivez votre demande..."
+                    className="w-full p-4 bg-kontrol-bg border-none rounded-2xl text-[14px] focus:ring-2 focus:ring-kontrol-blue/20 outline-none transition-all resize-none"
+                    value={newTicket.message}
+                    onChange={(e) => setNewTicket(prev => ({ ...prev, message: e.target.value }))}
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button 
+                    type="button"
+                    onClick={() => setIsCreating(false)}
+                    className="flex-1 px-6 py-4 border border-kontrol-border rounded-2xl text-[13px] font-extrabold text-kontrol-ink-muted hover:bg-kontrol-bg transition-all"
+                  >
+                    Annuler
+                  </button>
+                  <button 
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="flex-1 px-6 py-4 bg-kontrol-blue text-white rounded-2xl text-[13px] font-extrabold hover:bg-blue-600 shadow-xl shadow-kontrol-blue/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isSubmitting ? (
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <>Envoyer le ticket</>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+

@@ -1,5 +1,6 @@
 import React from 'react';
 import { 
+  Building2,
   Users, 
   UserPlus, 
   Search, 
@@ -49,11 +50,16 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
   const [users, setUsers] = React.useState<UserProfile[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
-  const [filterDate, setFilterDate] = React.useState<string>(new Date().toISOString().split('T')[0]);
+  const [filterDate, setFilterDate] = React.useState<string>('');
   const [isAdding, setIsAdding] = React.useState(false);
   const [selectedUser, setSelectedUser] = React.useState<UserProfile | null>(null);
   const [currentPage, setCurrentPage] = React.useState(1);
   const itemsPerPage = 10;
+  const isKontrolAdmin = currentUserProfile?.role === 'ADMINISTRATEUR_ERP' || 
+                         currentUserProfile?.role === 'GESTIONNAIRE_ERP' || 
+                         currentUserProfile?.role === 'ADMINISTRATEUR_KONTROL' || 
+                         currentUserProfile?.role === 'GESTIONNAIRE_KONTROL';
+
   const [newUser, setNewUser] = React.useState({
     email: '',
     displayName: '',
@@ -66,14 +72,14 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
 
     const path = 'users';
     const companyId = currentUserProfile.companyId;
-    const isKontrolAdmin = currentUserProfile.role === 'ADMINISTRATEUR_ERP' || currentUserProfile.role === 'GESTIONNAIRE_ERP' || currentUserProfile.role === 'ADMINISTRATEUR_KONTROL' || currentUserProfile.role === 'GESTIONNAIRE_KONTROL';
     
     const q = isKontrolAdmin 
       ? query(collection(db, path), orderBy('createdAt', 'desc'))
       : query(collection(db, path), where('companyId', '==', companyId));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProfile)));
+      const fetchedUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProfile));
+      setUsers(fetchedUsers);
       setLoading(false);
     }, (error) => {
       console.error("Users list error:", error);
@@ -193,15 +199,28 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
 
   const filteredUsers = users
     .filter(u => {
-      const matchesSearch = u.displayName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                           u.email.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = (u.displayName || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           (u.email || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchesDate = !filterDate || new Date(u.createdAt).toISOString().split('T')[0] === filterDate;
       return matchesSearch && matchesDate;
     })
     .sort((a, b) => {
-      if (a.role === 'ADMINISTRATEUR_ENTREPRISE') return -1;
-      if (b.role === 'ADMINISTRATEUR_ENTREPRISE') return 1;
-      return 0;
+      // Sort priority: ERP Admin > Enterprise Admin > Manager > User
+      const rolePriority: Record<string, number> = {
+        'ADMINISTRATEUR_ERP': 0,
+        'ADMINISTRATEUR_KONTROL': 0,
+        'GESTIONNAIRE_ERP': 1,
+        'GESTIONNAIRE_KONTROL': 1,
+        'ADMINISTRATEUR_ENTREPRISE': 2,
+        'GESTIONNAIRE_ENTREPRISE': 3,
+        'UTILISATEUR': 4
+      };
+      
+      const priorityA = rolePriority[a.role] ?? 99;
+      const priorityB = rolePriority[b.role] ?? 99;
+      
+      if (priorityA !== priorityB) return priorityA - priorityB;
+      return (a.displayName || '').localeCompare(b.displayName || '');
     });
 
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
@@ -514,6 +533,7 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
             <thead>
               <tr className="bg-kontrol-bg/50 border-b border-kontrol-border">
                 <th className="px-6 py-4 text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest">Utilisateur</th>
+                {isKontrolAdmin && <th className="px-6 py-4 text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest">Entreprise</th>}
                 <th className="px-6 py-4 text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest">Rôle</th>
                 <th className="px-6 py-4 text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest">Statut</th>
                 <th className="px-6 py-4 text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest">Créé le</th>
@@ -523,13 +543,13 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
             <tbody className="divide-y divide-kontrol-border">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center">
+                  <td colSpan={isKontrolAdmin ? 6 : 5} className="px-6 py-12 text-center">
                     <Loader2 className="animate-spin text-kontrol-blue mx-auto" size={32} />
                   </td>
                 </tr>
               ) : paginatedUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-kontrol-ink-muted text-sm">
+                  <td colSpan={isKontrolAdmin ? 6 : 5} className="px-6 py-12 text-center text-kontrol-ink-muted text-sm">
                     Aucun utilisateur trouvé.
                   </td>
                 </tr>
@@ -547,29 +567,49 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
                         </div>
                       </div>
                     </td>
+                    {isKontrolAdmin && (
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <Building2 size={12} className="text-kontrol-ink-muted" />
+                          <span className="text-[12px] font-medium text-kontrol-ink-soft">
+                            {u.companyName || 'Système KONTROL'}
+                          </span>
+                        </div>
+                      </td>
+                    )}
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        {u.role === 'ADMINISTRATEUR_ENTREPRISE' ? (
+                        {u.role.includes('ERP') || u.role.includes('KONTROL') ? (
+                          <Shield size={14} className="text-kontrol-blue animate-pulse" />
+                        ) : u.role === 'ADMINISTRATEUR_ENTREPRISE' ? (
                           <Shield size={14} className="text-kontrol-orange" />
-                        ) : u.role === 'GESTIONNAIRE_ENTREPRISE' ? (
-                          <Users size={14} className="text-indigo-500" />
                         ) : (
-                          <Shield size={14} className="text-kontrol-blue" />
+                          <Users size={14} className="text-kontrol-ink-soft" />
                         )}
                         <span className={cn(
                           "text-[11px] font-bold",
+                          u.role.includes('ERP') || u.role.includes('KONTROL') ? "text-kontrol-blue" :
                           u.role === 'ADMINISTRATEUR_ENTREPRISE' ? "text-kontrol-orange" : 
-                          u.role === 'GESTIONNAIRE_ENTREPRISE' ? "text-indigo-500" :
-                          "text-kontrol-blue"
+                          "text-kontrol-ink-soft"
                         )}>
-                          {u.role === 'ADMINISTRATEUR_ENTREPRISE' ? 'Admin Entreprise' : 
-                           u.role === 'GESTIONNAIRE_ENTREPRISE' ? 'Gestionnaire Entreprise' :
-                           (u.role === 'ADMINISTRATEUR_ERP' || u.role === 'ADMINISTRATEUR_KONTROL') ? 'Administrateur KONTROL' :
-                           (u.role === 'GESTIONNAIRE_ERP' || u.role === 'GESTIONNAIRE_KONTROL') ? 'Gestionnaire KONTROL' :
-                           u.role.replace('_', ' ')}
+                          {(u.role === 'ADMINISTRATEUR_ERP' || u.role === 'ADMINISTRATEUR_KONTROL') ? 'Support KONTROL (Admin)' :
+                           (u.role === 'GESTIONNAIRE_ERP' || u.role === 'GESTIONNAIRE_KONTROL') ? 'Support KONTROL' :
+                           u.role === 'ADMINISTRATEUR_ENTREPRISE' ? 'Admin Entreprise' : 
+                           u.role === 'GESTIONNAIRE_ENTREPRISE' ? 'Gestionnaire' :
+                           'Utilisateur'}
                         </span>
                       </div>
                     </td>
+                    {isKontrolAdmin && (
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <Building2 size={12} className="text-kontrol-ink-muted" />
+                          <span className="text-[12px] font-medium text-kontrol-ink-soft">
+                            {u.companyName || 'Système KONTROL'}
+                          </span>
+                        </div>
+                      </td>
+                    )}
                     <td className="px-6 py-4">
                       <span className={cn(
                         "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",

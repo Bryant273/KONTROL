@@ -22,9 +22,9 @@ import {
 import { UserProfile } from '../../types';
 import { cn, formatCurrency } from '../../lib/utils';
 import { exportToPDF } from '../../lib/export';
-import { db, doc, updateDoc, logAction, serverTimestamp } from '../../../api/firebase';
+import { db, doc, updateDoc, logAction, serverTimestamp, collection, addDoc, query, where, onSnapshot, orderBy } from '../../../api/firebase';
+import { sendNotification } from '../../../api/services/notificationService';
 import { motion, AnimatePresence } from 'motion/react';
-import { KkiapayButton } from '../../components/common/KkiapayButton';
 
 interface SubscriptionsModuleProps {
   profile: UserProfile | null;
@@ -85,20 +85,119 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
   const [loading, setLoading] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [isPaying, setIsPaying] = useState(false);
-  const [paymentStep, setPaymentStep] = useState<'SELECT' | 'SUCCESS'>('SELECT');
+  const [paymentStep, setPaymentStep] = useState<'SELECT' | 'PAYSTACK_INFO' | 'SUCCESS'>('SELECT');
   const [currentPage, setCurrentPage] = useState(1);
+  const [paymentInfo, setPaymentInfo] = useState({
+    email: profile?.email || '',
+    phone: profile?.phone || '',
+    companyName: profile?.companyName || ''
+  });
+  const [isPendingValidation, setIsPendingValidation] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
   const itemsPerPage = 10;
 
   const currency = profile?.currency || 'XOF';
   const price = currency === 'XOF' ? 10000 : (currency === 'EUR' ? 15 : 16);
 
-  const billingHistory = [
-    { date: '15 Mars 2026', desc: 'Abonnement Mensuel Standard', amount: price, status: 'Payé' },
-    { date: '15 Février 2026', desc: 'Abonnement Mensuel Standard', amount: price, status: 'Payé' },
-    { date: '15 Janvier 2026', desc: 'Abonnement Mensuel Standard', amount: price, status: 'Payé' }
-  ];
+  const handlePaystackConfirmation = async (e?: React.BaseSyntheticEvent) => {
+    if (e && e.preventDefault && typeof e.preventDefault === 'function' && (e.target as any).tagName !== 'A') {
+      e.preventDefault();
+    }
+    
+    setLoading(true);
+    try {
+      const companyId = profile?.companyId || profile?.uid || '';
+      const autoReference = `PS-${Date.now()}`;
+      
+      // Enregistrer l'intention de paiement / demande de validation
+      await addDoc(collection(db, 'payment_requests'), {
+        userId: profile?.uid,
+        email: paymentInfo.email,
+        phone: paymentInfo.phone,
+        companyName: paymentInfo.companyName,
+        companyId: companyId,
+        amount: price,
+        currency: currency,
+        reference: autoReference,
+        gateway: 'PAYSTACK',
+        status: 'PENDING',
+        createdAt: serverTimestamp()
+      });
 
+      await logAction(
+        companyId,
+        profile?.uid || '',
+        profile?.displayName || profile?.email || '',
+        "Demande de validation d'abonnement (Paystack)",
+        `En attente de validation manuelle par l'administrateur. Réf auto: ${autoReference}`
+      );
+
+      // Notification Admin
+      await sendNotification({
+        companyId: 'SYSTEM',
+        title: "Nouvelle demande de validation",
+        message: `Une nouvelle demande de validation de paiement Paystack a été soumise par ${paymentInfo.companyName}. Réf: ${autoReference}`,
+        type: 'info',
+        link: '/admin?tab=subscriptions'
+      });
+
+      setIsPendingValidation(true);
+      setPaymentStep('SUCCESS');
+    } catch (error) {
+      console.error("Paystack confirmation error:", error);
+      alert("Erreur lors de l'enregistrement de votre confirmation. Veuillez contacter le support.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const [billingHistory, setBillingHistory] = useState<any[]>([]);
   const totalPages = Math.ceil(billingHistory.length / itemsPerPage);
+
+  useEffect(() => {
+    if (!profile) return;
+    
+    // Watch for PENDING requests
+    const qPending = query(
+      collection(db, 'payment_requests'), 
+      where('userId', '==', profile.uid),
+      where('status', '==', 'PENDING')
+    );
+    const unsubPending = onSnapshot(qPending, (snap) => {
+      setPendingRequests(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (err) => console.error("Pending requests fetch error:", err));
+
+    // Watch for APPROVED/PAID requests for Billing History
+    const qHistory = query(
+      collection(db, 'payment_requests'),
+      where('userId', '==', profile.uid),
+      where('status', '==', 'APPROVED'),
+      orderBy('createdAt', 'desc')
+    );
+    
+    const unsubHistory = onSnapshot(qHistory, (snap) => {
+      const history = snap.docs.map(doc => {
+        const data = doc.data();
+        const date = data.approvedAt ? new Date(data.approvedAt.seconds * 1000).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : 
+                     (data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : 'N/A');
+        return {
+          id: doc.id,
+          date,
+          desc: `Renouvellement Abonnement Standard - ${data.reference || 'Paystack'}`,
+          amount: data.amount,
+          status: 'Payé',
+          fullData: data
+        };
+      });
+      setBillingHistory(history);
+    }, (err) => console.error("History fetch error:", err));
+
+    return () => {
+      unsubPending();
+      unsubHistory();
+    };
+  }, [profile]);
+
   const paginatedHistory = billingHistory.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
@@ -107,55 +206,6 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
   const isExpired = profile?.subscriptionEndDate ? new Date(profile.subscriptionEndDate) < new Date() : true;
 
   if (!profile) return null;
-
-  const handleKkiapaySuccess = async (response: any) => {
-    if (!profile) return;
-    
-    console.log("Kkiapay Success Response:", response);
-    setLoading(true);
-    
-    try {
-      const companyId = profile.companyId || profile.uid;
-      const currentEnd = profile.subscriptionEndDate ? new Date(profile.subscriptionEndDate) : new Date();
-      const baseDate = currentEnd > new Date() ? currentEnd : new Date();
-      
-      // Add 30 days
-      baseDate.setDate(baseDate.getDate() + 30);
-      
-      const newEndDate = baseDate.getTime();
-      
-      // Update User Profile
-      await updateDoc(doc(db, 'users', profile.uid), {
-        subscriptionEndDate: newEndDate,
-        subscriptionStatus: 'ACTIVE',
-        updatedAt: serverTimestamp()
-      });
-
-      // Update Company Profile if exists
-      if (profile.companyId) {
-        await updateDoc(doc(db, 'companies', profile.companyId), {
-          status: 'ACTIVE',
-          subscriptionEndDate: newEndDate,
-          updatedAt: serverTimestamp()
-        });
-      }
-
-      await logAction(
-        companyId,
-        profile.uid,
-        profile.displayName || profile.email,
-        "Abonnement renouvelé (Kkiapay)",
-        `Transaction: ${response.transactionId || 'N/A'}, Montant: ${price} ${currency}. Nouvelle échéance: ${new Date(newEndDate).toLocaleDateString()}`
-      );
-
-      setPaymentStep('SUCCESS');
-    } catch (error) {
-      console.error("Payment processing error:", error);
-      alert("Une erreur est survenue lors de la mise à jour de votre abonnement. Veuillez contacter le support.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleExportInvoice = (invoice: any) => {
     const headers = ['Libellé', 'Période', 'Mode de paiement', 'Montant'];
@@ -190,13 +240,31 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
       <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <h2 className="text-3xl font-extrabold text-kontrol-dark tracking-tighter">Abonnement & Services</h2>
-          <p className="text-[14px] text-kontrol-ink-muted mt-1 font-medium">Gérez votre forfait Premium et accédez à vos factures</p>
+          <p className="text-[14px] text-kontrol-ink-muted mt-1 font-medium">Gérez votre forfait Standard et accédez à vos factures</p>
         </div>
         <div className="flex items-center gap-2 px-4 py-2 bg-white border border-kontrol-border rounded-2xl shadow-sm">
           <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           <span className="text-[11px] font-bold text-kontrol-dark uppercase tracking-widest">Compte Vérifié</span>
         </div>
       </header>
+
+      {pendingRequests.length > 0 && (
+        <div className="p-6 bg-amber-50 border border-amber-100 rounded-[2rem] flex items-center gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
+          <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center shrink-0">
+            <Clock size={24} />
+          </div>
+          <div className="flex-1">
+            <h4 className="text-sm font-extrabold text-amber-900 uppercase tracking-tight">Validation en cours</h4>
+            <p className="text-[12px] text-amber-600 font-medium">
+              Votre demande de renouvellement est en cours de traitement. 
+              Votre abonnement sera prolongé dès validation par nos services.
+            </p>
+          </div>
+          <div className="hidden sm:block px-4 py-2 bg-white border border-amber-200 rounded-xl text-[10px] font-extrabold text-amber-600 uppercase tracking-widest">
+            En attente
+          </div>
+        </div>
+      )}
 
       {/* Hero Subscription Card */}
       <div className="relative group">
@@ -233,11 +301,16 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                   <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10">
                     <Calendar size={20} className="text-kontrol-blue" />
                   </div>
-                  <div>
-                    <p className="text-[10px] uppercase font-extrabold tracking-widest text-white/40">Prochaine échéance</p>
+                  <div className="flex items-center gap-3">
                     <p className="text-lg font-bold text-white">
                       {profile.subscriptionEndDate ? new Date(profile.subscriptionEndDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '15 Avril 2026'}
                     </p>
+                    <button 
+                      onClick={() => setIsPaying(true)}
+                      className="px-4 py-1.5 bg-white text-kontrol-dark rounded-xl font-extrabold text-[10px] uppercase tracking-wider hover:bg-kontrol-blue hover:text-white transition-all duration-300 shadow-lg flex items-center gap-1.5 group/btn"
+                    >
+                      Renouveler <ArrowRight size={10} className="group-hover/btn:translate-x-0.5 transition-transform" />
+                    </button>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
@@ -245,7 +318,6 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                     <CreditCard size={20} className="text-kontrol-orange" />
                   </div>
                   <div>
-                    <p className="text-[10px] uppercase font-extrabold tracking-widest text-white/40">Tarif Mensuel</p>
                     <p className="text-lg font-bold text-white">{formatCurrency(price, currency)} <span className="text-xs font-normal text-white/50">/ mois</span></p>
                   </div>
                 </div>
@@ -253,18 +325,16 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
             </div>
             
             <div className="lg:w-72 shrink-0">
-              <div className="bg-white/5 p-8 rounded-3xl border border-white/10 backdrop-blur-xl space-y-6">
-                <div className="text-center">
-                  <p className="text-[11px] font-bold text-white/50 uppercase tracking-widest mb-1">Total à payer</p>
-                  <p className="text-3xl font-extrabold text-white">{formatCurrency(price, currency)}</p>
+              <div className="bg-white/5 p-8 rounded-3xl border border-white/10 backdrop-blur-xl text-center space-y-4">
+                <div>
+                  <p className={cn(
+                    "text-xl font-extrabold",
+                    isExpired ? "text-rose-400" : "text-emerald-400"
+                  )}>
+                    {isExpired ? "Paiement requis" : "Standard Actif"}
+                  </p>
                 </div>
-                <button 
-                  onClick={() => setIsPaying(true)}
-                  className="w-full py-4 bg-white text-kontrol-dark rounded-2xl font-extrabold text-sm hover:bg-kontrol-blue hover:text-white transition-all duration-300 shadow-xl flex items-center justify-center gap-2 group/btn"
-                >
-                  Renouveler <ArrowRight size={16} className="group-hover/btn:translate-x-1 transition-transform" />
-                </button>
-                <p className="text-[10px] text-center text-white/30">Paiement sécurisé via Mobile Money ou Carte</p>
+                <p className="text-[10px] text-white/30 italic">Renouvellement automatique de 30 jours.</p>
               </div>
             </div>
           </div>
@@ -417,69 +487,75 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
               <div className="p-6">
                 {paymentStep === 'SELECT' && (
                   <div className="space-y-6">
-                    <div className="text-center">
-                      <p className="text-[10px] font-bold text-kontrol-ink-muted uppercase tracking-widest mb-0.5">Montant à régler</p>
-                      <p className="text-3xl font-extrabold text-kontrol-dark">{formatCurrency(price, currency)}</p>
+                    <div className="grid grid-cols-1 gap-4">
+                      {/* Paystack Option */}
+                      <button 
+                        onClick={() => setPaymentStep('PAYSTACK_INFO')}
+                        className="group relative p-6 bg-white border-2 border-kontrol-border rounded-[2rem] hover:border-kontrol-blue hover:bg-kontrol-blue/5 transition-all duration-500 overflow-hidden"
+                      >
+                        <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-100 transition-opacity translate-x-2 translate-y--2">
+                          <ExternalLink size={24} className="text-kontrol-blue" />
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-[#09a5db]/10 rounded-2xl flex items-center justify-center text-[#09a5db]">
+                            <CreditCard size={24} />
+                          </div>
+                          <div className="text-left">
+                            <h4 className="text-sm font-extrabold text-kontrol-dark uppercase tracking-tight">Payer via Paystack</h4>
+                            <p className="text-[10px] text-kontrol-ink-muted font-bold">Mobile Money, Carte, Transfert</p>
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {paymentStep === 'PAYSTACK_INFO' && (
+                  <div className="space-y-6">
+                    <div className="bg-kontrol-blue/5 p-6 rounded-[2rem] border border-kontrol-blue/10 space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-kontrol-blue text-white rounded-lg flex items-center justify-center font-bold text-sm">1</div>
+                        <p className="text-sm font-bold text-kontrol-dark">Cliquez sur le bouton ci-dessous pour payer sur Paystack</p>
+                      </div>
+                      
+                      <a 
+                        href="https://paystack.shop/pay/kontrol" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        onClick={(e) => {
+                          handlePaystackConfirmation(e);
+                        }}
+                        className="w-full py-4 bg-[#09a5db] text-white rounded-2xl font-extrabold text-sm hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-xl shadow-[#09a5db]/20"
+                      >
+                        {loading ? <Loader2 size={16} className="animate-spin" /> : <>Accéder à la boutique Paystack <ExternalLink size={16} /></>}
+                      </a>
                     </div>
 
-                    <div className="space-y-4">
-                      <div className="p-5 bg-kontrol-bg rounded-2xl border border-kontrol-border space-y-4">
-                        <p className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest text-center">Mobile Money & Carte</p>
-                        
-                        <KkiapayButton 
-                          amount={price}
-                          onSuccess={handleKkiapaySuccess}
-                          label="Payer mon abonnement"
-                          email={profile.email}
-                          firstname={profile.displayName?.split(' ')[0]}
-                          lastname={profile.displayName?.split(' ').slice(1).join(' ')}
-                          phone={profile.phone}
-                        />
-                      </div>
-
-                      <div className="relative">
-                        <div className="absolute inset-0 flex items-center">
-                          <span className="w-full border-t border-kontrol-border"></span>
-                        </div>
-                        <div className="relative flex justify-center text-[10px] uppercase font-extrabold tracking-widest">
-                          <span className="bg-white px-4 text-kontrol-ink-muted">Ou utiliser le widget officiel</span>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col items-center gap-4">
-                        {/* @ts-ignore */}
-                        <kkiapay-widget 
-                          sandbox="true" 
-                          amount={price} 
-                          key="97a427c750032e63b0dab8c64f86a71dd216e5f0"
-                          callback="https://kkiapay-redirect.com"
-                          text="Payer Maintenant"
-                          className="w-full"
-                        />
-                        <p className="text-[10px] text-kontrol-ink-muted text-center font-medium">
-                          Supporte les codes QR pour tous les opérateurs
-                        </p>
-                      </div>
-
-                      <div className="flex items-center justify-center gap-3 opacity-40 grayscale scale-90">
-                        <img src="https://upload.wikimedia.org/wikipedia/commons/c/c8/Orange_logo.svg" alt="Orange" className="h-4" referrerPolicy="no-referrer" />
-                        <img src="https://upload.wikimedia.org/wikipedia/commons/9/93/MTN_Logo.svg" alt="MTN" className="h-4" referrerPolicy="no-referrer" />
-                        <img src="https://upload.wikimedia.org/wikipedia/commons/1/1a/Moov_Africa_logo.png" alt="Moov" className="h-4" referrerPolicy="no-referrer" />
-                        <img src="https://www.wave.com/static/images/wave-logo.svg" alt="Wave" className="h-4" referrerPolicy="no-referrer" />
-                      </div>
-                    </div>
+                    <button 
+                      onClick={() => setPaymentStep('SELECT')}
+                      className="w-full text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest hover:text-kontrol-dark transition-colors"
+                    >
+                      ← Retour aux options
+                    </button>
                   </div>
                 )}
 
                 {paymentStep === 'SUCCESS' && (
                   <div className="py-8 flex flex-col items-center text-center space-y-5">
-                    <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                      <CheckCircle2 size={32} />
+                    <div className={cn(
+                      "w-16 h-16 rounded-full flex items-center justify-center shadow-lg",
+                      isPendingValidation ? "bg-amber-100 text-amber-600 shadow-amber-500/20" : "bg-emerald-100 text-emerald-600 shadow-emerald-500/20"
+                    )}>
+                      {isPendingValidation ? <Clock size={32} /> : <CheckCircle2 size={32} />}
                     </div>
                     <div>
-                      <h4 className="text-xl font-extrabold text-kontrol-dark tracking-tight">Paiement Réussi !</h4>
-                      <p className="text-[12px] text-kontrol-ink-muted mt-1.5">
-                        Votre abonnement a été prolongé de 30 jours avec succès.
+                      <h4 className="text-xl font-extrabold text-kontrol-dark tracking-tight">
+                        {isPendingValidation ? "Demande envoyée !" : "Paiement Réussi !"}
+                      </h4>
+                      <p className="text-[12px] text-kontrol-ink-muted mt-1.5 px-4">
+                        {isPendingValidation 
+                          ? "Votre demande de validation a été transmise. Notre équipe vérifiera votre paiement dans les plus brefs délais."
+                          : "Votre abonnement a été prolongé de 30 jours avec succès. Merci de votre confiance !"}
                       </p>
                     </div>
                     <div className="w-full space-y-3">
@@ -490,7 +566,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                         }}
                         className="w-full py-3.5 bg-kontrol-dark text-white rounded-xl font-extrabold text-xs hover:bg-kontrol-blue transition-all shadow-xl"
                       >
-                        Terminer
+                        Fermer
                       </button>
                     </div>
                   </div>
@@ -512,7 +588,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                 </div>
                 <div>
                   <h3 className="text-xl font-extrabold text-kontrol-dark tracking-tight">Détails Facture</h3>
-                  <p className="text-[11px] text-kontrol-ink-muted font-bold uppercase tracking-widest">KONTROL PREMIUM SERVICES</p>
+                  <p className="text-[11px] text-kontrol-ink-muted font-bold uppercase tracking-widest">KONTROL STANDARD SERVICES</p>
                 </div>
               </div>
               <button 

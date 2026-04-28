@@ -163,6 +163,7 @@ class BlueAIService {
       if (!currentConvId) {
         const convDoc = await addDoc(collection(db, 'conversations'), {
           userId,
+          participants: [userId],
           companyId,
           title: message.substring(0, 50) + '...',
           lastMessage: message,

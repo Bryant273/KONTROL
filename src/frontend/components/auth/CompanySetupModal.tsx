@@ -2,9 +2,11 @@ import React from 'react';
 import { X, Camera, Rocket, Loader2, Sparkles, Building2, User, Phone, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UserProfile } from '../../types';
-import { updateUserProfile, logAction } from '../../../api/firebase';
+import { updateUserProfile, logAction, db } from '../../../api/firebase';
 import { countries } from '../../lib/countries';
 import { cn } from '../../lib/utils';
+import { sendNotification } from '../../../api/services/notificationService';
+import { serverTimestamp } from 'firebase/firestore';
 
 const phoneToCountry: Record<string, { country: string, currency: string, language: string }> = {
   '225': { country: 'Côte d\'Ivoire', currency: 'XOF', language: 'fr' },
@@ -107,6 +109,15 @@ export function CompanySetupModal({ profile, onClose, onComplete }: CompanySetup
       };
       await updateUserProfile(profile.uid, updates);
       
+      // Welcome Notification
+      await sendNotification({
+        companyId: updates.companyId,
+        userId: profile.uid,
+        title: "Bienvenue sur KONTROL",
+        message: `Votre espace de travail pour ${companyName} est prêt. Vous commencez avec une période d'essai de 14 jours.`,
+        type: 'success'
+      });
+
       // Log the profile completion
       await logAction(
         profile.companyId,

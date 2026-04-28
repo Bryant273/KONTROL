@@ -30,9 +30,11 @@ import { logAction } from '../../../api/firebase';
 import { generateInvoicePDF, generateReceiptPDF } from '../../lib/invoice';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { CompanySelector } from '../../components/common/CompanySelector';
+import { motion, AnimatePresence } from 'motion/react';
 import { transactionService } from '../../../api/services/transactionService';
 import { tiersService } from '../../../api/services/tiersService';
 import { productService } from '../../../api/services/productService';
+import { sendNotification } from '../../../api/services/notificationService';
 import { User as FirebaseUser } from 'firebase/auth';
 import { where, orderBy } from 'firebase/firestore';
 
@@ -173,6 +175,14 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
       } as Transaction;
 
       await transactionService.createTransaction(transData, user);
+
+      // Notification
+      await sendNotification({
+        companyId: companyId,
+        title: newTrans.type === 'VENTE' ? "Nouvelle Vente" : "Nouvel Achat",
+        message: `${newTrans.type === 'VENTE' ? 'Vente effectuée' : 'Achat effectué'} pour un montant de ${formatCurrency(montantTotal)}. Réf: ${transData.reference}`,
+        type: 'info'
+      });
 
       if (currentUserProfile) {
         await logAction(
@@ -872,6 +882,38 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
           </div>
         </div>
       </div>
+
+      {/* QR Modal */}
+      <AnimatePresence>
+        {showQR && (
+          <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-kontrol-dark/60 backdrop-blur-sm p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-bold text-kontrol-dark">Payer via {qrData.type}</h3>
+                <button onClick={() => setShowQR(false)} className="p-1 hover:bg-kontrol-bg rounded-lg">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="bg-white p-4 rounded-2xl border-2 border-kontrol-bg inline-block mb-6 shadow-sm">
+                <QRCodeSVG value={`PAY:${qrData.type}:${qrData.phone}:${qrData.amount}`} size={200} />
+              </div>
+              <p className="text-[14px] font-bold text-kontrol-dark mb-1">Montant : {formatCurrency(qrData.amount)}</p>
+              <p className="text-[12px] text-kontrol-ink-muted">Scanner ce code pour initier le paiement vers le numéro : <span className="font-bold text-kontrol-blue">{qrData.phone}</span></p>
+              <button 
+                onClick={() => setShowQR(false)}
+                className="w-full btn-primary mt-8 py-3"
+              >
+                J'ai effectué le paiement
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
