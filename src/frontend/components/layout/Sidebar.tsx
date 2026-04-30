@@ -55,55 +55,49 @@ const erpNavSections: NavSection[] = [
     ]
   },
   {
-    title: 'Gestion Financière',
-    icon: CreditCard,
-    items: [
-      { id: 'subscriptions', label: 'Abonnements', icon: CreditCard },
-      { id: 'revenue', label: 'Analyses & Croissance', icon: TrendingUp },
-      { id: 'transactions', label: 'Transactions Globales', icon: ArrowLeftRight },
-      { id: 'accounting', label: 'Journal de Trésorerie', icon: Receipt },
-    ]
-  },
-  {
-    title: 'Écosystème',
+    title: 'Supervision Écosystème',
     icon: Building2,
     items: [
-      { id: 'entreprises', label: 'Entreprises', icon: Building2 },
+      { id: 'entreprises', label: 'Parc Entreprises', icon: Building2 },
       { id: 'utilisateurs', label: 'Utilisateurs Globaux', icon: Users },
-      { id: 'gestionnaires', label: 'Gestionnaires KONTROL', icon: Shield },
+      { id: 'ai', label: 'Intelligence Blue AI', icon: Brain },
     ]
   },
   {
-    title: 'Blue AI',
-    icon: Brain,
+    title: 'Pilotage Business KONTROL',
+    icon: TrendingUp,
     items: [
-      { id: 'ai', label: 'AI Core', icon: Brain },
+      { id: 'revenue', label: 'Croissance & MRR', icon: TrendingUp },
+      { id: 'subscriptions', label: 'Validation Paiements', icon: CreditCard },
+      { id: 'admin_tiers', label: 'Partenaires & Tiers', icon: Users },
+      { id: 'accounting', label: 'Trésorerie Centrale', icon: Receipt },
+      { id: 'admin_transactions', label: 'Journal des Ventes', icon: ArrowLeftRight },
     ]
   },
   {
-    title: 'Système & Télémétrie',
-    icon: Settings,
-    items: [
-      { id: 'system', label: 'Télémétrie', icon: Activity },
-      { id: 'notifications', label: 'Centre de Notifications', icon: Bell },
-      { id: 'versions', label: 'Journal des Versions', icon: History },
-      { id: 'updates', label: 'Mises à jour IA', icon: Sparkles },
-    ]
-  },
-  {
-    title: 'Contrôle & Sécurité',
+    title: 'Coordination & Équipe',
     icon: Shield,
     items: [
-      { id: 'actions', label: 'Audit Trail', icon: History },
+      { id: 'gestionnaires', label: 'Team KONTROL', icon: Shield },
+      { id: 'chat', label: 'K-Chat Interne', icon: MessageSquare },
       { id: 'tickets', label: 'Tickets Support', icon: MessageCircle },
-      { id: 'chat', label: 'K-Chat', icon: MessageSquare },
     ]
   },
   {
-    title: 'Paramètres',
+    title: 'Maintenance & Audit',
+    icon: Settings,
+    items: [
+      { id: 'system', label: 'Stats & Télémétrie', icon: Activity },
+      { id: 'actions', label: 'Audit Trail', icon: History },
+      { id: 'versions', label: 'Déploiements', icon: History },
+      { id: 'updates', label: 'Modèles IA', icon: Sparkles },
+    ]
+  },
+  {
+    title: 'Mon Compte',
     icon: UserCircle,
     items: [
-      { id: 'profil', label: 'Mon profil', icon: UserCircle },
+      { id: 'profil', label: 'Profil Admin', icon: UserCircle },
     ]
   }
 ];

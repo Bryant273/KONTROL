@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Search, Receipt, Loader2, X, History, Calendar, Tag, CreditCard, ArrowDownLeft, ArrowUpRight, ArrowDownRight, Edit2, Trash2, FileText, Table } from 'lucide-react';
+import { Plus, Search, Receipt, Loader2, X, History, Calendar, Tag, CreditCard, ArrowDownLeft, ArrowUpRight, ArrowDownRight, Edit2, Trash2, FileText, Table, Sparkles, Zap } from 'lucide-react';
 import { exportToPDF, exportToExcel } from '../../lib/export';
 import { Charge, UserProfile } from '../../types';
 import { cn, formatCurrency } from '../../lib/utils';
@@ -499,7 +499,16 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
                           {c.categorie}
                         </span>
                       </td>
-                      <td className="px-4 py-3 font-bold text-kontrol-dark truncate max-w-[200px]">{c.description}</td>
+                      <td className="px-4 py-3 font-bold text-kontrol-dark truncate max-w-[200px]">
+                        <div className="flex flex-col">
+                          <span>{c.description}</span>
+                          {c.isSystemGenerated && (
+                            <span className="flex items-center gap-1 text-[9px] text-kontrol-blue font-extrabold uppercase tracking-widest mt-0.5">
+                              <Sparkles size={8} /> Auto-KONTROL
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-right font-extrabold text-rose-600">{formatCurrency(c.montant)}</td>
                     </tr>
                   ))
@@ -583,6 +592,18 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
                     </div>
                   </div>
                 </div>
+                
+                {selectedCharge.isSystemGenerated && (
+                  <div className="mt-4 p-3 bg-kontrol-blue/5 border border-kontrol-blue/10 rounded-xl flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-kontrol-blue/10 flex items-center justify-center text-kontrol-blue">
+                      <Zap size={16} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[11px] font-bold text-kontrol-blue uppercase tracking-wider">Charge Automatisée</p>
+                      <p className="text-[10px] text-kontrol-ink-soft opacity-70">Cette charge a été générée automatiquement par le système KONTROL (Abonnement).</p>
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex gap-2 mt-8">
                   <button 

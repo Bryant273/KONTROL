@@ -48,8 +48,21 @@ export default function App() {
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('activeTab') || 'dashboard');
   const [activeSection, setActiveSection] = useState(() => localStorage.getItem('activeSection') || 'Pilotage');
   const [activeLabel, setActiveLabel] = useState(() => localStorage.getItem('activeLabel') || 'Tableau de bord');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => window.innerWidth >= 1024);
   const [showSetup, setShowSetup] = useState(false);
+
+  // Handle window resize for sidebar
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1024) {
+        setIsSidebarOpen(false);
+      } else {
+        setIsSidebarOpen(true);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const [showReminder, setShowReminder] = useState<{ days: number } | null>(null);
   const [isBlocked, setIsBlocked] = useState(false);
   const [authView, setAuthView] = useState<'landing' | 'auth'>('landing');

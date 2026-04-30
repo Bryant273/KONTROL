@@ -124,6 +124,7 @@ export interface Charge {
   justificatifUrl?: string;
   devise?: string;
   createdAt: number;
+  isSystemGenerated?: boolean;
 }
 
 export interface Wallet {

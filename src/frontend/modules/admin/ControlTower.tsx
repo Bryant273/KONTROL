@@ -42,7 +42,8 @@ import {
   Printer,
   Wallet as WalletIcon,
   Edit2,
-  Clock
+  Clock,
+  Table
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -389,10 +390,8 @@ export function ControlTower({ activeSubTab = 'dashboard', user, profile }: Cont
       {/* Main Content Dispatcher */}
       <AnimatePresence mode="wait">
         {activeSubTab === 'dashboard' && <VisionView stats={stats} companies={companies} recentActions={recentActions} treasuryBalance={treasuryBalance} systemStats={systemStats} />}
-        {activeSubTab === 'subscriptions' && <BusinessSubscriptionsView companies={companies} paymentRequests={paymentRequests} allUsers={allUsers} />}
-        {activeSubTab === 'revenue' && <FinancialAnalyticsView stats={stats} systemStats={systemStats} />}
-        {activeSubTab === 'accounting' && <ControlTowerTreasuryView />}
-        {activeSubTab === 'transactions' && <ControlTowerTransactionsView />}
+        
+        {/* Supervision Écosystème */}
         {activeSubTab === 'entreprises' && (
           <EcosystemCompaniesView 
             companies={companies} 
@@ -405,14 +404,25 @@ export function ControlTower({ activeSubTab = 'dashboard', user, profile }: Cont
           />
         )}
         {activeSubTab === 'utilisateurs' && <EcosystemUsersView users={allUsers} onDetail={openDetail} onEdit={openEdit} onDelete={openDelete} />}
+        {activeSubTab === 'ai' && <IntelligenceAIView stats={stats} systemStats={systemStats} />}
+
+        {/* Pilotage Business KONTROL */}
+        {activeSubTab === 'revenue' && <FinancialAnalyticsView stats={stats} systemStats={systemStats} />}
+        {activeSubTab === 'subscriptions' && <BusinessSubscriptionsView companies={companies} paymentRequests={paymentRequests} allUsers={allUsers} />}
+        {activeSubTab === 'accounting' && <ControlTowerTreasuryView />}
+        {activeSubTab === 'admin_tiers' && <AdminBusinessTiersView />}
+        {activeSubTab === 'admin_transactions' && <AdminSalesJournalView />}
+
+        {/* Coordination & Équipe */}
         {activeSubTab === 'gestionnaires' && <AdminManagersView users={allUsers} onDetail={openDetail} onEdit={openEdit} onDelete={openDelete} onAdd={() => openAdd('MANAGER')} />}
-        {activeSubTab === 'ai_core' && <IntelligenceAIView stats={stats} systemStats={systemStats} />}
-        {activeSubTab === 'telemetry' && <SystemTelemetryView stats={stats} metrics={metrics} />}
+        {activeSubTab === 'chat' && user && <KChatModule user={user} profile={profile} />}
+        {activeSubTab === 'tickets' && <ControlSupportView tickets={tickets} />}
+
+        {/* Maintenance & Audit */}
+        {activeSubTab === 'system' && <SystemTelemetryView stats={stats} metrics={metrics} />}
+        {activeSubTab === 'actions' && <ControlAuditView actions={recentActions} />}
         {activeSubTab === 'versions' && <VersionControlView />}
         {activeSubTab === 'updates' && <UpdatesView />}
-        {activeSubTab === 'audit' && <ControlAuditView actions={recentActions} />}
-        {activeSubTab === 'tickets' && <ControlSupportView tickets={tickets} />}
-        {activeSubTab === 'chat' && user && <KChatModule user={user} profile={profile} />}
       </AnimatePresence>
 
       {/* Detail Modal */}
@@ -818,6 +828,11 @@ function BusinessSubscriptionsView({ companies, paymentRequests = [], allUsers =
 
   const handleApprovePayment = async (request: any) => {
     try {
+      // Get full user profile for better record keeping
+      const userSnap = await getDoc(doc(db, 'users', request.userId));
+      const userProfile = userSnap.exists() ? userSnap.data() as UserProfile : null;
+      const finalCompanyName = request.companyName || userProfile?.companyName || userProfile?.displayName || "Client KONTROL";
+
       await handleUpgradeToSubscriber(request.userId || request.companyId, 30);
       
       await updateDoc(doc(db, 'payment_requests', request.id), {
@@ -826,20 +841,64 @@ function BusinessSubscriptionsView({ companies, paymentRequests = [], allUsers =
         approvedBy: auth.currentUser?.uid
       });
 
+      const currentTimestamp = Date.now();
+
+      // 1. Record income for KONTROL (SYSTEM)
       await addDoc(collection(db, 'payments'), {
         ownerId: 'SYSTEM',
         type: 'ENCAISSEMENT',
         montant: request.amount,
         devise: request.currency,
-        description: `Validation Paystack - ${request.companyName}`,
-        date: Date.now(),
+        description: `Abonnement KONTROL - ${finalCompanyName}`,
+        date: currentTimestamp,
         timestamp: serverTimestamp(),
         reference: request.reference,
         category: 'SUBSCRIPTION',
         companyId: request.companyId,
         userId: request.userId,
-        customerName: request.companyName || request.email
+        customerName: finalCompanyName
       });
+
+      // 2. Record charge for the CLIENT (Automatic accounting)
+      const chargeRef = await addDoc(collection(db, 'charges'), {
+        ownerId: request.companyId || request.userId,
+        description: `Frais d'abonnement KONTROL (Période: ${new Date().toLocaleDateString()})`,
+        montant: request.amount,
+        categorie: "Abonnements & Logiciels",
+        category: "Abonnements",
+        date: currentTimestamp,
+        modePaiement: request.payment_method || 'Paystack',
+        reference: request.reference,
+        devise: request.currency,
+        createdAt: currentTimestamp,
+        isSystemGenerated: true
+      });
+
+      // 3. Record payment (outgoing) for the CLIENT
+      await addDoc(collection(db, 'payments'), {
+        ownerId: request.companyId || request.userId,
+        type: 'DECAISSEMENT',
+        montant: request.amount,
+        amount: request.amount,
+        devise: request.currency,
+        description: "Règlement Abonnement KONTROL",
+        date: currentTimestamp,
+        timestamp: serverTimestamp(),
+        reference: request.reference,
+        category: 'SUBSCRIPTION',
+        chargeId: chargeRef.id,
+        modePaiement: request.payment_method || 'Paystack',
+        createdAt: currentTimestamp
+      });
+
+      // 5. Log the administrative action
+      await logAction(
+        'SYSTEM',
+        auth.currentUser?.uid || 'SYSTEM',
+        auth.currentUser?.displayName || 'Admin KONTROL',
+        "Finances: Validation Paiement Abonnement",
+        `Paiement validé pour ${finalCompanyName}. Montant: ${request.amount} ${request.currency}. Réf: ${request.reference}`
+      );
 
       // Notification au client
       await sendNotification({
@@ -1970,6 +2029,188 @@ function ControlSupportView({ tickets }: any) {
 }
 
 // --- HELPER COMPONENTS ---
+
+function AdminBusinessTiersView() {
+  return (
+    <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <h3 className="text-2xl font-extrabold text-kontrol-dark uppercase tracking-tighter">Partenaires & Fournisseurs KONTROL</h3>
+          <p className="text-[12px] text-kontrol-ink-muted font-bold uppercase tracking-widest mt-1">Gestion des relations business de la plateforme</p>
+        </div>
+        <button className="px-6 py-3 bg-kontrol-blue text-white rounded-2xl text-[11px] font-extrabold uppercase tracking-widest hover:bg-blue-600 transition-all flex items-center gap-2 shadow-lg shadow-kontrol-blue/20">
+          <Plus size={16} /> Nouveau Partenaire
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="card p-6 border-l-4 border-l-kontrol-blue">
+          <p className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted mb-1">Hébergement & Cloud</p>
+          <h4 className="text-xl font-extrabold text-kontrol-dark">Google Cloud</h4>
+          <span className="text-[10px] font-bold text-emerald-500 uppercase mt-2 block">Partenaire Stratégique</span>
+        </div>
+        <div className="card p-6 border-l-4 border-l-purple-500">
+          <p className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted mb-1">Passerelle Paiement</p>
+          <h4 className="text-xl font-extrabold text-kontrol-dark">Paystack Africa</h4>
+          <span className="text-[10px] font-bold text-emerald-500 uppercase mt-2 block">Intégration Active</span>
+        </div>
+        <div className="card p-6 border-l-4 border-l-orange-500">
+          <p className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted mb-1">IA & LLM</p>
+          <h4 className="text-xl font-extrabold text-kontrol-dark">Googe DeepMind</h4>
+          <span className="text-[10px] font-bold text-kontrol-blue uppercase mt-2 block">Blue AI Core</span>
+        </div>
+        <div className="card p-6 border-l-4 border-l-emerald-500">
+          <p className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted mb-1">Support Local</p>
+          <h4 className="text-xl font-extrabold text-kontrol-dark">Innov'Korp</h4>
+          <span className="text-[10px] font-bold text-emerald-500 uppercase mt-2 block">Maintenance Tierce</span>
+        </div>
+      </div>
+
+      <div className="card overflow-hidden border-kontrol-blue/10">
+        <div className="p-6 border-b border-kontrol-border bg-kontrol-bg/30">
+          <h4 className="text-[11px] font-extrabold uppercase tracking-widest text-kontrol-dark">Répertoire des Relations Business</h4>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-kontrol-bg/50 border-b border-kontrol-border">
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Entité</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Catégorie</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Contact Principal</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Contrats</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-kontrol-border">
+              <tr className="hover:bg-kontrol-bg/30 transition-colors">
+                <td className="px-6 py-4">
+                  <p className="text-[14px] font-extrabold text-kontrol-dark">Google Ireland Ltd.</p>
+                  <p className="text-[11px] text-kontrol-ink-muted">Dublin, IE</p>
+                </td>
+                <td className="px-6 py-4">
+                  <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[9px] font-extrabold uppercase tracking-widest rounded border border-blue-100">CLOUD / INFRA</span>
+                </td>
+                <td className="px-6 py-4 text-[12px] text-kontrol-ink-soft">finance-support@google.com</td>
+                <td className="px-6 py-4 text-[12px] font-bold text-kontrol-dark">Plan Enterprise</td>
+                <td className="px-6 py-4 text-right">
+                  <button className="p-2 text-kontrol-blue hover:bg-kontrol-blue/5 rounded-lg transition-colors"><Edit2 size={16} /></button>
+                </td>
+              </tr>
+              <tr className="hover:bg-kontrol-bg/30 transition-colors">
+                <td className="px-6 py-4">
+                  <p className="text-[14px] font-extrabold text-kontrol-dark">Paystack Inc.</p>
+                  <p className="text-[11px] text-kontrol-ink-muted">Lagos, NG</p>
+                </td>
+                <td className="px-6 py-4">
+                  <span className="px-2 py-0.5 bg-purple-50 text-purple-600 text-[9px] font-extrabold uppercase tracking-widest rounded border border-purple-100">FINTECH</span>
+                </td>
+                <td className="px-6 py-4 text-[12px] text-kontrol-ink-soft">support@paystack.com</td>
+                <td className="px-6 py-4 text-[12px] font-bold text-kontrol-dark">Fees: 1.5% + fixed</td>
+                <td className="px-6 py-4 text-right">
+                  <button className="p-2 text-kontrol-blue hover:bg-kontrol-blue/5 rounded-lg transition-colors"><Edit2 size={16} /></button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function AdminSalesJournalView() {
+  const [sales, setSales] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // We filter payments belonging to SYSTEM (Income for KONTROL)
+    const q = query(
+      collection(db, 'payments'), 
+      where('ownerId', '==', 'SYSTEM'),
+      where('type', '==', 'ENCAISSEMENT'),
+      orderBy('date', 'desc'), 
+      limit(100)
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setSales(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-2xl font-extrabold text-kontrol-dark uppercase tracking-tighter">Journal des Ventes & Recettes</h3>
+          <p className="text-[12px] text-kontrol-ink-muted font-bold uppercase tracking-widest mt-1">Flux monétaire entrant de la plateforme KONTROL</p>
+        </div>
+        <div className="flex gap-2">
+          <button className="px-4 py-2 bg-white border border-kontrol-border text-kontrol-ink-soft rounded-xl text-[10px] font-extrabold uppercase tracking-widest hover:bg-kontrol-bg transition-all flex items-center gap-2">
+            <Download size={14} /> PDF
+          </button>
+          <button className="px-4 py-2 bg-white border border-kontrol-border text-kontrol-ink-soft rounded-xl text-[10px] font-extrabold uppercase tracking-widest hover:bg-kontrol-bg transition-all flex items-center gap-2">
+            <Table size={14} /> Excel
+          </button>
+        </div>
+      </div>
+
+      <div className="card overflow-hidden">
+        <div className="p-6 border-b border-kontrol-border bg-emerald-50/30">
+          <div className="flex items-center justify-between">
+            <h4 className="text-[11px] font-extrabold uppercase tracking-widest text-emerald-800 flex items-center gap-2">
+              <TrendingUp size={16} /> Historique des Encaissements Clients
+            </h4>
+            <span className="text-[10px] font-bold text-emerald-600 bg-white px-3 py-1 rounded-full border border-emerald-100">Live Revenue Sync</span>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-kontrol-bg/50 border-b border-kontrol-border">
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Date</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Client / Entreprise</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Désignation Service</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted text-right">Montant</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Référence</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-kontrol-border">
+              {loading ? (
+                <tr><td colSpan={5} className="px-6 py-12 text-center"><Loader2 className="animate-spin mx-auto text-kontrol-blue" /></td></tr>
+              ) : sales.length === 0 ? (
+                <tr><td colSpan={5} className="px-6 py-12 text-center text-kontrol-ink-muted italic">Aucune vente enregistrée.</td></tr>
+              ) : (
+                sales.map((sale) => (
+                  <tr key={sale.id} className="hover:bg-kontrol-bg/30 transition-colors">
+                    <td className="px-6 py-4 text-[11px] font-mono text-kontrol-ink-muted">
+                      {new Date(sale.date).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4">
+                      <p className="text-[13px] font-extrabold text-kontrol-dark">{sale.customerName || 'Client KONTROL'}</p>
+                      <p className="text-[10px] text-kontrol-ink-muted uppercase">{sale.companyId?.slice(0, 8)}</p>
+                    </td>
+                    <td className="px-6 py-4 text-[12px] text-kontrol-ink-soft">
+                      {sale.description}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <p className="text-[14px] font-extrabold text-emerald-600">{formatCurrency(sale.montant, sale.devise)}</p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="px-2 py-1 bg-white border border-kontrol-border rounded text-[10px] font-mono text-kontrol-ink-muted">
+                        {sale.reference}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
 
 function StatCard({ title, value, change, icon: Icon, color }: any) {
   const colors: any = {

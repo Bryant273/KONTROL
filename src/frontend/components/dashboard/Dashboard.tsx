@@ -101,6 +101,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
   const [codeAnalysis, setCodeAnalysis] = React.useState('');
   const [isAnalyzing, setIsAnalyzing] = React.useState(false);
   const [isAnalyzingCode, setIsAnalyzingCode] = React.useState(false);
+  const [subscriptionAlert, setSubscriptionAlert] = React.useState<{ daysLeft: number; expiryDate: string } | null>(null);
   
   // Pagination states
   const [ticketsPage, setTicketsPage] = React.useState(1);
@@ -405,6 +406,33 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
         setRecentActions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         checkLoading();
       }, (error) => handleFirestoreError(error, OperationType.LIST, 'actions', user)));
+
+      // Real-time Subscription Check
+      const qSub = query(
+        collection(db, 'payment_requests'),
+        where('userId', '==', user.uid),
+        where('status', '==', 'APPROVED'),
+        orderBy('createdAt', 'desc'),
+        limit(1)
+      );
+      unsubscribes.push(onSnapshot(qSub, (snapshot) => {
+        if (!snapshot.empty) {
+          const data = snapshot.docs[0].data();
+          const createdAt = data.createdAt?.seconds ? data.createdAt.seconds * 1000 : Date.now();
+          const expiryTime = createdAt + (30 * 24 * 60 * 60 * 1000);
+          const now = Date.now();
+          const daysLeft = Math.ceil((expiryTime - now) / (1000 * 60 * 60 * 24));
+
+          if (daysLeft <= 7) {
+            setSubscriptionAlert({
+              daysLeft,
+              expiryDate: new Date(expiryTime).toLocaleDateString()
+            });
+          } else {
+            setSubscriptionAlert(null);
+          }
+        }
+      }));
     }
 
     return () => unsubscribes.forEach(unsub => unsub());
@@ -765,6 +793,27 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
 
   return (
     <div className="space-y-6">
+      {subscriptionAlert && (
+        <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-center justify-between shadow-sm animate-in slide-in-from-top duration-500">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+              <AlertTriangle size={20} />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-amber-900">
+                Abonnement expirant bientôt
+              </p>
+              <p className="text-xs text-amber-700">
+                Votre abonnement KONTROL arrive à échéance le <span className="font-bold">{subscriptionAlert.expiryDate}</span> ({subscriptionAlert.daysLeft} jours restants).
+              </p>
+            </div>
+          </div>
+          <a href="/subscriptions" className="px-4 py-2 bg-amber-600 text-white text-xs font-bold rounded-lg hover:bg-amber-700 transition-colors">
+            Renouveler maintenant
+          </a>
+        </div>
+      )}
+
       <header className="flex items-start justify-between">
         <div className="flex items-center gap-4">
           {currentUserProfile?.companyLogo && (

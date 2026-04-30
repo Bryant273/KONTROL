@@ -22,7 +22,7 @@ import {
 import { UserProfile } from '../../types';
 import { cn, formatCurrency } from '../../lib/utils';
 import { exportToPDF } from '../../lib/export';
-import { db, doc, updateDoc, logAction, serverTimestamp, collection, addDoc, query, where, onSnapshot, orderBy } from '../../../api/firebase';
+import { db, doc, getDoc, getDocs, updateDoc, logAction, serverTimestamp, collection, addDoc, query, where, onSnapshot, orderBy } from '../../../api/firebase';
 import { sendNotification } from '../../../api/services/notificationService';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -104,10 +104,44 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
       });
     }
   }, [profile]);
-  const [isPendingValidation, setIsPendingValidation] = useState(false);
+  const [billingHistory, setBillingHistory] = useState<any[]>([]);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [manualReference, setManualReference] = useState('');
-  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
   const itemsPerPage = 10;
+
+  // Derive pending requests directly from billing history for real-time accuracy
+  const pendingRequests = billingHistory.filter(h => h.status === 'PENDING');
+
+  const checkLiveStatus = async () => {
+    setIsSyncing(true);
+    try {
+      // Direct verification on the "machine" (server)
+      const userSnap = await getDoc(doc(db, 'users', profile.uid));
+      const payRequestsSnap = await getDocs(query(
+        collection(db, 'payment_requests'),
+        where('userId', '==', profile.uid),
+        where('status', '==', 'PENDING')
+      ));
+      
+      await new Promise(resolve => setTimeout(resolve, 1500)); // Comfort delay
+      
+      if (payRequestsSnap.empty) {
+        // No pending requests found on server
+        if (billingHistory.some(h => h.status === 'APPROVED')) {
+          alert("✅ Vérification terminée : Votre paiement a bien été validé par l'administrateur.");
+        } else {
+          alert("ℹ️ Aucun paiement en attente n'a été trouvé sur le serveur.");
+        }
+      } else {
+        alert("⏳ Vérification terminée : Vos demandes (Réf: " + payRequestsSnap.docs.map(d => d.data().reference).join(', ') + ") sont toujours en attente de traitement manuel.");
+      }
+    } catch (error) {
+      console.error("Verification error:", error);
+      alert("❌ Erreur lors de la vérification en direct. Veuillez réessayer.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const currency = profile?.currency || 'XOF';
   const price = currency === 'XOF' ? 10000 : (currency === 'EUR' ? 15 : 16);
@@ -170,7 +204,6 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
         link: '/admin?tab=subscriptions'
       });
 
-      setIsPendingValidation(true);
       setPaymentStep('SUCCESS');
     } catch (error) {
       console.error("Paystack confirmation error:", error);
@@ -180,56 +213,79 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
     }
   };
 
-  const [billingHistory, setBillingHistory] = useState<any[]>([]);
   const totalPages = Math.ceil(billingHistory.length / itemsPerPage);
 
   useEffect(() => {
     if (!profile) return;
     
-    // Watch for PENDING requests
-    const qPending = query(
-      collection(db, 'payment_requests'), 
-      where('userId', '==', profile.uid),
-      where('status', '==', 'PENDING')
-    );
-    const unsubPending = onSnapshot(qPending, (snap) => {
-      setPendingRequests(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    }, (err) => console.error("Pending requests fetch error:", err));
-
-    // Watch for APPROVED/PAID requests for Billing History
-    const qHistory = query(
+    // Watch for ALL payment requests (PENDING, APPROVED, REJECTED)
+    // Order by createdAt descending to show most recent first
+    const qPayments = query(
       collection(db, 'payment_requests'),
       where('userId', '==', profile.uid),
-      where('status', '==', 'APPROVED'),
       orderBy('createdAt', 'desc')
     );
     
-    const unsubHistory = onSnapshot(qHistory, (snap) => {
+    const unsubscribe = onSnapshot(qPayments, (snap) => {
       const history = snap.docs.map(doc => {
         const data = doc.data();
-        const approvedTime = data.approvedAt?.seconds ? data.approvedAt.seconds * 1000 : 
-                             (data.createdAt?.seconds ? data.createdAt.seconds * 1000 : Date.now());
-        const date = new Date(approvedTime).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-        const expiryDate = new Date(approvedTime + (30 * 24 * 60 * 60 * 1000)).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+        const time = data.approvedAt?.seconds ? data.approvedAt.seconds * 1000 : 
+                     (data.createdAt?.seconds ? data.createdAt.seconds * 1000 : Date.now());
         
+        const date = new Date(time).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+        const expiryDateTime = time + (30 * 24 * 60 * 60 * 1000);
+        const expiryDate = data.status === 'APPROVED' ? 
+                           new Date(expiryDateTime).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : 
+                           null;
+        
+        // Auto-reminder logic: Check if expiry is near (within 7 days)
+        if (data.status === 'APPROVED' && !data.reminderSent) {
+          const now = Date.now();
+          const daysLeft = (expiryDateTime - now) / (1000 * 60 * 60 * 24);
+          
+          if (daysLeft > 0 && daysLeft <= 7) {
+            triggerExpiryReminder(doc.id, daysLeft, expiryDate);
+          }
+        }
+
         return {
           id: doc.id,
           date,
           expiryDate,
           desc: `Renouvellement Abonnement Standard - ${data.reference || 'Paystack'}`,
           amount: data.amount,
-          status: 'Payé',
+          status: data.status, // Directly use the database status
           fullData: data
         };
       });
       setBillingHistory(history);
-    }, (err) => console.error("History fetch error:", err));
+    }, (err) => console.error("Payments history fetch error:", err));
 
-    return () => {
-      unsubPending();
-      unsubHistory();
-    };
+    return () => unsubscribe();
   }, [profile]);
+
+  const triggerExpiryReminder = async (requestId: string, daysLeft: number, expiryDate: string | null) => {
+    try {
+      // Mark as reminder sent to avoid loops
+      await updateDoc(doc(db, 'payment_requests', requestId), {
+        reminderSent: true,
+        lastReminderAt: serverTimestamp()
+      });
+
+      // Send local notification
+      await sendNotification({
+        companyId: profile?.companyId || profile?.uid || '',
+        title: "⚠️ Expiration Proche",
+        message: `Votre abonnement KONTROL expire dans ${Math.ceil(daysLeft)} jours (${expiryDate}). Pensez à renouveler pour éviter toute interruption.`,
+        type: 'warning',
+        link: '/subscriptions'
+      });
+      
+      console.log("Subscription expiry reminder sent.");
+    } catch (error) {
+      console.error("Error sending expiry reminder:", error);
+    }
+  };
 
   const paginatedHistory = billingHistory.slice(
     (currentPage - 1) * itemsPerPage,
@@ -301,26 +357,35 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
       </header>
 
       {pendingRequests.length > 0 && (
-        <div className="p-6 bg-amber-50 border border-amber-100 rounded-[2rem] flex items-center gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
-          <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center shrink-0">
-            <Clock size={24} />
+        <div className="p-6 bg-amber-50 border border-amber-100 rounded-[2rem] flex flex-col md:flex-row items-center gap-6 animate-in fade-in slide-in-from-top-4 duration-500 shadow-sm">
+          <div className="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center shrink-0 border border-amber-200">
+            {isSyncing ? <Loader2 size={24} className="animate-spin" /> : <Clock size={24} />}
           </div>
-          <div className="flex-1">
-            <h4 className="text-sm font-extrabold text-amber-900 uppercase tracking-tight">Validation en cours</h4>
-            <div className="space-y-1">
+          <div className="flex-1 text-center md:text-left">
+            <h4 className="text-sm font-extrabold text-amber-900 uppercase tracking-tight flex items-center justify-center md:justify-start gap-2">
+              Validation manuelle en cours
+              {isSyncing && <span className="text-[10px] font-bold text-amber-500 animate-pulse">(Vérification...)</span>}
+            </h4>
+            <div className="space-y-1 mt-1">
               <p className="text-[12px] text-amber-600 font-medium">
-                Votre demande de renouvellement est en cours de traitement par l'équipe KONTROL.
+                Notre équipe vérifie votre paiement. Votre accès sera prolongé automatiquement une fois validé.
               </p>
-              {pendingRequests.map(req => (
-                <p key={req.id} className="text-[10px] font-bold text-amber-700 bg-amber-100/50 px-2 py-1 rounded-lg inline-block mr-2">
-                  Réf checked: {req.reference}
-                </p>
-              ))}
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-2">
+                {pendingRequests.map(req => (
+                  <span key={req.id} className="text-[9px] font-black text-amber-700 bg-white border border-amber-200 px-2.5 py-1 rounded-lg uppercase tracking-wider">
+                    Réf: {req.fullData?.reference || '...'}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
-          <div className="hidden sm:block px-4 py-2 bg-white border border-amber-200 rounded-xl text-[10px] font-extrabold text-amber-600 uppercase tracking-widest">
-            En attente
-          </div>
+          <button 
+            onClick={checkLiveStatus}
+            disabled={isSyncing}
+            className="w-full md:w-auto px-6 py-3 bg-white border-2 border-amber-300 text-amber-700 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-amber-100 transition-all shadow-sm active:scale-95 disabled:opacity-50"
+          >
+            {isSyncing ? "Vérification..." : "Vérification en direct"}
+          </button>
         </div>
       )}
 
@@ -451,7 +516,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                   <th className="px-8 py-5 text-[11px] font-extrabold uppercase tracking-[0.2em] text-kontrol-ink-muted text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-kontrol-border">
+              <tbody className="divide-y divide-kontrol-border font-medium">
                 {paginatedHistory.map((item, i) => (
                   <tr key={i} className={cn("hover:bg-kontrol-bg/30 transition-colors group", i % 2 === 0 ? "bg-white" : "bg-kontrol-bg/10")}>
                     <td className="px-8 py-5 text-[13px] text-kontrol-dark font-bold">{item.date}</td>
@@ -465,18 +530,33 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                     </td>
                     <td className="px-8 py-5 text-[14px] font-extrabold text-kontrol-dark">{formatCurrency(item.amount, currency)}</td>
                     <td className="px-8 py-5">
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-700 uppercase tracking-widest">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                        {item.status}
-                      </span>
+                      {item.status === 'APPROVED' ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-700 uppercase tracking-widest border border-emerald-200 shadow-sm">
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          Payé
+                        </span>
+                      ) : item.status === 'PENDING' ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-700 uppercase tracking-widest border border-amber-200 shadow-sm">
+                          <Clock size={10} className="animate-spin-slow" />
+                          En attente
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-700 uppercase tracking-widest border border-rose-200">
+                          Rejeté
+                        </span>
+                      )}
                     </td>
                     <td className="px-8 py-5 text-right">
-                      <button 
-                        onClick={() => setSelectedInvoice(item)}
-                        className="px-4 py-2 bg-kontrol-bg text-kontrol-ink-soft hover:bg-kontrol-dark hover:text-white rounded-xl text-[11px] font-extrabold transition-all uppercase tracking-widest"
-                      >
-                        Facture
-                      </button>
+                      {item.status === 'APPROVED' ? (
+                        <button 
+                          onClick={() => setSelectedInvoice(item)}
+                          className="px-4 py-2 bg-kontrol-bg text-kontrol-ink-soft hover:bg-kontrol-dark hover:text-white rounded-xl text-[11px] font-extrabold transition-all uppercase tracking-widest"
+                        >
+                          Facture
+                        </button>
+                      ) : (
+                        <span className="text-[10px] font-bold text-kontrol-ink-muted uppercase italic">Indisponible</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -626,18 +706,16 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                   <div className="py-8 flex flex-col items-center text-center space-y-5">
                     <div className={cn(
                       "w-16 h-16 rounded-full flex items-center justify-center shadow-lg",
-                      isPendingValidation ? "bg-amber-100 text-amber-600 shadow-amber-500/20" : "bg-emerald-100 text-emerald-600 shadow-emerald-500/20"
+                      paymentStep === 'SUCCESS' ? "bg-amber-100 text-amber-600 shadow-amber-500/20" : "bg-emerald-100 text-emerald-600 shadow-emerald-500/20"
                     )}>
-                      {isPendingValidation ? <Clock size={32} /> : <CheckCircle2 size={32} />}
+                      {paymentStep === 'SUCCESS' ? <Clock size={32} /> : <CheckCircle2 size={32} />}
                     </div>
                     <div>
                       <h4 className="text-xl font-extrabold text-kontrol-dark tracking-tight">
-                        {isPendingValidation ? "Demande envoyée !" : "Paiement Réussi !"}
+                        Demande envoyée !
                       </h4>
                       <p className="text-[12px] text-kontrol-ink-muted mt-1.5 px-4">
-                        {isPendingValidation 
-                          ? "Votre demande de validation a été transmise. Notre équipe vérifiera votre paiement dans les plus brefs délais."
-                          : "Votre abonnement a été prolongé de 30 jours avec succès. Merci de votre confiance !"}
+                        Votre demande de validation a été transmise. Notre équipe vérifiera votre paiement dans les plus brefs délais. Accédez au tableau de bord pour suivre le statut en direct.
                       </p>
                     </div>
                     <div className="w-full space-y-3">
@@ -761,16 +839,6 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
           </div>
         )}
       </AnimatePresence>
-
-
-      {/* Activity Log */}
-      <div className="mt-8">
-        <ModuleActivityLog 
-          companyId={profile.companyId || profile.uid} 
-          moduleName="Abonnement" 
-          title="Journal des abonnements" 
-        />
-      </div>
     </div>
     </ErrorBoundary>
   );
