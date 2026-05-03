@@ -21,7 +21,7 @@ import {
   AlertTriangle,
   BrainCircuit
 } from 'lucide-react';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { exportToPDF } from '../../lib/export';
 import Markdown from 'react-markdown';
 import { sendNotification } from '../../../api/services/notificationService';
@@ -129,11 +129,11 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
         totalUsers: snap.size,
         activeCompanies: companies.size
       }));
-    });
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'users', user));
 
     const unsubTickets = onSnapshot(query(collection(db, 'tickets'), where('status', '==', 'NEW')), (snap) => {
       setGlobalStats(prev => ({ ...prev, pendingTickets: snap.size }));
-    });
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'tickets', user));
 
     const unsubTrans = onSnapshot(collection(db, 'transactions'), (snap) => {
       const total = snap.docs.reduce((acc, doc) => acc + (doc.data().montantTotal || 0), 0);
@@ -158,7 +158,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
 
       const chartData = sortedMonths.map(([month, total]) => ({ month, total }));
       setGlobalStats(prev => ({ ...prev, totalRevenue: total, revenueData: chartData }));
-    });
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'transactions', user));
 
     const unsubPayments = onSnapshot(collection(db, 'payments'), (snap) => {
       const total = snap.docs.reduce((acc, doc) => {
@@ -166,7 +166,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
         return acc + (p.type === 'ENCAISSEMENT' ? (p.montant || 0) : -(p.montant || 0));
       }, 0);
       setGlobalStats(prev => ({ ...prev, totalTreasury: total }));
-    });
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'payments', user));
 
     const unsubActions = onSnapshot(query(
       collection(db, 'actions'), 
@@ -175,7 +175,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
       limit(5)
     ), (snap) => {
       setGlobalStats(prev => ({ ...prev, recentActions: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
-    });
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'actions', user));
 
     return () => {
       unsubUsers();
@@ -192,8 +192,9 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
     setAiAnalysis('');
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
-      const prompt = `
+      const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+      const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const promptText = `
         En tant qu'expert en gestion d'entreprise pour l'application KONTROL, analyse les données suivantes et fournis des conseils stratégiques concrets :
         - Chiffre d'Affaires (CA) : ${formatCurrency(stats.ca)}
         - Dépenses Totales : ${formatCurrency(totalExpenses)}
@@ -214,13 +215,12 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
         Réponds en français, avec un ton professionnel et encourageant.
       `;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt,
-      });
+      const response = await model.generateContent(promptText);
+      const result = await response.response;
+      const text = result.text();
 
-      console.log("AI Analysis Response received:", response.text?.substring(0, 50) + "...");
-      setAiAnalysis(response.text || "Désolé, je n'ai pas pu générer d'analyse pour le moment.");
+      console.log("AI Analysis Response received:", text.substring(0, 50) + "...");
+      setAiAnalysis(text || "Désolé, je n'ai pas pu générer d'analyse pour le moment.");
     } catch (error) {
       console.error("AI Analysis Error:", error);
       setAiAnalysis("Une erreur est survenue lors de l'analyse IA. Veuillez réessayer plus tard.");
@@ -235,8 +235,9 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
     setCodeAnalysis('');
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
-      const prompt = `
+      const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+      const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const promptText = `
         En tant qu'expert en sécurité et architecture logicielle pour l'application KONTROL (Full-stack React/Firebase/Express), 
         analyse l'état actuel du système et fournis des recommandations techniques :
         - Nombre d'utilisateurs : ${globalStats.totalUsers}
@@ -253,12 +254,11 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
         Réponds en français, avec un ton technique et précis.
       `;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt,
-      });
+      const response = await model.generateContent(promptText);
+      const result = await response.response;
+      const text = result.text();
 
-      setCodeAnalysis(response.text || "Désolé, je n'ai pas pu générer d'analyse de code pour le moment.");
+      setCodeAnalysis(text || "Désolé, je n'ai pas pu générer d'analyse de code pour le moment.");
     } catch (error) {
       console.error("Code Analysis Error:", error);
       setCodeAnalysis("Une erreur est survenue lors de l'analyse du code. Veuillez réessayer plus tard.");
@@ -432,7 +432,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
             setSubscriptionAlert(null);
           }
         }
-      }));
+      }, (err) => console.error("Subscription listener error:", err)));
     }
 
     return () => unsubscribes.forEach(unsub => unsub());

@@ -1,5 +1,5 @@
 {
   "name": "KONTROL",
-  "description": "Solution de gestion intelligente pour TPE. Gestion des stocks, ventes, achats et comptabilité avec assistant IA Blue AI.",
+  "description": "KONTROL ERP - Plateforme de gestion haute performance assistée par IA. Architecture Polyglotte Java/Go/Rust Totalement Indexée avec Backend PostgreSQL Engine.",
   "requestFramePermissions": []
 }

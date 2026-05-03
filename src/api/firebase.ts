@@ -42,7 +42,7 @@ import {
   StockMovement, 
   UserRole 
 } from '../frontend/types';
-import { 
+export { 
   OperationType, 
   handleFirestoreError 
 } from './lib/firestore-errors';
@@ -64,7 +64,7 @@ async function testConnection() {
     }
   }
 }
-testConnection();
+testConnection().catch(err => console.error("Critical failure in testConnection:", err));
 
 // Export Firestore functions
 export type { User };
@@ -176,27 +176,31 @@ export async function ensureUserProfile(user: User, companyName?: string, hashed
   const isAdminEmail = userEmail === 'innov.korp@gmail.com' || userEmail === 'acherie812@gmail.com';
   const targetRole = isAdminEmail ? 'ADMINISTRATEUR_KONTROL' : 'ADMINISTRATEUR_ENTREPRISE';
 
-  if (!userDoc.exists()) {
-    // If user exists in Auth but not in Firestore, auto-create a profile
-    // instead of throwing error, to ensure smooth login.
-    const profile: UserProfile = {
-      uid: user.uid,
-      email: user.email || '',
-      displayName: user.displayName || user.email?.split('@')[0] || 'Utilisateur',
-      role: targetRole,
-      companyId: user.uid,
-      companyName: companyName || (isAdminEmail ? 'KONTROL' : ''),
-      isProfileComplete: isAdminEmail,
-      active: true,
-      createdAt: Date.now(),
-      subscriptionStatus: 'TRIAL',
-      subscriptionEndDate: Date.now() + (14 * 24 * 60 * 60 * 1000) // 14 days trial
-    };
-    if (hashedPassword) {
-      profile.password = hashedPassword;
-    }
-    await setDoc(userRef, profile);
-  } else {
+    if (!userDoc.exists()) {
+      // If user exists in Auth but not in Firestore, auto-create a profile
+      // instead of throwing error, to ensure smooth login.
+      const profile: UserProfile = {
+        uid: user.uid,
+        email: user.email || '',
+        displayName: user.displayName || user.email?.split('@')[0] || 'Utilisateur',
+        role: targetRole,
+        companyId: user.uid,
+        companyName: companyName || (isAdminEmail ? 'KONTROL' : ''),
+        isProfileComplete: isAdminEmail,
+        active: true,
+        createdAt: Date.now(),
+        subscriptionStatus: 'TRIAL',
+        subscriptionEndDate: Date.now() + (14 * 24 * 60 * 60 * 1000) // 14 days trial
+      };
+      if (hashedPassword) {
+        profile.password = hashedPassword;
+      }
+      try {
+        await setDoc(userRef, profile);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.CREATE, `users/${user.uid}`, user);
+      }
+    } else {
     const data = userDoc.data();
     const updates: any = {};
     
@@ -213,13 +217,21 @@ export async function ensureUserProfile(user: User, companyName?: string, hashed
       updates.password = hashedPassword;
     }
     if (Object.keys(updates).length > 0) {
-      await updateDoc(userRef, updates);
+      try {
+        await updateDoc(userRef, updates);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`, user);
+      }
     }
   }
 }
 
 export const updateUserProfile = async (uid: string, data: Partial<UserProfile>) => {
-  await setDoc(doc(db, 'users', uid), data, { merge: true });
+  try {
+    await setDoc(doc(db, 'users', uid), data, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `users/${uid}`, auth.currentUser);
+  }
 };
 
 // Action Logger Helper
@@ -238,7 +250,8 @@ export const logAction = async (companyId: string, userId: string, userName: str
   }
 };
 export const recordStockMovement = async (movement: Omit<StockMovement, 'id'>) => {
-  await runTransaction(db, async (transaction) => {
+  try {
+    await runTransaction(db, async (transaction) => {
     const productRef = doc(db, 'produits', movement.produitId);
     const productDoc = await transaction.get(productRef);
     
@@ -279,6 +292,9 @@ export const recordStockMovement = async (movement: Omit<StockMovement, 'id'>) =
     });
 
     transaction.set(movementRef, movementData);
-  });
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, 'stock_movements', auth.currentUser);
+  }
 };
 

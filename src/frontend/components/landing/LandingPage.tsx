@@ -23,6 +23,9 @@ import {
 import { Logo } from '../common/Logo';
 import { cn } from '../../lib/utils';
 import { Chatbot } from '../common/Chatbot';
+import { LegalTerms } from './LegalTerms';
+import { SupportForm } from '../common/SupportForm';
+import { AnimatePresence } from 'motion/react';
 
 interface LandingPageProps {
   onLoginClick: (mode?: 'login' | 'register') => void;
@@ -30,6 +33,7 @@ interface LandingPageProps {
 
 export function LandingPage({ onLoginClick }: LandingPageProps) {
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [legalView, setLegalView] = useState<'mentions' | 'confidentialite' | null>(null);
   const [currency, setCurrency] = useState<{ code: string; symbol: string; rate: number; label: string }>({
     code: 'XOF',
     symbol: 'F CFA',
@@ -409,53 +413,7 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
             </div>
 
             <div className="bg-white p-8 rounded-[32px] border border-kontrol-border shadow-2xl shadow-kontrol-dark/5">
-              <form className="space-y-5" onSubmit={async (e) => {
-                e.preventDefault();
-                const form = e.currentTarget;
-                const formData = new FormData(form);
-                const data = {
-                  name: formData.get('name'),
-                  email: formData.get('email'),
-                  subject: formData.get('subject'),
-                  message: formData.get('message'),
-                  status: 'NEW',
-                  priority: 'MEDIUM',
-                  createdAt: Date.now()
-                };
-                
-                try {
-                  const { db, collection, addDoc } = await import('../../../api/firebase');
-                  await addDoc(collection(db, 'tickets'), data);
-                  alert('Message envoyé avec succès ! Notre équipe vous contactera sous peu.');
-                  form.reset();
-                } catch (err) {
-                  console.error(err);
-                  alert('Une erreur est survenue. Veuillez réessayer.');
-                }
-              }}>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">Nom complet</label>
-                    <input name="name" type="text" required className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl focus:outline-none focus:border-kontrol-blue transition-colors font-bold text-[13px]" placeholder="Jean Dupont" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">Email</label>
-                    <input name="email" type="email" required className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl focus:outline-none focus:border-kontrol-blue transition-colors font-bold text-[13px]" placeholder="jean@entreprise.com" />
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">Sujet</label>
-                  <input name="subject" type="text" required className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl focus:outline-none focus:border-kontrol-blue transition-colors font-bold text-[13px]" placeholder="Demande de démo" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">Message</label>
-                  <textarea name="message" required rows={3} className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl focus:outline-none focus:border-kontrol-blue transition-colors font-bold text-[13px] resize-none" placeholder="Comment pouvons-nous vous aider ?" />
-                </div>
-                <button type="submit" className="w-full py-3.5 bg-kontrol-dark text-white font-extrabold rounded-xl hover:bg-kontrol-blue transition-all flex items-center justify-center gap-2 group text-sm">
-                  Envoyer le message
-                  <Send size={16} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-                </button>
-              </form>
+              <SupportForm />
             </div>
           </div>
         </div>
@@ -473,8 +431,18 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
               <a href="mailto:Innov.korp@gmail.com" className="text-[13px] font-bold text-kontrol-ink-soft hover:text-kontrol-blue transition-colors flex items-center gap-2">
                 <Mail size={16} /> Innov.korp@gmail.com
               </a>
-              <a href="#" className="text-[13px] font-bold text-kontrol-ink-soft hover:text-kontrol-blue transition-colors">Mentions légales</a>
-              <a href="#" className="text-[13px] font-bold text-kontrol-ink-soft hover:text-kontrol-blue transition-colors">Confidentialité</a>
+              <button 
+                onClick={() => setLegalView('mentions')}
+                className="text-[13px] font-bold text-kontrol-ink-soft hover:text-kontrol-blue transition-colors"
+              >
+                Mentions légales
+              </button>
+              <button 
+                onClick={() => setLegalView('confidentialite')}
+                className="text-[13px] font-bold text-kontrol-ink-soft hover:text-kontrol-blue transition-colors"
+              >
+                Confidentialité
+              </button>
             </div>
           </div>
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-8 border-t border-kontrol-border">
@@ -487,13 +455,22 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
               </p>
             </div>
             <div className="flex gap-6">
-              <a href="#" className="text-kontrol-ink-muted hover:text-kontrol-dark transition-colors"><Globe size={18} /></a>
-              <a href="#" className="text-kontrol-ink-muted hover:text-kontrol-dark transition-colors"><CreditCard size={18} /></a>
+              <button onClick={() => setLegalView('mentions')} className="text-kontrol-ink-muted hover:text-kontrol-dark transition-colors"><Globe size={18} /></button>
+              <button onClick={() => setLegalView('confidentialite')} className="text-kontrol-ink-muted hover:text-kontrol-dark transition-colors"><Shield size={18} /></button>
             </div>
           </div>
         </div>
       </footer>
       
+      <AnimatePresence>
+        {legalView && (
+          <LegalTerms 
+            type={legalView} 
+            onClose={() => setLegalView(null)} 
+          />
+        )}
+      </AnimatePresence>
+
       {/* Scroll to Top Button */}
       <button
         onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}

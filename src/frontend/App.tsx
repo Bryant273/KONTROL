@@ -40,6 +40,7 @@ import { AlertTriangle, Clock, X, Loader2 } from 'lucide-react';
 import { SystemModule } from './modules/system/SystemModule';
 import { KChatModule } from './modules/chat/KChatModule';
 import { NotificationsCenterModule } from './modules/system/NotificationsCenterModule';
+import { Toaster } from 'sonner';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -72,7 +73,14 @@ export default function App() {
   
   // Auth state listener
   useEffect(() => {
+    // Safety timeout to ensure loading screen eventually disappears
+    const authTimeout = setTimeout(() => {
+      console.warn("Auth check timed out. Forcing UI load.");
+      setLoading(false);
+    }, 6000);
+
     const unsubscribe = onAuthStateChanged(auth, (authUser) => {
+      clearTimeout(authTimeout);
       if (authUser) {
         setUser(authUser);
         localStorage.removeItem('customUser');
@@ -84,7 +92,9 @@ export default function App() {
           setLoading(false);
         } else {
           // Sign in anonymously if no user is found
-          signInAnonymously(auth).catch(err => {
+          signInAnonymously(auth).then(() => {
+            setLoading(false);
+          }).catch(err => {
             if (err.code === 'auth/admin-restricted-operation') {
               console.warn("L'authentification anonyme n'est pas activée dans la console Firebase. Le chatbot pour les invités pourrait ne pas fonctionner correctement.");
             } else {
@@ -94,8 +104,16 @@ export default function App() {
           });
         }
       }
+    }, (error) => {
+      console.error("Auth state listener error:", error);
+      clearTimeout(authTimeout);
+      setLoading(false);
     });
-    return () => unsubscribe();
+
+    return () => {
+      unsubscribe();
+      clearTimeout(authTimeout);
+    };
   }, []);
 
   // Profile listener
@@ -175,19 +193,29 @@ export default function App() {
           'L\'utilisateur s\'est connecté à la plateforme'
         ).then(() => {
           sessionStorage.setItem(`logged_in_${profile.uid}`, 'true');
+        }).catch(err => {
+          console.error("Failed to log login action:", err);
         });
+      }).catch(err => {
+        console.error("Failed to load firebase module for logging:", err);
       });
     }
   }, [profile]);
 
   const handleLogout = async () => {
-    await logout(profile);
-    setUser(null);
-    setProfile(null);
-    setAuthView('landing');
-    localStorage.removeItem('activeTab');
-    localStorage.removeItem('activeSection');
-    localStorage.removeItem('activeLabel');
+    try {
+      await logout(profile);
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      setUser(null);
+      setProfile(null);
+      setAuthView('landing');
+      localStorage.removeItem('activeTab');
+      localStorage.removeItem('activeSection');
+      localStorage.removeItem('activeLabel');
+      localStorage.removeItem('customUser');
+    }
   };
 
   const handleTabChange = (tab: string, section: string, label: string) => {
@@ -220,6 +248,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-kontrol-bg flex overflow-hidden">
+      {/* REACT SENTINEL - DEBUG ONLY */}
+      <div className="fixed top-0 left-0 w-full h-1 bg-gradient-to-r from-kontrol-blue to-kontrol-orange z-[9999]" />
+      
       {showSetup && profile && (
         <CompanySetupModal 
           profile={profile} 
@@ -291,27 +322,26 @@ export default function App() {
             <>
               {activeTab === 'dashboard' && (isKontrolAdmin ? <ControlTower user={user} profile={profile} /> : <Dashboard user={user} currentUserProfile={profile} />)}
               {activeTab === 'subscriptions' && (isKontrolAdmin ? <ControlTower activeSubTab="subscriptions" user={user} profile={profile} /> : <SubscriptionsModule profile={profile} />)}
-              {activeTab === 'revenue' && <ControlTower activeSubTab="revenue" user={user} profile={profile} />}
-              {activeTab === 'accounting' && <ControlTower activeSubTab="accounting" user={user} profile={profile} />}
-              {activeTab === 'ai_core' && <ControlTower activeSubTab="ai_core" user={user} profile={profile} />}
-              {activeTab === 'telemetry' && <ControlTower activeSubTab="telemetry" user={user} profile={profile} />}
-              {activeTab === 'audit' && <ControlTower activeSubTab="audit" user={user} profile={profile} />}
+              {activeTab === 'revenue' && (isKontrolAdmin ? <ControlTower activeSubTab="revenue" user={user} profile={profile} /> : null)}
+              {activeTab === 'accounting' && (isKontrolAdmin ? <ControlTower activeSubTab="accounting" user={user} profile={profile} /> : null)}
+              {activeTab === 'admin_tiers' && isKontrolAdmin && <ControlTower activeSubTab="admin_tiers" user={user} profile={profile} />}
+              {activeTab === 'admin_transactions' && isKontrolAdmin && <ControlTower activeSubTab="admin_transactions" user={user} profile={profile} />}
               {activeTab === 'tiers' && <TiersModule user={user} currentUserProfile={profile} />}
               {activeTab === 'produits' && <ProduitsModule user={user} currentUserProfile={profile} />}
               {activeTab === 'transactions' && <TransactionsModule user={user} currentUserProfile={profile} />}
               {activeTab === 'charges' && <ChargesModule user={user} currentUserProfile={profile} />}
               {activeTab === 'stocks' && <StocksModule user={user} currentUserProfile={profile} />}
               {activeTab === 'finance' && <FinanceModule user={user} currentUserProfile={profile} />}
-              {activeTab === 'ai' && (isKontrolAdmin ? <ControlTower activeSubTab="ai_core" user={user} profile={profile} /> : <BlueAIModule user={user} currentUserProfile={profile} />)}
+              {activeTab === 'ai' && (isKontrolAdmin ? <ControlTower activeSubTab="ai" user={user} profile={profile} /> : <BlueAIModule user={user} currentUserProfile={profile} />)}
               {activeTab === 'utilisateurs' && (isKontrolAdmin ? <ControlTower activeSubTab="utilisateurs" user={user} profile={profile} /> : <UsersModule user={user} currentUserProfile={profile} />)}
               {activeTab === 'gestionnaires' && <ControlTower activeSubTab="gestionnaires" user={user} profile={profile} />}
               {activeTab === 'tickets' && (isKontrolAdmin ? <ControlTower activeSubTab="tickets" user={user} profile={profile} /> : <TicketsModule user={user} currentUserProfile={profile} />)}
               {activeTab === 'chat' && user && <KChatModule user={user} profile={profile} />}
               {activeTab === 'entreprises' && (isKontrolAdmin ? <ControlTower activeSubTab="entreprises" user={user} profile={profile} /> : <CompaniesModule />)}
-              {activeTab === 'system' && (isKontrolAdmin ? <ControlTower activeSubTab="telemetry" user={user} profile={profile} /> : <SystemModule currentUserProfile={profile} />)}
+              {activeTab === 'system' && (isKontrolAdmin ? <ControlTower activeSubTab="system" user={user} profile={profile} /> : <SystemModule currentUserProfile={profile} />)}
               {activeTab === 'versions' && (isKontrolAdmin ? <ControlTower activeSubTab="versions" user={user} profile={profile} /> : null)}
               {activeTab === 'updates' && (isKontrolAdmin ? <ControlTower activeSubTab="updates" user={user} profile={profile} /> : null)}
-              {activeTab === 'actions' && (isKontrolAdmin ? <ControlTower activeSubTab="audit" user={user} profile={profile} /> : <ActionsModule user={user} currentUserProfile={profile} />)}
+              {activeTab === 'actions' && (isKontrolAdmin ? <ControlTower activeSubTab="actions" user={user} profile={profile} /> : <ActionsModule user={user} currentUserProfile={profile} />)}
               {activeTab === 'abonnements' && <SubscriptionsModule profile={profile} />}
               {activeTab === 'notifications' && <NotificationsCenterModule profile={profile} onNavigate={handleTabChange} />}
               {activeTab === 'profil' && <ProfileModule profile={profile} />}
@@ -358,6 +388,7 @@ export default function App() {
       )}
 
       <Chatbot />
+      <Toaster position="top-right" expand={false} richColors />
     </div>
   );
 }

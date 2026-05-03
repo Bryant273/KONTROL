@@ -102,7 +102,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
     const qTiers = query(collection(db, 'tiers'), where('ownerId', '==', companyId));
     unsubscribes.push(onSnapshot(qTiers, (snapshot) => {
       setTiers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Tiers[]);
-    }));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'tiers', user)));
 
     return () => unsubscribes.forEach(unsub => unsub());
   }, [companyId]);
@@ -218,25 +218,48 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
     exportToExcel(data, 'Tresorerie_KONTROL');
   };
 
+  const [bridgeResult, setBridgeResult] = React.useState<any>(null);
+  const [isCalculatingBridge, setIsCalculatingBridge] = React.useState(false);
+
+  const checkBridgeEligibility = async () => {
+    setIsCalculatingBridge(true);
+    try {
+      const totalInvoices = payments.filter(p => p.type === 'ENCAISSEMENT').reduce((acc, p) => acc + p.montant, 0) * 0.4;
+      const res = await fetch('/api/enterprise/treasury/bridge-calc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cash: totalBalance, invoices: totalInvoices })
+      });
+      const data = await res.json();
+      setBridgeResult(data);
+    } catch (e) {
+      console.error("Bridge calc error");
+    } finally {
+      setIsCalculatingBridge(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-extrabold text-kontrol-dark tracking-tight">Trésorerie</h2>
-          <p className="text-[13px] text-kontrol-ink-muted mt-1">Suivi des flux de trésorerie et mouvements financiers</p>
+          <h2 className="text-xl font-extrabold text-kontrol-dark tracking-tight">Trésorerie & Finance</h2>
+          <p className="text-[13px] text-kontrol-ink-muted mt-1">Géré par KONTROL Polyglot Core (Java/Go/Rust)</p>
         </div>
         <div className="flex gap-2">
+          <button 
+            onClick={checkBridgeEligibility}
+            disabled={isCalculatingBridge}
+            className="btn-outline border-kontrol-blue text-kontrol-blue text-xs py-1.5 px-4 flex items-center gap-2 hover:bg-kontrol-blue hover:text-white transition-all"
+          >
+            {isCalculatingBridge ? <Loader2 size={14} className="animate-spin" /> : <TrendingUp size={14} />} 
+            Calculer éligibilité Bridge
+          </button>
           <button 
             onClick={handleExportPDF}
             className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2"
           >
             <FileText size={14} /> PDF
-          </button>
-          <button 
-            onClick={handleExportExcel}
-            className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2"
-          >
-            <Table size={14} /> Excel
           </button>
           <button 
             onClick={() => setIsAddingPayment(true)}
@@ -246,6 +269,30 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
           </button>
         </div>
       </div>
+
+      {/* Bridge Result Banner */}
+      {bridgeResult && (
+        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="overflow-hidden">
+          <div className="bg-kontrol-blue/5 border border-kontrol-blue/20 rounded-2xl p-4 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                <CreditCard className="text-kontrol-blue" size={24} />
+              </div>
+              <div>
+                <h4 className="text-[13px] font-black text-kontrol-dark uppercase tracking-tight">Offre de Financement KONTROL</h4>
+                <p className="text-[11px] text-kontrol-ink-muted font-bold">Bridge calculé via Java Spring Core : <span className="text-kontrol-blue">{formatCurrency(bridgeResult.amount_eligible)}</span> éligibles</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="text-right hidden sm:block">
+                <p className="text-[10px] font-black text-emerald-600 uppercase">Taux Préférentiel</p>
+                <p className="text-lg font-black text-kontrol-dark">3.5% <span className="text-[10px] text-kontrol-ink-muted">ANNUEL</span></p>
+              </div>
+              <button className="btn-primary text-[10px] px-4 py-2 uppercase font-black" onClick={() => setBridgeResult(null)}>Débloquer les fonds</button>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -105,12 +105,16 @@ export function NotificationCenter({ profile, onNavigate }: NotificationCenterPr
   };
 
   const markAllAsRead = async () => {
-    if (notifications.length === 0) return;
-    const batch = writeBatch(db);
-    notifications.filter(n => !n.read).forEach(n => {
-      batch.update(doc(db, 'notifications', n.id), { read: true });
-    });
-    await batch.commit();
+    if (notifications.length === 0 || notifications.every(n => n.read)) return;
+    try {
+      const batch = writeBatch(db);
+      notifications.filter(n => !n.read).forEach(n => {
+        batch.update(doc(db, 'notifications', n.id), { read: true });
+      });
+      await batch.commit();
+    } catch (error) {
+      console.error("Error marking all as read:", error);
+    }
   };
 
   const deleteNotification = async (id: string) => {
@@ -153,9 +157,13 @@ export function NotificationCenter({ profile, onNavigate }: NotificationCenterPr
                 <button 
                   onClick={async () => {
                     if (window.confirm("Tout effacer ?")) {
-                      const batch = writeBatch(db);
-                      notifications.forEach(n => batch.delete(doc(db, 'notifications', n.id)));
-                      await batch.commit();
+                      try {
+                        const batch = writeBatch(db);
+                        notifications.forEach(n => batch.delete(doc(db, 'notifications', n.id)));
+                        await batch.commit();
+                      } catch (error) {
+                        console.error("Error clearing notifications:", error);
+                      }
                     }
                   }}
                   className="p-1 hover:bg-rose-50 text-rose-500 rounded-lg transition-colors"

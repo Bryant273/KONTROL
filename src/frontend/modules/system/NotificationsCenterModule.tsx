@@ -67,6 +67,9 @@ export function NotificationsCenterModule({ profile, onNavigate }: Notifications
       const notifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification));
       setNotifications(notifs);
       setLoading(false);
+    }, (error) => {
+      console.error("Notifications fetch error:", error);
+      setLoading(false);
     });
 
     return () => unsubscribe();

@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { 
   db, 
   collection, 
@@ -48,11 +48,11 @@ export interface BlueConversation {
 }
 
 class BlueAIService {
-  private ai: GoogleGenAI;
-  private model = "gemini-3-flash-preview";
+  private ai: GoogleGenerativeAI;
+  private model = "gemini-1.5-flash";
 
   constructor() {
-    this.ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+    this.ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
   }
 
   private async getCompanyData(companyId: string) {
@@ -192,25 +192,18 @@ class BlueAIService {
     // 3. Get Context Data
     const companyData = await this.getCompanyData(companyId);
 
-    // 4. Generate AI Response
-    const systemInstruction = this.getSystemInstruction(func, { 
-      companyData,
-      timestamp: Date.now()
-    });
-
+    // 4. Generate AI Response via Polyglot Neural Brain (Python Ensemble)
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
-      const response = await ai.models.generateContent({
-        model: this.model,
-        contents: [{ role: 'user', parts: [{ text: message }] }],
-        config: {
-          systemInstruction,
-          temperature: 0.7,
-        }
+      const response = await fetch('/api/ai/blue-brain', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: message, user_id: userId })
       });
-
-      const assistantContent = response.text || "Désolé, je n'ai pas pu traiter votre demande.";
-      console.log("Blue AI Response generated:", assistantContent.substring(0, 50) + "...");
+      
+      const neuralData = await response.json();
+      const assistantContent = neuralData.response || "Désolé, le cerveau neuronal de KONTROL rencontre une latence temporaire.";
+      
+      console.log("Blue AI (Neural Hive) Response received:", assistantContent.substring(0, 50) + "...");
 
       // 5. Save Assistant Message
       try {
@@ -219,7 +212,8 @@ class BlueAIService {
           role: 'assistant',
           content: assistantContent,
           function: func,
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          neural_consensus: neuralData.consensus // Store consensus meta
         });
       } catch (error) {
         handleFirestoreError(error, OperationType.CREATE, 'messages', auth.currentUser);
@@ -277,13 +271,21 @@ class BlueAIService {
   }
 
   async analyzeCode(code: string) {
-    const systemInstruction = this.getSystemInstruction(BlueFunction.CODE_ANALYSER);
-    const response = await this.ai.models.generateContent({
-      model: this.model,
-      contents: [{ role: 'user', parts: [{ text: `Analyse ce code et propose des améliorations:\n\n${code}` }] }],
-      config: { systemInstruction }
-    });
-    return response.text;
+    try {
+      const response = await fetch('/api/ai/blue-brain', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          prompt: `ANALYSE_CODE: ${code}`,
+          user_id: auth.currentUser?.uid || 'system'
+        })
+      });
+      const data = await response.json();
+      return data.response;
+    } catch (error) {
+      console.error("Code analysis error:", error);
+      return "Erreur lors de l'analyse du code.";
+    }
   }
 }
 

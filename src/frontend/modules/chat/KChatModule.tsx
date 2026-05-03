@@ -122,7 +122,7 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
     const unsub = onSnapshot(q, (snap) => {
       const users = snap.docs.map(d => ({ id: d.id, ...d.data() } as UserProfile));
       setAllUsers(users);
-    });
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'users', user));
     return () => unsub();
   }, [profile]);
 
@@ -179,7 +179,7 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
     const unsub = onSnapshot(q, (snap) => {
       const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Message));
       setMessages(msgs);
-    });
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'messages', user));
 
     return () => unsub();
   }, [activeConversation, messageLimit]);
