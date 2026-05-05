@@ -8,23 +8,36 @@ window.addEventListener('error', (event) => {
 });
 
 window.addEventListener('unhandledrejection', (event) => {
-  console.error("UNHANDLED REJECTION DETECTED");
-  console.error("Reason:", event.reason);
-  console.error("Type of reason:", typeof event.reason);
+  console.error("!!! UNHANDLED REJECTION DETECTED !!!");
+  console.error("Reason Object:", event.reason);
   
-  if (event.reason instanceof Error) {
-    console.error("Error Name:", event.reason.name || 'N/A');
-    console.error("Error Message:", event.reason.message || '(empty message)');
-    console.error("Stack trace:", event.reason.stack || 'N/A');
-  } else if (typeof event.reason === 'object' && event.reason !== null) {
+  const reason = event.reason;
+  const isError = reason instanceof Error;
+  const type = typeof reason;
+
+  console.log(`- Type: ${type}`);
+  if (isError) {
+    console.log(`- Name: ${reason.name}`);
+    console.log(`- Message: ${reason.message || '(empty)'}`);
+    console.log(`- Stack: ${reason.stack}`);
+  }
+
+  if (type === 'object' && reason !== null) {
     try {
-      console.error("Reason JSON:", JSON.stringify(event.reason, null, 2));
+      const json = JSON.stringify(reason, null, 2);
+      console.log("- JSON Detail:", json);
+      // If it looks like our custom firestore error, try to parse the message
+      if (isError && reason.message) {
+        try {
+          const inner = JSON.parse(reason.message);
+          console.table(inner);
+        } catch (e) {}
+      }
     } catch (e) {
-      console.error("Reason could not be stringified (circular reference?)");
-      console.error("Reason Keys:", Object.keys(event.reason));
+      console.log("- (Could not stringify reason)");
     }
   } else {
-    console.error("Reason value:", String(event.reason));
+    console.log("- Value:", String(reason));
   }
 });
 

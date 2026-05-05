@@ -44,7 +44,10 @@ import {
   setDoc,
   getDoc,
   deleteDoc,
-  limitToLast
+  limitToLast,
+  writeBatch,
+  handleFirestoreError,
+  OperationType
 } from '../../../api/firebase';
 import { UserProfile, UserRole } from '../../types';
 import { cn } from '../../lib/utils';
@@ -122,7 +125,7 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
     const unsub = onSnapshot(q, (snap) => {
       const users = snap.docs.map(d => ({ id: d.id, ...d.data() } as UserProfile));
       setAllUsers(users);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'users', user));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'users', user, false));
     return () => unsub();
   }, [profile]);
 
@@ -148,8 +151,8 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
       const convs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Conversation));
       setConversations(convs);
       setLoading(false);
-    }, (err) => {
-      console.error("Chat sync error:", err);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'conversations', user, false);
       setLoading(false);
     });
 
@@ -179,7 +182,7 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
     const unsub = onSnapshot(q, (snap) => {
       const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Message));
       setMessages(msgs);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'messages', user));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'messages', user, false));
 
     return () => unsub();
   }, [activeConversation, messageLimit]);
@@ -205,7 +208,7 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
             readBy: updatedReadBy
           });
         } catch (e) {
-          console.error("Error marking message as read:", e);
+          handleFirestoreError(e, OperationType.UPDATE, `messages/${msg.id}`, user, false);
         }
       });
     }
@@ -243,7 +246,7 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
         updatedAt: Date.now()
       });
     } catch (error) {
-      console.error("Send message error:", error);
+      handleFirestoreError(error, OperationType.WRITE, 'chat/send', user, false);
     }
   };
 
@@ -281,7 +284,7 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
       setIsSearching(false);
       setShowMobileChat(true);
     } catch (error) {
-      console.error("Start conversation error:", error);
+      handleFirestoreError(error, OperationType.CREATE, 'conversations', user, false);
     }
   };
 
@@ -315,7 +318,7 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
       setGroupTitle('');
       setShowMobileChat(true);
     } catch (error) {
-      console.error("Create group error:", error);
+      handleFirestoreError(error, OperationType.CREATE, 'conversations/group', user, false);
     }
   };
 
@@ -342,7 +345,7 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
       setGroupTitle('');
       setShowMobileChat(true);
     } catch (error) {
-      console.error("Create channel error:", error);
+      handleFirestoreError(error, OperationType.CREATE, 'conversations/channel', user, false);
     }
   };
 
@@ -355,13 +358,18 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
   const deleteConversation = async (convId: string) => {
     try {
       setDeletingId(convId);
-      await deleteDoc(doc(db, 'conversations', convId));
       
+      const batch = writeBatch(db);
+      
+      // Delete all messages in the conversation
       const msgsQuery = query(collection(db, 'messages'), where('conversationId', '==', convId));
       const msgsSnap = await getDocs(msgsQuery);
-      for (const m of msgsSnap.docs) {
-        await deleteDoc(doc(db, 'messages', m.id));
-      }
+      msgsSnap.docs.forEach(d => batch.delete(d.ref));
+
+      // Delete the conversation document
+      batch.delete(doc(db, 'conversations', convId));
+      
+      await batch.commit();
 
       if (activeConversation?.id === convId) {
         setActiveConversation(null);
@@ -369,7 +377,7 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
       }
       setDeleteConfirmId(null);
     } catch (error) {
-      console.error("Delete error:", error);
+      handleFirestoreError(error, OperationType.DELETE, `conversations/${convId}`, user, false);
     } finally {
       setDeletingId(null);
     }
@@ -393,10 +401,12 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
       try {
         const q = query(collection(db, 'messages'), where('conversationId', '==', activeConversation.id));
         const snap = await getDocs(q);
-        // In a real app we'd delete them, but for this demo let's just alert
-        alert("Action non disponible dans cette version de démonstration (gestion des messages)");
+        const batch = writeBatch(db);
+        snap.docs.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+        setMessages([]);
       } catch (e) {
-        console.error(e);
+        handleFirestoreError(e, OperationType.DELETE, 'messages/clear', user, false);
       }
     }
   };

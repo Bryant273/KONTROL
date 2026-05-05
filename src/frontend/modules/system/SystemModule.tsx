@@ -133,7 +133,7 @@ export function SystemModule({ currentUserProfile }: SystemModuleProps) {
       const snapshot = await getDocs(q);
       setGlobalActions(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch (error) {
-      console.error("Error fetching global actions:", error);
+      handleFirestoreError(error, OperationType.LIST, 'actions', auth.currentUser);
     } finally {
       setLoadingActions(false);
     }
@@ -145,7 +145,7 @@ export function SystemModule({ currentUserProfile }: SystemModuleProps) {
       const snapshot = await getDocs(collection(db, 'users'));
       setUsers(snapshot.docs.map(d => d.data() as UserProfile));
     } catch (error) {
-      console.error("Error fetching users:", error);
+      handleFirestoreError(error, OperationType.LIST, 'users', auth.currentUser, false);
     } finally {
       setLoadingUsers(false);
     }
@@ -185,7 +185,7 @@ export function SystemModule({ currentUserProfile }: SystemModuleProps) {
         growthData: growth
       }));
     } catch (error) {
-      console.error("Error fetching stats:", error);
+      handleFirestoreError(error, OperationType.LIST, 'global_stats', auth.currentUser, false);
     } finally {
       setLoadingStats(false);
     }
@@ -215,7 +215,7 @@ export function SystemModule({ currentUserProfile }: SystemModuleProps) {
       setIsDeletingUser(null);
       fetchUsers();
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'users', auth.currentUser);
+      handleFirestoreError(error, OperationType.DELETE, 'users', auth.currentUser, false);
       setMessage({ type: 'error', text: "Une erreur est survenue lors de la suppression." });
     } finally {
       setIsDeleting(false);
@@ -243,14 +243,14 @@ export function SystemModule({ currentUserProfile }: SystemModuleProps) {
 
       // Delete company
       if (compSnap.empty) {
-        console.warn(`Entreprise "${companyName}" non trouvée.`);
+        // Silently handle if companyId was found by other means or if already partially deleted
       } else {
         batch.delete(compSnap.docs[0].ref);
       }
 
       // Delete user
       if (userSnap.empty) {
-        console.warn(`Utilisateur "${adminEmail}" non trouvé.`);
+        // Silently handle
       } else {
         batch.delete(userSnap.docs[0].ref);
       }
@@ -284,7 +284,7 @@ export function SystemModule({ currentUserProfile }: SystemModuleProps) {
       fetchGlobalStats();
       fetchUsers();
     } catch (error) {
-      console.error("Delete company error:", error);
+      handleFirestoreError(error, OperationType.DELETE, 'targeted_company_deletion', auth.currentUser);
       setMessage({ type: 'error', text: "Erreur lors de la suppression ciblée." });
     } finally {
       setIsResetting(false);
@@ -313,7 +313,7 @@ export function SystemModule({ currentUserProfile }: SystemModuleProps) {
       fetchUsers();
       fetchGlobalActions();
     } catch (error) {
-      console.error("Full reset error:", error);
+      handleFirestoreError(error, OperationType.DELETE, 'system_reset', auth.currentUser);
       setMessage({ type: 'error', text: "Erreur lors de la réinitialisation complète." });
     } finally {
       setIsResetting(false);
@@ -343,7 +343,7 @@ export function SystemModule({ currentUserProfile }: SystemModuleProps) {
         window.location.reload();
       }, 3000);
     } catch (error) {
-      console.error("Total reset error:", error);
+      handleFirestoreError(error, OperationType.DELETE, 'total_system_reset', auth.currentUser);
       setMessage({ type: 'error', text: "Erreur lors de la réinitialisation totale." });
     } finally {
       setIsResetting(false);

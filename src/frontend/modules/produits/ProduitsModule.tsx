@@ -4,7 +4,8 @@ import { exportToPDF, exportToExcel } from '../../lib/export';
 import * as XLSX from 'xlsx';
 import { Produit, UserProfile } from '../../types';
 import { cn, formatCurrency } from '../../lib/utils';
-import { logAction } from '../../../api/firebase';
+import { logAction, handleFirestoreError, OperationType, auth } from '../../../api/firebase';
+import { hasPermission } from '../../lib/permissions';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { CompanySelector } from '../../components/common/CompanySelector';
 import { productService } from '../../../api/services/productService';
@@ -55,6 +56,11 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
     if (!file || !companyId) return;
 
     setLoading(true);
+    if (!hasPermission(currentUserProfile?.role, 'PRODUCT_CREATE')) {
+      setMessage({ type: 'error', text: "Vous n'avez pas la permission d'importer des produits." });
+      setLoading(false);
+      return;
+    }
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
@@ -98,7 +104,7 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
           setTimeout(() => setMessage(null), 3000);
         }
       } catch (error) {
-        console.error("Import error:", error);
+        handleFirestoreError(error, OperationType.WRITE, 'produits/import', user);
         setMessage({ type: 'error', text: "Erreur lors de l'importation. Vérifiez le format du fichier." });
         setTimeout(() => setMessage(null), 3000);
       } finally {
@@ -128,6 +134,10 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
 
   const handleAddProduit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!hasPermission(currentUserProfile?.role, 'PRODUCT_CREATE')) {
+      setMessage({ type: 'error', text: "Vous n'avez pas la permission de créer un produit." });
+      return;
+    }
     if (!currentProduit.reference || !currentProduit.designation) {
       setMessage({ type: 'error', text: "Veuillez remplir tous les champs obligatoires." });
       return;
@@ -164,7 +174,7 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
         setCurrentProduit({ reference: '', designation: '', prixAchat: 0, prixVente: 0, stockInitial: 0, alertStock: 5, tva: 18 });
       }, 1500);
     } catch (error) {
-      console.error("Add product error:", error);
+      handleFirestoreError(error, OperationType.WRITE, 'produits', user);
       setMessage({ type: 'error', text: "Erreur lors de l'enregistrement du produit." });
     } finally {
       setLoading(false);
@@ -174,6 +184,10 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
   const handleEditProduit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedId) return;
+    if (!hasPermission(currentUserProfile?.role, 'PRODUCT_UPDATE')) {
+      setMessage({ type: 'error', text: "Vous n'avez pas la permission de modifier un produit." });
+      return;
+    }
     setLoading(true);
     try {
       await productService.updateProduct(selectedId, {
@@ -187,7 +201,7 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
 
       setIsEditing(false);
     } catch (error) {
-      console.error("Edit product error:", error);
+      handleFirestoreError(error, OperationType.UPDATE, `produits/${selectedId}`, user);
     } finally {
       setLoading(false);
     }
@@ -195,13 +209,17 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
 
   const handleDeleteProduit = async () => {
     if (!selectedId) return;
+    if (!hasPermission(currentUserProfile?.role, 'PRODUCT_DELETE')) {
+      setMessage({ type: 'error', text: "Vous n'avez pas la permission de supprimer un produit." });
+      return;
+    }
     setLoading(true);
     try {
       await productService.deleteProduct(selectedId, user, currentUserProfile);
       setSelectedId(null);
       setIsDeleting(false);
     } catch (error) {
-      console.error("Delete product error:", error);
+      handleFirestoreError(error, OperationType.DELETE, `produits/${selectedId}`, user);
     } finally {
       setLoading(false);
     }
@@ -406,19 +424,23 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
           )}
         </div>
         <div className="flex gap-2">
-          <button 
-            onClick={() => fileInputRef.current?.click()}
-            className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2"
-          >
-            <Upload size={14} /> Importer
-          </button>
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            className="hidden" 
-            accept=".xlsx, .xls, .csv" 
-            onChange={handleImportExcel} 
-          />
+          {hasPermission(currentUserProfile?.role, 'PRODUCT_CREATE') && (
+            <>
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2"
+              >
+                <Upload size={14} /> Importer
+              </button>
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                className="hidden" 
+                accept=".xlsx, .xls, .csv" 
+                onChange={handleImportExcel} 
+              />
+            </>
+          )}
           <button 
             onClick={handleExportPDF}
             className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2"
@@ -431,15 +453,17 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
           >
             <Table size={14} /> Excel
           </button>
-          <button 
-            onClick={() => {
-              setCurrentProduit({ reference: '', designation: '', prixAchat: 0, prixVente: 0, stockInitial: 0, alertStock: 5, tva: 18 });
-              setIsAdding(true);
-            }} 
-            className="btn-primary text-xs py-1.5 px-4 flex items-center gap-2"
-          >
-            <Plus size={14} /> Nouveau produit
-          </button>
+          {hasPermission(currentUserProfile?.role, 'PRODUCT_CREATE') && (
+            <button 
+              onClick={() => {
+                setCurrentProduit({ reference: '', designation: '', prixAchat: 0, prixVente: 0, stockInitial: 0, alertStock: 5, tva: 18 });
+                setIsAdding(true);
+              }} 
+              className="btn-primary text-xs py-1.5 px-4 flex items-center gap-2"
+            >
+              <Plus size={14} /> Nouveau produit
+            </button>
+          )}
         </div>
       </div>
 
@@ -627,21 +651,25 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
                   >
                     <Download size={14} /> Fiche
                   </button>
-                  <button 
-                    className="flex-1 btn-outline text-xs py-2.5 font-bold flex items-center justify-center gap-2"
-                    onClick={() => openEdit(selectedProduit)}
-                  >
-                    <Edit2 size={14} /> Modifier
-                  </button>
+                  {hasPermission(currentUserProfile?.role, 'PRODUCT_UPDATE') && (
+                    <button 
+                      className="flex-1 btn-outline text-xs py-2.5 font-bold flex items-center justify-center gap-2"
+                      onClick={() => openEdit(selectedProduit)}
+                    >
+                      <Edit2 size={14} /> Modifier
+                    </button>
+                  )}
                 </div>
-                <div className="mt-2">
-                  <button 
-                    className="w-full bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs py-2.5 font-bold rounded-xl transition-all flex items-center justify-center gap-2"
-                    onClick={() => setIsDeleting(true)}
-                  >
-                    <Trash2 size={14} /> Supprimer
-                  </button>
-                </div>
+                {hasPermission(currentUserProfile?.role, 'PRODUCT_DELETE') && (
+                  <div className="mt-2">
+                    <button 
+                      className="w-full bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs py-2.5 font-bold rounded-xl transition-all flex items-center justify-center gap-2"
+                      onClick={() => setIsDeleting(true)}
+                    >
+                      <Trash2 size={14} /> Supprimer
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ) : (

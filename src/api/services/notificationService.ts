@@ -1,4 +1,4 @@
-import { db, collection, addDoc, serverTimestamp } from '../firebase';
+import { db, collection, addDoc, serverTimestamp, handleFirestoreError, OperationType, auth } from '../firebase';
 
 export type NotificationType = 'info' | 'success' | 'warning' | 'error';
 
@@ -36,6 +36,55 @@ export async function sendNotification({
       ...metadata
     });
   } catch (error) {
-    console.error("Error sending notification:", error);
+    handleFirestoreError(error, OperationType.CREATE, 'notifications', auth.currentUser, false);
+  }
+}
+
+export async function notifyPaymentError(companyId: string, userId: string, amount: number, errorDetail: string) {
+  await sendNotification({
+    companyId,
+    userId,
+    title: "❌ Échec de Paiement",
+    message: `Une erreur est survenue lors d'une tentative de paiement de ${amount} FCFA. Détail: ${errorDetail}`,
+    type: 'error',
+    metadata: {
+      amount,
+      errorDetail,
+      isPaymentError: true
+    }
+  });
+}
+
+export async function notifySecurityEvent(companyId: string | 'system', userId: string | null, eventType: string, details: string) {
+  await sendNotification({
+    companyId,
+    userId: userId || undefined,
+    title: "🛡️ Alerte Sécurité",
+    message: `Événement de sécurité détecté: ${eventType}. ${details}`,
+    type: 'warning',
+    metadata: {
+      eventType,
+      details,
+      isSecurityAlert: true
+    }
+  });
+}
+
+export async function checkAndNotifyLowStock(productId: string, productName: string, newStock: number, alertStock: number | undefined, companyId: string, userId: string) {
+  const threshold = alertStock !== undefined ? alertStock : 5;
+  if (newStock <= threshold) {
+    await sendNotification({
+      companyId,
+      userId,
+      title: "⚠️ Alerte Stock Faible",
+      message: `Le produit "${productName}" est en rupture ou presque (Stock actuel: ${newStock}, Seuil: ${threshold}).`,
+      type: 'warning',
+      metadata: {
+        productId,
+        stockLevel: newStock,
+        threshold,
+        isStockAlert: true
+      }
+    });
   }
 }

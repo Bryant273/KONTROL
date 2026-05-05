@@ -142,6 +142,7 @@ const companyNavSections: NavSection[] = [
     items: [
       { id: 'ai', label: 'Blue AI', icon: Brain },
       { id: 'notifications', label: 'Notifications', icon: Bell },
+      { id: 'company_profile', label: 'Profil Entreprise', icon: Building2 },
       { id: 'profil', label: 'Mon profil', icon: UserCircle },
       { id: 'abonnements', label: 'Abonnement', icon: CreditCard },
       { id: 'utilisateurs', label: 'Utilisateurs', icon: Users },

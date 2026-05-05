@@ -172,10 +172,7 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
       setCharges(chargesData);
       setLoading(false);
     }, (error) => {
-      console.error("Charges list error:", error);
-      try {
-        handleFirestoreError(error, OperationType.LIST, path, user);
-      } catch (e) {}
+      handleFirestoreError(error, OperationType.LIST, path, user, false);
       setLoading(false);
     });
 

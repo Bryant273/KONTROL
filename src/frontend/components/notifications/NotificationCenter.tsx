@@ -81,7 +81,7 @@ export function NotificationCenter({ profile, onNavigate }: NotificationCenterPr
       const notifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification));
       setNotifications(notifs);
       setUnreadCount(notifs.filter(n => !n.read).length);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'notifications', auth.currentUser));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'notifications', auth.currentUser, false));
 
     return () => unsubscribe();
   }, [profile]);
@@ -100,7 +100,7 @@ export function NotificationCenter({ profile, onNavigate }: NotificationCenterPr
     try {
       await updateDoc(doc(db, 'notifications', id), { read: true });
     } catch (error) {
-      console.error("Error marking notification as read", error);
+      handleFirestoreError(error, OperationType.UPDATE, `notifications/${id}`, auth.currentUser);
     }
   };
 
@@ -113,7 +113,7 @@ export function NotificationCenter({ profile, onNavigate }: NotificationCenterPr
       });
       await batch.commit();
     } catch (error) {
-      console.error("Error marking all as read:", error);
+      handleFirestoreError(error, OperationType.UPDATE, 'notifications', auth.currentUser);
     }
   };
 
@@ -121,7 +121,7 @@ export function NotificationCenter({ profile, onNavigate }: NotificationCenterPr
     try {
       await deleteDoc(doc(db, 'notifications', id));
     } catch (error) {
-      console.error("Error deleting notification", error);
+      handleFirestoreError(error, OperationType.DELETE, `notifications/${id}`, auth.currentUser);
     }
   };
 
@@ -162,7 +162,7 @@ export function NotificationCenter({ profile, onNavigate }: NotificationCenterPr
                         notifications.forEach(n => batch.delete(doc(db, 'notifications', n.id)));
                         await batch.commit();
                       } catch (error) {
-                        console.error("Error clearing notifications:", error);
+                        handleFirestoreError(error, OperationType.DELETE, 'notifications', auth.currentUser);
                       }
                     }
                   }}

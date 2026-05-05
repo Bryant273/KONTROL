@@ -196,7 +196,7 @@ export function ControlTower({ activeSubTab = 'dashboard', user, profile }: Cont
       }
       setIsAddModalOpen(false);
     } catch (error) {
-      console.error("Add error:", error);
+      handleFirestoreError(error, OperationType.CREATE, 'users', auth.currentUser, false);
     }
   };
 
@@ -207,7 +207,7 @@ export function ControlTower({ activeSubTab = 'dashboard', user, profile }: Cont
       setIsDeleteModalOpen(false);
       setSelectedItem(null);
     } catch (error) {
-      console.error("Delete error:", error);
+      handleFirestoreError(error, OperationType.DELETE, `users/${selectedItem.id}`, auth.currentUser, false);
     }
   };
 
@@ -218,7 +218,7 @@ export function ControlTower({ activeSubTab = 'dashboard', user, profile }: Cont
       setIsEditModalOpen(false);
       setSelectedItem(null);
     } catch (error) {
-      console.error("Update error:", error);
+      handleFirestoreError(error, OperationType.UPDATE, `users/${selectedItem.id}`, auth.currentUser, false);
     }
   };
 
@@ -248,7 +248,7 @@ export function ControlTower({ activeSubTab = 'dashboard', user, profile }: Cont
         mrr: mrr,
         arr: mrr * 12
       }));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'users', user));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'users', user, false));
     unsubscribes.push(unsubUsers);
 
     // Live Transactions for Revenue
@@ -256,7 +256,7 @@ export function ControlTower({ activeSubTab = 'dashboard', user, profile }: Cont
       const transactions = snap.docs.map(d => d.data() as Transaction);
       const totalRev = transactions.reduce((acc, t) => acc + (t.montantTotal || 0), 0);
       setStats(prev => ({ ...prev, totalRevenue: totalRev }));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'transactions', user));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'transactions', user, false));
     unsubscribes.push(unsubTrans);
 
     // Live Global Treasury
@@ -264,33 +264,33 @@ export function ControlTower({ activeSubTab = 'dashboard', user, profile }: Cont
       const payments = snap.docs.map(d => d.data());
       const balance = payments.reduce((acc, p) => acc + (p.type === 'ENCAISSEMENT' ? p.montant : -p.montant), 0);
       setTreasuryBalance(balance);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'payments', user));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'payments', user, false));
     unsubscribes.push(unsubPayments);
 
     // Live System Stats for Charts
     const unsubSysStats = onSnapshot(query(collection(db, 'system_stats'), orderBy('timestamp', 'asc')), (snap) => {
       setSystemStats(snap.docs.map(d => d.data()));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'system_stats', user));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'system_stats', user, false));
     unsubscribes.push(unsubSysStats);
 
     // Live Actions
     const qActions = query(collection(db, 'actions'), orderBy('timestamp', 'desc'), limit(20));
     unsubscribes.push(onSnapshot(qActions, (snap) => {
       setRecentActions(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'actions', user)));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'actions', user, false)));
 
     // Live Tickets
     const qTickets = query(collection(db, 'tickets'), orderBy('createdAt', 'desc'), limit(10));
     unsubscribes.push(onSnapshot(qTickets, (snap) => {
       setTickets(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       setStats(prev => ({ ...prev, pendingTickets: snap.docs.filter(d => d.data().status === 'NEW').length }));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'tickets', user)));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'tickets', user, false)));
 
     // Live Payment Requests
     const qPayments = query(collection(db, 'payment_requests'), where('status', '==', 'PENDING'), orderBy('createdAt', 'desc'));
     unsubscribes.push(onSnapshot(qPayments, (snap) => {
       setPaymentRequests(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'payment_requests', user)));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'payment_requests', user, false)));
 
     // Live System Metrics
     const qMetrics = query(collection(db, 'system_metrics'), orderBy('timestamp', 'desc'), limit(10));
@@ -299,7 +299,7 @@ export function ControlTower({ activeSubTab = 'dashboard', user, profile }: Cont
       if (data.length > 0) {
         setMetrics(data);
       }
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'system_metrics', user)));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'system_metrics', user, false)));
 
     setLoading(false);
 
@@ -329,7 +329,7 @@ export function ControlTower({ activeSubTab = 'dashboard', user, profile }: Cont
           }
         }
       } catch (e) {
-        console.error("Metric update error:", e);
+        handleFirestoreError(e, OperationType.WRITE, 'system_metrics', auth.currentUser, false);
       }
     }, 30000); // Every 30s
     return () => clearInterval(interval);
@@ -834,7 +834,7 @@ function BusinessSubscriptionsView({ companies, paymentRequests = [], allUsers =
         type: 'success'
       });
     } catch (error) {
-      console.error("Upgrade error:", error);
+      handleFirestoreError(error, OperationType.UPDATE, `users/${companyId}/subscription`, auth.currentUser, false);
     } finally {
       setIsProcessing(null);
     }
@@ -931,9 +931,8 @@ function BusinessSubscriptionsView({ companies, paymentRequests = [], allUsers =
         message: `Le paiement de l'entreprise ${request.companyName || 'un client'} (${request.amount} ${request.currency}) a été traité avec succès par ${auth.currentUser?.displayName || 'le système'}.`,
         type: 'success'
       });
-
     } catch (error) {
-      console.error("Approve payment error:", error);
+      handleFirestoreError(error, OperationType.UPDATE, `payment_requests/${request.id}`, auth.currentUser, false);
     }
   };
 
@@ -966,7 +965,7 @@ function BusinessSubscriptionsView({ companies, paymentRequests = [], allUsers =
       );
 
     } catch (error) {
-      console.error("Reject payment error:", error);
+      handleFirestoreError(error, OperationType.UPDATE, `payment_requests/${request.id}`, auth.currentUser, false);
     }
   };
 
@@ -1242,7 +1241,7 @@ function FinancialAnalyticsView({ stats, systemStats }: any) {
     const q = query(collection(db, 'treasury_movements'), orderBy('date', 'desc'), limit(50));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setMovements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'treasury_movements', auth.currentUser, false));
     return () => unsubscribe();
   }, []);
 
@@ -1259,7 +1258,7 @@ function FinancialAnalyticsView({ stats, systemStats }: any) {
       setShowAddMovement(false);
       setNewMovement({ type: 'ENCAISSEMENT', description: '', montant: 0, date: Date.now() });
     } catch (error) {
-      console.error(error);
+      handleFirestoreError(error, OperationType.CREATE, 'treasury_movements', auth.currentUser, false);
     }
   };
 
@@ -1565,7 +1564,7 @@ function IntelligenceAIView({ stats, systemStats }: any) {
     setTrainingLogs(prev => [`[${new Date().toLocaleTimeString()}] Handshake Go-Gateway: OK`, ...prev]);
     
     try {
-      const res = await fetch('/api/sql/tables');
+      const res = await apiClient.fetch('/api/sql/tables');
       const tables = await res.json();
       setSqlTables(tables);
       
@@ -1575,7 +1574,7 @@ function IntelligenceAIView({ stats, systemStats }: any) {
         ...prev
       ]);
     } catch (e) {
-      console.error(e);
+      handleFirestoreError(e, OperationType.GET, 'api/sql/tables', auth.currentUser, false);
     } finally {
       setIsIndexing(false);
     }
@@ -1591,10 +1590,8 @@ function IntelligenceAIView({ stats, systemStats }: any) {
   const checkHealth = async () => {
     try {
       const [healthRes, auditRes] = await Promise.all([
-        fetch('/api/system/health'),
-        fetch('/api/system/audit', {
-          headers: { 'X-KONTROL-SHIELD': 'HARDENED' }
-        })
+        apiClient.fetch('/api/system/health'),
+        apiClient.fetch('/api/system/audit')
       ]);
       const healthData = await healthRes.json();
       const auditData = await auditRes.json();
@@ -1615,7 +1612,7 @@ function IntelligenceAIView({ stats, systemStats }: any) {
     setIsLoadingSql(activeTab === 'sql' && !sqlCache[tableName]); // Only show loader if no cache
     setSelectedTable(tableName);
     try {
-      const res = await fetch('/api/sql/query', {
+      const res = await apiClient.fetch('/api/sql/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: `SELECT * FROM ${tableName} LIMIT 100` })
@@ -1624,7 +1621,7 @@ function IntelligenceAIView({ stats, systemStats }: any) {
       setTableData(data);
       setSqlCache(prev => ({ ...prev, [tableName]: data }));
     } catch (e) {
-      console.error(e);
+      handleFirestoreError(e, OperationType.WRITE, 'api/sql/query', auth.currentUser, false);
     } finally {
       setIsLoadingSql(false);
     }
@@ -1634,9 +1631,7 @@ function IntelligenceAIView({ stats, systemStats }: any) {
     const description = `Audit: ${selectedTable} verified via Rust Shield.`;
     
     try {
-      const res = await fetch('/api/admin/audit/perform', {
-        headers: { 'X-KONTROL-SHIELD': 'HARDENED' }
-      });
+      const res = await apiClient.fetch('/api/admin/audit/perform');
       const data = await res.json();
       
       if (data.status === "SUCCESS") {
@@ -1654,7 +1649,7 @@ function IntelligenceAIView({ stats, systemStats }: any) {
 
   const fetchTables = async () => {
     try {
-      const res = await fetch('/api/sql/tables');
+      const res = await apiClient.fetch('/api/sql/tables');
       const data = await res.json();
       setSqlTables(data || []);
     } catch (e) {
@@ -1676,12 +1671,12 @@ function IntelligenceAIView({ stats, systemStats }: any) {
     
     try {
       const [actionsRes, txRes] = await Promise.all([
-        fetch('/api/sql/query', {
+        apiClient.fetch('/api/sql/query', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ query: "SELECT description, createdAt, type FROM actions ORDER BY createdAt DESC LIMIT 4" })
         }),
-        fetch('/api/sql/query', {
+        apiClient.fetch('/api/sql/query', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ query: "SELECT strftime('%Hh', datetime(createdAt / 1000, 'unixepoch')) as name, COUNT(*) as calls FROM transactions GROUP BY name ORDER BY name ASC LIMIT 12" })
@@ -1694,7 +1689,7 @@ function IntelligenceAIView({ stats, systemStats }: any) {
       setRealMetrics(metrics.length === 0 ? Array.from({ length: 8 }, (_, i) => ({ name: `${8 + i}h`, calls: 0 })) : metrics);
       setLastFetchTime(Date.now());
     } catch (e) {
-      console.error("Context fetch error:", e);
+      handleFirestoreError(e, OperationType.GET, 'api/sql/tx-context', auth.currentUser, false);
     }
   };
 
@@ -1719,7 +1714,7 @@ function IntelligenceAIView({ stats, systemStats }: any) {
       // Direct SQL Connection for live context - Analyzing categories of transactions
       let sqlContext = "";
       try {
-        const sqlRes = await fetch('/api/sql/query', {
+        const sqlRes = await apiClient.fetch('/api/sql/query', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -1753,7 +1748,7 @@ Sois audacieux mais réaliste.`;
       setAnalysis(result.content);
       setActiveTab('vision');
     } catch (error) {
-      console.error(error);
+      handleFirestoreError(error, OperationType.WRITE, 'blue-ai/strategy', auth.currentUser, false);
       setAnalysis("### ⚠️ Dysfonctionnement du moteur sémantique\n\nLe module Blue AI n'a pas pu traiter la demande. Cela peut être dû à une saturation des crédits API ou à une incohérence dans le schéma SQL.");
     } finally {
       setIsAnalyzing(false);
@@ -2524,7 +2519,7 @@ function SystemTelemetryView({ stats, metrics }: any) {
 
       window.location.reload();
     } catch (error) {
-      console.error("Reset DB error:", error);
+      handleFirestoreError(error, OperationType.DELETE, 'all_collections', auth.currentUser);
     } finally {
       setIsResetting(false);
       setShowResetConfirm(false);
@@ -2739,7 +2734,7 @@ function ControlSupportView({ tickets }: any) {
       setShowNoReply(false);
       setNoReplyData({ to: '', subject: '', body: '' });
     } catch (error) {
-      console.error("No-reply error:", error);
+      handleFirestoreError(error, OperationType.WRITE, 'no_reply_email', auth.currentUser);
     }
   };
 
@@ -2752,7 +2747,7 @@ function ControlSupportView({ tickets }: any) {
       setReplyingTicket(null);
       setReplyMessage('');
     } catch (error) {
-      console.error("Reply error:", error);
+      handleFirestoreError(error, OperationType.WRITE, `tickets/${replyingTicket.id}/reply`, auth.currentUser);
     }
   };
 
@@ -2762,7 +2757,7 @@ function ControlSupportView({ tickets }: any) {
       await deleteDoc(doc(db, 'tickets', isDeletingTicket.id));
       setIsDeletingTicket(null);
     } catch (error) {
-      console.error("Delete ticket error:", error);
+      handleFirestoreError(error, OperationType.DELETE, `tickets/${isDeletingTicket.id}`, auth.currentUser);
     }
   };
 
@@ -3039,7 +3034,7 @@ function AdminSalesJournalView() {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setSales(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       setLoading(false);
-    });
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'payments', auth.currentUser, false));
     return () => unsubscribe();
   }, []);
 

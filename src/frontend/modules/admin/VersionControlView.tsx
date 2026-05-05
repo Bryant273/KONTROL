@@ -31,6 +31,8 @@ import {
   doc, 
   updateDoc, 
   serverTimestamp,
+  handleFirestoreError,
+  OperationType,
   auth,
   logAction
 } from '../../../api/firebase';
@@ -74,7 +76,9 @@ export function VersionControlView() {
         setCurrentVersion(snap.data().currentVersion || 'V3.0.0-PRO');
       }
     }, (error) => {
-      if (error.code !== 'permission-denied') console.error("Config fetch error:", error);
+      if (error.code !== 'permission-denied') {
+        handleFirestoreError(error, OperationType.GET, 'system/config', auth.currentUser, false);
+      }
     });
 
     // Listen to versions list
@@ -114,7 +118,9 @@ export function VersionControlView() {
       }
       setIsLoading(false);
     }, (error) => {
-      if (error.code !== 'permission-denied') console.error("Versions fetch error:", error);
+      if (error.code !== 'permission-denied') {
+        handleFirestoreError(error, OperationType.LIST, 'app_versions', auth.currentUser, false);
+      }
       setIsLoading(false);
     });
 
@@ -145,7 +151,7 @@ export function VersionControlView() {
 
       alert(`Le système a été basculé avec succès vers la version ${version}.`);
     } catch (error) {
-      console.error("Error switching version:", error);
+      handleFirestoreError(error, OperationType.UPDATE, 'system/config', auth.currentUser, false);
       alert("Erreur lors de la bascule de version. Vérifiez vos permissions.");
     } finally {
       setIsSwitching(false);
@@ -170,7 +176,7 @@ export function VersionControlView() {
       setIsAddingVersion(false);
       setNewVersionData({ version: '', description: '', features: '', author: 'Innov\'Korp Team' });
     } catch (error) {
-      console.error("Error adding version:", error);
+      handleFirestoreError(error, OperationType.WRITE, 'app_versions/create', auth.currentUser, false);
     }
   };
 

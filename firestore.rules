@@ -1,223 +1,91 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // --- Helper Functions ---
-    
-    function isAuthenticated() {
-      return request.auth != null;
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
     }
 
-    function isSuperAdmin() {
-      return isAuthenticated() && (
-        request.auth.token.email.matches("(?i)acherie812@gmail.com") ||
-        request.auth.token.email.matches("(?i)innov.korp@gmail.com") ||
-        request.auth.token.email.matches("(?i)test-admin@kontrol.com") ||
-        request.auth.token.email.matches("(?i)test-entreprise@kontrol.com") ||
-        request.auth.uid == "rUoZMJc1YqgxGLSL8Oo2dKYA10Y2"
-      );
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
     function isKontrolAdmin() {
-      return isSuperAdmin() || (
-        isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['ADMINISTRATEUR_ERP', 'GESTIONNAIRE_ERP', 'ADMIN', 'ADMINISTRATEUR_KONTROL', 'GESTIONNAIRE_KONTROL']
+      return isSignedIn() && (
+        getUserData().role == 'ADMINISTRATEUR_ERP' || 
+        getUserData().role == 'ADMINISTRATEUR_KONTROL' ||
+        request.auth.token.email in ['innov.korp@gmail.com', 'acherie812@gmail.com']
       );
     }
 
-    function isEnterpriseUser(companyId) {
-      return isAuthenticated() && (
-        isKontrolAdmin() || (
-          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == companyId
-        )
+    function isCompanyAdmin(companyId) {
+      return isSignedIn() && (
+        getUserData().role == 'ADMINISTRATEUR_ENTREPRISE' && 
+        getUserData().companyId == companyId
       );
     }
 
-    function isEnterpriseAdmin(companyId) {
-      return isAuthenticated() && (
-        isKontrolAdmin() || (
-          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == companyId &&
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMINISTRATEUR_ENTREPRISE'
-        )
+    function isCompanyManager(companyId) {
+      return isSignedIn() && (
+        (getUserData().role == 'GESTIONNAIRE_ENTREPRISE' || getUserData().role == 'ADMINISTRATEUR_ENTREPRISE') && 
+        getUserData().companyId == companyId
       );
     }
 
-    // --- Collection Matches ---
+    function belongsToCompany(companyId) {
+      return isSignedIn() && getUserData().companyId == companyId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // --- Collections ---
 
     match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && (
-        request.auth.uid == userId || 
-        isKontrolAdmin() || 
-        isEnterpriseAdmin(request.resource.data.companyId)
+      allow read: if isSignedIn() && (request.auth.uid == userId || isKontrolAdmin());
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isSignedIn() && (request.auth.uid == userId || isKontrolAdmin()) && (
+        // Prevent role escalation by normal users
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'companyId']) || isKontrolAdmin())
       );
-      allow update: if isAuthenticated() && (
-        request.auth.uid == userId || 
-        isKontrolAdmin() || 
-        isEnterpriseAdmin(resource.data.companyId)
-      );
-      allow delete: if isKontrolAdmin();
     }
 
-    match /treasury_movements/{id} {
-      allow read, write: if isKontrolAdmin();
+    match /companies/{companyId} {
+      allow read: if isSignedIn() && (belongsToCompany(companyId) || isKontrolAdmin());
+      allow write: if isKontrolAdmin() || isCompanyAdmin(companyId);
     }
 
-    match /transactions/{id} {
-      allow read: if isEnterpriseUser(resource.data.ownerId) || isKontrolAdmin();
-      allow create: if isEnterpriseUser(request.resource.data.ownerId) && 
-                      request.resource.data.keys().hasAll(['reference', 'montantTotal', 'ownerId']) &&
-                      request.resource.data.reference is string &&
-                      request.resource.data.montantTotal is number;
-      allow update: if isEnterpriseUser(resource.data.ownerId) && 
-                      request.resource.data.ownerId == resource.data.ownerId;
-      allow delete: if isKontrolAdmin();
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() && (belongsToCompany(resource.data.companyId) || isKontrolAdmin());
+      allow update: if isSignedIn() && belongsToCompany(resource.data.companyId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      allow delete: if isSignedIn() && (isCompanyAdmin(resource.data.companyId) || isKontrolAdmin());
+      allow create: if isKontrolAdmin(); // Only system/admins create notifications? 
+      // Actually, some user actions might trigger notifications. For now, limit.
     }
 
-    match /produits/{id} {
-      allow read: if isEnterpriseUser(resource.data.ownerId) || isKontrolAdmin();
-      allow create: if isEnterpriseUser(request.resource.data.ownerId) && 
-                      request.resource.data.keys().hasAll(['reference', 'stock', 'ownerId']) &&
-                      request.resource.data.reference is string &&
-                      request.resource.data.stock is number;
-      allow update: if isEnterpriseUser(resource.data.ownerId) && 
-                      request.resource.data.ownerId == resource.data.ownerId &&
-                      request.resource.data.stock is number;
-      allow delete: if isKontrolAdmin();
+    match /transactions/{transactionId} {
+      allow read: if isSignedIn() && (belongsToCompany(resource.data.ownerId) || isKontrolAdmin());
+      allow write: if isCompanyManager(request.resource.data.ownerId) || isKontrolAdmin();
     }
 
-    match /stock_movements/{id} {
-      allow read: if isEnterpriseUser(resource.data.ownerId) || isKontrolAdmin();
-      allow create: if isEnterpriseUser(request.resource.data.ownerId);
-      allow update, delete: if isKontrolAdmin();
+    match /produits/{produitId} {
+      allow read: if isSignedIn() && (belongsToCompany(resource.data.ownerId) || isKontrolAdmin());
+      allow write: if isCompanyManager(request.resource.data.ownerId) || isKontrolAdmin();
     }
 
-    match /tiers/{id} {
-      allow read: if isEnterpriseUser(resource.data.ownerId) || isKontrolAdmin();
-      allow create: if isEnterpriseUser(request.resource.data.ownerId);
-      allow update: if isEnterpriseUser(resource.data.ownerId) && request.resource.data.ownerId == resource.data.ownerId;
-      allow delete: if isKontrolAdmin();
-    }
-
-    match /charges/{id} {
-      allow read: if isEnterpriseUser(resource.data.ownerId) || isKontrolAdmin();
-      allow create: if isEnterpriseUser(request.resource.data.ownerId);
-      allow update: if isEnterpriseUser(resource.data.ownerId) && request.resource.data.ownerId == resource.data.ownerId;
-      allow delete: if isKontrolAdmin();
-    }
-
-    match /wallets/{id} {
-      allow read: if isEnterpriseUser(resource.data.ownerId) || isKontrolAdmin();
-      allow create: if isEnterpriseUser(request.resource.data.ownerId);
-      allow update: if isEnterpriseUser(resource.data.ownerId) && request.resource.data.ownerId == resource.data.ownerId;
-      allow delete: if isKontrolAdmin();
-    }
-
-    match /payments/{id} {
-      allow read: if isEnterpriseUser(resource.data.ownerId) || isKontrolAdmin();
-      allow create: if isEnterpriseUser(request.resource.data.ownerId);
-      allow update: if isEnterpriseUser(resource.data.ownerId) && request.resource.data.ownerId == resource.data.ownerId;
-      allow delete: if isKontrolAdmin();
-    }
-
-    match /actions/{id} {
-      allow read: if isEnterpriseUser(resource.data.companyId) || isKontrolAdmin();
-      allow create: if isEnterpriseUser(request.resource.data.companyId) || isKontrolAdmin();
-      allow update, delete: if isKontrolAdmin();
-    }
-
-    match /notifications/{id} {
-      allow read, write: if isAuthenticated();
-    }
-
-    match /tickets/{id} {
-      allow read: if isKontrolAdmin() || (isAuthenticated() && (
-        resource.data.userId == request.auth.uid || 
-        resource.data.email == request.auth.token.email
-      ));
-      allow create: if true;
-      allow update, delete: if isKontrolAdmin();
-    }
-
-    match /companies/{id} {
-      allow read: if isKontrolAdmin() || (isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == id);
-      allow create, update, delete: if isKontrolAdmin();
-    }
-
-    match /system_stats/{id} {
-      allow read, write: if isKontrolAdmin();
-    }
-
-    match /system_metrics/{id} {
-      allow read, write: if isKontrolAdmin();
-    }
-
-    match /app_versions/{id} {
-      allow read: if isAuthenticated();
-      allow write: if isKontrolAdmin();
-    }
-
-    match /ai_proposals/{id} {
-      allow read: if isKontrolAdmin();
-      allow write: if isKontrolAdmin();
-    }
-
-    match /system/{docId} {
-      allow read: if isAuthenticated();
-      allow write: if isKontrolAdmin();
-    }
-
-    match /payment_requests/{id} {
-      allow read: if isKontrolAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isKontrolAdmin();
-    }
-
-    match /conversations/{id} {
-      allow read: if isAuthenticated() && (
-        request.auth.uid == resource.data.userId || 
-        (resource.data.keys().hasAll(['participants']) && request.auth.uid in resource.data.participants) || 
-        isKontrolAdmin()
-      );
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (
-        request.auth.uid == resource.data.userId || 
-        (resource.data.keys().hasAll(['participants']) && request.auth.uid in resource.data.participants) || 
-        isKontrolAdmin()
-      );
-      allow delete: if isKontrolAdmin();
-    }
-
-    match /messages/{id} {
-      allow read: if isAuthenticated() && (
-        isKontrolAdmin() || 
-        (exists(/databases/$(database)/documents/conversations/$(resource.data.conversationId)) && (
-          get(/databases/$(database)/documents/conversations/$(resource.data.conversationId)).data.userId == request.auth.uid ||
-          request.auth.uid in get(/databases/$(database)/documents/conversations/$(resource.data.conversationId)).data.participants
-        ))
-      );
-      allow create: if isAuthenticated() && (
-        isKontrolAdmin() || 
-        (exists(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId)) && (
-          get(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId)).data.userId == request.auth.uid ||
-          request.auth.uid in get(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId)).data.participants
-        ))
-      );
-      allow update: if isAuthenticated() && (
-        isKontrolAdmin() || 
-        (exists(/databases/$(database)/documents/conversations/$(resource.data.conversationId)) && (
-          get(/databases/$(database)/documents/conversations/$(resource.data.conversationId)).data.userId == request.auth.uid ||
-          request.auth.uid in get(/databases/$(database)/documents/conversations/$(resource.data.conversationId)).data.participants
-        ))
-      );
-      allow delete: if isKontrolAdmin();
-    }
-
-    match /{document=**} {
-      allow read, write: if false;
+    match /actions/{actionId} {
+      allow read: if isKontrolAdmin() || (isSignedIn() && isCompanyAdmin(resource.data.companyId));
+      allow create: if isSignedIn(); // Users log their own actions
     }
   }
 }

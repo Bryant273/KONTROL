@@ -92,7 +92,7 @@ export class BaseFirestoreService<T extends { id?: string }> {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T));
       callback(data);
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, this.collectionName, user || auth.currentUser);
+      handleFirestoreError(error, OperationType.LIST, this.collectionName, user || auth.currentUser, false);
     });
   }
 
@@ -102,7 +102,7 @@ export class BaseFirestoreService<T extends { id?: string }> {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T));
       callback(data);
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, this.collectionName, user || auth.currentUser);
+      handleFirestoreError(error, OperationType.LIST, this.collectionName, user || auth.currentUser, false);
     });
   }
 

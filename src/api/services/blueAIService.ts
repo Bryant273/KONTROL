@@ -1,4 +1,3 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { 
   db, 
   collection, 
@@ -18,6 +17,7 @@ import {
   OperationType
 } from '../firebase';
 import { Transaction, Produit, Charge, UserProfile, Wallet } from '../../frontend/types';
+import { apiClient } from '../lib/api-client';
 
 export enum BlueFunction {
   CHAT = 'CHAT',
@@ -48,13 +48,6 @@ export interface BlueConversation {
 }
 
 class BlueAIService {
-  private ai: GoogleGenerativeAI;
-  private model = "gemini-1.5-flash";
-
-  constructor() {
-    this.ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-  }
-
   private async getCompanyData(companyId: string) {
     if (!companyId || companyId === 'public') {
       return {
@@ -80,56 +73,13 @@ class BlueAIService {
         wallets: wallets.docs.map(d => d.data() as Wallet)
       };
     } catch (error) {
-      console.error("Error fetching company data for Blue AI:", error);
+      handleFirestoreError(error, OperationType.LIST, 'company_data', auth.currentUser, false);
       return {
         transactions: [],
         products: [],
         charges: [],
         wallets: []
       };
-    }
-  }
-
-  private getSystemInstruction(func: BlueFunction, context?: any) {
-    const base = `Tu es BLUE AI, le cerveau intelligent de KONTROL, une plateforme propulsée par INNOV'KORP. 
-    KONTROL est une solution moderne pour les entreprises développée par INNOV'KORP. 
-    Ton rôle est d'être l'assistant ultime, l'oeil scribe et le guide pour l'utilisateur.
-    Tu dois parfois rappeler avec élégance que KONTROL est une création d'INNOV'KORP si cela est pertinent dans la conversation.
-
-    CONNAISSANCES FONCTIONNELLES DE KONTROL:
-    - DASHBOARD: Vue d'ensemble avec KPIs (Trésorerie, CA, Dépenses, Profit, Rendement).
-    - VENTES: Gestion des factures clients, devis et paiements.
-    - ACHATS: Gestion des commandes fournisseurs et charges d'exploitation.
-    - STOCKS: Inventaire en temps réel, alertes de stock bas, mouvements de stock.
-    - TRÉSORERIE: Gestion des comptes (Caisse, Banque, Mobile Money), transferts et suivi des flux.
-    - TIERS: Annuaire des clients et fournisseurs.
-    - RAPPORTS: Analyses détaillées et export PDF.
-    - ADMIN: Interface de supervision globale pour les administrateurs système.
-
-    RÈGLES DE RÉPONSE:
-    1. Ne réponds qu'aux questions concernant KONTROL ou la gestion d'entreprise.
-    2. Si l'utilisateur n'est pas connecté, demande-lui de s'enregistrer ou de se connecter pour accéder aux fonctionnalités avancées.
-    3. Tes réponses doivent être factuelles et basées sur le fonctionnement réel de l'application.
-    4. Utilise un ton professionnel, encourageant et précis.
-    5. Pour les suggestions, propose toujours des actions réalisables dans KONTROL.
-    
-    CONTEXTE ACTUEL:
-    ${JSON.stringify(context || {})}
-    `;
-
-    switch (func) {
-      case BlueFunction.REPORT:
-        return `${base}\nFONCTION REPORT: Analyse les données fournies et génère un rapport détaillé avec des commentaires pertinents sur la santé financière, les ventes et les stocks.`;
-      case BlueFunction.CONSEIL:
-        return `${base}\nFONCTION CONSEILS: Fournis des conseils stratégiques basés sur l'analyse des données. Sois proactif et suggère des améliorations.`;
-      case BlueFunction.TUTO:
-        return `${base}\nFONCTION TUTO-PROF: Guide l'utilisateur dans l'utilisation de KONTROL. Explique comment utiliser chaque section (Ventes, Achats, Stocks, Trésorerie, etc.).`;
-      case BlueFunction.ALERT:
-        return `${base}\nFONCTION ALERT: Analyse les données pour détecter des anomalies ou des points d'attention (stock bas, retard de paiement, baisse de marge) et propose des notifications.`;
-      case BlueFunction.CODE_ANALYSER:
-        return `${base}\nFONCTION CODE ANALYSER: Tu es en mode Admin KONTROL. Analyse les structures de données et propose des optimisations techniques pour l'application KONTROL.`;
-      default:
-        return `${base}\nFONCTION CHAT: Discute normalement, reformule les besoins de l'utilisateur pour qu'ils collent aux protocoles KONTROL.`;
     }
   }
 
@@ -190,17 +140,15 @@ class BlueAIService {
     }
 
     // 3. Get Context Data
-    const companyData = await this.getCompanyData(companyId);
+    // const companyData = await this.getCompanyData(companyId); // Context could be used by engine
 
     // 4. Generate AI Response via Polyglot Neural Brain (Python Ensemble)
     try {
-      const response = await fetch('/api/ai/blue-brain', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: message, user_id: userId })
+      const neuralData = await apiClient.post('/api/ai/blue-brain', {
+        prompt: message,
+        user_id: userId
       });
       
-      const neuralData = await response.json();
       const assistantContent = neuralData.response || "Désolé, le cerveau neuronal de KONTROL rencontre une latence temporaire.";
       
       console.log("Blue AI (Neural Hive) Response received:", assistantContent.substring(0, 50) + "...");
@@ -221,7 +169,7 @@ class BlueAIService {
 
       // 6. Update Conversation
       try {
-        await updateDoc(doc(db, 'conversations', currentConvId), {
+        await updateDoc(doc(db, 'conversations', currentConvId!), {
           lastMessage: assistantContent,
           updatedAt: Date.now()
         });
@@ -234,7 +182,7 @@ class BlueAIService {
         conversationId: currentConvId
       };
     } catch (error) {
-      console.error("Blue AI Error:", error);
+      handleFirestoreError(error, OperationType.WRITE, 'ai/blue-brain', auth.currentUser);
       throw error;
     }
   }
@@ -272,18 +220,13 @@ class BlueAIService {
 
   async analyzeCode(code: string) {
     try {
-      const response = await fetch('/api/ai/blue-brain', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          prompt: `ANALYSE_CODE: ${code}`,
-          user_id: auth.currentUser?.uid || 'system'
-        })
+      const data = await apiClient.post('/api/ai/blue-brain', {
+        prompt: `ANALYSE_CODE: ${code}`,
+        user_id: auth.currentUser?.uid || 'system'
       });
-      const data = await response.json();
       return data.response;
     } catch (error) {
-      console.error("Code analysis error:", error);
+      handleFirestoreError(error, OperationType.WRITE, 'ai/blue-brain/analyze', auth.currentUser, false);
       return "Erreur lors de l'analyse du code.";
     }
   }

@@ -98,7 +98,7 @@ export function CompaniesModule() {
       
       setCompanies(Array.from(companyMap.values()));
       setLoading(false);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'users', auth.currentUser));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'users', auth.currentUser, false));
 
     return () => unsubscribe();
   }, []);

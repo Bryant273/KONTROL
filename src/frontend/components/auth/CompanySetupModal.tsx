@@ -2,7 +2,7 @@ import React from 'react';
 import { X, Camera, Rocket, Loader2, Sparkles, Building2, User, Phone, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UserProfile } from '../../types';
-import { updateUserProfile, logAction, db } from '../../../api/firebase';
+import { updateUserProfile, logAction, db, handleFirestoreError, OperationType } from '../../../api/firebase';
 import { countries } from '../../lib/countries';
 import { cn } from '../../lib/utils';
 import { sendNotification } from '../../../api/services/notificationService';
@@ -125,11 +125,13 @@ export function CompanySetupModal({ profile, onClose, onComplete }: CompanySetup
         profile.displayName,
         "Complétion du profil entreprise",
         `Entreprise: ${companyName}`
-      );
+      ).catch(err => {
+        handleFirestoreError(err, OperationType.WRITE, 'actions', profile, false);
+      });
 
       onComplete({ ...profile, ...updates });
     } catch (error) {
-      console.error("Error updating profile", error);
+      handleFirestoreError(error, OperationType.WRITE, 'users', profile, false);
     } finally {
       setLoading(false);
     }

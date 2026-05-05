@@ -26,7 +26,9 @@ import {
   where, 
   orderBy, 
   limit,
-  User as FirebaseUser 
+  User as FirebaseUser,
+  handleFirestoreError,
+  OperationType
 } from '../../../api/firebase';
 import { UserProfile } from '../../types';
 import { cn } from '../../lib/utils';
@@ -78,7 +80,7 @@ export function ActionsModule({ user, currentUserProfile }: ActionsModuleProps) 
       setActions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as ActionLog[]);
       setLoading(false);
     }, (error) => {
-      console.error("Actions fetch error:", error);
+      handleFirestoreError(error, OperationType.LIST, 'actions', user, false);
       setLoading(false);
     });
 

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -13,37 +12,45 @@ type GatewayResponse struct {
 	ShieldUID  string `json:"shield_uid"`
 	Node       string `json:"active_node"`
 	Latency    string `json:"latency"`
+	Protected  bool   `json:"protected"`
 }
 
-// Go Gateway: Définit les politiques de sécurité pour Admin et Client
+// Go Gateway: Gestionnaire de Sécurité KONTROL-SHIELD
 func main() {
 	mux := http.NewServeMux()
 
-	// Intercepteur Global de Sécurité
-	mux.HandleFunc("/api/gateway/check", func(w http.ResponseWriter, r *http.Request) {
+	// Point d'entrée pour l'obtention du jeton de sécurité KONTROL-SHIELD
+	mux.HandleFunc("/api/gateway/shield/identify", func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		
-		authHeader := r.Header.Get("Authorization")
-		shieldToken := r.Header.Get("X-KONTROL-SHIELD")
+		// Simulation d'identification de l'origine
+		userAgent := r.Header.Get("User-Agent")
+		remoteAddr := r.RemoteAddr
 		
-		isAuthorized := false
-		// Validation renforcée : on exige le Shield Token pour les accès sensibles
-		if strings.HasPrefix(r.URL.Path, "/admin") && shieldToken == "HARDENED" {
-			isAuthorized = true
-		} else if authHeader != "" {
-			isAuthorized = true
-		}
-
+		log.Printf("[GATEWAY] Identification request from %s (UA: %s)", remoteAddr, userAgent)
+		
+		// Jeton d'intégrité (Hardened)
+		// Dans une implémentation réelle, ce serait un JWT signé par le Gateway
+		shieldToken := "SHIELD_SIG_KONTROL_2026_MASTER"
+		
 		resp := GatewayResponse{
-			Authorized: isAuthorized,
-			ShieldUID:  "RUST-INT-GUARD-0x99",
-			Node:       "GO-GATEWAY-A1",
+			Authorized: true,
+			ShieldUID:  shieldToken,
+			Node:       "GO-GATEWAY-EDGE-01",
 			Latency:    time.Since(start).String(),
+			Protected:  true,
 		}
 
+		// On injecte le header dans la réponse d'identification pour que le client le capture
+		w.Header().Set("X-KONTROL-SHIELD", shieldToken)
 		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		
 		json.NewEncoder(w).Encode(resp)
 	})
 
-	log.Println("Go Gateway Server ready on port 8081")
+	log.Println("KONTROL Go Gateway (Shield Service) starting on port 8081...")
+	if err := http.ListenAndServe(":8081", mux); err != nil {
+		log.Fatal(err)
+	}
 }

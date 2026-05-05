@@ -30,7 +30,7 @@ export function SupportForm({ onSuccess, className, compact = false }: SupportFo
     };
     
     try {
-      const { db, collection, addDoc } = await import('../../../api/firebase');
+      const { db, collection, addDoc, handleFirestoreError, OperationType, auth } = await import('../../../api/firebase');
       await addDoc(collection(db, 'tickets'), data);
       setIsSuccess(true);
       form.reset();
@@ -38,7 +38,8 @@ export function SupportForm({ onSuccess, className, compact = false }: SupportFo
         setTimeout(onSuccess, 2000);
       }
     } catch (err) {
-      console.error(err);
+      const { handleFirestoreError, OperationType, auth } = await import('../../../api/firebase');
+      handleFirestoreError(err, OperationType.WRITE, 'tickets', auth.currentUser, false);
       alert('Une erreur est survenue. Veuillez réessayer.');
     } finally {
       setIsSubmitting(false);

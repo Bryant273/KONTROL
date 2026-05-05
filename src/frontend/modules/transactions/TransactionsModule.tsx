@@ -26,7 +26,8 @@ import { exportToPDF, exportToExcel } from '../../lib/export';
 import { QRCodeSVG } from 'qrcode.react';
 import { Transaction, Tiers, Produit, UserProfile } from '../../types';
 import { cn, formatCurrency } from '../../lib/utils';
-import { logAction } from '../../../api/firebase';
+import { hasPermission } from '../../lib/permissions';
+import { logAction, handleFirestoreError, OperationType } from '../../../api/firebase';
 import { generateInvoicePDF, generateReceiptPDF } from '../../lib/invoice';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { CompanySelector } from '../../components/common/CompanySelector';
@@ -68,13 +69,17 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
 
   const handleDeleteTransaction = async () => {
     if (!selectedTrans || !selectedId) return;
+    if (!hasPermission(currentUserProfile?.role, 'TRANSACTION_DELETE')) {
+      alert("Vous n'avez pas la permission de supprimer une transaction.");
+      return;
+    }
     setLoading(true);
     try {
       await transactionService.deleteTransaction(selectedId, user, currentUserProfile);
       setSelectedId(null);
       setIsDeleting(false);
     } catch (error) {
-      console.error("Delete transaction error:", error);
+      handleFirestoreError(error, OperationType.DELETE, `transactions/${selectedId}`, user);
     } finally {
       setLoading(false);
     }
@@ -122,6 +127,10 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
 
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!hasPermission(currentUserProfile?.role, 'TRANSACTION_CREATE')) {
+      setMessage({ type: 'error', text: "Vous n'avez pas la permission de créer une transaction." });
+      return;
+    }
     if (!newTrans.tiersId) {
       setMessage({ type: 'error', text: "Veuillez sélectionner un tiers (client ou fournisseur)." });
       return;
@@ -180,7 +189,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
         setNewTrans({ type: 'VENTE', tiersId: '', tiersNom: '', modePaiement: 'Espèces', devise: 'XOF', invoiceFileUrl: '', articles: [] });
       }, 1500);
     } catch (error) {
-      console.error("Add transaction error:", error);
+      handleFirestoreError(error, OperationType.CREATE, 'transactions', user);
       setMessage({ type: 'error', text: "Erreur lors de l'enregistrement de la transaction." });
     } finally {
       setLoading(false);
@@ -276,11 +285,15 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
 
   const handleUpdateTransaction = async (updates: Partial<Transaction>) => {
     if (!selectedId || !user) return;
+    if (!hasPermission(currentUserProfile?.role, 'TRANSACTION_UPDATE')) {
+      alert("Vous n'avez pas la permission de modifier une transaction.");
+      return;
+    }
     try {
       setLoading(true);
       await transactionService.updateTransaction(selectedId, updates, user, currentUserProfile);
     } catch (error) {
-      console.error("Update error:", error);
+      handleFirestoreError(error, OperationType.UPDATE, `transactions/${selectedId}`, user);
     } finally {
       setLoading(false);
     }
@@ -550,9 +563,11 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
           >
             <Table size={14} /> Excel
           </button>
-          <button onClick={() => setIsAdding(true)} className="btn-primary text-xs py-1.5 px-4 flex items-center gap-2">
-            <Plus size={14} /> Nouvelle transaction
-          </button>
+          {hasPermission(currentUserProfile?.role, 'TRANSACTION_CREATE') && (
+            <button onClick={() => setIsAdding(true)} className="btn-primary text-xs py-1.5 px-4 flex items-center gap-2">
+              <Plus size={14} /> Nouvelle transaction
+            </button>
+          )}
         </div>
       </div>
 

@@ -6,7 +6,10 @@ import {
   doc, 
   query, 
   where,
-  writeBatch
+  writeBatch,
+  handleFirestoreError,
+  OperationType,
+  auth
 } from '../firebase';
 
 export const dataResetService = {
@@ -31,23 +34,28 @@ export async function resetDatabase() {
     'tickets'
   ];
 
-  for (const colName of collectionsToReset) {
-    const snapshot = await getDocs(collection(db, colName));
-    const batch = writeBatch(db);
-    
-    snapshot.docs.forEach((document) => {
-      const data = document.data();
-      const email = data.email?.toLowerCase();
+  try {
+    for (const colName of collectionsToReset) {
+      const snapshot = await getDocs(collection(db, colName));
+      const batch = writeBatch(db);
       
-      // Don't delete the main admin accounts
-      if (colName === 'users' && (email === 'innov.korp@gmail.com' || email === 'acherie812@gmail.com')) {
-        return;
-      }
+      snapshot.docs.forEach((document) => {
+        const data = document.data();
+        const email = data.email?.toLowerCase();
+        
+        // Don't delete the main admin accounts
+        if (colName === 'users' && (email === 'innov.korp@gmail.com' || email === 'acherie812@gmail.com')) {
+          return;
+        }
+        
+        batch.delete(document.ref);
+      });
       
-      batch.delete(document.ref);
-    });
-    
-    await batch.commit();
+      await batch.commit();
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, 'mass_reset', auth.currentUser);
+    throw error;
   }
 }
 

@@ -25,7 +25,9 @@ import {
   deleteDoc, 
   writeBatch,
   getDocs,
-  auth
+  auth,
+  handleFirestoreError,
+  OperationType
 } from '../../../api/firebase';
 import { UserProfile } from '../../types';
 import { cn, formatCurrency } from '../../lib/utils';
@@ -68,7 +70,7 @@ export function NotificationsCenterModule({ profile, onNavigate }: Notifications
       setNotifications(notifs);
       setLoading(false);
     }, (error) => {
-      console.error("Notifications fetch error:", error);
+      handleFirestoreError(error, OperationType.LIST, 'notifications', auth.currentUser, false);
       setLoading(false);
     });
 
@@ -79,7 +81,7 @@ export function NotificationsCenterModule({ profile, onNavigate }: Notifications
     try {
       await updateDoc(doc(db, 'notifications', id), { read: true });
     } catch (error) {
-      console.error("Error marking notification as read", error);
+      handleFirestoreError(error, OperationType.UPDATE, `notifications/${id}`, auth.currentUser);
     }
   };
 
@@ -87,29 +89,37 @@ export function NotificationsCenterModule({ profile, onNavigate }: Notifications
     const unread = notifications.filter(n => !n.read);
     if (unread.length === 0) return;
     
-    const batch = writeBatch(db);
-    unread.forEach(n => {
-      batch.update(doc(db, 'notifications', n.id), { read: true });
-    });
-    await batch.commit();
+    try {
+      const batch = writeBatch(db);
+      unread.forEach(n => {
+        batch.update(doc(db, 'notifications', n.id), { read: true });
+      });
+      await batch.commit();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'notifications/all', auth.currentUser);
+    }
   };
 
   const deleteNotification = async (id: string) => {
     try {
       await deleteDoc(doc(db, 'notifications', id));
     } catch (error) {
-      console.error("Error deleting notification", error);
+      handleFirestoreError(error, OperationType.DELETE, `notifications/${id}`, auth.currentUser);
     }
   };
 
   const clearAllNotifications = async () => {
     if (!window.confirm("Voulez-vous vraiment effacer tout votre historique de notifications ?")) return;
     
-    const batch = writeBatch(db);
-    notifications.forEach(n => {
-      batch.delete(doc(db, 'notifications', n.id));
-    });
-    await batch.commit();
+    try {
+      const batch = writeBatch(db);
+      notifications.forEach(n => {
+        batch.delete(doc(db, 'notifications', n.id));
+      });
+      await batch.commit();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'notifications/all', auth.currentUser);
+    }
   };
 
   const getTypeIcon = (type: string) => {

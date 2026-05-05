@@ -41,6 +41,8 @@ import {
   OperationType
 } from '../../../api/firebase';
 
+import { hasPermission } from '../../lib/permissions';
+
 interface UsersModuleProps {
   user: User;
   currentUserProfile: UserProfile | null;
@@ -55,10 +57,11 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
   const [selectedUser, setSelectedUser] = React.useState<UserProfile | null>(null);
   const [currentPage, setCurrentPage] = React.useState(1);
   const itemsPerPage = 10;
-  const isKontrolAdmin = currentUserProfile?.role === 'ADMINISTRATEUR_ERP' || 
-                         currentUserProfile?.role === 'GESTIONNAIRE_ERP' || 
-                         currentUserProfile?.role === 'ADMINISTRATEUR_KONTROL' || 
-                         currentUserProfile?.role === 'GESTIONNAIRE_KONTROL';
+  
+  const canCreateUser = hasPermission(currentUserProfile?.role, 'USER_CREATE');
+  const canUpdateUser = hasPermission(currentUserProfile?.role, 'USER_UPDATE');
+  const canDeleteUser = hasPermission(currentUserProfile?.role, 'USER_DELETE');
+  const canAdminERP = hasPermission(currentUserProfile?.role, 'ADMIN_ACCESS');
 
   const [newUser, setNewUser] = React.useState({
     email: '',
@@ -73,7 +76,7 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
     const path = 'users';
     const companyId = currentUserProfile.companyId;
     
-    const q = isKontrolAdmin 
+    const q = canAdminERP 
       ? query(collection(db, path), orderBy('createdAt', 'desc'))
       : query(collection(db, path), where('companyId', '==', companyId));
 
@@ -82,12 +85,7 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
       setUsers(fetchedUsers);
       setLoading(false);
     }, (error) => {
-      console.error("Users list error:", error);
-      try {
-        handleFirestoreError(error, OperationType.LIST, path, user);
-      } catch (e) {
-        // Silent catch
-      }
+      handleFirestoreError(error, OperationType.LIST, path, user, false);
       setLoading(false);
     });
 
@@ -96,6 +94,7 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canCreateUser) return;
     setLoading(true);
     try {
       const path = 'users';
@@ -145,13 +144,14 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
       setIsAdding(false);
       setNewUser({ email: '', displayName: '', password: '', role: 'GESTIONNAIRE_ENTREPRISE' });
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'users', user);
+      handleFirestoreError(error, OperationType.WRITE, 'users', user, false);
     } finally {
       setLoading(false);
     }
   };
 
   const toggleUserStatus = async (userId: string, currentStatus: boolean, userRole: UserRole) => {
+    if (!canUpdateUser) return;
     if (userRole === 'ADMINISTRATEUR_ENTREPRISE') {
       alert("Le compte administrateur entreprise ne peut pas être désactivé.");
       return;
@@ -172,11 +172,12 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
         );
       }
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, 'users', user);
+      handleFirestoreError(error, OperationType.UPDATE, 'users', user, false);
     }
   };
 
   const handleResetPassword = async (email: string, userName: string) => {
+    if (!canUpdateUser) return;
     if (!confirm(`Envoyer un email de réinitialisation de mot de passe à ${userName} (${email}) ?`)) return;
     try {
       await sendPasswordResetEmail(auth, email);
@@ -189,10 +190,10 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
           currentUserProfile.displayName,
           "Réinitialisation mot de passe",
           `Utilisateur: ${userName} (${email})`
-        );
+        ).catch(err => handleFirestoreError(err, OperationType.WRITE, 'actions', user, false));
       }
     } catch (error) {
-      console.error("Error sending reset email", error);
+      handleFirestoreError(error, OperationType.WRITE, 'auth/reset-password', user, false);
       alert("Erreur lors de l'envoi de l'email.");
     }
   };
@@ -448,7 +449,7 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
                   </p>
                 </div>
                 <div className="flex gap-3">
-                  {isOwner && selectedUser.uid !== currentUserProfile?.uid && (
+                  {canUpdateUser && selectedUser.uid !== currentUserProfile?.uid && (
                     <>
                       <button 
                         onClick={() => handleResetPassword(selectedUser.email, selectedUser.displayName)}
@@ -481,7 +482,7 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
           <h2 className="text-2xl font-extrabold text-kontrol-dark tracking-tight">Gestion de l'équipe</h2>
           <p className="text-[13px] text-kontrol-ink-muted mt-1">Consultez et gérez les accès des membres de votre entreprise</p>
         </div>
-        {isOwner && (
+        {canCreateUser && (
           <button onClick={() => setIsAdding(true)} className="btn-primary text-xs py-2 px-5 flex items-center gap-2 shadow-lg shadow-kontrol-blue/20">
             <UserPlus size={14} /> Ajouter un membre
           </button>
@@ -533,7 +534,7 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
             <thead>
               <tr className="bg-kontrol-bg/50 border-b border-kontrol-border">
                 <th className="px-6 py-4 text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest">Utilisateur</th>
-                {isKontrolAdmin && <th className="px-6 py-4 text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest">Entreprise</th>}
+                {canAdminERP && <th className="px-6 py-4 text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest">Entreprise</th>}
                 <th className="px-6 py-4 text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest">Rôle</th>
                 <th className="px-6 py-4 text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest">Statut</th>
                 <th className="px-6 py-4 text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest">Créé le</th>
@@ -543,13 +544,13 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
             <tbody className="divide-y divide-kontrol-border">
               {loading ? (
                 <tr>
-                  <td colSpan={isKontrolAdmin ? 6 : 5} className="px-6 py-12 text-center">
+                  <td colSpan={canAdminERP ? 6 : 5} className="px-6 py-12 text-center">
                     <Loader2 className="animate-spin text-kontrol-blue mx-auto" size={32} />
                   </td>
                 </tr>
               ) : paginatedUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={isKontrolAdmin ? 6 : 5} className="px-6 py-12 text-center text-kontrol-ink-muted text-sm">
+                  <td colSpan={canAdminERP ? 6 : 5} className="px-6 py-12 text-center text-kontrol-ink-muted text-sm">
                     Aucun utilisateur trouvé.
                   </td>
                 </tr>
@@ -567,7 +568,7 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
                         </div>
                       </div>
                     </td>
-                    {isKontrolAdmin && (
+                    {canAdminERP && (
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <Building2 size={12} className="text-kontrol-ink-muted" />
@@ -600,7 +601,7 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
                         </span>
                       </div>
                     </td>
-                    {isKontrolAdmin && (
+                    {canAdminERP && (
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <Building2 size={12} className="text-kontrol-ink-muted" />
@@ -630,7 +631,7 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
                         >
                           <Eye size={14} /> Voir
                         </button>
-                        {isOwner && u.uid !== currentUserProfile?.uid && (
+                        {canUpdateUser && u.uid !== currentUserProfile?.uid && (
                           <div className="relative group/actions">
                             <button className="p-2 text-kontrol-ink-muted hover:text-kontrol-dark hover:bg-kontrol-bg rounded-lg transition-all">
                               <MoreVertical size={16} />
@@ -646,7 +647,7 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
                                 onClick={() => toggleUserStatus(u.id!, u.active !== false, u.role)}
                                 className={cn(
                                   "w-full flex items-center gap-2 px-4 py-2.5 text-[12px] text-left",
-                                  u.active !== false ? "text-rose-600 hover:bg-rose-50" : "text-emerald-600 hover:bg-emerald-50"
+                                  u.active !== false ? "text-rose-600 hover:bg-rose-50" : "text-emerald-600 hover:bg-emerald-100"
                                 )}
                               >
                                 {u.active !== false ? <><UserX size={14} /> Désactiver</> : <><UserCheck size={14} /> Activer</>}

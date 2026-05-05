@@ -40,13 +40,15 @@ import firebaseConfig from '../../firebase-applet-config.json';
 import { 
   UserProfile, 
   StockMovement, 
-  UserRole 
+  UserRole,
+  Produit
 } from '../frontend/types';
-export { 
+import { 
   OperationType, 
   handleFirestoreError 
 } from './lib/firestore-errors';
 import { hashPassword } from './lib/crypto';
+import { checkAndNotifyLowStock } from './services/notificationService';
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
@@ -198,7 +200,7 @@ export async function ensureUserProfile(user: User, companyName?: string, hashed
       try {
         await setDoc(userRef, profile);
       } catch (error) {
-        handleFirestoreError(error, OperationType.CREATE, `users/${user.uid}`, user);
+        handleFirestoreError(error, OperationType.CREATE, `users/${user.uid}`, user, false);
       }
     } else {
     const data = userDoc.data();
@@ -220,7 +222,7 @@ export async function ensureUserProfile(user: User, companyName?: string, hashed
       try {
         await updateDoc(userRef, updates);
       } catch (error) {
-        handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`, user);
+        handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`, user, false);
       }
     }
   }
@@ -230,7 +232,7 @@ export const updateUserProfile = async (uid: string, data: Partial<UserProfile>)
   try {
     await setDoc(doc(db, 'users', uid), data, { merge: true });
   } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, `users/${uid}`, auth.currentUser);
+    handleFirestoreError(error, OperationType.WRITE, `users/${uid}`, auth.currentUser, false);
   }
 };
 
@@ -246,7 +248,7 @@ export const logAction = async (companyId: string, userId: string, userName: str
       timestamp: Date.now()
     });
   } catch (error) {
-    console.error("Error logging action:", error);
+    handleFirestoreError(error, OperationType.CREATE, 'actions', auth.currentUser, false);
   }
 };
 export const recordStockMovement = async (movement: Omit<StockMovement, 'id'>) => {
@@ -293,8 +295,28 @@ export const recordStockMovement = async (movement: Omit<StockMovement, 'id'>) =
 
     transaction.set(movementRef, movementData);
     });
+
+    // 2. Trigger alarms IF it was a sortie
+    if (movement.type === 'SORTIE') {
+      try {
+        const productSnap = await getDoc(doc(db, 'produits', movement.produitId));
+        if (productSnap.exists()) {
+          const p = productSnap.data() as Produit;
+          await checkAndNotifyLowStock(
+            movement.produitId,
+            p.designation || p.name || "Inconnu",
+            p.stock,
+            p.alertStock,
+            movement.companyId || p.companyId || p.ownerId || "",
+            auth.currentUser?.uid || 'system'
+          );
+        }
+      } catch (e) {
+        console.error("Delayed stock alert failed:", e);
+      }
+    }
   } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, 'stock_movements', auth.currentUser);
+    handleFirestoreError(error, OperationType.WRITE, 'stock_movements', auth.currentUser, false);
   }
 };
 

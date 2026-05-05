@@ -82,7 +82,9 @@ export function ControlTowerTreasuryView() {
       setPayments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Payment[]);
       setLoading(false);
     }, (error) => {
-      if (error.code !== 'permission-denied') console.error("Payments fetch error:", error);
+      if (error.code !== 'permission-denied') {
+        handleFirestoreError(error, OperationType.LIST, 'payments', auth.currentUser, false);
+      }
       setLoading(false);
     }));
 
@@ -120,7 +122,7 @@ export function ControlTowerTreasuryView() {
         description: ''
       });
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'payments', auth.currentUser);
+      handleFirestoreError(error, OperationType.WRITE, 'payments', auth.currentUser, false);
     } finally {
       setLoading(false);
     }
@@ -142,7 +144,7 @@ export function ControlTowerTreasuryView() {
       );
       setIsDeletingPayment(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'payments', auth.currentUser);
+      handleFirestoreError(error, OperationType.DELETE, 'payments', auth.currentUser, false);
     } finally {
       setLoading(false);
     }

@@ -26,7 +26,9 @@ import {
   updatePassword, 
   EmailAuthProvider, 
   reauthenticateWithCredential,
-  logAction
+  logAction,
+  handleFirestoreError,
+  OperationType
 } from '../../../api/firebase';
 import { cn } from '../../lib/utils';
 import { deleteCompanyAccount } from '../../../api/services/dataResetService';
@@ -111,11 +113,11 @@ export function ProfileModule({ profile }: ProfileModuleProps) {
         profile.displayName,
         "Mise à jour profil",
         "Les informations du profil ont été mises à jour"
-      );
+      ).catch(err => handleFirestoreError(err, OperationType.WRITE, 'actions', auth.currentUser, false));
 
       setTimeout(() => setSuccess(false), 3000);
     } catch (error) {
-      console.error("Error updating profile", error);
+      handleFirestoreError(error, OperationType.WRITE, 'users', auth.currentUser, false);
     } finally {
       setLoading(false);
     }
@@ -156,11 +158,11 @@ export function ProfileModule({ profile }: ProfileModuleProps) {
         profile.displayName,
         "Modification mot de passe",
         "Le mot de passe a été mis à jour avec succès"
-      );
+      ).catch(err => handleFirestoreError(err, OperationType.WRITE, 'actions', auth.currentUser, false));
 
       setTimeout(() => setPassSuccess(false), 3000);
     } catch (error: any) {
-      console.error("Error updating password", error);
+      handleFirestoreError(error, OperationType.WRITE, 'auth/password', auth.currentUser, false);
       if (error.code === 'auth/wrong-password') {
         setPassError("Le mot de passe actuel est incorrect.");
       } else {
@@ -178,7 +180,7 @@ export function ProfileModule({ profile }: ProfileModuleProps) {
       await deleteCompanyAccount(profile.companyId);
       await logout();
     } catch (error) {
-      console.error("Error deleting account", error);
+      handleFirestoreError(error, OperationType.DELETE, 'companies', auth.currentUser, false);
     } finally {
       setDeleteLoading(false);
       setShowDeleteConfirm(false);

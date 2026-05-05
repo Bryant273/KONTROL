@@ -1,9 +1,10 @@
 import { BaseFirestoreService } from './baseFirestoreService';
-import { Transaction, UserProfile } from '../../frontend/types';
+import { Transaction, UserProfile, Produit } from '../../frontend/types';
 import { User } from 'firebase/auth';
 import { where, orderBy, limit, query, collection, getDocs, doc, increment, writeBatch, getDoc, deleteDoc } from 'firebase/firestore';
 import { db, logAction } from '../firebase';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
+import { checkAndNotifyLowStock } from './notificationService';
 
 export class TransactionService extends BaseFirestoreService<Transaction> {
   constructor() {
@@ -68,6 +69,28 @@ export class TransactionService extends BaseFirestoreService<Transaction> {
       }
 
       await batch.commit();
+
+      // 4. Trigger stock alerts if needed (after commit for accuracy)
+      if (transaction.type === 'VENTE') {
+        for (const article of transaction.articles) {
+          try {
+            const productSnap = await getDoc(doc(db, 'produits', article.produitId));
+            if (productSnap.exists()) {
+              const productData = productSnap.data() as Produit;
+              await checkAndNotifyLowStock(
+                article.produitId,
+                productData.designation || productData.name || "Inconnu",
+                productData.stock,
+                productData.alertStock,
+                transaction.ownerId || productData.companyId || "",
+                user.uid
+              );
+            }
+          } catch (e) {
+            console.error("Low stock alert trigger failed:", e);
+          }
+        }
+      }
 
       // Journalisation
       if (profile) {

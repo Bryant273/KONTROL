@@ -8,13 +8,31 @@ export interface FetchOptions extends RequestInit {
   transparent?: boolean;
 }
 
+let cachedShieldToken: string | null = null;
+
+async function fetchShieldToken(): Promise<string> {
+  if (cachedShieldToken) return cachedShieldToken;
+  try {
+    const response = await fetch('/api/gateway/shield/identify');
+    if (response.ok) {
+      const data = await response.json();
+      cachedShieldToken = data.shield_uid;
+      return cachedShieldToken!;
+    }
+  } catch (e) {
+    console.warn("Shield acquisition failure:", e);
+  }
+  return 'HARDENED';
+}
+
 export const apiClient = {
   async fetch(url: string, options: FetchOptions = {}) {
     const headers = new Headers(options.headers || {});
     
-    // Inject Rust Shield Signature for Hardened requests
-    if (!headers.has('x-kontrol-shield')) {
-      headers.set('x-kontrol-shield', 'HARDENED');
+    // Inject Shield Token (Dynamic from Go Gateway)
+    if (!headers.has('x-kontrol-shield') && !url.includes('/shield/identify')) {
+      const token = await fetchShieldToken();
+      headers.set('x-kontrol-shield', token);
     }
 
     // Node.js/Java/Go Identification

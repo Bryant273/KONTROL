@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Building2, ChevronDown, Search, Loader2 } from 'lucide-react';
-import { db, collection, getDocs, query, where, orderBy } from '../../../api/firebase';
+import { db, collection, getDocs, query, where, orderBy, handleFirestoreError, OperationType, auth } from '../../../api/firebase';
 import { Company } from '../../types';
 import { cn } from '../../lib/utils';
 
@@ -22,7 +22,7 @@ export function CompanySelector({ onSelect, selectedId }: CompanySelectorProps) 
         const snapshot = await getDocs(query(collection(db, 'companies'), orderBy('name')));
         setCompanies(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Company)));
       } catch (error) {
-        console.error("Error fetching companies for selector:", error);
+        handleFirestoreError(error, OperationType.LIST, 'companies', auth.currentUser);
       } finally {
         setLoading(false);
       }

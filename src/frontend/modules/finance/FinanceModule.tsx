@@ -1,32 +1,11 @@
 import React from 'react';
-import { 
-  Wallet as WalletIcon, 
-  Plus, 
-  ArrowUpCircle, 
-  ArrowDownCircle, 
-  ArrowDownLeft,
-  ArrowUpRight,
-  Search, 
-  Filter,
-  CreditCard,
-  Smartphone,
-  Banknote,
-  History,
-  TrendingUp,
-  TrendingDown,
-  DollarSign,
-  Loader2,
-  X,
-  CheckCircle2,
-  Trash2,
-  Calendar,
-  FileText,
-  Table
-} from 'lucide-react';
+import { Table, TrendingUp, Search, Filter, Loader2, Plus, FileText, X, CheckCircle2, Trash2, Calendar, DollarSign, Banknote, CreditCard, Smartphone, Wallet as WalletIcon, ArrowUpCircle, ArrowDownCircle, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { motion } from 'motion/react';
 import { exportToPDF, exportToExcel } from '../../lib/export';
 import { Wallet, Payment, UserProfile, Tiers } from '../../types';
 import { cn, formatCurrency } from '../../lib/utils';
+import { hasPermission } from '../../lib/permissions';
+import { apiClient } from '../../../api/lib/api-client';
 import { 
   db, 
   collection, 
@@ -93,22 +72,23 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
     unsubscribes.push(onSnapshot(qPayments, (snapshot) => {
       setPayments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Payment[]);
       setLoading(false);
-    }, (error) => {
-      console.error("Payments fetch error:", error);
-      setLoading(false);
-    }));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'payments', user, false)));
 
     // Tiers
     const qTiers = query(collection(db, 'tiers'), where('ownerId', '==', companyId));
     unsubscribes.push(onSnapshot(qTiers, (snapshot) => {
       setTiers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Tiers[]);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'tiers', user)));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'tiers', user, false)));
 
     return () => unsubscribes.forEach(unsub => unsub());
   }, [companyId]);
 
   const handleAddPayment = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!hasPermission(currentUserProfile?.role, 'FINANCE_CREATE')) {
+      alert("Vous n'avez pas la permission d'enregistrer un mouvement financier.");
+      return;
+    }
     if (newPayment.montant <= 0) return;
 
     setLoading(true);
@@ -149,6 +129,10 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
 
   const handleDeletePayment = async () => {
     if (!isDeletingPayment) return;
+    if (!hasPermission(currentUserProfile?.role, 'FINANCE_DELETE')) {
+      alert("Vous n'avez pas la permission de supprimer un mouvement financier.");
+      return;
+    }
     
     setLoading(true);
     try {
@@ -165,7 +149,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
       }
       setIsDeletingPayment(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'payments', user);
+      handleFirestoreError(error, OperationType.DELETE, 'payments', user, false);
     } finally {
       setLoading(false);
     }
@@ -222,18 +206,17 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
   const [isCalculatingBridge, setIsCalculatingBridge] = React.useState(false);
 
   const checkBridgeEligibility = async () => {
+    if (!hasPermission(currentUserProfile?.role, 'FINANCE_READ')) return;
     setIsCalculatingBridge(true);
     try {
       const totalInvoices = payments.filter(p => p.type === 'ENCAISSEMENT').reduce((acc, p) => acc + p.montant, 0) * 0.4;
-      const res = await fetch('/api/enterprise/treasury/bridge-calc', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cash: totalBalance, invoices: totalInvoices })
+      const res = await apiClient.post('/api/enterprise/treasury/bridge-calc', {
+        cash: totalBalance, 
+        invoices: totalInvoices 
       });
-      const data = await res.json();
-      setBridgeResult(data);
+      setBridgeResult(res);
     } catch (e) {
-      console.error("Bridge calc error");
+      handleFirestoreError(e, OperationType.GET, 'bridge_calc', user, false);
     } finally {
       setIsCalculatingBridge(false);
     }
@@ -255,18 +238,22 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
             {isCalculatingBridge ? <Loader2 size={14} className="animate-spin" /> : <TrendingUp size={14} />} 
             Calculer éligibilité Bridge
           </button>
-          <button 
-            onClick={handleExportPDF}
-            className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2"
-          >
-            <FileText size={14} /> PDF
-          </button>
-          <button 
-            onClick={() => setIsAddingPayment(true)}
-            className="btn-primary text-xs py-1.5 px-4 flex items-center gap-2"
-          >
-            <Plus size={14} /> Nouveau Mouvement
-          </button>
+          {hasPermission(currentUserProfile?.role, 'FINANCE_EXPORT') && (
+            <button 
+              onClick={handleExportPDF}
+              className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2"
+            >
+              <FileText size={14} /> PDF
+            </button>
+          )}
+          {hasPermission(currentUserProfile?.role, 'FINANCE_CREATE') && (
+            <button 
+              onClick={() => setIsAddingPayment(true)}
+              className="btn-primary text-xs py-1.5 px-4 flex items-center gap-2"
+            >
+              <Plus size={14} /> Nouveau Mouvement
+            </button>
+          )}
         </div>
       </div>
 

@@ -22,7 +22,7 @@ import {
 import { UserProfile } from '../../types';
 import { cn, formatCurrency } from '../../lib/utils';
 import { exportToPDF } from '../../lib/export';
-import { db, doc, getDoc, getDocs, updateDoc, logAction, serverTimestamp, collection, addDoc, query, where, onSnapshot, orderBy } from '../../../api/firebase';
+import { db, doc, getDoc, getDocs, updateDoc, logAction, serverTimestamp, collection, addDoc, query, where, onSnapshot, orderBy, handleFirestoreError, OperationType, auth } from '../../../api/firebase';
 import { sendNotification } from '../../../api/services/notificationService';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -136,7 +136,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
         alert("⏳ Vérification terminée : Vos demandes (Réf: " + payRequestsSnap.docs.map(d => d.data().reference).join(', ') + ") sont toujours en attente de traitement manuel.");
       }
     } catch (error) {
-      console.error("Verification error:", error);
+      handleFirestoreError(error, OperationType.GET, 'payment_verification', auth.currentUser, false);
       alert("❌ Erreur lors de la vérification en direct. Veuillez réessayer.");
     } finally {
       setIsSyncing(false);
@@ -206,7 +206,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
 
       setPaymentStep('SUCCESS');
     } catch (error) {
-      console.error("Paystack confirmation error:", error);
+      handleFirestoreError(error, OperationType.WRITE, 'payment_requests', auth.currentUser, false);
       alert("Erreur lors de l'enregistrement de votre confirmation. Veuillez contacter le support.");
     } finally {
       setLoading(false);
@@ -259,7 +259,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
         };
       });
       setBillingHistory(history);
-    }, (err) => console.error("Payments history fetch error:", err));
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'payment_requests', auth.currentUser, false));
 
     return () => unsubscribe();
   }, [profile]);
@@ -283,7 +283,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
       
       console.log("Subscription expiry reminder sent.");
     } catch (error) {
-      console.error("Error sending expiry reminder:", error);
+      handleFirestoreError(error, OperationType.UPDATE, 'payment_requests', auth.currentUser, false);
     }
   };
 

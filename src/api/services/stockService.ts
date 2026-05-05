@@ -7,10 +7,12 @@ import {
   getDoc 
 } from '../firebase';
 import { StockMovement, Produit } from '../../frontend/types';
+import { checkAndNotifyLowStock } from './notificationService';
 
 export async function recordStockMovementWithTransaction(
   transaction: any, // Firestore transaction object
-  movement: Omit<StockMovement, 'id'>
+  movement: Omit<StockMovement, 'id'>,
+  userId: string
 ) {
   const productRef = doc(db, 'produits', movement.produitId);
   const productSnap = await transaction.get(productRef);
@@ -49,6 +51,18 @@ export async function recordStockMovementWithTransaction(
     id: movementRef.id,
     createdAt: Date.now()
   });
+
+  // Check for low stock alert
+  if (movement.type === 'SORTIE' || movement.type === 'OUT') {
+    checkAndNotifyLowStock(
+      movement.produitId,
+      productData.designation || productData.name || "Inconnu",
+      newStock,
+      productData.alertStock,
+      movement.companyId || productData.companyId || productData.ownerId || "",
+      userId
+    ).catch(e => console.error("Stock alert notification failed:", e));
+  }
 }
 
 export async function revertStockMovementWithTransaction(

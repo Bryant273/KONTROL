@@ -99,7 +99,7 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
       setNewTicket({ subject: '', message: '' });
       setIsCreating(false);
     } catch (error) {
-      console.error("Error creating ticket:", error);
+      handleFirestoreError(error, OperationType.CREATE, 'tickets', user);
     } finally {
       setIsSubmitting(false);
     }
@@ -139,7 +139,7 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
       setTickets(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Ticket)));
       setLoading(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'tickets', user);
+      handleFirestoreError(error, OperationType.LIST, 'tickets', user, false);
       setLoading(false);
     });
 
@@ -168,7 +168,7 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
         setSelectedTicket(prev => prev ? { ...prev, status: newStatus } : null);
       }
     } catch (error) {
-      console.error("Error updating ticket status:", error);
+      handleFirestoreError(error, OperationType.UPDATE, `tickets/${ticketId}`, user);
     }
   };
 
@@ -179,7 +179,7 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
       setSelectedTicket(null);
       setIsDeleting(false);
     } catch (error) {
-      console.error("Error deleting ticket:", error);
+      handleFirestoreError(error, OperationType.DELETE, `tickets/${selectedTicket.id}`, user);
     }
   };
 

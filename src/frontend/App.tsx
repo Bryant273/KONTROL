@@ -9,6 +9,8 @@ import {
   doc,
   onSnapshot,
   ensureUserProfile,
+  handleFirestoreError,
+  OperationType,
   type User 
 } from '../api/firebase';
 import { ControlTower } from './modules/admin/ControlTower';
@@ -25,6 +27,7 @@ import { BlueAIModule } from './modules/blue/BlueAIModule';
 import { UsersModule } from './modules/users/UsersModule';
 import { TicketsModule } from './modules/tickets/TicketsModule';
 import { CompaniesModule } from './modules/companies/CompaniesModule';
+import { CompanyProfileModule } from './modules/companies/CompanyProfileModule';
 import { ProfileModule } from './modules/profile/ProfileModule';
 import { ActionsModule } from './modules/actions/ActionsModule';
 import { SubscriptionsModule } from './modules/subscriptions/SubscriptionsModule';
@@ -98,14 +101,14 @@ export default function App() {
             if (err.code === 'auth/admin-restricted-operation') {
               console.warn("L'authentification anonyme n'est pas activée dans la console Firebase. Le chatbot pour les invités pourrait ne pas fonctionner correctement.");
             } else {
-              console.error("Anonymous sign-in error:", err);
+              handleFirestoreError(err, OperationType.WRITE, 'auth/anonymous', null, false);
             }
             setLoading(false);
           });
         }
       }
     }, (error) => {
-      console.error("Auth state listener error:", error);
+      handleFirestoreError(error, OperationType.GET, 'auth_state', null, false);
       clearTimeout(authTimeout);
       setLoading(false);
     });
@@ -134,13 +137,13 @@ export default function App() {
         clearTimeout(timeout);
       } else {
         ensureUserProfile(user).catch((err) => {
-          console.error(err);
+          handleFirestoreError(err, OperationType.CREATE, `users/${user.uid}`, user, false);
           setLoading(false);
           clearTimeout(timeout);
         });
       }
     }, (error) => {
-      console.error("Profile fetch error:", error);
+      handleFirestoreError(error, OperationType.GET, `users/${user.uid}`, user, false);
       setLoading(false);
       clearTimeout(timeout);
     });
@@ -194,10 +197,10 @@ export default function App() {
         ).then(() => {
           sessionStorage.setItem(`logged_in_${profile.uid}`, 'true');
         }).catch(err => {
-          console.error("Failed to log login action:", err);
+          handleFirestoreError(err, OperationType.CREATE, 'actions', user, false);
         });
       }).catch(err => {
-        console.error("Failed to load firebase module for logging:", err);
+        handleFirestoreError(err, OperationType.GET, 'firebase_module', user, false);
       });
     }
   }, [profile]);
@@ -206,7 +209,7 @@ export default function App() {
     try {
       await logout(profile);
     } catch (error) {
-      console.error("Logout error:", error);
+      handleFirestoreError(error, OperationType.WRITE, 'auth/logout', null, false);
     } finally {
       setUser(null);
       setProfile(null);
@@ -338,6 +341,7 @@ export default function App() {
               {activeTab === 'tickets' && (isKontrolAdmin ? <ControlTower activeSubTab="tickets" user={user} profile={profile} /> : <TicketsModule user={user} currentUserProfile={profile} />)}
               {activeTab === 'chat' && user && <KChatModule user={user} profile={profile} />}
               {activeTab === 'entreprises' && (isKontrolAdmin ? <ControlTower activeSubTab="entreprises" user={user} profile={profile} /> : <CompaniesModule />)}
+              {activeTab === 'company_profile' && <CompanyProfileModule currentUserProfile={profile} />}
               {activeTab === 'system' && (isKontrolAdmin ? <ControlTower activeSubTab="system" user={user} profile={profile} /> : <SystemModule currentUserProfile={profile} />)}
               {activeTab === 'versions' && (isKontrolAdmin ? <ControlTower activeSubTab="versions" user={user} profile={profile} /> : null)}
               {activeTab === 'updates' && (isKontrolAdmin ? <ControlTower activeSubTab="updates" user={user} profile={profile} /> : null)}

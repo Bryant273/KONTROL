@@ -16,7 +16,8 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
 import { Logo } from '../common/Logo';
-import { loginWithGoogle, loginWithEmail, registerWithEmail, auth } from '../../../api/firebase';
+import { loginWithGoogle, loginWithEmail, registerWithEmail, auth, handleFirestoreError, OperationType, db } from '../../../api/firebase';
+import { notifySecurityEvent } from '../../../api/services/notificationService';
 
 interface AuthPageProps {
   onBack: () => void;
@@ -55,6 +56,10 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
       }
     } catch (error: any) {
       setAuthError(error.message);
+      // Notify security event for failed login
+      if (authMode === 'login') {
+        notifySecurityEvent('system', null, 'Échec de Connexion', `Tentative échouée pour l'email: ${email}. Raison: ${error.message}`);
+      }
     } finally {
       setAuthLoading(false);
     }
@@ -301,7 +306,7 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
                 try {
                   await loginWithGoogle();
                 } catch (err) {
-                  console.error(err);
+                  handleFirestoreError(err, OperationType.WRITE, 'auth/google', null, false);
                 }
               }}
               className="w-full h-12 bg-white border border-kontrol-border rounded-xl flex items-center justify-center gap-3 text-[13px] font-bold text-kontrol-dark hover:border-kontrol-blue/30 transition-all active:scale-[0.98]"

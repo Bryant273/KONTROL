@@ -34,7 +34,9 @@ import {
   limit,
   auth,
   addDoc,
-  logAction
+  logAction,
+  handleFirestoreError,
+  OperationType
 } from '../../../api/firebase';
 import { CompanySelector } from '../../components/common/CompanySelector';
 import { transactionService } from '../../../api/services/transactionService';
@@ -70,7 +72,9 @@ export function ControlTowerTransactionsView() {
       setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Transaction[]);
       setLoading(false);
     }, (error) => {
-      if (error.code !== 'permission-denied') console.error("Transactions fetch error:", error);
+      if (error.code !== 'permission-denied') {
+        handleFirestoreError(error, OperationType.LIST, 'transactions', auth.currentUser, false);
+      }
       setLoading(false);
     });
 
@@ -122,7 +126,7 @@ export function ControlTowerTransactionsView() {
         setNewTrans({ type: 'VENTE', tiersId: '', tiersNom: '', modePaiement: 'Espèces', devise: 'XOF', articles: [] });
       }, 1500);
     } catch (error) {
-      console.error(error);
+      handleFirestoreError(error, OperationType.WRITE, 'transactions/create', auth.currentUser, false);
       setMessage({ type: 'error', text: "Erreur lors de l'enregistrement." });
     } finally {
       setLoading(false);

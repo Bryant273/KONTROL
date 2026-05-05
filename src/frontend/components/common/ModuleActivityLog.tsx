@@ -7,7 +7,10 @@ import {
   query, 
   where, 
   orderBy, 
-  limit 
+  limit,
+  handleFirestoreError,
+  OperationType,
+  auth
 } from '../../../api/firebase';
 import { cn } from '../../lib/utils';
 
@@ -60,7 +63,7 @@ export function ModuleActivityLog({ companyId, moduleName, limitCount = 50, titl
       setActions(data);
       setLoading(false);
     }, (error) => {
-      console.error("Module actions fetch error:", error);
+      handleFirestoreError(error, OperationType.LIST, 'actions', auth.currentUser, false);
       setLoading(false);
     });
 

@@ -1,30 +1,9 @@
 import React from 'react';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Users, 
-  Package,
-  Loader2,
-  PieChart,
-  Wallet,
-  ArrowUpRight,
-  ArrowDownRight,
-  Sparkles,
-  X,
-  FileText,
-  ShieldCheck,
-  MessageCircle,
-  Activity,
-  Zap,
-  Settings,
-  Building2,
-  AlertTriangle,
-  BrainCircuit
-} from 'lucide-react';
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import {  AlertTriangle, BrainCircuit, TrendingUp, TrendingDown, Users, Package, Loader2, PieChart, Wallet, ArrowUpRight, ArrowDownRight, Sparkles, X, FileText, ShieldCheck, MessageCircle, Activity, Zap, Settings, Building2 } from 'lucide-react';
 import { exportToPDF } from '../../lib/export';
 import Markdown from 'react-markdown';
 import { sendNotification } from '../../../api/services/notificationService';
+import { apiClient } from '../../../api/lib/api-client';
 import { 
   BarChart, 
   Bar, 
@@ -103,6 +82,8 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
   const [isAnalyzingCode, setIsAnalyzingCode] = React.useState(false);
   const [subscriptionAlert, setSubscriptionAlert] = React.useState<{ daysLeft: number; expiryDate: string } | null>(null);
   
+  const [monthlyData, setMonthlyData] = React.useState<any[]>([]);
+  
   // Pagination states
   const [ticketsPage, setTicketsPage] = React.useState(1);
   const [actionsPage, setActionsPage] = React.useState(1);
@@ -117,6 +98,48 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
     recentActions: [] as any[]
   });
 
+  const calculateMonthlyTrends = (transactions: any[], payments: any[], charges: any[]) => {
+    const months = Array.from({ length: 6 }).map((_, i) => {
+      const date = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+      return {
+        month: date.toLocaleString('default', { month: 'short' }),
+        start: new Date(date.getFullYear(), date.getMonth(), 1).getTime(),
+        end: new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59).getTime(),
+        ca: 0,
+        charges: 0,
+        achats: 0,
+        net: 0,
+        tresorerie: 0
+      };
+    });
+
+    months.forEach(m => {
+      m.ca = transactions
+        .filter(t => t.type === 'VENTE' && (t.statut === 'PAYE' || t.status === 'COMPLETED') && t.date >= m.start && t.date <= m.end)
+        .reduce((acc, t) => acc + (t.montantTotal || t.montant || 0), 0);
+      
+      m.achats = transactions
+        .filter(t => t.type === 'ACHAT' && (t.statut === 'PAYE' || t.status === 'COMPLETED') && t.date >= m.start && t.date <= m.end)
+        .reduce((acc, t) => acc + (t.montantTotal || t.montant || 0), 0);
+      
+      m.charges = charges
+        .filter(c => (c.date || c.createdAt) >= m.start && (c.date || c.createdAt) <= m.end)
+        .reduce((acc, c) => acc + (c.montant || 0), 0);
+      
+      m.net = m.ca - (m.achats + m.charges);
+      
+      // Treasury at end of month (simplified: current balance minus flows after that month)
+      const flowsAfter = payments
+        .filter(p => p.date > m.end)
+        .reduce((acc, p) => acc + (p.type === 'ENCAISSEMENT' ? (p.montant || 0) : -(p.montant || 0)), 0);
+      
+      // This is an approximation based on current total treasury and retroactive flows
+      // In a real app we would have historically stored balances
+    });
+
+    setMonthlyData(months);
+  };
+
   React.useEffect(() => {
     if (!isKontrolAdmin) return;
 
@@ -129,11 +152,11 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
         totalUsers: snap.size,
         activeCompanies: companies.size
       }));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'users', user));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'users', user, false));
 
     const unsubTickets = onSnapshot(query(collection(db, 'tickets'), where('status', '==', 'NEW')), (snap) => {
       setGlobalStats(prev => ({ ...prev, pendingTickets: snap.size }));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'tickets', user));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'tickets', user, false));
 
     const unsubTrans = onSnapshot(collection(db, 'transactions'), (snap) => {
       const total = snap.docs.reduce((acc, doc) => acc + (doc.data().montantTotal || 0), 0);
@@ -158,7 +181,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
 
       const chartData = sortedMonths.map(([month, total]) => ({ month, total }));
       setGlobalStats(prev => ({ ...prev, totalRevenue: total, revenueData: chartData }));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'transactions', user));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'transactions', user, false));
 
     const unsubPayments = onSnapshot(collection(db, 'payments'), (snap) => {
       const total = snap.docs.reduce((acc, doc) => {
@@ -166,7 +189,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
         return acc + (p.type === 'ENCAISSEMENT' ? (p.montant || 0) : -(p.montant || 0));
       }, 0);
       setGlobalStats(prev => ({ ...prev, totalTreasury: total }));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'payments', user));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'payments', user, false));
 
     const unsubActions = onSnapshot(query(
       collection(db, 'actions'), 
@@ -175,7 +198,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
       limit(5)
     ), (snap) => {
       setGlobalStats(prev => ({ ...prev, recentActions: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'actions', user));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'actions', user, false));
 
     return () => {
       unsubUsers();
@@ -192,37 +215,23 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
     setAiAnalysis('');
 
     try {
-      const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-      const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const promptText = `
-        En tant qu'expert en gestion d'entreprise pour l'application KONTROL, analyse les données suivantes et fournis des conseils stratégiques concrets :
-        - Chiffre d'Affaires (CA) : ${formatCurrency(stats.ca)}
-        - Dépenses Totales : ${formatCurrency(totalExpenses)}
-        - Bénéfice Net : ${formatCurrency(benefice)}
-        - Trésorerie Actuelle : ${formatCurrency(stats.tresorerie)}
-        - Taux de Rendement : ${rendement.toFixed(1)}%
-        - Nombre de Clients : ${stats.clients}
-        - Nombre de Fournisseurs : ${stats.fournisseurs}
-        - Valeur du Stock : ${formatCurrency(stats.stockValue)}
-        - Nombre de Produits : ${stats.produits}
-
-        Structure ton analyse en :
-        1. Résumé de la situation financière.
-        2. Points forts identifiés.
-        3. Points d'attention ou risques.
-        4. Recommandations stratégiques pour améliorer la rentabilité et la croissance.
-        
-        Réponds en français, avec un ton professionnel et encourageant.
-      `;
-
-      const response = await model.generateContent(promptText);
-      const result = await response.response;
-      const text = result.text();
-
-      console.log("AI Analysis Response received:", text.substring(0, 50) + "...");
-      setAiAnalysis(text || "Désolé, je n'ai pas pu générer d'analyse pour le moment.");
+      const res = await apiClient.post('/api/ai/analyze', {
+        type: 'business',
+        data: {
+          ca: stats.ca,
+          expenses: totalExpenses,
+          benefice,
+          tresorerie: stats.tresorerie,
+          rendement,
+          clients: stats.clients,
+          fournisseurs: stats.fournisseurs,
+          stockValue: stats.stockValue,
+          produits: stats.produits
+        }
+      });
+      setAiAnalysis(res.text || "Désolé, je n'ai pas pu générer d'analyse pour le moment.");
     } catch (error) {
-      console.error("AI Analysis Error:", error);
+      handleFirestoreError(error, OperationType.GET, 'ai_analysis', user, false);
       setAiAnalysis("Une erreur est survenue lors de l'analyse IA. Veuillez réessayer plus tard.");
     } finally {
       setIsAnalyzing(false);
@@ -235,32 +244,18 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
     setCodeAnalysis('');
 
     try {
-      const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-      const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const promptText = `
-        En tant qu'expert en sécurité et architecture logicielle pour l'application KONTROL (Full-stack React/Firebase/Express), 
-        analyse l'état actuel du système et fournis des recommandations techniques :
-        - Nombre d'utilisateurs : ${globalStats.totalUsers}
-        - Nombre d'entreprises : ${globalStats.activeCompanies}
-        - Volume de transactions : ${globalStats.totalRevenue}
-        - Tickets en attente : ${globalStats.pendingTickets}
-
-        Analyse les aspects suivants :
-        1. Sécurité des données et règles Firestore.
-        2. Performance et scalabilité de l'architecture.
-        3. Optimisation du code et des requêtes.
-        4. Suggestions de nouvelles fonctionnalités techniques.
-
-        Réponds en français, avec un ton technique et précis.
-      `;
-
-      const response = await model.generateContent(promptText);
-      const result = await response.response;
-      const text = result.text();
-
-      setCodeAnalysis(text || "Désolé, je n'ai pas pu générer d'analyse de code pour le moment.");
+      const res = await apiClient.post('/api/ai/analyze', {
+        type: 'code',
+        data: {
+          users: globalStats.totalUsers,
+          companies: globalStats.activeCompanies,
+          revenue: globalStats.totalRevenue,
+          tickets: globalStats.pendingTickets
+        }
+      });
+      setCodeAnalysis(res.text || "Désolé, je n'ai pas pu générer d'analyse de code pour le moment.");
     } catch (error) {
-      console.error("Code Analysis Error:", error);
+      handleFirestoreError(error, OperationType.GET, 'code_analysis', user, false);
       setCodeAnalysis("Une erreur est survenue lors de l'analyse du code. Veuillez réessayer plus tard.");
     } finally {
       setIsAnalyzingCode(false);
@@ -290,13 +285,13 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
           totalUsers: snapshot.size,
           totalCompanies: companies.size
         }));
-      }, (error) => handleFirestoreError(error, OperationType.LIST, 'users', user)));
+      }, (error) => handleFirestoreError(error, OperationType.LIST, 'users', user, false)));
 
       const qTickets = query(collection(db, 'tickets'), orderBy('createdAt', 'desc'));
       unsubscribes.push(onSnapshot(qTickets, (snapshot) => {
         setRecentTickets(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         setStats(prev => ({ ...prev, totalTickets: snapshot.size }));
-      }, (error) => handleFirestoreError(error, OperationType.LIST, 'tickets', user)));
+      }, (error) => handleFirestoreError(error, OperationType.LIST, 'tickets', user, false)));
 
       const qActions = query(
         collection(db, 'actions'), 
@@ -306,7 +301,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
       unsubscribes.push(onSnapshot(qActions, (snapshot) => {
         setRecentActions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         setLoading(false);
-      }, (error) => handleFirestoreError(error, OperationType.LIST, 'actions', user)));
+      }, (error) => handleFirestoreError(error, OperationType.LIST, 'actions', user, false)));
     } else {
       // Regular Company Stats
       let loadedCount = 0;
@@ -324,30 +319,31 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
         }, 0);
         setStats(prev => ({ ...prev, tresorerie: totalTresorerie }));
         checkLoading();
-      }, (error) => handleFirestoreError(error, OperationType.LIST, 'payments', user)));
+      }, (error) => handleFirestoreError(error, OperationType.LIST, 'payments', user, false)));
 
       const qTransactions = query(collection(db, 'transactions'), where('ownerId', '==', companyId));
       unsubscribes.push(onSnapshot(qTransactions, (snapshot) => {
         const docs = snapshot.docs.map(d => d.data());
+        // ...Existing CA/Achat calculations...
         const totalCA = docs
-          .filter(doc => doc.type === 'VENTE' && doc.statut === 'PAYE')
-          .reduce((acc, doc) => acc + (doc.montantTotal || 0), 0);
+          .filter(doc => doc.type === 'VENTE' && (doc.statut === 'PAYE' || doc.status === 'COMPLETED'))
+          .reduce((acc, doc) => acc + (doc.montantTotal || doc.montant || 0), 0);
         const caMois = docs
-          .filter(doc => doc.type === 'VENTE' && doc.statut === 'PAYE' && doc.date >= startOfThisMonth)
-          .reduce((acc, doc) => acc + (doc.montantTotal || 0), 0);
+          .filter(doc => doc.type === 'VENTE' && (doc.statut === 'PAYE' || doc.status === 'COMPLETED') && doc.date >= startOfThisMonth)
+          .reduce((acc, doc) => acc + (doc.montantTotal || doc.montant || 0), 0);
         const caMoisPrecedent = docs
-          .filter(doc => doc.type === 'VENTE' && doc.statut === 'PAYE' && doc.date >= startOfLastMonth && doc.date <= endOfLastMonth)
-          .reduce((acc, doc) => acc + (doc.montantTotal || 0), 0);
+          .filter(doc => doc.type === 'VENTE' && (doc.statut === 'PAYE' || doc.status === 'COMPLETED') && doc.date >= startOfLastMonth && doc.date <= endOfLastMonth)
+          .reduce((acc, doc) => acc + (doc.montantTotal || doc.montant || 0), 0);
 
         const totalAchats = docs
-          .filter(doc => doc.type === 'ACHAT' && doc.statut === 'PAYE')
-          .reduce((acc, doc) => acc + (doc.montantTotal || 0), 0);
+          .filter(doc => doc.type === 'ACHAT' && (doc.statut === 'PAYE' || doc.status === 'COMPLETED'))
+          .reduce((acc, doc) => acc + (doc.montantTotal || doc.montant || 0), 0);
         const achatsMois = docs
-          .filter(doc => doc.type === 'ACHAT' && doc.statut === 'PAYE' && doc.date >= startOfThisMonth)
-          .reduce((acc, doc) => acc + (doc.montantTotal || 0), 0);
+          .filter(doc => doc.type === 'ACHAT' && (doc.statut === 'PAYE' || doc.status === 'COMPLETED') && doc.date >= startOfThisMonth)
+          .reduce((acc, doc) => acc + (doc.montantTotal || doc.montant || 0), 0);
         const achatsMoisPrecedent = docs
-          .filter(doc => doc.type === 'ACHAT' && doc.statut === 'PAYE' && doc.date >= startOfLastMonth && doc.date <= endOfLastMonth)
-          .reduce((acc, doc) => acc + (doc.montantTotal || 0), 0);
+          .filter(doc => doc.type === 'ACHAT' && (doc.statut === 'PAYE' || doc.status === 'COMPLETED') && doc.date >= startOfLastMonth && doc.date <= endOfLastMonth)
+          .reduce((acc, doc) => acc + (doc.montantTotal || doc.montant || 0), 0);
 
         setStats(prev => ({ 
           ...prev, 
@@ -358,18 +354,21 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
           achatsMois,
           achatsMoisPrecedent
         }));
+
+        // Lazy compute trends when we have all data
+        syncTrendsData();
         checkLoading();
-      }, (error) => handleFirestoreError(error, OperationType.LIST, 'transactions', user)));
+      }, (error) => handleFirestoreError(error, OperationType.LIST, 'transactions', user, false)));
 
       const qCharges = query(collection(db, 'charges'), where('ownerId', '==', companyId));
       unsubscribes.push(onSnapshot(qCharges, (snapshot) => {
         const docs = snapshot.docs.map(d => d.data());
         const totalDepenses = docs.reduce((acc, doc) => acc + (doc.montant || 0), 0);
         const depensesMois = docs
-          .filter(doc => doc.date >= startOfThisMonth)
+          .filter(doc => (doc.date || doc.createdAt) >= startOfThisMonth)
           .reduce((acc, doc) => acc + (doc.montant || 0), 0);
         const depensesMoisPrecedent = docs
-          .filter(doc => doc.date >= startOfLastMonth && doc.date <= endOfLastMonth)
+          .filter(doc => (doc.date || doc.createdAt) >= startOfLastMonth && (doc.date || doc.createdAt) <= endOfLastMonth)
           .reduce((acc, doc) => acc + (doc.montant || 0), 0);
 
         setStats(prev => ({ 
@@ -378,8 +377,26 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
           depensesMois,
           depensesMoisPrecedent
         }));
+        syncTrendsData();
         checkLoading();
-      }, (error) => handleFirestoreError(error, OperationType.LIST, 'charges', user)));
+      }, (error) => handleFirestoreError(error, OperationType.LIST, 'charges', user, false)));
+
+      const syncTrendsData = async () => {
+        try {
+          const [tSnap, pSnap, cSnap] = await Promise.all([
+            getDocs(query(collection(db, 'transactions'), where('ownerId', '==', companyId))),
+            getDocs(query(collection(db, 'payments'), where('ownerId', '==', companyId))),
+            getDocs(query(collection(db, 'charges'), where('ownerId', '==', companyId)))
+          ]);
+          calculateMonthlyTrends(
+            tSnap.docs.map(d => d.data()),
+            pSnap.docs.map(d => d.data()),
+            cSnap.docs.map(d => d.data())
+          );
+        } catch (e) {
+          console.error("Error syncing dashboard trends:", e);
+        }
+      };
 
       const qTiers = query(collection(db, 'tiers'), where('ownerId', '==', companyId));
       unsubscribes.push(onSnapshot(qTiers, (snapshot) => {
@@ -387,14 +404,14 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
         const fournisseurs = snapshot.docs.filter(d => d.data().type === 'FOURNISSEUR').length;
         setStats(prev => ({ ...prev, clients, fournisseurs }));
         checkLoading();
-      }, (error) => handleFirestoreError(error, OperationType.LIST, 'tiers', user)));
+      }, (error) => handleFirestoreError(error, OperationType.LIST, 'tiers', user, false)));
 
       const qProduits = query(collection(db, 'produits'), where('ownerId', '==', companyId));
       unsubscribes.push(onSnapshot(qProduits, (snapshot) => {
         const totalStock = snapshot.docs.reduce((acc, doc) => acc + ((doc.data().stock || 0) * (doc.data().prixVente || 0)), 0);
         setStats(prev => ({ ...prev, stockValue: totalStock, produits: snapshot.size }));
         checkLoading();
-      }, (error) => handleFirestoreError(error, OperationType.LIST, 'produits', user)));
+      }, (error) => handleFirestoreError(error, OperationType.LIST, 'produits', user, false)));
 
       const qActions = query(
         collection(db, 'actions'), 
@@ -405,7 +422,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
       unsubscribes.push(onSnapshot(qActions, (snapshot) => {
         setRecentActions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         checkLoading();
-      }, (error) => handleFirestoreError(error, OperationType.LIST, 'actions', user)));
+      }, (error) => handleFirestoreError(error, OperationType.LIST, 'actions', user, false)));
 
       // Real-time Subscription Check
       const qSub = query(
@@ -432,7 +449,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
             setSubscriptionAlert(null);
           }
         }
-      }, (err) => console.error("Subscription listener error:", err)));
+      }, (error) => handleFirestoreError(error, OperationType.LIST, 'payment_requests', user, false)));
     }
 
     return () => unsubscribes.forEach(unsub => unsub());
@@ -905,63 +922,129 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
       </div>
 
       {/* Charts Grid */}
-      <div className="grid md:grid-cols-2 gap-4">
-        <div className="card">
-          <div className="card-hd">
-            <div>
-              <h4 className="card-title">Performance Financière</h4>
-              <p className="text-[11.5px] text-kontrol-ink-muted mt-0.5">CA vs Dépenses vs Profit (FCFA)</p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 card p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-kontrol-blue/10 text-kontrol-blue flex items-center justify-center">
+                <TrendingUp size={20} />
+              </div>
+              <div>
+                <h3 className="text-sm font-extrabold text-kontrol-dark uppercase tracking-widest">Tendances Financières</h3>
+                <p className="text-[11px] text-kontrol-ink-muted">Evolution du CA et des charges sur 6 mois</p>
+              </div>
+            </div>
+            <div className="hidden sm:flex items-center gap-4">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-kontrol-blue" />
+                <span className="text-[10px] font-bold text-kontrol-ink-muted uppercase tracking-widest text-nowrap">Chiffre d'Affaires</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-kontrol-orange" />
+                <span className="text-[10px] font-bold text-kontrol-ink-muted uppercase tracking-widest text-nowrap">Charges</span>
+              </div>
             </div>
           </div>
-          <div className="p-4 h-[250px]">
+          
+          <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={performanceData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,48,80,0.05)" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#7a9ab0'}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#7a9ab0'}} tickFormatter={(val) => `${val/1000}k`} />
+              <AreaChart data={monthlyData}>
+                <defs>
+                  <linearGradient id="colorCa" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="colorCharges" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.1}/>
+                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                <XAxis 
+                  dataKey="month" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 10, fill: '#9ca3af', fontWeight: 'bold' }} 
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 10, fill: '#9ca3af', fontWeight: 'bold' }} 
+                  tickFormatter={(val) => `${val >= 1000 ? (val/1000).toFixed(0) + 'k' : val}`}
+                />
                 <Tooltip 
-                  shared={false}
-                  contentStyle={{ borderRadius: '8px', border: '1px solid rgba(0,48,80,0.1)', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.05)' }}
-                  formatter={(value: any) => formatCurrency(value)}
+                  contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '11px' }}
+                  formatter={(val: number) => [formatCurrency(val), '']}
                 />
-                <Legend 
-                  verticalAlign="top" 
-                  align="right" 
-                  iconType="circle"
-                  wrapperStyle={{ fontSize: '11px', paddingBottom: '10px' }}
+                <Area 
+                  type="monotone" 
+                  dataKey="ca" 
+                  stroke="#3b82f6" 
+                  strokeWidth={3}
+                  fillOpacity={1} 
+                  fill="url(#colorCa)" 
+                  name="Chiffre d'Affaires"
+                  animationDuration={1500}
                 />
-                <Bar dataKey="CA" fill="#50B0E0" radius={[4, 4, 0, 0]} barSize={40} />
-                <Bar dataKey="Dépenses" fill="#E06020" radius={[4, 4, 0, 0]} barSize={40} />
-                <Bar dataKey="Profit" fill="#10B981" radius={[4, 4, 0, 0]} barSize={40} />
-              </BarChart>
+                <Area 
+                  type="monotone" 
+                  dataKey="charges" 
+                  stroke="#f59e0b" 
+                  strokeWidth={3}
+                  fillOpacity={1} 
+                  fill="url(#colorCharges)" 
+                  name="Charges"
+                  animationDuration={1500}
+                  animationDelay={300}
+                />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="card">
-          <div className="card-hd">
-            <div>
-              <h4 className="card-title">Répartition des Dépenses</h4>
-              <p className="text-[11.5px] text-kontrol-ink-muted mt-0.5">Achats vs Charges d'exploitation</p>
+        <div className="card p-6 bg-kontrol-dark text-white overflow-hidden relative min-h-[320px]">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-kontrol-blue/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+          <div className="relative h-full flex flex-col">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+                <Activity size={20} className="text-kontrol-blue" />
+              </div>
+              <h3 className="text-sm font-extrabold uppercase tracking-widest text-white/50">Performance de Marge</h3>
             </div>
-          </div>
-          <div className="p-4 h-[250px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={[
-                { name: 'Achats', value: stats.achats, fill: '#003050' },
-                { name: 'Charges', value: stats.depenses, fill: '#E06020' }
-              ]}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,48,80,0.05)" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#7a9ab0'}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#7a9ab0'}} tickFormatter={(val) => `${val/1000}k`} />
-                <Tooltip 
-                  shared={false}
-                  contentStyle={{ borderRadius: '8px', border: '1px solid rgba(0,48,80,0.1)', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.05)' }}
-                  formatter={(value: any) => formatCurrency(value)}
-                />
-                <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={40} />
-              </BarChart>
-            </ResponsiveContainer>
+            
+            <div className="flex-1 flex flex-col items-center justify-center py-6">
+              <div className="relative w-40 h-40 flex items-center justify-center">
+                <svg className="w-full h-full rotate-[-90deg]" viewBox="0 0 128 128">
+                  <circle
+                    cx="64"
+                    cy="64"
+                    r="58"
+                    fill="none"
+                    stroke="rgba(255,255,255,0.1)"
+                    strokeWidth="8"
+                  />
+                  <circle
+                    cx="64"
+                    cy="64"
+                    r="58"
+                    fill="none"
+                    stroke="#3b82f6"
+                    strokeWidth="8"
+                    strokeDasharray="364.4"
+                    strokeDashoffset={364.4 * (1 - Math.min(100, rendement) / 100)}
+                    strokeLinecap="round"
+                    className="transition-all duration-1000 ease-out"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-4xl font-extrabold tracking-tighter">{rendement.toFixed(1)}%</span>
+                  <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Rendement</span>
+                </div>
+              </div>
+              <p className="mt-6 text-xs text-center text-white/60 px-4">
+                Votre bénéfice net représente <span className="text-white font-extrabold">{rendement.toFixed(1)}%</span> de votre CA total ce mois-ci.
+              </p>
+            </div>
           </div>
         </div>
       </div>

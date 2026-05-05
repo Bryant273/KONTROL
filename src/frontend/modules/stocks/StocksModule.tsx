@@ -61,10 +61,7 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
     unsubscribes.push(onSnapshot(qMovements, (snapshot) => {
       setMovements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as StockMovement[]);
     }, (error) => {
-      console.error("Stock movements list error:", error);
-      try {
-        handleFirestoreError(error, OperationType.LIST, 'stock_movements', user);
-      } catch (e) {}
+      handleFirestoreError(error, OperationType.LIST, 'stock_movements', user, false);
     }));
 
     // Fetch Produits for Inventory View
@@ -91,10 +88,7 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
         }
       });
     }, (error) => {
-      console.error("Produits list error in Stocks:", error);
-      try {
-        handleFirestoreError(error, OperationType.LIST, 'produits', user);
-      } catch (e) {}
+      handleFirestoreError(error, OperationType.LIST, 'produits', user, false);
       setLoading(false);
     }));
 

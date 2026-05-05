@@ -3,7 +3,7 @@ import { Brain, X, Send, Bot, User, Loader2, Minimize2, Maximize2, Sparkles, Fil
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
 import { blueAIService, BlueFunction, BlueMessage } from '../../../api/services/blueAIService';
-import { auth, signInAnonymously } from '../../../api/firebase';
+import { auth, signInAnonymously, handleFirestoreError, OperationType } from '../../../api/firebase';
 import Markdown from 'react-markdown';
 
 export function Chatbot() {
@@ -56,7 +56,7 @@ export function Chatbot() {
             conversationId: 'auth-error'
           }]);
         } else {
-          console.error("Failed to sign in anonymously for chatbot:", err);
+          handleFirestoreError(err, OperationType.WRITE, 'chatbot/sign-in', auth.currentUser, false);
         }
         setIsLoading(false);
         return;
@@ -132,7 +132,7 @@ export function Chatbot() {
 
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
-      console.error("Chatbot error:", error);
+      handleFirestoreError(error, OperationType.WRITE, 'chatbot/request', auth.currentUser, false);
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: "Une erreur est survenue. Veuillez réessayer plus tard.",
@@ -154,7 +154,7 @@ export function Chatbot() {
       setConversationId(undefined);
       setShowDeleteConfirm(false);
     } catch (error) {
-      console.error("Delete error:", error);
+      handleFirestoreError(error, OperationType.DELETE, `conversations/${conversationId}`, auth.currentUser, false);
     }
   };
 

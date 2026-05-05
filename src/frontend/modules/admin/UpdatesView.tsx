@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
-import { db, collection, addDoc, getDocs, query, orderBy, onSnapshot, doc, updateDoc, serverTimestamp } from '../../../api/firebase';
+import { db, collection, addDoc, getDocs, query, orderBy, onSnapshot, doc, updateDoc, serverTimestamp, handleFirestoreError, OperationType, auth } from '../../../api/firebase';
 
 interface AIProposal {
   id: string;
@@ -38,7 +38,9 @@ export function UpdatesView() {
       setProposals(data);
       setIsLoading(false);
     }, (error) => {
-      if (error.code !== 'permission-denied') console.error("Proposals fetch error:", error);
+      if (error.code !== 'permission-denied') {
+        handleFirestoreError(error, OperationType.LIST, 'ai_proposals', auth.currentUser, false);
+      }
       setIsLoading(false);
     });
 
@@ -62,7 +64,7 @@ export function UpdatesView() {
       
       await addDoc(collection(db, 'ai_proposals'), newProposal);
     } catch (error) {
-      console.error("Error generating proposal:", error);
+      handleFirestoreError(error, OperationType.WRITE, 'ai_proposals/create', auth.currentUser, false);
     } finally {
       setIsGenerating(false);
     }
@@ -72,7 +74,7 @@ export function UpdatesView() {
     try {
       await updateDoc(doc(db, 'ai_proposals', id), { status });
     } catch (error) {
-      console.error("Error updating status:", error);
+      handleFirestoreError(error, OperationType.UPDATE, `ai_proposals/${id}`, auth.currentUser, false);
     }
   };
 

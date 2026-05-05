@@ -33,7 +33,10 @@ import {
   getDocs, 
   query, 
   where, 
-  User 
+  User,
+  handleFirestoreError,
+  OperationType,
+  auth
 } from '../../../api/firebase';
 import { UserProfile } from '../../types';
 import { formatCurrency, cn } from '../../lib/utils';
@@ -73,7 +76,7 @@ export function BlueAIModule({ user, currentUserProfile }: BlueAIModuleProps) {
       const data = await blueAIService.getHistory(user.uid);
       setHistory(data);
     } catch (error) {
-      console.error("History error:", error);
+      handleFirestoreError(error, OperationType.LIST, 'conversations', auth.currentUser, false);
     } finally {
       setIsHistoryLoading(false);
     }
@@ -89,7 +92,7 @@ export function BlueAIModule({ user, currentUserProfile }: BlueAIModuleProps) {
       setHistory(prev => prev.filter(c => c.id !== id));
       setShowDeleteConfirm(null);
     } catch (error) {
-      console.error("Delete error:", error);
+      handleFirestoreError(error, OperationType.DELETE, 'conversations', auth.currentUser, false);
     }
   };
 
@@ -136,7 +139,7 @@ export function BlueAIModule({ user, currentUserProfile }: BlueAIModuleProps) {
 
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
-      console.error("Blue AI error:", error);
+      handleFirestoreError(error, OperationType.CREATE, 'messages', auth.currentUser, false);
     } finally {
       setIsLoading(false);
     }
@@ -149,7 +152,7 @@ export function BlueAIModule({ user, currentUserProfile }: BlueAIModuleProps) {
       const msgs = await blueAIService.getMessages(convId);
       setMessages(msgs);
     } catch (error) {
-      console.error("Load conversation error:", error);
+      handleFirestoreError(error, OperationType.LIST, 'messages', auth.currentUser, false);
     } finally {
       setIsLoading(false);
     }

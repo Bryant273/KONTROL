@@ -3,6 +3,7 @@ import { Plus, Search, MoreVertical, Mail, Phone, MapPin, Loader2, X, UserCircle
 import { exportToPDF, exportToExcel } from '../../lib/export';
 import { Tiers, TiersType, UserProfile } from '../../types';
 import { cn } from '../../lib/utils';
+import { hasPermission } from '../../lib/permissions';
 import { 
   db, 
   collection, 
@@ -56,6 +57,10 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
 
   const handleAddTiers = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!hasPermission(currentUserProfile?.role, 'TIERS_CREATE')) {
+      alert("Vous n'avez pas la permission de créer un tiers.");
+      return;
+    }
     setLoading(true);
     try {
       const path = 'tiers';
@@ -87,6 +92,10 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
   const handleEditTiers = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedId) return;
+    if (!hasPermission(currentUserProfile?.role, 'TIERS_UPDATE')) {
+      alert("Vous n'avez pas la permission de modifier un tiers.");
+      return;
+    }
     setLoading(true);
     try {
       const path = 'tiers';
@@ -116,6 +125,10 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
 
   const handleDeleteTiers = async () => {
     if (!selectedId) return;
+    if (!hasPermission(currentUserProfile?.role, 'TIERS_DELETE')) {
+      alert("Vous n'avez pas la permission de supprimer un tiers.");
+      return;
+    }
     setLoading(true);
     try {
       const path = 'tiers';
@@ -180,10 +193,7 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
       setTiers(tiersData);
       setLoading(false);
     }, (error) => {
-      console.error("Tiers list error:", error);
-      try {
-        handleFirestoreError(error, OperationType.LIST, path, user);
-      } catch (e) {}
+      handleFirestoreError(error, OperationType.LIST, path, user, false);
       setLoading(false);
     });
 
@@ -261,15 +271,17 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
           <button onClick={handleExportExcel} className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2">
             <Table size={14} /> Excel
           </button>
-          <button 
-            className="btn-primary text-xs py-1.5 px-4 flex items-center gap-2"
-            onClick={() => {
-              setCurrentTiers({ nom: '', email: '', telephone: '', type: 'CLIENT', adresse: '', statut: 'ACTIF' });
-              setIsAdding(true);
-            }}
-          >
-            <Plus size={14} /> Nouveau tiers
-          </button>
+          {hasPermission(currentUserProfile?.role, 'TIERS_CREATE') && (
+            <button 
+              className="btn-primary text-xs py-1.5 px-4 flex items-center gap-2"
+              onClick={() => {
+                setCurrentTiers({ nom: '', email: '', telephone: '', type: 'CLIENT', adresse: '', statut: 'ACTIF' });
+                setIsAdding(true);
+              }}
+            >
+              <Plus size={14} /> Nouveau tiers
+            </button>
+          )}
         </div>
       </div>
 
@@ -559,18 +571,22 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
                 </div>
 
                 <div className="flex gap-2 mt-8">
-                  <button 
-                    className="flex-1 btn-outline text-xs py-2.5 font-bold flex items-center justify-center gap-2"
-                    onClick={() => openEdit(selectedTiers)}
-                  >
-                    <Edit2 size={14} /> Modifier
-                  </button>
-                  <button 
-                    className="flex-1 bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs py-2.5 font-bold rounded-xl transition-all flex items-center justify-center gap-2"
-                    onClick={() => setIsDeleting(true)}
-                  >
-                    <Trash2 size={14} /> Supprimer
-                  </button>
+                  {hasPermission(currentUserProfile?.role, 'TIERS_UPDATE') && (
+                    <button 
+                      className="flex-1 btn-outline text-xs py-2.5 font-bold flex items-center justify-center gap-2"
+                      onClick={() => openEdit(selectedTiers)}
+                    >
+                      <Edit2 size={14} /> Modifier
+                    </button>
+                  )}
+                  {hasPermission(currentUserProfile?.role, 'TIERS_DELETE') && (
+                    <button 
+                      className="flex-1 bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs py-2.5 font-bold rounded-xl transition-all flex items-center justify-center gap-2"
+                      onClick={() => setIsDeleting(true)}
+                    >
+                      <Trash2 size={14} /> Supprimer
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
