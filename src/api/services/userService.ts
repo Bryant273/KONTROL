@@ -14,7 +14,7 @@ export class UserService extends BaseFirestoreService<UserProfile> {
     try {
       await setDoc(this.getDocRef(uid), data, { merge: true });
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, 'users', user);
+      handleFirestoreError(error, OperationType.UPDATE, 'users', user, false);
       throw error;
     }
   }
@@ -35,7 +35,7 @@ export class CompanyService extends BaseFirestoreService<Company> {
     try {
       await updateDoc(this.getDocRef(id), data as any);
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, 'companies', user);
+      handleFirestoreError(error, OperationType.UPDATE, 'companies', user, false);
       throw error;
     }
   }

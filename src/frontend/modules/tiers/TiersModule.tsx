@@ -83,7 +83,7 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
       setIsAdding(false);
       setCurrentTiers({ nom: '', email: '', telephone: '', type: 'CLIENT', adresse: '', statut: 'ACTIF' });
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'tiers', user);
+      handleFirestoreError(error, OperationType.WRITE, 'tiers', user, false);
     } finally {
       setLoading(false);
     }
@@ -117,7 +117,7 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
 
       setIsEditing(false);
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, 'tiers', user);
+      handleFirestoreError(error, OperationType.UPDATE, 'tiers', user, false);
     } finally {
       setLoading(false);
     }
@@ -149,7 +149,7 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
       setSelectedId(null);
       setIsDeleting(false);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'tiers', user);
+      handleFirestoreError(error, OperationType.DELETE, 'tiers', user, false);
     } finally {
       setLoading(false);
     }

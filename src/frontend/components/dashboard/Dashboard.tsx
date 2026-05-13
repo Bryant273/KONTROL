@@ -356,7 +356,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
         }));
 
         // Lazy compute trends when we have all data
-        syncTrendsData();
+        syncTrendsData().catch(e => console.error("Snapshot syncTrendsData error:", e));
         checkLoading();
       }, (error) => handleFirestoreError(error, OperationType.LIST, 'transactions', user, false)));
 
@@ -377,7 +377,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
           depensesMois,
           depensesMoisPrecedent
         }));
-        syncTrendsData();
+        syncTrendsData().catch(e => console.error("Snapshot syncTrendsData error:", e));
         checkLoading();
       }, (error) => handleFirestoreError(error, OperationType.LIST, 'charges', user, false)));
 
@@ -995,7 +995,6 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
                   fill="url(#colorCharges)" 
                   name="Charges"
                   animationDuration={1500}
-                  animationDelay={300}
                 />
               </AreaChart>
             </ResponsiveContainer>

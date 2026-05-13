@@ -99,7 +99,7 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
       setNewTicket({ subject: '', message: '' });
       setIsCreating(false);
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'tickets', user);
+      handleFirestoreError(error, OperationType.CREATE, 'tickets', user, false);
     } finally {
       setIsSubmitting(false);
     }
@@ -168,7 +168,7 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
         setSelectedTicket(prev => prev ? { ...prev, status: newStatus } : null);
       }
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `tickets/${ticketId}`, user);
+      handleFirestoreError(error, OperationType.UPDATE, `tickets/${ticketId}`, user, false);
     }
   };
 
@@ -179,7 +179,7 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
       setSelectedTicket(null);
       setIsDeleting(false);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `tickets/${selectedTicket.id}`, user);
+      handleFirestoreError(error, OperationType.DELETE, `tickets/${selectedTicket.id}`, user, false);
     }
   };
 

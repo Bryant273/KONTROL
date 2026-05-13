@@ -1,5 +1,28 @@
 {
   "entities": {
+    "Transaction": {
+      "title": "Transaction Financière",
+      "description": "Détails d'une transaction de vente ou d'achat",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["VENTE", "ACHAT"] },
+        "tiersId": { "type": "string" },
+        "tiersNom": { "type": "string" },
+        "montantTotal": { "type": "number" },
+        "date": { "type": "number" },
+        "statut": { "type": "string", "enum": ["PAYE", "ATTENTE", "ANNULE"] },
+        "modePaiement": { "type": "string" },
+        "reference": { "type": "string" },
+        "devise": { "type": "string" },
+        "tauxChange": { "type": "number" },
+        "montantDevise": { "type": "number" },
+        "articles": { "type": "array" },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "type", "tiersId", "montantTotal", "statut"]
+    },
     "UserProfile": {
       "title": "Profil Utilisateur",
       "description": "Données de profil d'un utilisateur",
@@ -46,6 +69,44 @@
         "read": { "type": "boolean" },
         "timestamp": { "type": "number" }
       }
+    },
+    "PaymentRequest": {
+      "title": "Demande de paiement",
+      "description": "Demande de validation de paiement d'abonnement",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "companyId": { "type": "string" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "reference": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED"] },
+        "createdAt": { "type": "number" }
+      }
+    },
+    "Payment": {
+      "title": "Mouvement financier",
+      "description": "Enregistrement d'un paiement (encaissement ou décaissement)",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string" },
+        "amount": { "type": "number" },
+        "type": { "type": "string", "enum": ["ENCAISSEMENT", "DECAISSEMENT"] },
+        "date": { "type": "number" },
+        "description": { "type": "string" }
+      }
+    },
+    "Tier": {
+      "title": "Tiers",
+      "description": "Client ou fournisseur",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "type": { "type": "string", "enum": ["CLIENT", "FOURNISSEUR"] }
+      }
     }
   },
   "firestore": {
@@ -62,7 +123,7 @@
       "description": "Notifications"
     },
     "transactions/{transactionId}": {
-      "schema": "object",
+      "schema": "Transaction",
       "description": "Transactions financières"
     },
     "produits/{produitId}": {
@@ -72,6 +133,30 @@
     "actions/{actionId}": {
       "schema": "object",
       "description": "Audit logs"
+    },
+    "payments/{paymentId}": {
+      "schema": "Payment",
+      "description": "Mouvements de trésorerie"
+    },
+    "payment_requests/{requestId}": {
+      "schema": "PaymentRequest",
+      "description": "Demandes d'abonnement"
+    },
+    "tiers/{tierId}": {
+      "schema": "Tier",
+      "description": "Carnet d'adresses tiers"
+    },
+    "charges/{chargeId}": {
+      "schema": "object",
+      "description": "Charges et dépenses"
+    },
+    "tickets/{ticketId}": {
+      "schema": "object",
+      "description": "Support tickets"
+    },
+    "app_versions/{versionId}": {
+      "schema": "object",
+      "description": "Versions de l'application"
     }
   }
 }

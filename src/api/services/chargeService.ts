@@ -40,7 +40,7 @@ export class ChargeService extends BaseFirestoreService<Charge> {
       await batch.commit();
       return chargeId;
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'charges', user);
+      handleFirestoreError(error, OperationType.WRITE, 'charges', user, false);
       throw error;
     }
   }
@@ -71,7 +71,7 @@ export class ChargeService extends BaseFirestoreService<Charge> {
 
       await batch.commit();
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'charges', user);
+      handleFirestoreError(error, OperationType.WRITE, 'charges', user, false);
       throw error;
     }
   }
@@ -92,7 +92,7 @@ export class ChargeService extends BaseFirestoreService<Charge> {
 
       await batch.commit();
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'charges', user);
+      handleFirestoreError(error, OperationType.DELETE, 'charges', user, false);
       throw error;
     }
   }

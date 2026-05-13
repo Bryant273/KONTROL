@@ -4,6 +4,11 @@ import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import Database from "better-sqlite3";
 import fs from "fs";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+import { z } from "zod";
+import hpp from "hpp";
+import xss from "xss-clean";
 import { BlueNeuralBrain } from "./src/api/lib/blue-neural-brain.ts";
 
 dotenv.config();
@@ -21,15 +26,15 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 const getDirname = () => {
-  try {
+  if (typeof __dirname !== 'undefined') return __dirname;
+  if (typeof import.meta !== 'undefined' && import.meta.url) {
     return path.dirname(fileURLToPath(import.meta.url));
-  } catch (e) {
-    return __dirname;
   }
+  return process.cwd();
 };
 
 const _dirname = getDirname();
-const _filename = typeof __filename !== 'undefined' ? __filename : fileURLToPath(import.meta.url);
+const _filename = typeof __filename !== 'undefined' ? __filename : (typeof import.meta !== 'undefined' && import.meta.url ? fileURLToPath(import.meta.url) : '');
 
 // PostgreSQL Emulation Layer (using SQLite for persistence in preview)
 // Note: Logic and queries are written with PostgreSQL compatibility in mind.
@@ -194,7 +199,133 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json());
+  // --- 1. GLOBAL SECURITY HEADERS (HELMET) ---
+  app.use(helmet({
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://apis.google.com", "https://cdn.kkiapay.me"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        imgSrc: ["'self'", "data:", "https://*.googleusercontent.com", "https://firebasestorage.googleapis.com", "*"],
+        connectSrc: ["*"], 
+        fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+        objectSrc: ["'none'"],
+        mediaSrc: ["'self'"],
+        frameSrc: ["*"],
+        frameAncestors: ["*"],
+      },
+    },
+    frameguard: false,
+    xssFilter: false, // Disable legacy XSS filter to avoid interference with xss-clean
+    noSniff: false, // Let browser detect types if needed for dev
+    hidePoweredBy: true,
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginOpenerPolicy: { policy: "unsafe-none" }
+  }));
+
+  // --- 2. RATE LIMITING (ANTI-DDOS/BRUTE-FORCE) ---
+  const globalLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute
+    max: 2000, 
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "TOO_MANY_REQUESTS", message: "Trop de requêtes, veuillez patienter." }
+  });
+
+  const apiLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute
+    max: 500, 
+    message: { error: "API_THROTTLE", message: "Vitesse de requête API limitée." }
+  });
+
+  const paymentLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, 
+    max: 50, 
+    message: { error: "PAYMENT_THROTTLE", message: "Tentatives de paiement limitées pour sécurité." }
+  });
+
+  app.use("/api/", apiLimiter);
+  app.use("/api/kkiapay/", paymentLimiter);
+  app.use("/api/wave/", paymentLimiter);
+  app.use(globalLimiter);
+
+  // --- 3. PAYLOAD SECURITY ---
+  app.use(express.json({ limit: '10kb' })); // Limit body size to prevent memory exhaustion
+  app.use(xss()); // Sanitize body/params/query from XSS
+  app.use(hpp()); // Prevent HTTP Parameter Pollution
+
+  // --- 4. DATA VALIDATION SCHEMAS (ZOD) ---
+  const SqlQuerySchema = z.object({
+    query: z.string().min(1).max(2000),
+    params: z.array(z.any()).optional()
+  });
+
+  const WaveCheckoutSchema = z.object({
+    amount: z.number().positive(),
+    currency: z.string().length(3),
+    description: z.string().max(255),
+    clientReference: z.string().min(5).max(64)
+  });
+
+  const KkiapayPaySchema = z.object({
+    amount: z.number().positive(),
+    phoneNumber: z.string().optional(),
+    channel: z.enum(['MTN', 'MOOV', 'CELTIIS', 'WAVE', 'CARD']),
+    token: z.string().min(10),
+    firstname: z.string().optional(),
+    lastname: z.string().optional(),
+    email: z.string().email().optional(),
+    otp: z.string().optional()
+  });
+
+  const KkiapayStatusSchema = z.object({
+    transactionId: z.string().min(5).max(128)
+  });
+
+  const WaveWebhookSchema = z.object({
+    transaction_id: z.string(),
+    status: z.enum(['success', 'failed', 'processing']),
+    amount: z.number(),
+    client_reference: z.string()
+  });
+
+  const AiBrainSchema = z.object({
+    prompt: z.string().min(1).max(5000),
+    user_id: z.string().min(1).max(128)
+  });
+
+  const AiAnalyzeSchema = z.object({
+    data: z.any(),
+    type: z.enum(['code', 'finance', 'general']).optional()
+  });
+
+  // --- 5. INTERNAL FORMAT ISOLATION ---
+  app.use(['/api', '/system'], (req: any, res: any, next: any) => {
+    // Priority: Exclude health and identify from origin check
+    if (req.path.includes('/health') || req.path.includes('/identify') || req.path.includes('/status')) {
+      return next();
+    }
+
+    // Rejet des formats non-JSON pour les écritures (Warning only for now to avoid breaking legacy clients)
+    if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+      const contentType = req.headers['content-type'];
+      if (!contentType || !contentType.includes('application/json')) {
+        console.warn(`[ISOLATION] Non-JSON format detected: ${req.method} ${req.path} | Type: ${contentType}`);
+        // return res.status(415).json({ ... }); // Disabled for compatibility
+      }
+    }
+
+    // Filtrage des origines (requiert le header x-polyglot-origin)
+    const origin = req.headers['x-polyglot-origin'];
+    if (!origin) {
+      // Log warning but allow for now to prevent deployment failure until frontend is updated
+      console.warn(`[ISOLATION] Missing x-polyglot-origin: ${req.method} ${req.path}`);
+      // return res.status(401).json({ ... }); // Disabled for compatibility
+    }
+    next();
+  });
 
   // --- SECURITY SHIELD (APPLIED ONLY TO API & SYSTEM) ---
   app.use(['/api', '/system'], (req, res, next) => {
@@ -211,8 +342,8 @@ async function startServer() {
 
   // SQL API Endpoints
   app.post("/api/sql/query", (req, res) => {
-    const { query, params } = req.body;
     try {
+      const { query, params } = SqlQuerySchema.parse(req.body);
       if (!query.trim().toLowerCase().startsWith("select")) {
         return res.status(403).json({ error: "Only SELECT queries are allowed via this endpoint for security." });
       }
@@ -220,6 +351,9 @@ async function startServer() {
       const rows = stmt.all(params || []);
       res.json(rows);
     } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "INVALID_FORMAT", details: error.issues });
+      }
       res.status(400).json({ error: error.message });
     }
   });
@@ -388,9 +522,8 @@ async function startServer() {
 
   const aiExpert = {
     blueBrain: async (req: any, res: any) => {
-      const { prompt, user_id } = req.body;
-      
       try {
+        const { prompt, user_id } = AiBrainSchema.parse(req.body);
         const result = await neuralBrain.infer(prompt, user_id);
         res.json({
           engine: "PYTHON_NEURAL_ENSEMBLE",
@@ -410,8 +543,8 @@ async function startServer() {
       }
     },
     analyze: async (req: any, res: any) => {
-      const { data, type } = req.body;
       try {
+        const { data, type } = AiAnalyzeSchema.parse(req.body);
         const prompt = type === 'code' 
           ? `En tant qu'expert en sécurité et architecture logicielle pour l'application KONTROL, analyse ces métriques et fournis des recommandations techniques: ${JSON.stringify(data)}`
           : `En tant qu'expert en gestion d'entreprise, analyse ces données financières et fournis des conseils stratégiques: ${JSON.stringify(data)}`;
@@ -462,7 +595,7 @@ async function startServer() {
   };
 
   // API routes REGISTRY
-  app.get("/api/health", (req, res) => res.json({ status: "ok", time: Date.now() }));
+  app.get("/api/health", (req, res) => res.status(200).send("OK"));
   
   // Go Gateway Simulation Point
   app.get("/api/gateway/shield/identify", (req, res) => {
@@ -659,9 +792,9 @@ async function startServer() {
 
   // 2. Initiate Direct Payment
   app.post("/api/kkiapay/pay", async (req, res) => {
-    const { amount, phoneNumber, channel, token, firstname, lastname, email, otp } = req.body;
-    
     try {
+      const { amount, phoneNumber, channel, token, firstname, lastname, email, otp } = KkiapayPaySchema.parse(req.body);
+      
       // For Wave, phoneNumber might be empty, but Kkiapay might require it.
       // We'll provide a placeholder if it's missing for Wave.
       const finalPhone = (channel === 'WAVE' && !phoneNumber) ? "22900000000" : phoneNumber;
@@ -698,10 +831,9 @@ async function startServer() {
 
   // 3. Check Payment Status
   app.get("/api/kkiapay/status/:transactionId", async (req, res) => {
-    const { transactionId } = req.params;
-    const token = req.headers.authorization;
-
     try {
+      const { transactionId } = KkiapayStatusSchema.parse(req.params);
+      const token = req.headers.authorization;
       const response = await fetch(`https://api.kkiapay.me/api/v1/payments/status/${transactionId}`, {
         method: "GET",
         headers: { 
@@ -718,6 +850,86 @@ async function startServer() {
       res.json(data);
     } catch (error: any) {
       console.error("Kkiapay Status Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // --- WAVE BUSINESS INTEGRATION ---
+  const WAVE_API_KEY = process.env.WAVE_API_KEY || "wave_ci_test_key_xxxx_yyyy_zzzz";
+  const WAVE_MERCHANT_ID = process.env.VITE_WAVE_MERCHANT_ID || "M_ci_jlScZ6K4EoKg";
+
+  app.post("/api/wave/checkout", async (req, res) => {
+    try {
+      const { amount, currency, description, clientReference } = WaveCheckoutSchema.parse(req.body);
+      console.log(`[WAVE] Creating checkout session: ${amount} ${currency} (Ref: ${clientReference})`);
+      
+      // Lien selon format officiel requis
+      const checkoutUrl = `https://pay.wave.com/m/${WAVE_MERCHANT_ID}/c/ci/?amount=${amount}`;
+      const sessionId = `wv_sess_${Math.random().toString(36).substring(7)}`;
+
+      // Sauvegarde de la transaction en attente (SQLite pour le Bridge AI/Admin)
+      try {
+        db.prepare(`
+          INSERT INTO transactions (id, amount, status, type, category, description, createdAt)
+          VALUES (?, ?, 'PENDING', 'INCOME', 'WAVE_PAYMENT', ?, ?)
+        `).run(clientReference, amount, description, Date.now());
+      } catch (dbErr) {
+        console.warn("[WAVE] DB record failed (maybe already exists):", dbErr);
+      }
+
+      res.json({
+        id: sessionId,
+        checkout_url: checkoutUrl,
+        mode: WAVE_API_KEY.includes('test') ? 'test' : 'live'
+      });
+    } catch (error: any) {
+      console.error("[WAVE] Checkout Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/wave/webhook", async (req, res) => {
+    try {
+      const { transaction_id, status, amount, client_reference } = WaveWebhookSchema.parse(req.body);
+      
+      console.log(`[WAVE-WEBHOOK] Payment Received: ${status} | Ref: ${client_reference}`);
+
+      if (status === 'success') {
+        // 1. Update SQLite (AI Bridge)
+        db.prepare('UPDATE transactions SET status = "SUCCESS", updatedAt = ? WHERE id = ?')
+          .run(Date.now(), client_reference);
+        
+        // 2. Insert into Actions log
+        db.prepare('INSERT INTO actions (id, userId, type, description, createdAt) VALUES (?, ?, ?, ?, ?)')
+          .run(`act_wave_${Date.now()}`, 'system', 'PAIEMENT_VALIDE', `Confirmation Wave: ${amount} XOF (ID: ${transaction_id})`, Date.now());
+      }
+
+      res.json({ status: "acknowledged" });
+    } catch (error: any) {
+      console.error("[WAVE-WEBHOOK] Processing Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Optionnel: Endpoint Payout (Transfert d'argent)
+  app.post("/api/wave/payout", async (req, res) => {
+    try {
+      const { recipient_number, amount, description } = req.body;
+      console.log(`[WAVE-PAYOUT] Initiating payout to ${recipient_number}: ${amount} XOF`);
+      
+      // Simulation Payout
+      const payoutId = `wv_payout_${Math.random().toString(36).substring(7)}`;
+      
+      db.prepare('INSERT INTO actions (id, userId, type, description, createdAt) VALUES (?, ?, ?, ?, ?)')
+        .run(`act_payout_${Date.now()}`, 'system', 'TRANSFERT', `Transfert Wave vers ${recipient_number}: ${amount} XOF`, Date.now());
+
+      res.json({
+        payout_id: payoutId,
+        status: "pending",
+        message: "Transfert initié avec succès (Mode Test)"
+      });
+    } catch (error: any) {
+      console.error("[WAVE-PAYOUT] Error:", error);
       res.status(500).json({ error: error.message });
     }
   });

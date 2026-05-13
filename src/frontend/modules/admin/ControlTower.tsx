@@ -329,7 +329,8 @@ export function ControlTower({ activeSubTab = 'dashboard', user, profile }: Cont
           }
         }
       } catch (e) {
-        handleFirestoreError(e, OperationType.WRITE, 'system_metrics', auth.currentUser, false);
+        console.error("System metrics background task failed:", e);
+        // We don't re-throw here to avoid unhandled rejections in setInterval
       }
     }, 30000); // Every 30s
     return () => clearInterval(interval);
@@ -881,7 +882,7 @@ function BusinessSubscriptionsView({ companies, paymentRequests = [], allUsers =
         categorie: "Abonnements & Logiciels",
         category: "Abonnements",
         date: currentTimestamp,
-        modePaiement: request.payment_method || 'Paystack',
+        modePaiement: request.gateway || 'Wave',
         reference: request.reference,
         devise: request.currency,
         createdAt: currentTimestamp,
@@ -901,7 +902,7 @@ function BusinessSubscriptionsView({ companies, paymentRequests = [], allUsers =
         reference: request.reference,
         category: 'SUBSCRIPTION',
         chargeId: chargeRef.id,
-        modePaiement: request.payment_method || 'Paystack',
+        modePaiement: request.gateway || 'Wave',
         createdAt: currentTimestamp
       });
 
@@ -979,7 +980,7 @@ function BusinessSubscriptionsView({ companies, paymentRequests = [], allUsers =
     }));
     import('../../lib/export').then(({ exportToExcel }) => {
       exportToExcel(data, 'Abonnements_KONTROL');
-    });
+    }).catch(err => console.error("Export error:", err));
   };
 
   return (
@@ -1014,7 +1015,7 @@ function BusinessSubscriptionsView({ companies, paymentRequests = [], allUsers =
         <div className="card border-amber-200 shadow-xl shadow-amber-500/5">
           <div className="p-6 border-b border-amber-100 bg-amber-50/50 flex items-center justify-between">
             <h3 className="text-sm font-extrabold uppercase tracking-tighter text-amber-900 flex items-center gap-2">
-              <Clock size={18} /> Demandes de Validation (Paystack)
+              <Clock size={18} /> Demandes de Validation (Wave)
             </h3>
             <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-lg text-[10px] font-bold uppercase tracking-widest">
               Action Priority
@@ -2519,7 +2520,7 @@ function SystemTelemetryView({ stats, metrics }: any) {
 
       window.location.reload();
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'all_collections', auth.currentUser);
+      handleFirestoreError(error, OperationType.DELETE, 'all_collections', auth.currentUser, false);
     } finally {
       setIsResetting(false);
       setShowResetConfirm(false);
@@ -2634,7 +2635,7 @@ function ControlAuditView({ actions }: any) {
     }));
     import('../../lib/export').then(({ exportToExcel }) => {
       exportToExcel(data, 'Audit_KONTROL');
-    });
+    }).catch(err => console.error("Export error:", err));
   };
 
   return (
@@ -2734,7 +2735,7 @@ function ControlSupportView({ tickets }: any) {
       setShowNoReply(false);
       setNoReplyData({ to: '', subject: '', body: '' });
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'no_reply_email', auth.currentUser);
+      handleFirestoreError(error, OperationType.WRITE, 'no_reply_email', auth.currentUser, false);
     }
   };
 
@@ -2747,7 +2748,7 @@ function ControlSupportView({ tickets }: any) {
       setReplyingTicket(null);
       setReplyMessage('');
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, `tickets/${replyingTicket.id}/reply`, auth.currentUser);
+      handleFirestoreError(error, OperationType.WRITE, `tickets/${replyingTicket.id}/reply`, auth.currentUser, false);
     }
   };
 
@@ -2757,7 +2758,7 @@ function ControlSupportView({ tickets }: any) {
       await deleteDoc(doc(db, 'tickets', isDeletingTicket.id));
       setIsDeletingTicket(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `tickets/${isDeletingTicket.id}`, auth.currentUser);
+      handleFirestoreError(error, OperationType.DELETE, `tickets/${isDeletingTicket.id}`, auth.currentUser, false);
     }
   };
 
@@ -2951,7 +2952,7 @@ function AdminBusinessTiersView() {
         </div>
         <div className="card p-6 border-l-4 border-l-purple-500">
           <p className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted mb-1">Passerelle Paiement</p>
-          <h4 className="text-xl font-extrabold text-kontrol-dark">Paystack Africa</h4>
+          <h4 className="text-xl font-extrabold text-kontrol-dark">Wave Business Africa</h4>
           <span className="text-[10px] font-bold text-emerald-500 uppercase mt-2 block">Intégration Active</span>
         </div>
         <div className="card p-6 border-l-4 border-l-orange-500">
@@ -2998,7 +2999,7 @@ function AdminBusinessTiersView() {
               </tr>
               <tr className="hover:bg-kontrol-bg/30 transition-colors">
                 <td className="px-6 py-4">
-                  <p className="text-[14px] font-extrabold text-kontrol-dark">Paystack Inc.</p>
+                  <p className="text-[14px] font-extrabold text-kontrol-dark">Wave Mobile Money</p>
                   <p className="text-[11px] text-kontrol-ink-muted">Lagos, NG</p>
                 </td>
                 <td className="px-6 py-4">

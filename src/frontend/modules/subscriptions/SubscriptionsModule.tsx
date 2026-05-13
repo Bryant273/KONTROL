@@ -87,7 +87,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
   const [loading, setLoading] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [isPaying, setIsPaying] = useState(false);
-  const [paymentStep, setPaymentStep] = useState<'SELECT' | 'PAYSTACK_INFO' | 'SUCCESS'>('SELECT');
+  const [paymentStep, setPaymentStep] = useState<'SELECT' | 'WAVE_INFO' | 'SUCCESS'>('SELECT');
   const [currentPage, setCurrentPage] = useState(1);
   const [paymentInfo, setPaymentInfo] = useState({
     email: profile?.email || '',
@@ -146,13 +146,13 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
   const currency = profile?.currency || 'XOF';
   const price = currency === 'XOF' ? 10000 : (currency === 'EUR' ? 15 : 16);
 
-  const handlePaystackConfirmation = async (e?: React.BaseSyntheticEvent) => {
+  const handleWaveConfirmation = async (e?: React.BaseSyntheticEvent) => {
     if (e && e.preventDefault && typeof e.preventDefault === 'function' && (e.target as any).tagName !== 'A') {
       e.preventDefault();
     }
     
     if (!manualReference.trim()) {
-      alert("Veuillez saisir votre référence de paiement pour continuer.");
+      alert("Veuillez saisir votre référence de paiement Wave pour continuer.");
       return;
     }
     
@@ -172,7 +172,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
         amount: price,
         currency: currency,
         reference: finalReference,
-        gateway: 'PAYSTACK',
+        gateway: 'WAVE',
         status: 'PENDING',
         createdAt: serverTimestamp()
       });
@@ -181,8 +181,8 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
         companyId,
         profile?.uid || '',
         profile?.displayName || profile?.email || '',
-        "Demande de validation d'abonnement (Paystack)",
-        `En attente de validation manuelle par l'administrateur. Réf client: ${finalReference}`
+        "Demande de validation d'abonnement (Wave)",
+        `En attente de validation manuelle par l'administrateur. Réf Wave: ${finalReference}`
       );
 
       // Notification de confirmation pour l'utilisateur
@@ -190,7 +190,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
         companyId: companyId,
         userId: profile?.uid,
         title: "✨ Demande de paiement reçue",
-        message: `Félicitations ${profile?.displayName || 'cher client'} ! Votre demande pour l'abonnement Standard (${price} ${currency}) est en cours d'examen. Notre équipe vérifie la référence ${finalReference}.`,
+        message: `Félicitations ${profile?.displayName || 'cher client'} ! Votre demande pour l'abonnement Standard (${price} ${currency}) via Wave est en cours d'examen.`,
         type: 'info',
         link: '/subscriptions'
       });
@@ -198,8 +198,8 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
       // Notification Admin
       await sendNotification({
         companyId: 'SYSTEM',
-        title: "🚨 Nouvelle validation requise",
-        message: `L'entreprise ${currentCompanyName} vient de soumettre un paiement de ${price} ${currency} (Réf: ${finalReference}). Veuillez vérifier la transaction sur Paystack.`,
+        title: "🚨 Nouvelle validation Wave requise",
+        message: `L'entreprise ${currentCompanyName} vient de soumettre un paiement Wave de ${price} ${currency} (Réf: ${finalReference}).`,
         type: 'info',
         link: '/admin?tab=subscriptions'
       });
@@ -252,7 +252,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
           id: doc.id,
           date,
           expiryDate,
-          desc: `Renouvellement Abonnement Standard - ${data.reference || 'Paystack'}`,
+          desc: `Renouvellement Abonnement Standard - ${data.gateway === 'WAVE' ? 'Wave' : (data.reference || 'Paiement')}`,
           amount: data.amount,
           status: data.status, // Directly use the database status
           fullData: data
@@ -627,21 +627,21 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                 {paymentStep === 'SELECT' && (
                   <div className="space-y-6">
                     <div className="grid grid-cols-1 gap-4">
-                      {/* Paystack Option */}
+                      {/* Wave Option */}
                       <button 
-                        onClick={() => setPaymentStep('PAYSTACK_INFO')}
-                        className="group relative p-6 bg-white border-2 border-kontrol-border rounded-[2rem] hover:border-kontrol-blue hover:bg-kontrol-blue/5 transition-all duration-500 overflow-hidden"
+                        onClick={() => setPaymentStep('WAVE_INFO')}
+                        className="group relative p-6 bg-white border-2 border-kontrol-border rounded-[2rem] hover:border-[#1dc8ee] hover:bg-[#1dc8ee]/5 transition-all duration-500 overflow-hidden"
                       >
                         <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-100 transition-opacity translate-x-2 translate-y--2">
-                          <ExternalLink size={24} className="text-kontrol-blue" />
+                          <ExternalLink size={24} className="text-[#1dc8ee]" />
                         </div>
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-[#09a5db]/10 rounded-2xl flex items-center justify-center text-[#09a5db]">
-                            <CreditCard size={24} />
+                          <div className="w-12 h-12 bg-[#1dc8ee]/10 rounded-2xl flex items-center justify-center text-[#1dc8ee]">
+                            <Smartphone size={24} />
                           </div>
                           <div className="text-left">
-                            <h4 className="text-sm font-extrabold text-kontrol-dark uppercase tracking-tight">Payer via Paystack</h4>
-                            <p className="text-[10px] text-kontrol-ink-muted font-bold">Mobile Money, Carte, Transfert</p>
+                            <h4 className="text-sm font-extrabold text-kontrol-dark uppercase tracking-tight">Payer via Wave</h4>
+                            <p className="text-[10px] text-kontrol-ink-muted font-bold">Paiement instantané Wave Business</p>
                           </div>
                         </div>
                       </button>
@@ -649,44 +649,44 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                   </div>
                 )}
 
-                {paymentStep === 'PAYSTACK_INFO' && (
+                {paymentStep === 'WAVE_INFO' && (
                   <div className="space-y-6">
-                    <div className="bg-kontrol-blue/5 p-6 rounded-[2rem] border border-kontrol-blue/10 space-y-5">
+                    <div className="bg-[#1dc8ee]/5 p-6 rounded-[2rem] border border-[#1dc8ee]/10 space-y-5">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-kontrol-blue text-white rounded-lg flex items-center justify-center font-bold text-sm">1</div>
-                        <p className="text-sm font-bold text-kontrol-dark">Payez via notre lien Paystack sécurisé</p>
+                        <div className="w-8 h-8 bg-[#1dc8ee] text-white rounded-lg flex items-center justify-center font-bold text-sm">1</div>
+                        <p className="text-sm font-bold text-kontrol-dark">Payez via notre lien Wave sécurisé</p>
                       </div>
                       
                       <a 
-                        href="https://paystack.shop/pay/kontrol" 
+                        href={`https://pay.wave.com/m/M_ci_jlScZ6K4EoKg/c/ci/?amount=${price}`} 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="w-full py-4 bg-[#09a5db] text-white rounded-2xl font-extrabold text-sm hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-xl shadow-[#09a5db]/20"
+                        className="w-full py-4 bg-[#1dc8ee] text-white rounded-2xl font-extrabold text-sm hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-xl shadow-[#1dc8ee]/20"
                       >
-                        Accéder à Paystack <ExternalLink size={16} />
+                        Accéder à Wave <ExternalLink size={16} />
                       </a>
 
-                      <div className="border-t border-kontrol-blue/10 pt-5 space-y-4">
+                      <div className="border-t border-[#1dc8ee]/10 pt-5 space-y-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-kontrol-blue text-white rounded-lg flex items-center justify-center font-bold text-sm">2</div>
+                          <div className="w-8 h-8 bg-[#1dc8ee] text-white rounded-lg flex items-center justify-center font-bold text-sm">2</div>
                           <p className="text-sm font-bold text-kontrol-dark">Renseignez votre référence de paiement</p>
                         </div>
                         
                         <div className="space-y-2">
-                          <label className="text-[10px] font-bold text-kontrol-ink-muted uppercase tracking-widest ml-2">Référence Transaction</label>
+                          <label className="text-[10px] font-bold text-kontrol-ink-muted uppercase tracking-widest ml-2">ID Transaction Wave</label>
                           <input 
                             type="text"
                             value={manualReference}
                             onChange={(e) => setManualReference(e.target.value)}
-                            placeholder="Ex: T20240428.1234.567890"
-                            className="w-full px-5 py-4 bg-white border-2 border-kontrol-border rounded-xl font-bold text-sm focus:border-kontrol-blue outline-none transition-all"
+                            placeholder="Ex: T-WAVE-123456"
+                            className="w-full px-5 py-4 bg-white border-2 border-kontrol-border rounded-xl font-bold text-sm focus:border-[#1dc8ee] outline-none transition-all"
                           />
                         </div>
 
                         <button 
-                          onClick={(e) => handlePaystackConfirmation(e)}
+                          onClick={(e) => handleWaveConfirmation(e)}
                           disabled={loading || !manualReference.trim()}
-                          className="w-full py-4 bg-kontrol-blue text-white rounded-2xl font-extrabold text-sm hover:opacity-95 transition-all flex items-center justify-center gap-2 shadow-xl shadow-kontrol-blue/20 disabled:opacity-50"
+                          className="w-full py-4 bg-[#1dc8ee] text-white rounded-2xl font-extrabold text-sm hover:opacity-95 transition-all flex items-center justify-center gap-2 shadow-xl shadow-[#1dc8ee]/20 disabled:opacity-50"
                         >
                           {loading ? <Loader2 size={16} className="animate-spin" /> : "Confirmer mon paiement"}
                         </button>
@@ -795,7 +795,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                     </div>
                     <div className="space-y-0.5">
                       <p className="text-[8px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">Paiement</p>
-                      <p className="text-[11px] font-bold text-kontrol-dark">Paystack</p>
+                      <p className="text-[11px] font-bold text-kontrol-dark">{selectedInvoice.fullData?.gateway || 'Wave'}</p>
                     </div>
                     <div className="space-y-0.5 text-right">
                       <p className="text-[8px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">Statut</p>

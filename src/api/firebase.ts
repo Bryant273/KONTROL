@@ -181,7 +181,7 @@ export async function ensureUserProfile(user: User, companyName?: string, hashed
     if (!userDoc.exists()) {
       // If user exists in Auth but not in Firestore, auto-create a profile
       // instead of throwing error, to ensure smooth login.
-      const profile: UserProfile = {
+      const profile: any = {
         uid: user.uid,
         email: user.email || '',
         displayName: user.displayName || user.email?.split('@')[0] || 'Utilisateur',
@@ -190,7 +190,7 @@ export async function ensureUserProfile(user: User, companyName?: string, hashed
         companyName: companyName || (isAdminEmail ? 'KONTROL' : ''),
         isProfileComplete: isAdminEmail,
         active: true,
-        createdAt: Date.now(),
+        createdAt: serverTimestamp(),
         subscriptionStatus: 'TRIAL',
         subscriptionEndDate: Date.now() + (14 * 24 * 60 * 60 * 1000) // 14 days trial
       };

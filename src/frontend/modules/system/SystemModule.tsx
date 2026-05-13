@@ -133,7 +133,7 @@ export function SystemModule({ currentUserProfile }: SystemModuleProps) {
       const snapshot = await getDocs(q);
       setGlobalActions(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'actions', auth.currentUser);
+      handleFirestoreError(error, OperationType.LIST, 'actions', auth.currentUser, false);
     } finally {
       setLoadingActions(false);
     }
@@ -284,7 +284,7 @@ export function SystemModule({ currentUserProfile }: SystemModuleProps) {
       fetchGlobalStats();
       fetchUsers();
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'targeted_company_deletion', auth.currentUser);
+      handleFirestoreError(error, OperationType.DELETE, 'targeted_company_deletion', auth.currentUser, false);
       setMessage({ type: 'error', text: "Erreur lors de la suppression ciblée." });
     } finally {
       setIsResetting(false);
@@ -313,7 +313,7 @@ export function SystemModule({ currentUserProfile }: SystemModuleProps) {
       fetchUsers();
       fetchGlobalActions();
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'system_reset', auth.currentUser);
+      handleFirestoreError(error, OperationType.DELETE, 'system_reset', auth.currentUser, false);
       setMessage({ type: 'error', text: "Erreur lors de la réinitialisation complète." });
     } finally {
       setIsResetting(false);
@@ -343,7 +343,7 @@ export function SystemModule({ currentUserProfile }: SystemModuleProps) {
         window.location.reload();
       }, 3000);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'total_system_reset', auth.currentUser);
+      handleFirestoreError(error, OperationType.DELETE, 'total_system_reset', auth.currentUser, false);
       setMessage({ type: 'error', text: "Erreur lors de la réinitialisation totale." });
     } finally {
       setIsResetting(false);

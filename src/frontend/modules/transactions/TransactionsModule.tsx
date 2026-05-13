@@ -27,7 +27,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Transaction, Tiers, Produit, UserProfile } from '../../types';
 import { cn, formatCurrency } from '../../lib/utils';
 import { hasPermission } from '../../lib/permissions';
-import { logAction, handleFirestoreError, OperationType } from '../../../api/firebase';
+import { logAction, handleFirestoreError, OperationType, serverTimestamp } from '../../../api/firebase';
 import { generateInvoicePDF, generateReceiptPDF } from '../../lib/invoice';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { CompanySelector } from '../../components/common/CompanySelector';
@@ -59,7 +59,11 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
   const [loading, setLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [filterType, setFilterType] = React.useState<'ALL' | 'VENTE' | 'ACHAT'>('ALL');
-  const [filterDate, setFilterDate] = React.useState<string>(new Date().toISOString().split('T')[0]);
+  const [filterStatut, setFilterStatut] = React.useState<'ALL' | 'PAYE' | 'ATTENTE' | 'ANNULE'>('ALL');
+  const [dateRange, setDateRange] = React.useState({ 
+    start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+    end: new Date().toISOString().split('T')[0]
+  });
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [isAdding, setIsAdding] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
@@ -79,7 +83,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
       setSelectedId(null);
       setIsDeleting(false);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `transactions/${selectedId}`, user);
+      handleFirestoreError(error, OperationType.DELETE, `transactions/${selectedId}`, user, false);
     } finally {
       setLoading(false);
     }
@@ -92,6 +96,8 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
     tiersNom: '',
     modePaiement: 'Espèces',
     devise: 'XOF',
+    tauxChange: 1,
+    montantDevise: 0,
     invoiceFileUrl: '',
     articles: [] as { produitId: string; designation: string; quantite: number; prixUnitaire: number; total: number }[]
   });
@@ -168,9 +174,11 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
         date: Date.now(),
         montantTotal,
         statut: 'PAYE',
+        tauxChange: newTrans.devise === 'XOF' ? 1 : newTrans.tauxChange,
+        montantDevise: newTrans.devise === 'XOF' ? montantTotal : (montantTotal / newTrans.tauxChange),
         ownerId: companyId,
-        createdAt: Date.now()
-      } as Transaction;
+        createdAt: serverTimestamp()
+      } as any;
 
       await transactionService.createTransaction(transData, user, currentUserProfile);
 
@@ -186,10 +194,20 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
       setTimeout(() => {
         setIsAdding(false);
         setMessage(null);
-        setNewTrans({ type: 'VENTE', tiersId: '', tiersNom: '', modePaiement: 'Espèces', devise: 'XOF', invoiceFileUrl: '', articles: [] });
+        setNewTrans({ 
+          type: 'VENTE', 
+          tiersId: '', 
+          tiersNom: '', 
+          modePaiement: 'Espèces', 
+          devise: 'XOF', 
+          tauxChange: 1,
+          montantDevise: 0,
+          invoiceFileUrl: '', 
+          articles: [] 
+        });
       }, 1500);
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'transactions', user);
+      handleFirestoreError(error, OperationType.CREATE, 'transactions', user, false);
       setMessage({ type: 'error', text: "Erreur lors de l'enregistrement de la transaction." });
     } finally {
       setLoading(false);
@@ -248,8 +266,16 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
     const matchesSearch = t.reference.toLowerCase().includes(searchTerm.toLowerCase()) || 
                          t.tiersNom.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = filterType === 'ALL' || t.type === filterType;
-    const matchesDate = !filterDate || new Date(t.date).toISOString().split('T')[0] === filterDate;
-    return matchesSearch && matchesType && matchesDate;
+    const matchesStatut = filterStatut === 'ALL' || t.statut === filterStatut;
+    
+    const tDate = new Date(t.date);
+    const startDate = new Date(dateRange.start);
+    const endDate = new Date(dateRange.end);
+    endDate.setHours(23, 59, 59, 999);
+
+    const matchesDate = t.date >= startDate.getTime() && t.date <= endDate.getTime();
+    
+    return matchesSearch && matchesType && matchesStatut && matchesDate;
   });
 
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
@@ -293,7 +319,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
       setLoading(true);
       await transactionService.updateTransaction(selectedId, updates, user, currentUserProfile);
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `transactions/${selectedId}`, user);
+      handleFirestoreError(error, OperationType.UPDATE, `transactions/${selectedId}`, user, false);
     } finally {
       setLoading(false);
     }
@@ -311,6 +337,16 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
     };
     setQrData({ type, amount, phone: numbers[type] || '' });
     setShowQR(true);
+  };
+
+  const handleCashFlowReport = async () => {
+    try {
+      const { generateCashFlowPDF } = await import('../../lib/cashflow');
+      generateCashFlowPDF(filteredTransactions, dateRange, currentUserProfile);
+    } catch (error) {
+      console.error("PDF Error:", error);
+      alert("Erreur lors de la génération du rapport PDF.");
+    }
   };
 
   return (
@@ -367,17 +403,27 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Paiement</label>
-                  <select 
-                    className="w-full px-3 py-2 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:border-kontrol-blue"
-                    value={newTrans.modePaiement}
-                    onChange={(e) => setNewTrans({...newTrans, modePaiement: e.target.value})}
-                  >
-                    <option value="Espèces">Espèces</option>
-                    <option value="Virement">Virement</option>
-                    <option value="Chèque">Chèque</option>
-                    <option value="Mobile Money">Mobile Money</option>
-                  </select>
+                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Devise</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <select 
+                      className="w-full px-3 py-2 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:border-kontrol-blue"
+                      value={newTrans.devise}
+                      onChange={(e) => setNewTrans({...newTrans, devise: e.target.value})}
+                    >
+                      <option value="XOF">XOF</option>
+                      <option value="EUR">EUR</option>
+                      <option value="USD">USD</option>
+                    </select>
+                    {newTrans.devise !== 'XOF' && (
+                      <input 
+                        type="number"
+                        placeholder="Taux"
+                        className="w-full px-3 py-2 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:border-kontrol-blue"
+                        value={newTrans.tauxChange}
+                        onChange={(e) => setNewTrans({...newTrans, tauxChange: Number(e.target.value)})}
+                      />
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -497,8 +543,17 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
                     </tbody>
                     {newTrans.articles.length > 0 && (
                       <tfoot className="bg-kontrol-bg/50 font-extrabold">
+                        {newTrans.devise !== 'XOF' && (
+                          <tr>
+                            <td colSpan={3} className="px-4 py-1 text-right uppercase tracking-wider text-[9px] text-kontrol-ink-muted">Total en {newTrans.devise}</td>
+                            <td className="px-4 py-1 text-right text-kontrol-blue text-[12px]">
+                              {((newTrans.articles.reduce((acc, a) => acc + a.total, 0)) / (newTrans.tauxChange || 1)).toFixed(2)} {newTrans.devise}
+                            </td>
+                            <td></td>
+                          </tr>
+                        )}
                         <tr>
-                          <td colSpan={3} className="px-4 py-3 text-right uppercase tracking-wider text-[10px] text-kontrol-ink-muted">Total Transaction</td>
+                          <td colSpan={3} className="px-4 py-3 text-right uppercase tracking-wider text-[10px] text-kontrol-ink-muted">Total Transaction (XOF)</td>
                           <td className="px-4 py-3 text-right text-kontrol-dark text-[14px]">
                             {formatCurrency(newTrans.articles.reduce((acc, a) => acc + a.total, 0))}
                           </td>
@@ -563,6 +618,12 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
           >
             <Table size={14} /> Excel
           </button>
+          <button 
+            onClick={handleCashFlowReport}
+            className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2 border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100"
+          >
+            <FileText size={14} /> Flux de Trésorerie
+          </button>
           {hasPermission(currentUserProfile?.role, 'TRANSACTION_CREATE') && (
             <button onClick={() => setIsAdding(true)} className="btn-primary text-xs py-1.5 px-4 flex items-center gap-2">
               <Plus size={14} /> Nouvelle transaction
@@ -598,14 +659,37 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
           <option value="VENTE">Ventes</option>
           <option value="ACHAT">Achats</option>
         </select>
+        <select 
+          className="bg-white border border-kontrol-border rounded-lg px-3 py-1.5 text-[13px] font-medium text-kontrol-ink-soft outline-none focus:border-kontrol-blue transition-colors"
+          value={filterStatut}
+          onChange={(e) => {
+            setFilterStatut(e.target.value as any);
+            setCurrentPage(1);
+          }}
+        >
+          <option value="ALL">Tous statuts</option>
+          <option value="PAYE">Payé</option>
+          <option value="ATTENTE">En attente</option>
+          <option value="ANNULE">Annulé</option>
+        </select>
         <div className="flex items-center gap-2 bg-white border border-kontrol-border rounded-lg px-3 py-1.5">
           <Calendar size={14} className="text-kontrol-ink-muted" />
           <input 
             type="date"
             className="bg-transparent border-none outline-none text-[13px] font-medium text-kontrol-ink-soft"
-            value={filterDate}
+            value={dateRange.start}
             onChange={(e) => {
-              setFilterDate(e.target.value);
+              setDateRange({...dateRange, start: e.target.value});
+              setCurrentPage(1);
+            }}
+          />
+          <span className="text-kontrol-ink-muted text-xs">à</span>
+          <input 
+            type="date"
+            className="bg-transparent border-none outline-none text-[13px] font-medium text-kontrol-ink-soft"
+            value={dateRange.end}
+            onChange={(e) => {
+              setDateRange({...dateRange, end: e.target.value});
               setCurrentPage(1);
             }}
           />
@@ -663,7 +747,16 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
                       </td>
                       <td className="px-4 py-3 text-kontrol-ink-muted">{new Date(t.date).toLocaleDateString()}</td>
                       <td className="px-4 py-3 font-bold text-kontrol-dark">{t.tiersNom}</td>
-                      <td className="px-4 py-3 text-right font-extrabold text-kontrol-ink-soft">{formatCurrency(t.montantTotal)}</td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex flex-col items-end">
+                          <span className="font-extrabold text-kontrol-ink-soft">{formatCurrency(t.montantTotal)}</span>
+                          {t.devise && t.devise !== 'XOF' && t.montantDevise && (
+                            <span className="text-[10px] text-kontrol-blue font-bold">
+                              {t.montantDevise.toFixed(2)} {t.devise}
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-4 py-3">
                         <span className={cn(
                           "inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-bold uppercase tracking-wider",
@@ -733,7 +826,14 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
                 
                 <div className="bg-kontrol-dark rounded-lg p-4 mt-6 mb-6">
                   <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-1">Montant Total TTC</p>
-                  <p className="text-xl font-extrabold text-kontrol-blue">{formatCurrency(selectedTrans.montantTotal)}</p>
+                  <div className="flex items-baseline justify-between">
+                    <p className="text-xl font-extrabold text-kontrol-blue">{formatCurrency(selectedTrans.montantTotal)}</p>
+                    {selectedTrans.devise && selectedTrans.devise !== 'XOF' && selectedTrans.montantDevise && (
+                      <p className="text-sm font-bold text-white/60">
+                        {selectedTrans.montantDevise.toFixed(2)} {selectedTrans.devise}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-4 pt-2">
@@ -762,12 +862,19 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
                     <CheckCircle2 size={14} className="text-kontrol-ink-muted shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
                       <p className="text-kontrol-ink-muted text-[11px] font-bold uppercase tracking-tighter">Statut du règlement</p>
-                      <p className={cn(
-                        "font-bold",
-                        selectedTrans.statut === 'PAYE' ? "text-emerald-600" : "text-amber-600"
-                      )}>
-                        {selectedTrans.statut === 'PAYE' ? 'Payé (Encaissé)' : 'En attente'}
-                      </p>
+                      <select 
+                        className={cn(
+                          "font-bold text-[12.5px] bg-transparent border-none outline-none focus:ring-0 p-0 cursor-pointer",
+                          selectedTrans.statut === 'PAYE' ? "text-emerald-600" : 
+                          selectedTrans.statut === 'ATTENTE' ? "text-amber-600" : "text-rose-600"
+                        )}
+                        value={selectedTrans.statut}
+                        onChange={(e) => handleUpdateTransaction({ statut: e.target.value as any })}
+                      >
+                        <option value="PAYE" className="text-emerald-600 font-bold italic">Payé</option>
+                        <option value="ATTENTE" className="text-amber-600 font-bold italic">En attente</option>
+                        <option value="ANNULE" className="text-rose-600 font-bold italic">Annulé</option>
+                      </select>
                     </div>
                   </div>
                 </div>

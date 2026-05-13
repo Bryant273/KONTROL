@@ -64,7 +64,7 @@ export interface Transaction {
   montantTotal?: number; // Some code uses montantTotal
   date: number;
   status: 'COMPLETED' | 'PENDING' | 'CANCELLED';
-  statut?: string; // Some code uses statut
+  statut: 'PAYE' | 'ATTENTE' | 'ANNULE'; 
   description: string;
   articles: any[];
   paymentMethod: string;
@@ -72,6 +72,8 @@ export interface Transaction {
   reference?: string;
   invoiceFileUrl?: string;
   devise?: string;
+  tauxChange?: number;
+  montantDevise?: number;
   createdAt: number;
 }
 

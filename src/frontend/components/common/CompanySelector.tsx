@@ -22,7 +22,7 @@ export function CompanySelector({ onSelect, selectedId }: CompanySelectorProps) 
         const snapshot = await getDocs(query(collection(db, 'companies'), orderBy('name')));
         setCompanies(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Company)));
       } catch (error) {
-        handleFirestoreError(error, OperationType.LIST, 'companies', auth.currentUser);
+        handleFirestoreError(error, OperationType.LIST, 'companies', auth.currentUser, false);
       } finally {
         setLoading(false);
       }

@@ -9,7 +9,8 @@ import {
   Upload, 
   Loader2,
   CheckCircle2,
-  Briefcase
+  Briefcase,
+  AlertCircle
 } from 'lucide-react';
 import { 
   db, 
@@ -131,7 +132,7 @@ export function CompanyProfileModule({ currentUserProfile }: CompanyProfileModul
           "p-4 rounded-2xl flex items-center gap-3 animate-in slide-in-from-top-2 duration-300",
           message.type === 'success' ? "bg-emerald-50 text-emerald-700 border border-emerald-100" : "bg-rose-50 text-rose-700 border border-rose-100"
         )}>
-          {message.type === 'success' ? <CheckCircle2 size={20} /> : <XCircle size={20} />}
+          {message.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
           <p className="text-sm font-medium">{message.text}</p>
         </div>
       )}

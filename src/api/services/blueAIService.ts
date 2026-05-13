@@ -96,7 +96,7 @@ class BlueAIService {
       
       await batch.commit();
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `conversations/${conversationId}`, auth.currentUser);
+      handleFirestoreError(error, OperationType.DELETE, `conversations/${conversationId}`, auth.currentUser, false);
     }
   }
 
@@ -123,7 +123,7 @@ class BlueAIService {
         currentConvId = convDoc.id;
       }
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'conversations', auth.currentUser);
+      handleFirestoreError(error, OperationType.CREATE, 'conversations', auth.currentUser, false);
     }
 
     // 2. Save User Message
@@ -136,7 +136,7 @@ class BlueAIService {
         timestamp: Date.now()
       });
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'messages', auth.currentUser);
+      handleFirestoreError(error, OperationType.CREATE, 'messages', auth.currentUser, false);
     }
 
     // 3. Get Context Data
@@ -164,7 +164,7 @@ class BlueAIService {
           neural_consensus: neuralData.consensus // Store consensus meta
         });
       } catch (error) {
-        handleFirestoreError(error, OperationType.CREATE, 'messages', auth.currentUser);
+        handleFirestoreError(error, OperationType.CREATE, 'messages', auth.currentUser, false);
       }
 
       // 6. Update Conversation
@@ -174,7 +174,7 @@ class BlueAIService {
           updatedAt: Date.now()
         });
       } catch (error) {
-        handleFirestoreError(error, OperationType.UPDATE, `conversations/${currentConvId}`, auth.currentUser);
+        handleFirestoreError(error, OperationType.UPDATE, `conversations/${currentConvId}`, auth.currentUser, false);
       }
 
       return {
@@ -182,7 +182,7 @@ class BlueAIService {
         conversationId: currentConvId
       };
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'ai/blue-brain', auth.currentUser);
+      handleFirestoreError(error, OperationType.WRITE, 'ai/blue-brain', auth.currentUser, false);
       throw error;
     }
   }
@@ -198,7 +198,7 @@ class BlueAIService {
       const snapshot = await getDocs(q);
       return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as BlueConversation));
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'conversations', auth.currentUser);
+      handleFirestoreError(error, OperationType.LIST, 'conversations', auth.currentUser, false);
       return [];
     }
   }
@@ -213,7 +213,7 @@ class BlueAIService {
       const snapshot = await getDocs(q);
       return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as BlueMessage));
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'messages', auth.currentUser);
+      handleFirestoreError(error, OperationType.LIST, 'messages', auth.currentUser, false);
       return [];
     }
   }

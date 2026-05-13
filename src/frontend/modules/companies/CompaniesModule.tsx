@@ -52,7 +52,7 @@ export function CompaniesModule() {
       setConfirmDelete(null);
       // The onSnapshot will update the list automatically
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'users', auth.currentUser);
+      handleFirestoreError(error, OperationType.DELETE, 'users', auth.currentUser, false);
     } finally {
       setLoading(false);
     }
@@ -125,7 +125,7 @@ export function CompaniesModule() {
         );
       }
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, 'users', auth.currentUser);
+      handleFirestoreError(error, OperationType.UPDATE, 'users', auth.currentUser, false);
     }
   };
 
@@ -154,7 +154,7 @@ export function CompaniesModule() {
         );
       }
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, 'users', auth.currentUser);
+      handleFirestoreError(error, OperationType.UPDATE, 'users', auth.currentUser, false);
     }
   };
 

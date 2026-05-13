@@ -35,7 +35,7 @@ export const emailService = {
       // Update ticket in Firestore
       return await addDoc(collection(db, `tickets/${ticketId}/replies`), reply);
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, `tickets/${ticketId}/replies`, null);
+      handleFirestoreError(error, OperationType.WRITE, `tickets/${ticketId}/replies`, null, false);
     }
   },
 

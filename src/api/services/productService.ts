@@ -42,7 +42,7 @@ export class ProductService extends BaseFirestoreService<Produit> {
 
       return productId;
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'produits', user);
+      handleFirestoreError(error, OperationType.WRITE, 'produits', user, false);
       throw error;
     }
   }
@@ -62,7 +62,7 @@ export class ProductService extends BaseFirestoreService<Produit> {
         );
       }
     } catch (error) {
-       handleFirestoreError(error, OperationType.WRITE, 'produits', user);
+       handleFirestoreError(error, OperationType.WRITE, 'produits', user, false);
        throw error;
     }
   }
@@ -82,7 +82,7 @@ export class ProductService extends BaseFirestoreService<Produit> {
         );
       }
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'produits', user);
+      handleFirestoreError(error, OperationType.DELETE, 'produits', user, false);
       throw error;
     }
   }

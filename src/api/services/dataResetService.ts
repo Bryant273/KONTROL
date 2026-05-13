@@ -54,7 +54,7 @@ export async function resetDatabase() {
       await batch.commit();
     }
   } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, 'mass_reset', auth.currentUser);
+    handleFirestoreError(error, OperationType.DELETE, 'mass_reset', auth.currentUser, false);
     throw error;
   }
 }

@@ -104,7 +104,7 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
           setTimeout(() => setMessage(null), 3000);
         }
       } catch (error) {
-        handleFirestoreError(error, OperationType.WRITE, 'produits/import', user);
+        handleFirestoreError(error, OperationType.WRITE, 'produits/import', user, false);
         setMessage({ type: 'error', text: "Erreur lors de l'importation. Vérifiez le format du fichier." });
         setTimeout(() => setMessage(null), 3000);
       } finally {
@@ -174,7 +174,7 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
         setCurrentProduit({ reference: '', designation: '', prixAchat: 0, prixVente: 0, stockInitial: 0, alertStock: 5, tva: 18 });
       }, 1500);
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'produits', user);
+      handleFirestoreError(error, OperationType.WRITE, 'produits', user, false);
       setMessage({ type: 'error', text: "Erreur lors de l'enregistrement du produit." });
     } finally {
       setLoading(false);
@@ -201,7 +201,7 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
 
       setIsEditing(false);
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `produits/${selectedId}`, user);
+      handleFirestoreError(error, OperationType.UPDATE, `produits/${selectedId}`, user, false);
     } finally {
       setLoading(false);
     }
@@ -219,7 +219,7 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
       setSelectedId(null);
       setIsDeleting(false);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `produits/${selectedId}`, user);
+      handleFirestoreError(error, OperationType.DELETE, `produits/${selectedId}`, user, false);
     } finally {
       setLoading(false);
     }

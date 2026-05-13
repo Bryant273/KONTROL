@@ -92,7 +92,7 @@ export function LegalTerms({ type, onClose }: LegalTermsProps) {
           content: `Nous appliquons des standards de sécurité de niveau bancaire :
           
           • Chiffrement : AES-256 au repos et TLS 1.3 en transit.
-          • Sous-traitants : Google (Stockage), Paystack (Paiements). Ces partenaires respectent les normes PCI-DSS et RGPD.
+          • Sous-traitants : Google (Stockage), Wave (Paiements). Ces partenaires respectent les normes PCI-DSS et RGPD.
           • Accès : Aucun employé d'INNOV'KORP n'accède à vos données métier sans votre autorisation explicite via un ticket support.`
         },
         {

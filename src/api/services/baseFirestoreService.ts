@@ -33,7 +33,7 @@ export class BaseFirestoreService<T extends { id?: string }> {
       const snapshot = await getDocs(this.collectionRef);
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T));
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, this.collectionName, auth.currentUser);
+      handleFirestoreError(error, OperationType.LIST, this.collectionName, auth.currentUser, false);
       return [];
     }
   }
@@ -47,7 +47,7 @@ export class BaseFirestoreService<T extends { id?: string }> {
       }
       return null;
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, `${this.collectionName}/${id}`, auth.currentUser);
+      handleFirestoreError(error, OperationType.GET, `${this.collectionName}/${id}`, auth.currentUser, false);
       return null;
     }
   }
@@ -60,7 +60,7 @@ export class BaseFirestoreService<T extends { id?: string }> {
       });
       return docRef.id;
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, this.collectionName, user || auth.currentUser);
+      handleFirestoreError(error, OperationType.CREATE, this.collectionName, user || auth.currentUser, false);
       return '';
     }
   }
@@ -73,7 +73,7 @@ export class BaseFirestoreService<T extends { id?: string }> {
         updatedAt: Date.now()
       });
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `${this.collectionName}/${id}`, user || auth.currentUser);
+      handleFirestoreError(error, OperationType.UPDATE, `${this.collectionName}/${id}`, user || auth.currentUser, false);
     }
   }
 
@@ -82,7 +82,7 @@ export class BaseFirestoreService<T extends { id?: string }> {
       const docRef = doc(db, this.collectionName, id);
       await deleteDoc(docRef);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `${this.collectionName}/${id}`, user || auth.currentUser);
+      handleFirestoreError(error, OperationType.DELETE, `${this.collectionName}/${id}`, user || auth.currentUser, false);
     }
   }
 

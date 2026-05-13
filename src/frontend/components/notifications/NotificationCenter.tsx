@@ -100,7 +100,7 @@ export function NotificationCenter({ profile, onNavigate }: NotificationCenterPr
     try {
       await updateDoc(doc(db, 'notifications', id), { read: true });
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `notifications/${id}`, auth.currentUser);
+      handleFirestoreError(error, OperationType.UPDATE, `notifications/${id}`, auth.currentUser, false);
     }
   };
 
@@ -113,7 +113,7 @@ export function NotificationCenter({ profile, onNavigate }: NotificationCenterPr
       });
       await batch.commit();
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, 'notifications', auth.currentUser);
+      handleFirestoreError(error, OperationType.UPDATE, 'notifications', auth.currentUser, false);
     }
   };
 
@@ -121,7 +121,7 @@ export function NotificationCenter({ profile, onNavigate }: NotificationCenterPr
     try {
       await deleteDoc(doc(db, 'notifications', id));
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `notifications/${id}`, auth.currentUser);
+      handleFirestoreError(error, OperationType.DELETE, `notifications/${id}`, auth.currentUser, false);
     }
   };
 
@@ -162,7 +162,7 @@ export function NotificationCenter({ profile, onNavigate }: NotificationCenterPr
                         notifications.forEach(n => batch.delete(doc(db, 'notifications', n.id)));
                         await batch.commit();
                       } catch (error) {
-                        handleFirestoreError(error, OperationType.DELETE, 'notifications', auth.currentUser);
+                        handleFirestoreError(error, OperationType.DELETE, 'notifications', auth.currentUser, false);
                       }
                     }
                   }}

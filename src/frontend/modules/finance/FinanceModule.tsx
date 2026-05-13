@@ -83,6 +83,38 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
     return () => unsubscribes.forEach(unsub => unsub());
   }, [companyId]);
 
+  const [isWaveLoading, setIsWaveLoading] = React.useState(false);
+
+  const handleWavePayment = async () => {
+    if (newPayment.montant <= 0) {
+      alert("Veuillez saisir un montant valide.");
+      return;
+    }
+    
+    setIsWaveLoading(true);
+    try {
+      const clientReference = `PAY-WAVE-${Date.now()}`;
+      const res = await apiClient.post('/api/wave/checkout', {
+        amount: newPayment.montant,
+        currency: 'XOF',
+        description: newPayment.description || 'Paiement via KONTROL',
+        clientReference
+      });
+      
+      if (res.checkout_url) {
+        // Rediriger le client vers Wave
+        window.location.href = res.checkout_url;
+      } else {
+        throw new Error("URL de paiement non reçue");
+      }
+    } catch (error: any) {
+      console.error("[WAVE UI ERROR]", error);
+      alert(`Erreur lors de l'initiation Wave: ${error.message}`);
+    } finally {
+      setIsWaveLoading(false);
+    }
+  };
+
   const handleAddPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!hasPermission(currentUserProfile?.role, 'FINANCE_CREATE')) {
@@ -121,7 +153,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
         description: ''
       });
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'payments', user);
+      handleFirestoreError(error, OperationType.WRITE, 'payments', user, false);
     } finally {
       setLoading(false);
     }
@@ -579,14 +611,26 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
                 />
               </div>
 
-              <button 
-                type="submit" 
-                disabled={loading}
-                className="w-full btn-primary py-4 font-extrabold uppercase tracking-widest text-[12px] flex items-center justify-center gap-2"
-              >
-                {loading ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
-                Enregistrer le mouvement
-              </button>
+              {newPayment.modePaiement === 'Wave' && newPayment.type === 'ENCAISSEMENT' ? (
+                <button 
+                  type="button" 
+                  onClick={handleWavePayment}
+                  disabled={isWaveLoading || loading}
+                  className="w-full bg-[#1dbf73] hover:bg-[#19a563] text-white py-4 rounded-xl font-black uppercase tracking-widest text-[12px] flex items-center justify-center gap-2 shadow-lg shadow-[#1dbf73]/20 transition-all"
+                >
+                  {isWaveLoading ? <Loader2 size={18} className="animate-spin" /> : <Smartphone size={18} />}
+                  Payer avec Wave Business
+                </button>
+              ) : (
+                <button 
+                  type="submit" 
+                  disabled={loading}
+                  className="w-full btn-primary py-4 font-extrabold uppercase tracking-widest text-[12px] flex items-center justify-center gap-2"
+                >
+                  {loading ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
+                  Enregistrer le mouvement
+                </button>
+              )}
             </form>
           </motion.div>
         </div>

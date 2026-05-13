@@ -81,7 +81,7 @@ export function NotificationsCenterModule({ profile, onNavigate }: Notifications
     try {
       await updateDoc(doc(db, 'notifications', id), { read: true });
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `notifications/${id}`, auth.currentUser);
+      handleFirestoreError(error, OperationType.UPDATE, `notifications/${id}`, auth.currentUser, false);
     }
   };
 
@@ -96,7 +96,7 @@ export function NotificationsCenterModule({ profile, onNavigate }: Notifications
       });
       await batch.commit();
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, 'notifications/all', auth.currentUser);
+      handleFirestoreError(error, OperationType.UPDATE, 'notifications/all', auth.currentUser, false);
     }
   };
 
@@ -104,7 +104,7 @@ export function NotificationsCenterModule({ profile, onNavigate }: Notifications
     try {
       await deleteDoc(doc(db, 'notifications', id));
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `notifications/${id}`, auth.currentUser);
+      handleFirestoreError(error, OperationType.DELETE, `notifications/${id}`, auth.currentUser, false);
     }
   };
 
@@ -118,7 +118,7 @@ export function NotificationsCenterModule({ profile, onNavigate }: Notifications
       });
       await batch.commit();
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'notifications/all', auth.currentUser);
+      handleFirestoreError(error, OperationType.DELETE, 'notifications/all', auth.currentUser, false);
     }
   };
 

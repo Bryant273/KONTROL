@@ -105,7 +105,7 @@ export class TransactionService extends BaseFirestoreService<Transaction> {
 
       return transactionId;
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'transactions', user);
+      handleFirestoreError(error, OperationType.WRITE, 'transactions', user, false);
       throw error;
     }
   }
@@ -175,7 +175,7 @@ export class TransactionService extends BaseFirestoreService<Transaction> {
         );
       }
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'transactions', user);
+      handleFirestoreError(error, OperationType.WRITE, 'transactions', user, false);
       throw error;
     }
   }
@@ -228,7 +228,7 @@ export class TransactionService extends BaseFirestoreService<Transaction> {
         );
       }
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'transactions', user);
+      handleFirestoreError(error, OperationType.DELETE, 'transactions', user, false);
       throw error;
     }
   }

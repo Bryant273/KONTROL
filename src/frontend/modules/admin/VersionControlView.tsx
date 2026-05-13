@@ -112,7 +112,15 @@ export function VersionControlView() {
             author: 'Innov\'Korp Team'
           }
         ];
-        initialVersions.forEach(v => addDoc(collection(db, 'app_versions'), v));
+        (async () => {
+          for (const v of initialVersions) {
+            try {
+              await addDoc(collection(db, 'app_versions'), v);
+            } catch (e) {
+              handleFirestoreError(e, OperationType.WRITE, 'app_versions/init', auth.currentUser, false);
+            }
+          }
+        })().catch(err => console.error("Unhandled rejection in initial versions setup:", err));
       } else {
         setVersions(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as AppVersion)));
       }

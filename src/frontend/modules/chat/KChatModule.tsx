@@ -200,17 +200,19 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
     const unreadMessages = messages.filter(m => !m.readBy?.includes(user.uid));
     
     if (unreadMessages.length > 0) {
-      unreadMessages.forEach(async (msg) => {
-        try {
-          const msgRef = doc(db, 'messages', msg.id);
-          const updatedReadBy = Array.from(new Set([...(msg.readBy || []), user.uid]));
-          await updateDoc(msgRef, {
-            readBy: updatedReadBy
-          });
-        } catch (e) {
-          handleFirestoreError(e, OperationType.UPDATE, `messages/${msg.id}`, user, false);
+      (async () => {
+        for (const msg of unreadMessages) {
+          try {
+            const msgRef = doc(db, 'messages', msg.id);
+            const updatedReadBy = Array.from(new Set([...(msg.readBy || []), user.uid]));
+            await updateDoc(msgRef, {
+              readBy: updatedReadBy
+            });
+          } catch (e) {
+            handleFirestoreError(e, OperationType.UPDATE, `messages/${msg.id}`, user, false);
+          }
         }
-      });
+      })().catch(err => console.error("Mark messages as read background task failed:", err));
     }
   }, [messages, activeConversation, user.uid]);
 

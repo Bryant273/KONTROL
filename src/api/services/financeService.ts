@@ -16,7 +16,7 @@ export class WalletService extends BaseFirestoreService<Wallet> {
         solde: increment(amount)
       });
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, 'wallets', user);
+      handleFirestoreError(error, OperationType.UPDATE, 'wallets', user, false);
       throw error;
     }
   }
@@ -40,7 +40,7 @@ export class PaymentService extends BaseFirestoreService<Payment> {
 
       return paymentId;
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'payments', user);
+      handleFirestoreError(error, OperationType.WRITE, 'payments', user, false);
       throw error;
     }
   }
@@ -68,7 +68,7 @@ export class ChargeService extends BaseFirestoreService<Charge> {
 
       return chargeId;
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'charges', user);
+      handleFirestoreError(error, OperationType.WRITE, 'charges', user, false);
       throw error;
     }
   }
