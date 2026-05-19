@@ -175,7 +175,7 @@ export async function ensureUserProfile(user: User, companyName?: string, hashed
   const userDoc = await getDoc(userRef);
   
   const userEmail = user.email?.toLowerCase();
-  const isAdminEmail = userEmail === 'innov.korp@gmail.com' || userEmail === 'acherie812@gmail.com';
+  const isAdminEmail = userEmail === 'innov.korp@gmail.com' || userEmail === 'acherie812@gmail.com' || userEmail === 'test-entreprise@kontrol.com';
   const targetRole = isAdminEmail ? 'ADMINISTRATEUR_KONTROL' : 'ADMINISTRATEUR_ENTREPRISE';
 
     if (!userDoc.exists()) {

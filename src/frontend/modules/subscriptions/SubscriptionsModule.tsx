@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   CreditCard, 
   CheckCircle2, 
@@ -32,58 +33,8 @@ interface SubscriptionsModuleProps {
   profile: UserProfile | null;
 }
 
-const formatStatus = (status: string) => {
-  switch (status) {
-    case 'ACTIVE': return 'Actif';
-    case 'EXPIRED': return 'Expiré';
-    case 'PENDING': return 'En attente';
-    default: return status;
-  }
-};
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'ACTIVE': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-    case 'EXPIRED': return 'bg-rose-100 text-rose-700 border-rose-200';
-    case 'PENDING': return 'bg-amber-100 text-amber-700 border-amber-200';
-    default: return 'bg-gray-100 text-gray-700 border-gray-200';
-  }
-};
-
-const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
-  const [hasError, setHasError] = useState(false);
-
-  useEffect(() => {
-    const handleError = (error: ErrorEvent) => {
-      console.error("Caught by ErrorBoundary:", error);
-      setHasError(true);
-    };
-    window.addEventListener('error', handleError);
-    return () => window.removeEventListener('error', handleError);
-  }, []);
-
-  if (hasError) {
-    return (
-      <div className="p-8 bg-rose-50 border border-rose-100 rounded-[2rem] text-center space-y-4">
-        <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto">
-          <AlertCircle size={32} />
-        </div>
-        <h3 className="text-lg font-extrabold text-rose-900 uppercase tracking-tighter">Une erreur est survenue</h3>
-        <p className="text-sm text-rose-600 max-w-xs mx-auto">Le module de paiement n'a pas pu être chargé correctement.</p>
-        <button 
-          onClick={() => setHasError(false)}
-          className="px-6 py-2 bg-rose-600 text-white rounded-xl font-bold text-xs hover:bg-rose-700 transition-all"
-        >
-          Réessayer
-        </button>
-      </div>
-    );
-  }
-
-  return <>{children}</>;
-};
-
 export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [isPaying, setIsPaying] = useState(false);
@@ -94,6 +45,57 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
     phone: profile?.phone || '',
     companyName: profile?.companyName || ''
   });
+
+  const formatStatus = (status: string) => {
+    switch (status) {
+      case 'ACTIVE': return t('common.status.active');
+      case 'EXPIRED': return t('common.status.expired');
+      case 'PENDING': return t('common.status.pending');
+      default: return status;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'ACTIVE': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+      case 'EXPIRED': return 'bg-rose-100 text-rose-700 border-rose-200';
+      case 'PENDING': return 'bg-amber-100 text-amber-700 border-amber-200';
+      default: return 'bg-gray-100 text-gray-700 border-gray-200';
+    }
+  };
+
+  const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
+    const [hasError, setHasError] = useState(false);
+
+    useEffect(() => {
+      const handleError = (error: ErrorEvent) => {
+        console.error("Caught by ErrorBoundary:", error);
+        setHasError(true);
+      };
+      window.addEventListener('error', handleError);
+      return () => window.removeEventListener('error', handleError);
+    }, []);
+
+    if (hasError) {
+      return (
+        <div className="p-8 bg-rose-50 border border-rose-100 rounded-[2rem] text-center space-y-4">
+          <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto">
+            <AlertCircle size={32} />
+          </div>
+          <h3 className="text-lg font-extrabold text-rose-900 uppercase tracking-tighter">{t('common.chatbot.error')}</h3>
+          <p className="text-sm text-rose-600 max-w-xs mx-auto">Le module de paiement n'a pas pu être chargé correctement.</p>
+          <button 
+            onClick={() => setHasError(false)}
+            className="px-6 py-2 bg-rose-600 text-white rounded-xl font-bold text-xs hover:bg-rose-700 transition-all"
+          >
+            {t('common.chatbot.thinking')}
+          </button>
+        </div>
+      );
+    }
+
+    return <>{children}</>;
+  };
 
   useEffect(() => {
     if (profile) {
@@ -347,12 +349,12 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
       <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-extrabold text-kontrol-dark tracking-tighter">Abonnement & Services</h2>
-          <p className="text-[14px] text-kontrol-ink-muted mt-1 font-medium">Gérez votre forfait Standard et accédez à vos factures</p>
+          <h2 className="text-3xl font-extrabold text-kontrol-dark tracking-tighter">{t('subscriptions.title')}</h2>
+          <p className="text-[14px] text-kontrol-ink-muted mt-1 font-medium">{t('subscriptions.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2 px-4 py-2 bg-white border border-kontrol-border rounded-2xl shadow-sm">
           <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-[11px] font-bold text-kontrol-dark uppercase tracking-widest">Compte Vérifié</span>
+          <span className="text-[11px] font-bold text-kontrol-dark uppercase tracking-widest">{t('subscriptions.verified')}</span>
         </div>
       </header>
 
@@ -363,12 +365,12 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
           </div>
           <div className="flex-1 text-center md:text-left">
             <h4 className="text-sm font-extrabold text-amber-900 uppercase tracking-tight flex items-center justify-center md:justify-start gap-2">
-              Validation manuelle en cours
-              {isSyncing && <span className="text-[10px] font-bold text-amber-500 animate-pulse">(Vérification...)</span>}
+              {t('subscriptions.pending_validation.title')}
+              {isSyncing && <span className="text-[10px] font-bold text-amber-500 animate-pulse">{t('subscriptions.pending_validation.verifying')}</span>}
             </h4>
             <div className="space-y-1 mt-1">
               <p className="text-[12px] text-amber-600 font-medium">
-                Notre équipe vérifie votre paiement. Votre accès sera prolongé automatiquement une fois validé.
+                {t('subscriptions.pending_validation.desc')}
               </p>
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-2">
                 {pendingRequests.map(req => (
@@ -384,7 +386,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
             disabled={isSyncing}
             className="w-full md:w-auto px-6 py-3 bg-white border-2 border-amber-300 text-amber-700 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-amber-100 transition-all shadow-sm active:scale-95 disabled:opacity-50"
           >
-            {isSyncing ? "Vérification..." : "Vérification en direct"}
+            {isSyncing ? t('common.loading') : t('subscriptions.pending_validation.live_check')}
           </button>
         </div>
       )}
@@ -403,7 +405,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
               <div className="flex items-center gap-3">
                 <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-white/10 text-white text-[11px] font-extrabold uppercase tracking-[0.2em] border border-white/10 backdrop-blur-md">
                   <Zap size={14} className="mr-2 text-kontrol-blue fill-kontrol-blue" /> 
-                  Forfait Actuel: {plan.name}
+                  {t('subscriptions.hero.current_plan', { name: plan.name })}
                 </div>
                 <div className={cn(
                   "inline-flex items-center px-4 py-1.5 rounded-full text-[11px] font-extrabold uppercase tracking-[0.2em] border backdrop-blur-md",
@@ -411,12 +413,12 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                     ? "bg-rose-500/20 text-rose-400 border-rose-500/30" 
                     : "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
                 )}>
-                  {isExpired ? "Expiré" : "Actif"}
+                  {isExpired ? t('common.status.expired') : t('common.status.active')}
                 </div>
               </div>
               
               <h3 className="text-4xl sm:text-5xl font-extrabold tracking-tighter leading-none">
-                Propulsez votre <span className="text-transparent bg-clip-text bg-gradient-to-r from-kontrol-blue to-kontrol-orange">Boutique</span> au niveau supérieur.
+                {t('subscriptions.hero.promo_text')}
               </h3>
               
               <div className="grid sm:grid-cols-2 gap-8 pt-4">
@@ -432,7 +434,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                       onClick={() => setIsPaying(true)}
                       className="px-4 py-1.5 bg-white text-kontrol-dark rounded-xl font-extrabold text-[10px] uppercase tracking-wider hover:bg-kontrol-blue hover:text-white transition-all duration-300 shadow-lg flex items-center gap-1.5 group/btn"
                     >
-                      Renouveler <ArrowRight size={10} className="group-hover/btn:translate-x-0.5 transition-transform" />
+                      {t('subscriptions.hero.renew')} <ArrowRight size={10} className="group-hover/btn:translate-x-0.5 transition-transform" />
                     </button>
                   </div>
                 </div>
@@ -454,10 +456,10 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                     "text-xl font-extrabold",
                     isExpired ? "text-rose-400" : "text-emerald-400"
                   )}>
-                    {isExpired ? "Paiement requis" : "Standard Actif"}
+                    {isExpired ? t('subscriptions.details.required') : t('subscriptions.details.active')}
                   </p>
                 </div>
-                <p className="text-[10px] text-white/30 italic">Renouvellement automatique de 30 jours.</p>
+                <p className="text-[10px] text-white/30 italic">{t('subscriptions.details.auto_renew')}</p>
               </div>
             </div>
           </div>
@@ -469,7 +471,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
         <div className="md:col-span-2 card p-8 grid sm:grid-cols-2 gap-x-12 gap-y-6">
           <div className="col-span-full mb-2">
             <h4 className="text-lg font-extrabold text-kontrol-dark flex items-center gap-2">
-              <Package size={20} className="text-kontrol-blue" /> Inclus dans votre offre
+              <Package size={20} className="text-kontrol-blue" /> {t('subscriptions.features_title')}
             </h4>
           </div>
           {plan.features.map((feature, idx) => (
@@ -487,9 +489,9 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
             <Shield size={32} />
           </div>
           <div>
-            <h4 className="text-lg font-extrabold text-kontrol-dark">Protection Totale</h4>
+            <h4 className="text-lg font-extrabold text-kontrol-dark">{t('subscriptions.protection.title')}</h4>
             <p className="text-[12px] text-kontrol-ink-muted mt-2 leading-relaxed">
-              Vos données sont chiffrées et sauvegardées quotidiennement sur nos serveurs sécurisés.
+              {t('subscriptions.protection.desc')}
             </p>
           </div>
         </div>
@@ -499,9 +501,9 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
       <div className="space-y-4">
         <div className="flex items-center justify-between px-2">
           <h4 className="text-lg font-extrabold text-kontrol-dark flex items-center gap-2">
-            <HistoryIcon size={20} className="text-kontrol-orange" /> Historique des paiements
+            <HistoryIcon size={20} className="text-kontrol-orange" /> {t('subscriptions.history.title')}
           </h4>
-          <button className="text-[11px] font-bold text-kontrol-blue uppercase tracking-widest hover:underline">Voir tout</button>
+          <button className="text-[11px] font-bold text-kontrol-blue uppercase tracking-widest hover:underline">{t('subscriptions.history.view_all')}</button>
         </div>
         
         <div className="card overflow-hidden border-none shadow-xl shadow-kontrol-dark/5">
@@ -509,11 +511,11 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-kontrol-bg/50 border-b border-kontrol-border">
-                  <th className="px-8 py-5 text-[11px] font-extrabold uppercase tracking-[0.2em] text-kontrol-ink-muted">Date de paiement</th>
-                  <th className="px-8 py-5 text-[11px] font-extrabold uppercase tracking-[0.2em] text-kontrol-ink-muted">Description</th>
-                  <th className="px-8 py-5 text-[11px] font-extrabold uppercase tracking-[0.2em] text-kontrol-ink-muted">Montant</th>
-                  <th className="px-8 py-5 text-[11px] font-extrabold uppercase tracking-[0.2em] text-kontrol-ink-muted">Statut</th>
-                  <th className="px-8 py-5 text-[11px] font-extrabold uppercase tracking-[0.2em] text-kontrol-ink-muted text-right">Action</th>
+                  <th className="px-8 py-5 text-[11px] font-extrabold uppercase tracking-[0.2em] text-kontrol-ink-muted">{t('subscriptions.history.columns.date')}</th>
+                  <th className="px-8 py-5 text-[11px] font-extrabold uppercase tracking-[0.2em] text-kontrol-ink-muted">{t('subscriptions.history.columns.desc')}</th>
+                  <th className="px-8 py-5 text-[11px] font-extrabold uppercase tracking-[0.2em] text-kontrol-ink-muted">{t('subscriptions.history.columns.amount')}</th>
+                  <th className="px-8 py-5 text-[11px] font-extrabold uppercase tracking-[0.2em] text-kontrol-ink-muted">{t('subscriptions.history.columns.status')}</th>
+                  <th className="px-8 py-5 text-[11px] font-extrabold uppercase tracking-[0.2em] text-kontrol-ink-muted text-right">{t('subscriptions.history.columns.action')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-kontrol-border font-medium">
@@ -533,16 +535,16 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                       {item.status === 'APPROVED' ? (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-700 uppercase tracking-widest border border-emerald-200 shadow-sm">
                           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          Payé
+                          {t('common.status.paid')}
                         </span>
                       ) : item.status === 'PENDING' ? (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-700 uppercase tracking-widest border border-amber-200 shadow-sm">
                           <Clock size={10} className="animate-spin-slow" />
-                          En attente
+                          {t('common.status.pending')}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-700 uppercase tracking-widest border border-rose-200">
-                          Rejeté
+                          {t('common.status.rejected')}
                         </span>
                       )}
                     </td>
@@ -552,10 +554,10 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                           onClick={() => setSelectedInvoice(item)}
                           className="px-4 py-2 bg-kontrol-bg text-kontrol-ink-soft hover:bg-kontrol-dark hover:text-white rounded-xl text-[11px] font-extrabold transition-all uppercase tracking-widest"
                         >
-                          Facture
+                          {t('subscriptions.history.invoice')}
                         </button>
                       ) : (
-                        <span className="text-[10px] font-bold text-kontrol-ink-muted uppercase italic">Indisponible</span>
+                        <span className="text-[10px] font-bold text-kontrol-ink-muted uppercase italic">{t('subscriptions.history.unavailable')}</span>
                       )}
                     </td>
                   </tr>
@@ -566,7 +568,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
           {totalPages > 1 && (
             <div className="px-8 py-4 border-t border-kontrol-border bg-kontrol-bg/30 flex items-center justify-between">
               <span className="text-[11px] text-kontrol-ink-muted font-extrabold uppercase tracking-widest">
-                {billingHistory.length} paiements
+                {billingHistory.length} {t('finance.transactions.title').toLowerCase()}
               </span>
               <div className="flex items-center gap-4">
                 <button 
@@ -577,7 +579,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                   <ArrowRight size={16} className="rotate-180" />
                 </button>
                 <span className="text-[11px] font-extrabold text-kontrol-dark uppercase tracking-widest">
-                  Page {currentPage} / {totalPages}
+                  {t('common.pagination', { current: currentPage, total: totalPages })}
                 </span>
                 <button 
                   disabled={currentPage === totalPages}
@@ -607,8 +609,8 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                     <CreditCard size={20} />
                   </div>
                   <div>
-                    <h3 className="text-lg font-extrabold text-kontrol-dark tracking-tight">Renouvellement</h3>
-                    <p className="text-[10px] text-kontrol-ink-muted font-bold uppercase tracking-widest">Paiement Sécurisé</p>
+                    <h3 className="text-lg font-extrabold text-kontrol-dark tracking-tight">{t('subscriptions.modal.renewal')}</h3>
+                    <p className="text-[10px] text-kontrol-ink-muted font-bold uppercase tracking-widest">{t('subscriptions.modal.secure_payment')}</p>
                   </div>
                 </div>
                 <button 
@@ -640,8 +642,8 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                             <Smartphone size={24} />
                           </div>
                           <div className="text-left">
-                            <h4 className="text-sm font-extrabold text-kontrol-dark uppercase tracking-tight">Payer via Wave</h4>
-                            <p className="text-[10px] text-kontrol-ink-muted font-bold">Paiement instantané Wave Business</p>
+                            <h4 className="text-sm font-extrabold text-kontrol-dark uppercase tracking-tight">{t('subscriptions.modal.wave.title')}</h4>
+                            <p className="text-[10px] text-kontrol-ink-muted font-bold">{t('subscriptions.modal.wave.subtitle')}</p>
                           </div>
                         </div>
                       </button>
@@ -654,7 +656,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                     <div className="bg-[#1dc8ee]/5 p-6 rounded-[2rem] border border-[#1dc8ee]/10 space-y-5">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-[#1dc8ee] text-white rounded-lg flex items-center justify-center font-bold text-sm">1</div>
-                        <p className="text-sm font-bold text-kontrol-dark">Payez via notre lien Wave sécurisé</p>
+                        <p className="text-sm font-bold text-kontrol-dark">{t('subscriptions.modal.wave.step1')}</p>
                       </div>
                       
                       <a 
@@ -663,17 +665,17 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                         rel="noopener noreferrer"
                         className="w-full py-4 bg-[#1dc8ee] text-white rounded-2xl font-extrabold text-sm hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-xl shadow-[#1dc8ee]/20"
                       >
-                        Accéder à Wave <ExternalLink size={16} />
+                        {t('subscriptions.modal.wave.cta_wave')} <ExternalLink size={16} />
                       </a>
 
                       <div className="border-t border-[#1dc8ee]/10 pt-5 space-y-4">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 bg-[#1dc8ee] text-white rounded-lg flex items-center justify-center font-bold text-sm">2</div>
-                          <p className="text-sm font-bold text-kontrol-dark">Renseignez votre référence de paiement</p>
+                          <p className="text-sm font-bold text-kontrol-dark">{t('subscriptions.modal.wave.step2')}</p>
                         </div>
                         
                         <div className="space-y-2">
-                          <label className="text-[10px] font-bold text-kontrol-ink-muted uppercase tracking-widest ml-2">ID Transaction Wave</label>
+                          <label className="text-[10px] font-bold text-kontrol-ink-muted uppercase tracking-widest ml-2">{t('subscriptions.modal.wave.ref_label')}</label>
                           <input 
                             type="text"
                             value={manualReference}
@@ -688,7 +690,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                           disabled={loading || !manualReference.trim()}
                           className="w-full py-4 bg-[#1dc8ee] text-white rounded-2xl font-extrabold text-sm hover:opacity-95 transition-all flex items-center justify-center gap-2 shadow-xl shadow-[#1dc8ee]/20 disabled:opacity-50"
                         >
-                          {loading ? <Loader2 size={16} className="animate-spin" /> : "Confirmer mon paiement"}
+                          {loading ? <Loader2 size={16} className="animate-spin" /> : t('subscriptions.modal.wave.confirm')}
                         </button>
                       </div>
                     </div>
@@ -697,7 +699,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                       onClick={() => setPaymentStep('SELECT')}
                       className="w-full text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest hover:text-kontrol-dark transition-colors"
                     >
-                      ← Retour aux options
+                      ← {t('auth.back')}
                     </button>
                   </div>
                 )}
@@ -712,10 +714,10 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                     </div>
                     <div>
                       <h4 className="text-xl font-extrabold text-kontrol-dark tracking-tight">
-                        Demande envoyée !
+                        {t('subscriptions.modal.success.title')}
                       </h4>
                       <p className="text-[12px] text-kontrol-ink-muted mt-1.5 px-4">
-                        Votre demande de validation a été transmise. Notre équipe vérifiera votre paiement dans les plus brefs délais. Accédez au tableau de bord pour suivre le statut en direct.
+                        {t('subscriptions.modal.success.desc')}
                       </p>
                     </div>
                     <div className="w-full space-y-3">
@@ -727,7 +729,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                         }}
                         className="w-full py-3.5 bg-kontrol-dark text-white rounded-xl font-extrabold text-xs hover:bg-kontrol-blue transition-all shadow-xl"
                       >
-                        Fermer
+                        {t('dashboard.ai_analysis.close')}
                       </button>
                     </div>
                   </div>
@@ -755,7 +757,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                     <FileText size={16} />
                   </div>
                   <div>
-                    <h3 className="text-xs font-black text-kontrol-dark uppercase tracking-tight">Détails Facture</h3>
+                    <h3 className="text-xs font-black text-kontrol-dark uppercase tracking-tight">{t('subscriptions.modal.invoice_details.title')}</h3>
                     <p className="text-[9px] text-kontrol-ink-muted font-bold tracking-widest uppercase">Réf: {selectedInvoice.fullData?.reference || 'N/A'}</p>
                   </div>
                 </div>
@@ -771,12 +773,12 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                 {/* Header Layout (Company Left, Client Right) */}
                 <div className="flex justify-between items-start">
                   <div className="space-y-0.5">
-                    <p className="text-[9px] font-extrabold text-kontrol-blue uppercase tracking-widest">Émetteur</p>
+                    <p className="text-[9px] font-extrabold text-kontrol-blue uppercase tracking-widest">{t('subscriptions.modal.invoice_details.issuer')}</p>
                     <p className="text-[11px] font-black text-kontrol-dark uppercase">KONTROL ERP</p>
                     <p className="text-[8px] text-kontrol-ink-muted font-medium">support@kontrol.app</p>
                   </div>
                   <div className="text-right space-y-0.5">
-                    <p className="text-[9px] font-extrabold text-kontrol-orange uppercase tracking-widest">Client</p>
+                    <p className="text-[9px] font-extrabold text-kontrol-orange uppercase tracking-widest">{t('subscriptions.modal.invoice_details.client')}</p>
                     <p className="text-[11px] font-black text-kontrol-dark uppercase">{profile.companyName || profile.displayName}</p>
                     <p className="text-[8px] text-kontrol-ink-muted font-medium">{profile.email}</p>
                   </div>
@@ -786,23 +788,23 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                 <div className="bg-kontrol-bg/30 p-4 rounded-xl border border-kontrol-border/50">
                   <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                     <div className="space-y-0.5">
-                      <p className="text-[8px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">Émission</p>
+                      <p className="text-[8px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">{t('subscriptions.modal.invoice_details.issue_date')}</p>
                       <p className="text-[11px] font-bold text-kontrol-dark">{selectedInvoice.date}</p>
                     </div>
                     <div className="space-y-0.5 text-right">
-                      <p className="text-[8px] font-extrabold text-rose-600 uppercase tracking-widest">Échéance</p>
+                      <p className="text-[8px] font-extrabold text-rose-600 uppercase tracking-widest">{t('subscriptions.modal.invoice_details.expiry')}</p>
                       <p className="text-[11px] font-bold text-kontrol-dark">{selectedInvoice.expiryDate || 'N/A'}</p>
                     </div>
                     <div className="space-y-0.5">
-                      <p className="text-[8px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">Paiement</p>
+                      <p className="text-[8px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">{t('subscriptions.modal.invoice_details.method')}</p>
                       <p className="text-[11px] font-bold text-kontrol-dark">{selectedInvoice.fullData?.gateway || 'Wave'}</p>
                     </div>
                     <div className="space-y-0.5 text-right">
-                      <p className="text-[8px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">Statut</p>
-                      <p className="text-[11px] font-bold text-emerald-600">Payé</p>
+                      <p className="text-[8px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">{t('subscriptions.modal.invoice_details.status')}</p>
+                      <p className="text-[11px] font-bold text-emerald-600">{t('common.status.paid')}</p>
                     </div>
                     <div className="col-span-full pt-2 border-t border-kontrol-border/50">
-                      <p className="text-[8px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest mb-0.5">Désignation</p>
+                      <p className="text-[8px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest mb-0.5">{t('subscriptions.modal.invoice_details.designation')}</p>
                       <p className="text-[11px] font-medium text-kontrol-dark leading-tight">{selectedInvoice.desc}</p>
                     </div>
                   </div>
@@ -811,8 +813,8 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                 {/* Total Section */}
                 <div className="flex items-center justify-between px-1 pt-1">
                   <div className="space-y-0.5">
-                    <p className="text-[10px] font-black text-kontrol-dark uppercase tracking-tight">Net à Payer</p>
-                    <p className="text-[8px] text-emerald-600 font-bold uppercase tracking-widest">Acquittée</p>
+                    <p className="text-[10px] font-black text-kontrol-dark uppercase tracking-tight">{t('subscriptions.modal.invoice_details.net_to_pay')}</p>
+                    <p className="text-[8px] text-emerald-600 font-bold uppercase tracking-widest">{t('subscriptions.modal.invoice_details.receipt')}</p>
                   </div>
                   <p className="text-xl font-black text-kontrol-blue tracking-tighter">
                     {formatCurrency(selectedInvoice.amount, currency)}
@@ -826,13 +828,13 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                   onClick={() => handleExportInvoice(selectedInvoice)}
                   className="flex-1 py-2.5 px-4 bg-kontrol-dark text-white rounded-xl font-bold text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 hover:bg-kontrol-blue transition-all shadow-lg active:scale-95"
                 >
-                  <Download size={12} /> Télécharger PDF
+                  <Download size={12} /> {t('common.download')} PDF
                 </button>
                 <button 
                   onClick={() => setSelectedInvoice(null)}
                   className="flex-1 py-2.5 px-4 bg-white text-kontrol-ink-soft border border-kontrol-border rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-kontrol-bg transition-all active:scale-95"
                 >
-                  Fermer
+                  {t('dashboard.ai_analysis.close')}
                 </button>
               </div>
             </motion.div>

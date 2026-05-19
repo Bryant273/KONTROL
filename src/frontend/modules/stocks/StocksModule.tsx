@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   Boxes, 
   Search, 
@@ -35,6 +36,7 @@ interface StocksModuleProps {
 }
 
 export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
+  const { t } = useTranslation();
   const companyId = currentUserProfile?.companyId || user.uid;
   const [movements, setMovements] = React.useState<StockMovement[]>([]);
   const [produits, setProduits] = React.useState<Produit[]>([]);
@@ -80,8 +82,8 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
         if (p.stock <= 5 && !sessionStorage.getItem(`notif_low_stock_${p.id}`)) {
           sendNotification({
             companyId: companyId,
-            title: "Alerte Stock Bas",
-            message: `Le produit "${p.designation}" est presque en rupture (${p.stock} restants).`,
+            title: t('stocks.notif_low_stock_title'),
+            message: t('stocks.notif_low_stock_msg', { name: p.designation, count: p.stock }),
             type: 'warning'
           });
           sessionStorage.setItem(`notif_low_stock_${p.id}`, 'true');
@@ -112,7 +114,10 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
   );
 
   const handleExportPDF = () => {
-    const headers = activeView === 'MOVEMENTS' ? ['Date', 'Type', 'Produit', 'Quantité', 'P.U.', 'Source'] : ['Réf', 'Désignation', 'Stock', 'CUMP', 'Valeur Stock', 'Statut'];
+    const headers = activeView === 'MOVEMENTS' 
+      ? [t('stocks.table.date'), t('stocks.table.type'), t('stocks.table.product'), t('stocks.table.quantity'), t('stocks.table.unit_price'), t('stocks.table.source')] 
+      : [t('stocks.table.ref'), t('stocks.table.designation'), t('stocks.table.stock'), t('stocks.table.cump'), t('stocks.table.inventory_value'), t('stocks.table.status')];
+    
     const data = activeView === 'MOVEMENTS' 
       ? filteredMovements.map(m => [
           new Date(m.date).toLocaleDateString(),
@@ -128,10 +133,10 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
           p.stock.toString(),
           formatCurrency(p.cump || p.prixAchat),
           formatCurrency(p.stock * (p.cump || p.prixAchat)),
-          p.stock <= 0 ? 'Rupture' : p.stock <= 10 ? 'Bas' : 'OK'
+          p.stock <= 0 ? t('stocks.table.status_rupture') : p.stock <= 10 ? t('stocks.table.status_low') : t('stocks.table.status_ok')
         ]);
     
-    const title = activeView === 'MOVEMENTS' ? 'Historique des Mouvements - KONTROL' : 'État de l\'Inventaire - KONTROL';
+    const title = activeView === 'MOVEMENTS' ? `${t('stocks.history_title')} - KONTROL` : `${t('stocks.inventory_title')} - KONTROL`;
     const filename = activeView === 'MOVEMENTS' ? 'Mouvements_Stock_KONTROL' : 'Inventaire_KONTROL';
     
     exportToPDF(title, headers, data, filename, currentUserProfile?.companyLogo || currentUserProfile?.logoUrl);
@@ -140,20 +145,20 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
   const handleExportExcel = () => {
     const data = activeView === 'MOVEMENTS'
       ? filteredMovements.map(m => ({
-          Date: new Date(m.date).toLocaleDateString(),
-          Type: m.type,
-          Produit: m.designation,
-          Quantité: m.quantite,
-          'Prix Unitaire': m.prixUnitaire,
-          Source: m.source
+          [t('stocks.table.date')]: new Date(m.date).toLocaleDateString(),
+          [t('stocks.table.type')]: m.type,
+          [t('stocks.table.product')]: m.designation,
+          [t('stocks.table.quantity')]: m.quantite,
+          [t('stocks.table.unit_price')]: m.prixUnitaire,
+          [t('stocks.table.source')]: m.source
         }))
       : filteredInventory.map(p => ({
-          Référence: p.reference,
-          Désignation: p.designation,
-          Stock: p.stock,
-          CUMP: p.cump || p.prixAchat,
-          'Valeur Stock': p.stock * (p.cump || p.prixAchat),
-          Statut: p.stock <= 0 ? 'Rupture' : p.stock <= 10 ? 'Bas' : 'OK'
+          [t('stocks.table.ref')]: p.reference,
+          [t('stocks.table.designation')]: p.designation,
+          [t('stocks.table.stock')]: p.stock,
+          [t('stocks.table.cump')]: p.cump || p.prixAchat,
+          [t('stocks.table.inventory_value')]: p.stock * (p.cump || p.prixAchat),
+          [t('stocks.table.status')]: p.stock <= 0 ? t('stocks.table.status_rupture') : p.stock <= 10 ? t('stocks.table.status_low') : t('stocks.table.status_ok')
         }));
     
     const filename = activeView === 'MOVEMENTS' ? 'Mouvements_Stock_KONTROL' : 'Inventaire_KONTROL';
@@ -164,8 +169,8 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-extrabold text-kontrol-dark tracking-tight">Gestion des Stocks</h2>
-          <p className="text-[13px] text-kontrol-ink-muted mt-1">Mouvements automatiques & Valorisation CUMP</p>
+          <h2 className="text-xl font-extrabold text-kontrol-dark tracking-tight">{t('stocks.title')}</h2>
+          <p className="text-[13px] text-kontrol-ink-muted mt-1">{t('stocks.subtitle')}</p>
         </div>
         <div className="flex bg-kontrol-bg p-1 rounded-xl">
           <button 
@@ -175,7 +180,7 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
               activeView === 'MOVEMENTS' ? "bg-white text-kontrol-dark shadow-sm" : "text-kontrol-ink-muted hover:text-kontrol-dark"
             )}
           >
-            Mouvements
+            {t('stocks.movements_tab')}
           </button>
           <button 
             onClick={() => setActiveView('INVENTORY')}
@@ -184,7 +189,7 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
               activeView === 'INVENTORY' ? "bg-white text-kontrol-dark shadow-sm" : "text-kontrol-ink-muted hover:text-kontrol-dark"
             )}
           >
-            État du stock
+            {t('stocks.inventory_tab')}
           </button>
         </div>
       </div>
@@ -192,25 +197,25 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
       {/* Stats Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
         <div className="kpi">
-          <p className="kpi-lbl">Valeur Totale (CUMP)</p>
+          <p className="kpi-lbl">{t('stocks.stats.total_value')}</p>
           <h3 className="kpi-val text-kontrol-blue">
             {formatCurrency(produits.reduce((acc, p) => acc + (p.stock * (p.cump || p.prixAchat)), 0))}
           </h3>
         </div>
         <div className="kpi">
-          <p className="kpi-lbl">Entrées (Mois)</p>
+          <p className="kpi-lbl">{t('stocks.stats.entries')}</p>
           <h3 className="kpi-val text-emerald-600">
             {movements.filter(m => m.type === 'ENTREE').length}
           </h3>
         </div>
         <div className="kpi">
-          <p className="kpi-lbl">Sorties (Mois)</p>
+          <p className="kpi-lbl">{t('stocks.stats.exits')}</p>
           <h3 className="kpi-val text-rose-600">
             {movements.filter(m => m.type === 'SORTIE').length}
           </h3>
         </div>
         <div className="kpi">
-          <p className="kpi-lbl">Ruptures / Alertes</p>
+          <p className="kpi-lbl">{t('stocks.stats.alerts')}</p>
           <h3 className="kpi-val text-kontrol-orange">
             {produits.filter(p => p.stock <= 10).length}
           </h3>
@@ -223,7 +228,7 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
           <Search size={14} className="text-kontrol-ink-muted" />
           <input 
             type="text"
-            placeholder="Rechercher un produit..."
+            placeholder={t('stocks.search_placeholder')}
             className="bg-transparent border-none outline-none text-[13px] w-full text-kontrol-ink placeholder:text-kontrol-ink-muted"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -248,18 +253,18 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
       {activeView === 'MOVEMENTS' ? (
         <div className="card overflow-hidden">
           <div className="card-hd">
-            <h4 className="card-title">Historique des mouvements</h4>
+            <h4 className="card-title">{t('stocks.history_title')}</h4>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-[13px]">
               <thead>
                 <tr className="bg-kontrol-bg border-b border-kontrol-border">
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Date</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Type</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Produit</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted text-center">Quantité</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted text-right">P.U.</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Source</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('stocks.table.date')}</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('stocks.table.type')}</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('stocks.table.product')}</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted text-center">{t('stocks.table.quantity')}</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted text-right">{t('stocks.table.unit_price')}</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('stocks.table.source')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-kontrol-border">
@@ -272,7 +277,7 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
                 ) : filteredMovements.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-4 py-12 text-center text-kontrol-ink-muted">
-                      Aucun mouvement enregistré.
+                      {t('stocks.no_movements')}
                     </td>
                   </tr>
                 ) : (
@@ -310,20 +315,20 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
           </div>
           {totalPages > 1 && (
             <div className="px-4 py-3 border-t border-kontrol-border bg-kontrol-bg/30 flex items-center justify-between">
-              <span className="text-[11.5px] text-kontrol-ink-muted font-medium">
-                {filteredMovements.length} mouvements au total
-              </span>
-              <div className="flex items-center gap-2">
-                <button 
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage(prev => prev - 1)}
-                  className="p-1 rounded hover:bg-kontrol-border disabled:opacity-30 transition-colors"
-                >
-                  <ArrowDownLeft size={16} className="rotate-45" />
-                </button>
-                <span className="text-[11.5px] font-bold text-kontrol-dark">
-                  Page {currentPage} sur {totalPages}
-                </span>
+          <span className="text-[11.5px] text-kontrol-ink-muted font-medium">
+            {t('stocks.total_movements', { count: filteredMovements.length })}
+          </span>
+          <div className="flex items-center gap-2">
+            <button 
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => prev - 1)}
+              className="p-1 rounded hover:bg-kontrol-border disabled:opacity-30 transition-colors"
+            >
+              <ArrowDownLeft size={16} className="rotate-45" />
+            </button>
+            <span className="text-[11.5px] font-bold text-kontrol-dark">
+              {t('common.pagination', { current: currentPage, total: totalPages })}
+            </span>
                 <button 
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage(prev => prev + 1)}
@@ -338,21 +343,21 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
       ) : (
         <div className="card overflow-hidden">
           <div className="card-hd flex justify-between items-center">
-            <h4 className="card-title">Inventaire & Valorisation CUMP</h4>
+            <h4 className="card-title">{t('stocks.inventory_title')}</h4>
             <div className="flex items-center gap-2 text-[11px] text-kontrol-ink-muted bg-blue-50 px-2 py-1 rounded">
-              <Info size={12} /> CUMP = Coût Unitaire Moyen Pondéré
+              <Info size={12} /> {t('stocks.cump_info')}
             </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-[13px]">
               <thead>
                 <tr className="bg-kontrol-bg border-b border-kontrol-border">
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Réf</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Désignation</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted text-center">Stock</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted text-right">CUMP</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted text-right">Valeur Stock</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Statut</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('stocks.table.ref')}</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('stocks.table.designation')}</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted text-center">{t('stocks.table.stock')}</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted text-right">{t('stocks.table.cump')}</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted text-right">{t('stocks.table.inventory_value')}</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('stocks.table.status')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-kontrol-border">
@@ -365,7 +370,7 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
                 ) : filteredInventory.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-4 py-12 text-center text-kontrol-ink-muted">
-                      Aucun produit en stock.
+                      {t('stocks.no_inventory')}
                     </td>
                   </tr>
                 ) : (
@@ -385,7 +390,7 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
                             p.stock <= 10 ? "bg-orange-50 text-orange-600" : 
                             "bg-emerald-50 text-emerald-600"
                           )}>
-                            {p.stock <= 0 ? 'Rupture' : p.stock <= 10 ? 'Bas' : 'OK'}
+                            {p.stock <= 0 ? t('stocks.table.status_rupture') : p.stock <= 10 ? t('stocks.table.status_low') : t('stocks.table.status_ok')}
                           </span>
                         </td>
                       </tr>
@@ -397,20 +402,20 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
           </div>
           {totalPages > 1 && (
             <div className="px-4 py-3 border-t border-kontrol-border bg-kontrol-bg/30 flex items-center justify-between">
-              <span className="text-[11.5px] text-kontrol-ink-muted font-medium">
-                {filteredInventory.length} produits au total
-              </span>
-              <div className="flex items-center gap-2">
-                <button 
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage(prev => prev - 1)}
-                  className="p-1 rounded hover:bg-kontrol-border disabled:opacity-30 transition-colors"
-                >
-                  <ArrowDownLeft size={16} className="rotate-45" />
-                </button>
-                <span className="text-[11.5px] font-bold text-kontrol-dark">
-                  Page {currentPage} sur {totalPages}
-                </span>
+          <span className="text-[11.5px] text-kontrol-ink-muted font-medium">
+            {t('stocks.total_products', { count: filteredInventory.length })}
+          </span>
+          <div className="flex items-center gap-2">
+            <button 
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => prev - 1)}
+              className="p-1 rounded hover:bg-kontrol-border disabled:opacity-30 transition-colors"
+            >
+              <ArrowDownLeft size={16} className="rotate-45" />
+            </button>
+            <span className="text-[11.5px] font-bold text-kontrol-dark">
+              {t('common.pagination', { current: currentPage, total: totalPages })}
+            </span>
                 <button 
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage(prev => prev + 1)}
@@ -428,7 +433,7 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
         <ModuleActivityLog 
           companyId={companyId} 
           moduleName="Stock" 
-          title="Journal des mouvements" 
+          title={t('stocks.movement_journal')} 
         />
       </div>
     </div>

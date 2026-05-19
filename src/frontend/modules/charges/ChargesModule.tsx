@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Plus, Search, Receipt, Loader2, X, History, Calendar, Tag, CreditCard, ArrowDownLeft, ArrowUpRight, ArrowDownRight, Edit2, Trash2, FileText, Table, Sparkles, Zap } from 'lucide-react';
 import { exportToPDF, exportToExcel } from '../../lib/export';
 import { Charge, UserProfile } from '../../types';
@@ -28,8 +29,9 @@ interface ChargesModuleProps {
 }
 
 export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) {
+  const { t } = useTranslation();
   const companyId = currentUserProfile?.companyId || user.uid;
-  const userName = currentUserProfile?.displayName || user.displayName || user.email || 'Utilisateur';
+  const userName = currentUserProfile?.displayName || user.displayName || user.email || t('common.roles.user');
   const [charges, setCharges] = React.useState<Charge[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -57,7 +59,7 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
     if (file) {
       // Check file size (limit to 1MB for Firestore base64 storage)
       if (file.size > 1024 * 1024) {
-        alert("Le fichier est trop volumineux (max 1Mo).");
+        alert(t('charges.form.file_too_large'));
         return;
       }
       const reader = new FileReader();
@@ -197,7 +199,7 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
   const totalCharges = filteredCharges.reduce((acc, c) => acc + c.montant, 0);
 
   const handleExportPDF = () => {
-    const headers = ['Date', 'Description', 'Catégorie', 'Montant', 'Mode'];
+    const headers = [t('common.date'), t('charges.form.description'), t('charges.form.category'), t('finance.table.amount'), t('finance.table.method')];
     const data = filteredCharges.map(c => [
       new Date(c.date).toLocaleDateString(),
       c.description,
@@ -205,16 +207,16 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
       formatCurrency(c.montant),
       c.modePaiement
     ]);
-    exportToPDF('Journal des Charges - KONTROL', headers, data, 'Charges_KONTROL', currentUserProfile?.companyLogo || currentUserProfile?.logoUrl);
+    exportToPDF(`${t('charges.title')} - KONTROL`, headers, data, 'Charges_KONTROL', currentUserProfile?.companyLogo || currentUserProfile?.logoUrl);
   };
 
   const handleExportExcel = () => {
     const data = filteredCharges.map(c => ({
-      Date: new Date(c.date).toLocaleDateString(),
-      Description: c.description,
-      Catégorie: c.categorie,
-      Montant: c.montant,
-      Mode: c.modePaiement
+      [t('common.date')]: new Date(c.date).toLocaleDateString(),
+      [t('charges.form.description')]: c.description,
+      [t('charges.form.category')]: c.categorie,
+      [t('finance.table.amount')]: c.montant,
+      [t('finance.table.method')]: c.modePaiement
     }));
     exportToExcel(data, 'Charges_KONTROL');
   };
@@ -222,10 +224,10 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-extrabold text-kontrol-dark tracking-tight">Charges & Dépenses</h2>
-          <p className="text-[13px] text-kontrol-ink-muted mt-1">Frais fixes et variables — Feuille CHARGES</p>
-        </div>
+      <div>
+        <h2 className="text-xl font-extrabold text-kontrol-dark tracking-tight">{t('charges.title')}</h2>
+        <p className="text-[13px] text-kontrol-ink-muted mt-1">{t('charges.subtitle')}</p>
+      </div>
         <div className="flex gap-2">
           <button onClick={handleExportPDF} className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2">
             <FileText size={14} /> PDF
@@ -237,7 +239,7 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
             className="btn-primary text-xs py-1.5 px-4 flex items-center gap-2"
             onClick={() => setIsAdding(true)}
           >
-            <Plus size={14} /> Nouvelle charge
+            <Plus size={14} /> {t('charges.new_charge')}
           </button>
         </div>
       </div>
@@ -246,7 +248,7 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
         <div className="fixed inset-0 bg-kontrol-dark/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[480px] overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="card-hd">
-              <h3 className="card-title">{isEditing ? 'Modifier la charge' : 'Nouvelle Charge'}</h3>
+              <h3 className="card-title">{isEditing ? t('charges.edit_charge') : t('charges.new_charge')}</h3>
               <button 
                 onClick={() => {
                   setIsAdding(false);
@@ -259,7 +261,7 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
             </div>
             <form onSubmit={handleAddCharge} className="p-6 space-y-4">
               <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Description</label>
+                <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">{t('charges.form.description')}</label>
                 <input 
                   type="text"
                   required
@@ -271,24 +273,24 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Catégorie</label>
+                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">{t('charges.form.category')}</label>
                   <select 
                     className="w-full px-3 py-2 bg-kontrol-bg border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px]"
                     value={currentCharge.categorie}
                     onChange={(e) => setCurrentCharge({ ...currentCharge, categorie: e.target.value })}
                   >
-                    <option value="Loyer">Loyer</option>
-                    <option value="Électricité">Électricité</option>
-                    <option value="Eau">Eau</option>
-                    <option value="Internet">Internet</option>
-                    <option value="Salaires">Salaires</option>
-                    <option value="Transport">Transport</option>
-                    <option value="Marketing">Marketing</option>
-                    <option value="Autres">Autres</option>
+                    <option value="Loyer">{t('charges.categories.rent')}</option>
+                    <option value="Électricité">{t('charges.categories.electricity')}</option>
+                    <option value="Eau">{t('charges.categories.water')}</option>
+                    <option value="Internet">{t('charges.categories.internet')}</option>
+                    <option value="Salaires">{t('charges.categories.salaries')}</option>
+                    <option value="Transport">{t('charges.categories.transport')}</option>
+                    <option value="Marketing">{t('charges.categories.marketing')}</option>
+                    <option value="Autres">{t('charges.categories.others')}</option>
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Montant</label>
+                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">{t('charges.form.amount')}</label>
                   <input 
                     type="number"
                     required
@@ -302,13 +304,13 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Mode de paiement</label>
+                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">{t('charges.form.payment_method')}</label>
                   <select 
                     className="w-full px-3 py-2 bg-kontrol-bg border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px]"
                     value={currentCharge.modePaiement}
                     onChange={(e) => setCurrentCharge({ ...currentCharge, modePaiement: e.target.value })}
                   >
-                    <option value="Espèces">Espèces</option>
+                    <option value="Espèces">{t('finance.table.method')} (Cash)</option>
                     <option value="Mobile Money">Mobile Money</option>
                     <option value="Virement">Virement</option>
                     <option value="Chèque">Chèque</option>
@@ -316,7 +318,7 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Date</label>
+                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">{t('charges.form.date')}</label>
                   <input 
                     type="date"
                     required
@@ -328,7 +330,7 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Justificatif (Image/PDF)</label>
+                <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">{t('charges.form.proof')}</label>
                 <div className="space-y-3">
                   <div className="flex items-center gap-3">
                     <input 
@@ -342,7 +344,7 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
                       htmlFor="justificatif-upload"
                       className="flex-1 px-3 py-2 bg-kontrol-bg border border-dashed border-kontrol-border rounded-lg cursor-pointer hover:border-kontrol-blue transition-all text-[13px] text-center text-kontrol-ink-muted"
                     >
-                      {currentCharge.justificatifUrl ? 'Changer le fichier' : 'Choisir un fichier'}
+                      {currentCharge.justificatifUrl ? t('charges.form.change_file') : t('charges.form.choose_file')}
                     </label>
                     {currentCharge.justificatifUrl && (
                       <button 
@@ -382,14 +384,14 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
                   }}
                   className="flex-1 py-2.5 border border-kontrol-border text-kontrol-ink-soft font-bold rounded-xl hover:bg-kontrol-bg transition-all text-[13px]"
                 >
-                  Annuler
+                  {t('common.cancel')}
                 </button>
                 <button 
                   type="submit"
                   disabled={loading}
                   className="flex-1 py-2.5 bg-kontrol-blue text-white font-bold rounded-xl hover:bg-kontrol-blue/90 transition-all text-[13px] shadow-lg shadow-kontrol-blue/20 flex items-center justify-center gap-2"
                 >
-                  {loading ? <Loader2 className="animate-spin" size={16} /> : (isEditing ? 'Mettre à jour' : 'Enregistrer')}
+                  {loading ? <Loader2 className="animate-spin" size={16} /> : (isEditing ? t('common.update') : t('common.save'))}
                 </button>
               </div>
             </form>
@@ -401,24 +403,24 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
         isOpen={isDeleting}
         onClose={() => setIsDeleting(false)}
         onConfirm={handleDeleteCharge}
-        title="Supprimer la charge"
-        message={`Êtes-vous sûr de vouloir supprimer la charge "${selectedCharge?.description}" ? Cette action est irréversible.`}
-        confirmLabel="Supprimer"
+        title={t('charges.delete_charge')}
+        message={t('charges.delete_charge_confirm', { description: selectedCharge?.description })}
+        confirmLabel={t('common.delete')}
         variant="danger"
       />
 
       {/* Stats Bar */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="kpi">
-          <p className="kpi-lbl">Total charges (période)</p>
+          <p className="kpi-lbl">{t('charges.total_period')}</p>
           <h3 className="kpi-val text-rose-600">{formatCurrency(totalCharges)}</h3>
         </div>
         <div className="kpi">
-          <p className="kpi-lbl">Nb de pièces</p>
-          <h3 className="kpi-val">{filteredCharges.length}</h3>
+          <p className="kpi-lbl">{t('charges.pieces_count')}</p>
+          <h3 className="kpi-val">{t('charges.stats.pieces', { count: filteredCharges.length })}</h3>
         </div>
         <div className="kpi">
-          <p className="kpi-lbl">Moyenne / charge</p>
+          <p className="kpi-lbl">{t('charges.average_charge')}</p>
           <h3 className="kpi-val">
             {filteredCharges.length > 0 ? formatCurrency(totalCharges / filteredCharges.length) : '0 FCFA'}
           </h3>
@@ -431,7 +433,7 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
           <Search size={14} className="text-kontrol-ink-muted" />
           <input 
             type="text"
-            placeholder="Rechercher description, catégorie…"
+            placeholder={t('charges.search_placeholder') || t('produits.search_placeholder')}
             className="bg-transparent border-none outline-none text-[13px] w-full text-kontrol-ink placeholder:text-kontrol-ink-muted"
             value={searchTerm}
             onChange={(e) => {
@@ -461,10 +463,10 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
             <table className="w-full text-left border-collapse text-[13px]">
               <thead>
                 <tr className="bg-kontrol-bg border-b border-kontrol-border">
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Date</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Catégorie</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Description</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted text-right">Montant</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('common.date')}</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('charges.form.category')}</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('charges.form.description')}</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted text-right">{t('finance.table.amount')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-kontrol-border">
@@ -477,7 +479,7 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
                 ) : paginatedCharges.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="px-4 py-12 text-center text-kontrol-ink-muted">
-                      Aucune charge trouvée.
+                      {t('charges.no_charges')}
                     </td>
                   </tr>
                 ) : (
@@ -515,7 +517,7 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
           </div>
           <div className="px-4 py-3 border-t border-kontrol-border bg-kontrol-bg/30 flex items-center justify-between">
             <span className="text-[11.5px] text-kontrol-ink-muted font-medium">
-              {filteredCharges.length} charges au total
+              {t('charges.total_count', { count: filteredCharges.length })}
             </span>
             {totalPages > 1 && (
               <div className="flex items-center gap-2">
@@ -527,7 +529,7 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
                   <ArrowDownLeft size={16} className="rotate-45" />
                 </button>
                 <span className="text-[11.5px] font-bold text-kontrol-dark">
-                  Page {currentPage} sur {totalPages}
+                  {t('common.pagination', { current: currentPage, total: totalPages })}
                 </span>
                 <button 
                   disabled={currentPage === totalPages}
@@ -546,7 +548,7 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
           {selectedCharge ? (
             <div className="animate-in fade-in slide-in-from-right-2 duration-300">
               <div className="card-hd">
-                <h4 className="card-title">Détails de la charge</h4>
+                <h4 className="card-title">{t('charges.details_title')}</h4>
                 <button 
                   className="p-1 text-kontrol-ink-muted hover:text-kontrol-dark hover:bg-kontrol-bg rounded-md transition-all"
                   onClick={() => setSelectedId(null)}
@@ -562,7 +564,7 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
                 <p className="text-[11px] text-kontrol-ink-muted mt-0.5 uppercase tracking-wider">{selectedCharge.categorie} · {selectedCharge.id.slice(0,8)}</p>
                 
                 <div className="bg-kontrol-dark rounded-lg p-4 mt-6 mb-6">
-                  <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-1">Montant Décaissé</p>
+                  <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-1">{t('finance.table.amount')}</p>
                   <p className="text-xl font-extrabold text-kontrol-blue">{formatCurrency(selectedCharge.montant)}</p>
                 </div>
 
@@ -570,21 +572,21 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
                   <div className="flex gap-3 text-[12.5px]">
                     <Calendar size={14} className="text-kontrol-ink-muted shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-kontrol-ink-muted text-[11px] font-bold uppercase tracking-tighter">Date de paiement</p>
+                      <p className="text-kontrol-ink-muted text-[11px] font-bold uppercase tracking-tighter">{t('charges.form.date')}</p>
                       <p className="text-kontrol-ink-soft font-medium">{new Date(selectedCharge.date).toLocaleDateString()}</p>
                     </div>
                   </div>
                   <div className="flex gap-3 text-[12.5px]">
                     <Tag size={14} className="text-kontrol-ink-muted shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-kontrol-ink-muted text-[11px] font-bold uppercase tracking-tighter">Catégorie</p>
+                      <p className="text-kontrol-ink-muted text-[11px] font-bold uppercase tracking-tighter">{t('charges.form.category')}</p>
                       <p className="text-kontrol-ink-soft font-medium">{selectedCharge.categorie}</p>
                     </div>
                   </div>
                   <div className="flex gap-3 text-[12.5px]">
                     <CreditCard size={14} className="text-kontrol-ink-muted shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-kontrol-ink-muted text-[11px] font-bold uppercase tracking-tighter">Mode de règlement</p>
+                      <p className="text-kontrol-ink-muted text-[11px] font-bold uppercase tracking-tighter">{t('charges.form.payment_method')}</p>
                       <p className="text-kontrol-ink-soft font-medium">{selectedCharge.modePaiement || 'Espèces'}</p>
                     </div>
                   </div>
@@ -596,8 +598,8 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
                       <Zap size={16} />
                     </div>
                     <div className="flex-1">
-                      <p className="text-[11px] font-bold text-kontrol-blue uppercase tracking-wider">Charge Automatisée</p>
-                      <p className="text-[10px] text-kontrol-ink-soft opacity-70">Cette charge a été générée automatiquement par le système KONTROL (Abonnement).</p>
+                      <p className="text-[11px] font-bold text-kontrol-blue uppercase tracking-wider">{t('charges.auto_kontrol.title')}</p>
+                      <p className="text-[10px] text-kontrol-ink-soft opacity-70">{t('charges.auto_kontrol.desc')}</p>
                     </div>
                   </div>
                 )}
@@ -608,7 +610,7 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
                       if (selectedCharge.justificatifUrl) {
                         setIsViewingJustificatif(true);
                       } else {
-                        alert("Aucun justificatif n'a été joint à cette charge.");
+                        alert(t('common.no_data'));
                       }
                     }}
                     className={cn(
@@ -616,19 +618,19 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
                       !selectedCharge.justificatifUrl && "opacity-50 cursor-not-allowed"
                     )}
                   >
-                    <Receipt size={14} /> Justificatif
+                    <Receipt size={14} /> {t('charges.form.proof')}
                   </button>
                   <button 
                     onClick={openEdit}
                     className="p-2.5 border border-kontrol-border text-kontrol-ink-soft hover:bg-kontrol-bg rounded-xl transition-all"
-                    title="Modifier"
+                    title={t('common.edit')}
                   >
                     <Edit2 size={16} />
                   </button>
                   <button 
                     onClick={() => setIsDeleting(true)}
                     className="p-2.5 border border-rose-100 text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
-                    title="Supprimer"
+                    title={t('common.delete')}
                   >
                     <Trash2 size={16} />
                   </button>
@@ -639,7 +641,7 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
             <div className="flex flex-col items-center justify-center p-12 text-center h-full text-kontrol-ink-muted opacity-40">
               <Receipt size={48} strokeWidth={1} className="mb-3" />
               <p className="text-[12.5px] font-medium leading-relaxed">
-                Sélectionnez une dépense<br />pour voir ses détails.
+                {t('charges.select_prompt')}
               </p>
             </div>
           )}
@@ -656,7 +658,7 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
                   <Receipt size={20} />
                 </div>
                 <div>
-                  <h3 className="text-[14px] font-extrabold text-kontrol-dark">Justificatif de charge</h3>
+                  <h3 className="text-[14px] font-extrabold text-kontrol-dark">{t('charges.form.proof')}</h3>
                   <p className="text-[11px] text-kontrol-ink-muted uppercase tracking-wider">{selectedCharge.description}</p>
                 </div>
               </div>

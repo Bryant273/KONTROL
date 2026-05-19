@@ -92,8 +92,7 @@ export class ChargeService extends BaseFirestoreService<Charge> {
 
       await batch.commit();
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'charges', user, false);
-      throw error;
+      handleFirestoreError(error, OperationType.DELETE, 'charges', user, true);
     }
   }
 }

@@ -26,12 +26,14 @@ import { Chatbot } from '../common/Chatbot';
 import { LegalTerms } from './LegalTerms';
 import { SupportForm } from '../common/SupportForm';
 import { AnimatePresence } from 'motion/react';
+import { useTranslation, Trans } from 'react-i18next';
 
 interface LandingPageProps {
   onLoginClick: (mode?: 'login' | 'register') => void;
 }
 
 export function LandingPage({ onLoginClick }: LandingPageProps) {
+  const { t } = useTranslation();
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [legalView, setLegalView] = useState<'mentions' | 'confidentialite' | null>(null);
   const [currency, setCurrency] = useState<{ code: string; symbol: string; rate: number; label: string }>({
@@ -81,16 +83,16 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
         </div>
         
         <div className="hidden md:flex items-center gap-8">
-          <a href="#features" className="text-[13px] font-bold text-kontrol-ink-soft hover:text-kontrol-blue transition-colors">Fonctionnalités</a>
-          <a href="#pricing" className="text-[13px] font-bold text-kontrol-ink-soft hover:text-kontrol-blue transition-colors">Tarifs</a>
-          <a href="#about" className="text-[13px] font-bold text-kontrol-ink-soft hover:text-kontrol-blue transition-colors">À propos</a>
+          <a href="#features" className="text-[13px] font-bold text-kontrol-ink-soft hover:text-kontrol-blue transition-colors">{t('landing.nav.features')}</a>
+          <a href="#pricing" className="text-[13px] font-bold text-kontrol-ink-soft hover:text-kontrol-blue transition-colors">{t('landing.nav.pricing')}</a>
+          <a href="#about" className="text-[13px] font-bold text-kontrol-ink-soft hover:text-kontrol-blue transition-colors">{t('landing.nav.about')}</a>
         </div>
 
         <button 
           onClick={() => onLoginClick('login')}
           className="px-6 py-2.5 bg-kontrol-dark text-white text-[13px] font-bold rounded-full hover:bg-kontrol-blue transition-all active:scale-95 shadow-lg shadow-kontrol-dark/10"
         >
-          Accéder à l'Espace Client
+          {t('landing.nav.client_space')}
         </button>
       </nav>
 
@@ -100,16 +102,15 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
         
         <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-kontrol-bg border border-kontrol-border rounded-full mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
           <Sparkles size={14} className="text-kontrol-orange" />
-          <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-kontrol-ink-muted">PROPULSÉ PAR BLUE AI & INNOV'KORP</span>
+          <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-kontrol-ink-muted">{t('common.chatbot.powered_by')} BLUE AI & INNOV'KORP</span>
         </div>
 
         <h1 className="text-4xl lg:text-6xl font-extrabold tracking-tighter leading-[0.9] mb-6 animate-in fade-in slide-in-from-bottom-6 duration-700 delay-100">
-          Gérez votre boutique <br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-kontrol-blue to-kontrol-orange">en toute simplicité.</span>
+          <Trans i18nKey="landing.hero.title" />
         </h1>
 
         <p className="text-base text-kontrol-ink-soft max-w-xl mx-auto mb-8 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
-          La solution tout-en-un conçue pour simplifier la gestion des stocks, des ventes et de la comptabilité des <strong>TPE, boutiques et petits commerces</strong>.
+          {t('landing.hero.subtitle')}
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-in fade-in slide-in-from-bottom-10 duration-700 delay-300">
@@ -117,14 +118,14 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
             onClick={() => onLoginClick('register')}
             className="w-full sm:w-auto px-8 py-3.5 bg-kontrol-blue text-white font-extrabold rounded-2xl hover:bg-kontrol-blue-hover transition-all shadow-xl shadow-blue-200 flex items-center justify-center gap-2 group"
           >
-            Démarrer gratuitement
+            {t('landing.hero.cta_start')}
             <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
           </button>
           <button 
             onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
             className="w-full sm:w-auto px-8 py-3.5 bg-white border border-kontrol-border text-kontrol-dark font-extrabold rounded-2xl hover:bg-kontrol-bg transition-all"
           >
-            Demander une démo
+            {t('landing.hero.cta_demo')}
           </button>
         </div>
 
@@ -219,18 +220,18 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
       <section id="features" className="py-24 px-6 lg:px-12 bg-kontrol-bg">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-2xl lg:text-4xl font-extrabold tracking-tighter mb-4">Tout ce dont vous avez besoin.</h2>
-            <p className="text-kontrol-ink-soft font-medium text-sm">Une suite complète d'outils pour piloter votre activité en temps réel.</p>
+            <h2 className="text-2xl lg:text-4xl font-extrabold tracking-tighter mb-4">{t('landing.features.title')}</h2>
+            <p className="text-kontrol-ink-soft font-medium text-sm">{t('landing.features.subtitle')}</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
-              { icon: Box, title: 'Gestion de Stock', desc: 'Suivez vos entrées et sorties en temps réel avec alertes de stock bas.' },
-              { icon: ArrowLeftRight, title: 'Transactions', desc: 'Gérez vos ventes et vos achats avec une interface ultra-rapide.' },
-              { icon: Users, title: 'CRM Tiers', desc: 'Centralisez vos clients et fournisseurs pour un suivi personnalisé.' },
-              { icon: BarChart3, title: 'Analytique', desc: 'Visualisez vos performances avec des graphiques clairs et précis.' },
-              { icon: Shield, title: 'Sécurité Maximale', desc: 'Vos données sont chiffrées et protégées par les standards bancaires.' },
-              { icon: Sparkles, title: 'Blue AI', desc: 'L\'intelligence artificielle qui vous aide à prendre les meilleures décisions.' },
+              { icon: Box, title: t('landing.features.items.stock_title'), desc: t('landing.features.items.stock_desc') },
+              { icon: ArrowLeftRight, title: t('landing.features.items.transactions_title'), desc: t('landing.features.items.transactions_desc') },
+              { icon: Users, title: t('landing.features.items.crm_title'), desc: t('landing.features.items.crm_desc') },
+              { icon: BarChart3, title: t('landing.features.items.analytics_title'), desc: t('landing.features.items.analytics_desc') },
+              { icon: Shield, title: t('landing.features.items.security_title'), desc: t('landing.features.items.security_desc') },
+              { icon: Sparkles, title: t('landing.features.items.blue_ai_title'), desc: t('landing.features.items.blue_ai_desc') },
             ].map((f, i) => (
               <div key={i} className="bg-white p-6 rounded-[24px] border border-kontrol-border hover:shadow-xl transition-all group cursor-pointer">
                 <div className="w-10 h-10 bg-kontrol-bg rounded-xl flex items-center justify-center mb-4 group-hover:bg-kontrol-blue group-hover:text-white transition-colors">
@@ -248,38 +249,31 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
       <section id="pricing" className="py-20 px-6 lg:px-12">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-2xl lg:text-4xl font-extrabold tracking-tighter mb-3">Un tarif simple et transparent.</h2>
-            <p className="text-kontrol-ink-soft font-medium text-sm">Pas de frais cachés, pas de mauvaises surprises.</p>
+            <h2 className="text-2xl lg:text-4xl font-extrabold tracking-tighter mb-3">{t('landing.pricing.title')}</h2>
+            <p className="text-kontrol-ink-soft font-medium text-sm">{t('landing.pricing.subtitle')}</p>
           </div>
 
           <div className="max-w-[400px] mx-auto bg-kontrol-dark rounded-[32px] p-8 text-white relative overflow-hidden shadow-2xl">
             <div className="absolute top-0 right-0 w-32 h-32 bg-kontrol-orange/20 rounded-full blur-3xl" />
             
             <div className="mb-6">
-              <span className="px-3 py-1 bg-white/10 rounded-full text-[9px] font-bold uppercase tracking-widest">Offre Unique</span>
+              <span className="px-3 py-1 bg-white/10 rounded-full text-[9px] font-bold uppercase tracking-widest">{t('landing.pricing.unique_offer')}</span>
               <div className="mt-4 flex items-baseline gap-2">
                 <span className="text-5xl font-extrabold tracking-tighter">
                   {displayPrice.toLocaleString()} {currency.symbol}
                 </span>
-                <span className="text-white/50 font-medium text-sm">/mois</span>
+                <span className="text-white/50 font-medium text-sm">{t('landing.pricing.per_month')}</span>
               </div>
-              <p className="mt-3 text-white/60 text-xs">Tout inclus, pour toujours.</p>
+              <p className="mt-3 text-white/60 text-xs">{t('landing.pricing.all_included')}</p>
               {currency.code !== 'XOF' && (
                 <p className="text-[9px] text-white/30 mt-1 uppercase font-bold tracking-widest">
-                  Équivalent à 10 000 F CFA
+                  {t('landing.pricing.equivalent')}
                 </p>
               )}
             </div>
 
             <ul className="space-y-3 mb-8">
-              {[
-                'Utilisateurs illimités',
-                'Transactions illimitées',
-                'Support prioritaire 24/7',
-                'Blue AI inclus',
-                'Mises à jour gratuites',
-                'Exportation de données'
-              ].map((item, i) => (
+              {(t('landing.pricing.bullets', { returnObjects: true }) as string[]).map((item, i) => (
                 <li key={i} className="flex items-center gap-3 text-xs font-medium">
                   <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
                   {item}
@@ -291,7 +285,7 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
               onClick={() => onLoginClick('register')}
               className="w-full py-3.5 bg-white text-kontrol-dark font-extrabold rounded-xl hover:bg-kontrol-blue hover:text-white transition-all shadow-xl text-sm"
             >
-              Commencer maintenant
+              {t('landing.pricing.cta')}
             </button>
           </div>
         </div>
@@ -308,23 +302,22 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
           <div>
             <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/5 border border-white/10 rounded-full mb-8">
               <Globe size={14} className="text-kontrol-blue" />
-              <span className="text-[11px] font-bold uppercase tracking-widest text-white/60">À propos de nous</span>
+              <span className="text-[11px] font-bold uppercase tracking-widest text-white/60">{t('landing.about.badge')}</span>
             </div>
             <h2 className="text-3xl lg:text-5xl font-extrabold tracking-tighter leading-tight mb-6">
-              L'innovation au service de <br />
-              <span className="text-kontrol-blue">votre croissance.</span>
+              <Trans i18nKey="landing.about.title" />
             </h2>
             <p className="text-base text-white/60 mb-8 leading-relaxed">
-              KONTROL est une solution technologique de pointe développée par <strong>INNOV'KORP</strong>, dédiée à la transformation numérique des <strong>TPE et boutiques</strong>. Notre mission est de démocratiser les outils de gestion de pointe pour permettre à chaque petit commerçant de réussir.
+              {t('landing.about.desc')}
             </p>
             <div className="grid grid-cols-2 gap-6">
               <div>
-                <p className="text-2xl font-extrabold text-white">10+</p>
-                <p className="text-xs text-white/40 font-medium uppercase tracking-wider">Entreprises nous font confiance</p>
+                <p className="text-2xl font-extrabold text-white">{t('landing.about.stat1')}</p>
+                <p className="text-xs text-white/40 font-medium uppercase tracking-wider">{t('landing.about.stat1_desc')}</p>
               </div>
               <div>
-                <p className="text-2xl font-extrabold text-white">99.9%</p>
-                <p className="text-xs text-white/40 font-medium uppercase tracking-wider">Disponibilité</p>
+                <p className="text-2xl font-extrabold text-white">{t('landing.about.stat2')}</p>
+                <p className="text-xs text-white/40 font-medium uppercase tracking-wider">{t('landing.about.stat2_desc')}</p>
               </div>
             </div>
           </div>
@@ -336,14 +329,14 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
                   <Logo size="md" className="border-none shadow-none" />
                 </div>
                 <div className="text-right">
-                  <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Siège Social</p>
-                  <p className="text-sm font-bold">Abidjan, Côte d'Ivoire</p>
+                  <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t('landing.about.hq_title')}</p>
+                  <p className="text-sm font-bold">{t('landing.about.hq_value')}</p>
                 </div>
               </div>
               
               <div className="space-y-6">
                 <div className="p-6 bg-white/5 rounded-3xl border border-white/10">
-                  <p className="text-white/60 text-sm">"Sous la direction d'INNOV'KORP, notre vision est de créer des outils si intuitifs qu'ils deviennent invisibles, laissant l'entrepreneur se concentrer sur son coeur de métier."</p>
+                  <p className="text-white/60 text-sm">{t('landing.about.quote')}</p>
                 </div>
               </div>
 
@@ -366,11 +359,10 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-20">
             <div>
               <h2 className="text-3xl lg:text-5xl font-extrabold tracking-tighter leading-tight mb-6">
-                Parlons de votre <br />
-                <span className="text-kontrol-orange">projet.</span>
+                <Trans i18nKey="landing.contact.title" />
               </h2>
               <p className="text-base text-kontrol-ink-soft mb-10 leading-relaxed">
-                Vous avez des questions ou besoin d'une démonstration personnalisée ? Notre équipe est à votre écoute pour vous accompagner dans votre transformation numérique.
+                {t('landing.contact.subtitle')}
               </p>
               
               <div className="space-y-5">
@@ -435,23 +427,23 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
                 onClick={() => setLegalView('mentions')}
                 className="text-[13px] font-bold text-kontrol-ink-soft hover:text-kontrol-blue transition-colors"
               >
-                Mentions légales
+                {t('landing.footer.mentions')}
               </button>
               <button 
                 onClick={() => setLegalView('confidentialite')}
                 className="text-[13px] font-bold text-kontrol-ink-soft hover:text-kontrol-blue transition-colors"
               >
-                Confidentialité
+                {t('landing.footer.privacy')}
               </button>
             </div>
           </div>
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-8 border-t border-kontrol-border">
             <div className="flex flex-col items-center md:items-start gap-1">
               <p className="text-[11px] text-kontrol-ink-muted font-medium uppercase tracking-widest">
-                © 2026 KONTROL. Tous droits réservés.
+                {t('landing.footer.rights')}
               </p>
               <p className="text-[9px] text-kontrol-ink-muted/60 font-bold uppercase tracking-[0.2em]">
-                Propulsé par <span className="text-kontrol-blue">BLUE AI</span> & <span className="text-kontrol-orange">INNOV'KORP</span>
+                {t('common.powered_by')} <span className="text-kontrol-blue">BLUE AI</span> & <span className="text-kontrol-orange">INNOV'KORP</span>
               </p>
             </div>
             <div className="flex gap-6">

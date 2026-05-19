@@ -3,6 +3,7 @@ import { ChevronLeft, Shield, Lock, Scale, Info, Building2, Gavel, FileText, Dat
 import { motion, AnimatePresence } from 'motion/react';
 import { Logo } from '../common/Logo';
 import { SupportForm } from '../common/SupportForm';
+import { useTranslation } from 'react-i18next';
 
 interface LegalTermsProps {
   type: 'mentions' | 'confidentialite';
@@ -10,6 +11,7 @@ interface LegalTermsProps {
 }
 
 export function LegalTerms({ type, onClose }: LegalTermsProps) {
+  const { t } = useTranslation();
   const [showSupport, setShowSupport] = useState(false);
   const content = {
     mentions: {

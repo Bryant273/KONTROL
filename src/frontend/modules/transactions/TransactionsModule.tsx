@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   ArrowUpRight, 
   ArrowDownLeft, 
@@ -47,6 +48,7 @@ interface TransactionsModuleProps {
 }
 
 export function TransactionsModule({ user, currentUserProfile }: TransactionsModuleProps) {
+  const { t } = useTranslation();
   const isERPAdmin = currentUserProfile?.role === 'ADMINISTRATEUR_ERP' || currentUserProfile?.role === 'GESTIONNAIRE_ERP';
   const [selectedCompanyId, setSelectedCompanyId] = React.useState<string | null>(currentUserProfile?.companyId || null);
   
@@ -74,7 +76,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
   const handleDeleteTransaction = async () => {
     if (!selectedTrans || !selectedId) return;
     if (!hasPermission(currentUserProfile?.role, 'TRANSACTION_DELETE')) {
-      alert("Vous n'avez pas la permission de supprimer une transaction.");
+      alert(t('common.no_permission'));
       return;
     }
     setLoading(true);
@@ -134,19 +136,19 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!hasPermission(currentUserProfile?.role, 'TRANSACTION_CREATE')) {
-      setMessage({ type: 'error', text: "Vous n'avez pas la permission de créer une transaction." });
+      setMessage({ type: 'error', text: t('common.no_permission') });
       return;
     }
     if (!newTrans.tiersId) {
-      setMessage({ type: 'error', text: "Veuillez sélectionner un tiers (client ou fournisseur)." });
+      setMessage({ type: 'error', text: t('transactions.form.select_party') });
       return;
     }
     if (newTrans.articles.length === 0) {
-      setMessage({ type: 'error', text: "Veuillez ajouter au moins un article à la transaction." });
+      setMessage({ type: 'error', text: t('common.required_fields') });
       return;
     }
     if (!companyId) {
-      setMessage({ type: 'error', text: "Erreur: ID de l'entreprise non trouvé." });
+      setMessage({ type: 'error', text: t('common.error_company_id') });
       return;
     }
 
@@ -190,7 +192,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
         type: 'info'
       });
       
-      setMessage({ type: 'success', text: "Transaction enregistrée avec succès !" });
+      setMessage({ type: 'success', text: t('produits.save_success') });
       setTimeout(() => {
         setIsAdding(false);
         setMessage(null);
@@ -208,7 +210,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
       }, 1500);
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'transactions', user, false);
-      setMessage({ type: 'error', text: "Erreur lors de l'enregistrement de la transaction." });
+      setMessage({ type: 'error', text: t('common.error_occurred') });
     } finally {
       setLoading(false);
     }
@@ -285,26 +287,26 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
   );
 
   const handleExportPDF = () => {
-    const headers = ['Réf', 'Date', 'Tiers', 'Type', 'Montant', 'Statut'];
-    const data = filteredTransactions.map(t => [
-      t.reference,
-      new Date(t.date).toLocaleDateString(),
-      t.tiersNom,
-      t.type,
-      formatCurrency(t.montantTotal),
-      t.statut
+    const headers = [t('common.ref'), t('common.date'), t('finance.table.party'), t('common.type'), t('finance.table.amount'), t('common.status')];
+    const data = filteredTransactions.map(tx => [
+      tx.reference,
+      new Date(tx.date).toLocaleDateString(),
+      tx.tiersNom,
+      tx.type,
+      formatCurrency(tx.montantTotal),
+      tx.statut
     ]);
-    exportToPDF('Journal des Transactions - KONTROL', headers, data, 'Transactions_KONTROL', currentUserProfile?.companyLogo || currentUserProfile?.logoUrl);
+    exportToPDF(`${t('transactions.title')} - KONTROL`, headers, data, 'Transactions_KONTROL', currentUserProfile?.companyLogo || currentUserProfile?.logoUrl);
   };
 
   const handleExportExcel = () => {
-    const data = filteredTransactions.map(t => ({
-      Référence: t.reference,
-      Date: new Date(t.date).toLocaleDateString(),
-      Tiers: t.tiersNom,
-      Type: t.type,
-      Montant: t.montantTotal,
-      Statut: t.statut
+    const data = filteredTransactions.map(tx => ({
+      [t('common.ref')]: tx.reference,
+      [t('common.date')]: new Date(tx.date).toLocaleDateString(),
+      [t('finance.table.party')]: tx.tiersNom,
+      [t('common.type')]: tx.type,
+      [t('finance.table.amount')]: tx.montantTotal,
+      [t('common.status')]: tx.statut
     }));
     exportToExcel(data, 'Transactions_KONTROL');
   };
@@ -312,7 +314,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
   const handleUpdateTransaction = async (updates: Partial<Transaction>) => {
     if (!selectedId || !user) return;
     if (!hasPermission(currentUserProfile?.role, 'TRANSACTION_UPDATE')) {
-      alert("Vous n'avez pas la permission de modifier une transaction.");
+      alert(t('common.no_permission'));
       return;
     }
     try {
@@ -345,7 +347,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
       generateCashFlowPDF(filteredTransactions, dateRange, currentUserProfile);
     } catch (error) {
       console.error("PDF Error:", error);
-      alert("Erreur lors de la génération du rapport PDF.");
+      alert(t('common.error_occurred'));
     }
   };
 
@@ -355,7 +357,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
         <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-kontrol-dark/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[750px] max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-kontrol-border flex items-center justify-between shrink-0">
-              <h3 className="text-lg font-extrabold text-kontrol-dark">Nouvelle Transaction</h3>
+              <h3 className="text-lg font-extrabold text-kontrol-dark">{t('transactions.new_transaction')}</h3>
               <button onClick={() => setIsAdding(false)} className="p-2 hover:bg-kontrol-bg rounded-full text-kontrol-ink-muted transition-colors">
                 <X size={20} />
               </button>
@@ -372,18 +374,18 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
               )}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Type</label>
+                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">{t('common.type')}</label>
                   <select 
                     className="w-full px-3 py-2 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:border-kontrol-blue"
                     value={newTrans.type}
                     onChange={(e) => setNewTrans({...newTrans, type: e.target.value as any, articles: []})}
                   >
-                    <option value="VENTE">Vente (Sortie de stock)</option>
-                    <option value="ACHAT">Achat (Entrée en stock)</option>
+                    <option value="VENTE">{t('transactions.form.type_sale')}</option>
+                    <option value="ACHAT">{t('transactions.form.type_purchase')}</option>
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Tiers (Client/Fournisseur)</label>
+                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">{t('transactions.form.party')}</label>
                   <select 
                     className="w-full px-3 py-2 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:border-kontrol-blue"
                     value={newTrans.tiersId}
@@ -392,9 +394,9 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
                       setNewTrans({...newTrans, tiersId: e.target.value, tiersNom: t?.nom || ''});
                     }}
                   >
-                    <option value="">Sélectionner un tiers</option>
+                    <option value="">{t('transactions.form.select_party')}</option>
                     {tiers.filter(t => newTrans.type === 'VENTE' ? t.type === 'CLIENT' : t.type === 'FOURNISSEUR').length === 0 ? (
-                      <option value="" disabled>Aucun {newTrans.type === 'VENTE' ? 'client' : 'fournisseur'} trouvé</option>
+                      <option value="" disabled>{t('transactions.form.no_party_found', { type: newTrans.type === 'VENTE' ? t('tiers.form.type_client') : t('tiers.form.type_vendor') })}</option>
                     ) : (
                       tiers.filter(t => newTrans.type === 'VENTE' ? t.type === 'CLIENT' : t.type === 'FOURNISSEUR').map(t => (
                         <option key={t.id} value={t.id}>{t.nom}</option>
@@ -403,7 +405,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Devise</label>
+                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">{t('transactions.form.devise')}</label>
                   <div className="grid grid-cols-2 gap-2">
                     <select 
                       className="w-full px-3 py-2 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:border-kontrol-blue"
@@ -417,7 +419,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
                     {newTrans.devise !== 'XOF' && (
                       <input 
                         type="number"
-                        placeholder="Taux"
+                        placeholder={t('transactions.form.rate')}
                         className="w-full px-3 py-2 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:border-kontrol-blue"
                         value={newTrans.tauxChange}
                         onChange={(e) => setNewTrans({...newTrans, tauxChange: Number(e.target.value)})}
@@ -429,7 +431,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
 
               {newTrans.type === 'ACHAT' && (
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Facture Fournisseur (Optionnel)</label>
+                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">{t('transactions.form.invoice_file')}</label>
                   <div className="flex items-center gap-4 p-4 bg-kontrol-bg/50 rounded-xl border border-dashed border-kontrol-border group hover:border-kontrol-blue transition-colors">
                     <div className="w-12 h-12 rounded-xl bg-white border border-kontrol-border flex items-center justify-center overflow-hidden shrink-0 shadow-sm group-hover:shadow-md transition-all">
                       {newTrans.invoiceFileUrl ? (
@@ -441,7 +443,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
                     <div className="flex-1">
                       <label className="cursor-pointer">
                         <span className="inline-block px-4 py-2 bg-white border border-kontrol-border rounded-lg text-[12px] font-bold text-kontrol-dark hover:bg-kontrol-bg transition-colors shadow-sm">
-                          {newTrans.invoiceFileUrl ? 'Changer le fichier' : 'Importer la facture'}
+                          {newTrans.invoiceFileUrl ? t('transactions.form.change_file') : t('transactions.form.import_invoice')}
                         </span>
                         <input 
                           type="file"
@@ -450,7 +452,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
                           onChange={handleInvoiceUpload}
                         />
                       </label>
-                      <p className="text-[10px] text-kontrol-ink-muted mt-1">PDF ou Image (Max 2MB)</p>
+                      <p className="text-[10px] text-kontrol-ink-muted mt-1">{t('transactions.form.file_hint')}</p>
                     </div>
                   </div>
                 </div>
@@ -458,7 +460,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
 
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest">Articles</h4>
+                  <h4 className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest">{t('transactions.articles')}</h4>
                   <div className="relative w-64">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
                     <select 
@@ -470,12 +472,12 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
                         }
                       }}
                     >
-                      <option value="">Ajouter un produit...</option>
+                      <option value="">{t('transactions.form.add_product')}</option>
                       {produits.length === 0 ? (
-                        <option value="" disabled>Aucun produit trouvé</option>
+                        <option value="" disabled>{t('transactions.form.no_products_found')}</option>
                       ) : (
                         produits.map(p => (
-                          <option key={p.id} value={p.id}>{p.designation} ({p.stock} en stock)</option>
+                          <option key={p.id} value={p.id}>{p.designation} ({p.stock} {t('common.in_stock')})</option>
                         ))
                       )}
                     </select>
@@ -486,9 +488,9 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
                   <table className="w-full text-left text-[12px]">
                     <thead className="bg-kontrol-bg border-b border-kontrol-border">
                       <tr>
-                        <th className="px-4 py-2 font-bold text-kontrol-ink-muted">Désignation</th>
-                        <th className="px-4 py-2 font-bold text-kontrol-ink-muted text-center">Quantité</th>
-                        <th className="px-4 py-2 font-bold text-kontrol-ink-muted text-right">P.U.</th>
+                        <th className="px-4 py-2 font-bold text-kontrol-ink-muted">{t('produits.table.designation')}</th>
+                        <th className="px-4 py-2 font-bold text-kontrol-ink-muted text-center">{t('common.quantity')}</th>
+                        <th className="px-4 py-2 font-bold text-kontrol-ink-muted text-right">{t('common.unit_price')}</th>
                         <th className="px-4 py-2 font-bold text-kontrol-ink-muted text-right">Total</th>
                         <th className="px-4 py-2 w-10"></th>
                       </tr>
@@ -497,7 +499,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
                       {newTrans.articles.length === 0 ? (
                         <tr>
                           <td colSpan={5} className="px-4 py-8 text-center text-kontrol-ink-muted">
-                            Aucun article ajouté.
+                            {t('common.no_movements')}
                           </td>
                         </tr>
                       ) : (
@@ -545,7 +547,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
                       <tfoot className="bg-kontrol-bg/50 font-extrabold">
                         {newTrans.devise !== 'XOF' && (
                           <tr>
-                            <td colSpan={3} className="px-4 py-1 text-right uppercase tracking-wider text-[9px] text-kontrol-ink-muted">Total en {newTrans.devise}</td>
+                            <td colSpan={3} className="px-4 py-1 text-right uppercase tracking-wider text-[9px] text-kontrol-ink-muted">{t('transactions.total_in', { devise: newTrans.devise })}</td>
                             <td className="px-4 py-1 text-right text-kontrol-blue text-[12px]">
                               {((newTrans.articles.reduce((acc, a) => acc + a.total, 0)) / (newTrans.tauxChange || 1)).toFixed(2)} {newTrans.devise}
                             </td>
@@ -553,7 +555,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
                           </tr>
                         )}
                         <tr>
-                          <td colSpan={3} className="px-4 py-3 text-right uppercase tracking-wider text-[10px] text-kontrol-ink-muted">Total Transaction (XOF)</td>
+                          <td colSpan={3} className="px-4 py-3 text-right uppercase tracking-wider text-[10px] text-kontrol-ink-muted">{t('transactions.total_xof')}</td>
                           <td className="px-4 py-3 text-right text-kontrol-dark text-[14px]">
                             {formatCurrency(newTrans.articles.reduce((acc, a) => acc + a.total, 0))}
                           </td>
@@ -573,7 +575,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
                 className="w-full btn-primary py-3 font-bold flex items-center justify-center gap-2"
               >
                 {loading ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
-                Enregistrer
+                {t('common.save')}
               </button>
             </div>
           </div>
@@ -584,17 +586,17 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
         isOpen={isDeleting}
         onClose={() => setIsDeleting(false)}
         onConfirm={handleDeleteTransaction}
-        title="Supprimer la transaction"
-        message={`Êtes-vous sûr de vouloir supprimer la transaction ${selectedTrans?.reference} ? Le stock des produits concernés sera automatiquement ajusté.`}
-        confirmLabel="Supprimer"
+        title={t('transactions.delete_transaction')}
+        message={t('transactions.delete_transaction_confirm', { ref: selectedTrans?.reference })}
+        confirmLabel={t('common.delete')}
         variant="danger"
       />
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div>
-            <h2 className="text-xl font-extrabold text-kontrol-dark tracking-tight">Transactions</h2>
-            <p className="text-[13px] text-kontrol-ink-muted mt-1">Ventes et Achats — Feuille TRANSACTIONS</p>
+            <h2 className="text-xl font-extrabold text-kontrol-dark tracking-tight">{t('transactions.title')}</h2>
+            <p className="text-[13px] text-kontrol-ink-muted mt-1">{t('transactions.subtitle')}</p>
           </div>
           {isERPAdmin && (
             <div className="hidden md:block">
@@ -622,11 +624,11 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
             onClick={handleCashFlowReport}
             className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2 border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100"
           >
-            <FileText size={14} /> Flux de Trésorerie
+            <FileText size={14} /> {t('transactions.cash_flow_report')}
           </button>
           {hasPermission(currentUserProfile?.role, 'TRANSACTION_CREATE') && (
             <button onClick={() => setIsAdding(true)} className="btn-primary text-xs py-1.5 px-4 flex items-center gap-2">
-              <Plus size={14} /> Nouvelle transaction
+              <Plus size={14} /> {t('transactions.new_transaction')}
             </button>
           )}
         </div>
@@ -638,7 +640,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
           <Search size={14} className="text-kontrol-ink-muted" />
           <input 
             type="text"
-            placeholder="Rechercher référence, tiers…"
+            placeholder={t('transactions.search_placeholder') || t('produits.search_placeholder')}
             className="bg-transparent border-none outline-none text-[13px] w-full text-kontrol-ink placeholder:text-kontrol-ink-muted"
             value={searchTerm}
             onChange={(e) => {
@@ -655,9 +657,9 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
             setCurrentPage(1);
           }}
         >
-          <option value="ALL">Tous types</option>
-          <option value="VENTE">Ventes</option>
-          <option value="ACHAT">Achats</option>
+          <option value="ALL">{t('tiers.filter_all')}</option>
+          <option value="VENTE">{t('finance.filter_in')}</option>
+          <option value="ACHAT">{t('finance.filter_out')}</option>
         </select>
         <select 
           className="bg-white border border-kontrol-border rounded-lg px-3 py-1.5 text-[13px] font-medium text-kontrol-ink-soft outline-none focus:border-kontrol-blue transition-colors"
@@ -667,10 +669,10 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
             setCurrentPage(1);
           }}
         >
-          <option value="ALL">Tous statuts</option>
-          <option value="PAYE">Payé</option>
-          <option value="ATTENTE">En attente</option>
-          <option value="ANNULE">Annulé</option>
+          <option value="ALL">{t('common.all_status') || 'All Status'}</option>
+          <option value="PAYE">{t('transactions.status.paid')}</option>
+          <option value="ATTENTE">{t('transactions.status.pending')}</option>
+          <option value="ANNULE">{t('transactions.status.cancelled')}</option>
         </select>
         <div className="flex items-center gap-2 bg-white border border-kontrol-border rounded-lg px-3 py-1.5">
           <Calendar size={14} className="text-kontrol-ink-muted" />
@@ -683,7 +685,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
               setCurrentPage(1);
             }}
           />
-          <span className="text-kontrol-ink-muted text-xs">à</span>
+          <span className="text-kontrol-ink-muted text-xs">{t('finance.form.to') || 'to'}</span>
           <input 
             type="date"
             className="bg-transparent border-none outline-none text-[13px] font-medium text-kontrol-ink-soft"
@@ -703,11 +705,11 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
             <table className="w-full text-left border-collapse text-[13px]">
               <thead>
                 <tr className="bg-kontrol-bg border-b border-kontrol-border">
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Réf</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Date</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Tiers</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted text-right">Montant</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Statut</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('common.ref')}</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('common.date')}</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('finance.table.party')}</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted text-right">{t('finance.table.amount')}</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('common.status')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-kontrol-border">
@@ -720,7 +722,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
                 ) : paginatedTransactions.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-4 py-12 text-center text-kontrol-ink-muted">
-                      Aucune transaction trouvée.
+                      {t('transactions.no_transactions')}
                     </td>
                   </tr>
                 ) : (
@@ -775,7 +777,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
           </div>
           <div className="px-4 py-3 border-t border-kontrol-border bg-kontrol-bg/30 flex items-center justify-between">
             <span className="text-[11.5px] text-kontrol-ink-muted font-medium">
-              {filteredTransactions.length} transactions au total
+              {t('transactions.total_count', { count: filteredTransactions.length })}
             </span>
             {totalPages > 1 && (
               <div className="flex items-center gap-2">
@@ -787,7 +789,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
                   <ArrowDownLeft size={16} className="rotate-45" />
                 </button>
                 <span className="text-[11.5px] font-bold text-kontrol-dark">
-                  Page {currentPage} sur {totalPages}
+                  {t('common.pagination', { current: currentPage, total: totalPages })}
                 </span>
                 <button 
                   disabled={currentPage === totalPages}
@@ -806,7 +808,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
           {selectedTrans ? (
             <div className="animate-in fade-in slide-in-from-right-2 duration-300">
               <div className="card-hd">
-                <h4 className="card-title">Détails transaction</h4>
+                <h4 className="card-title">{t('transactions.details_title')}</h4>
                 <button 
                   className="p-1 text-kontrol-ink-muted hover:text-kontrol-dark hover:bg-kontrol-bg rounded-md transition-all"
                   onClick={() => setSelectedId(null)}
@@ -825,7 +827,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
                 <p className="text-[11px] text-kontrol-ink-muted mt-0.5 uppercase tracking-wider">{selectedTrans.reference} · {selectedTrans.id.slice(0,8)}</p>
                 
                 <div className="bg-kontrol-dark rounded-lg p-4 mt-6 mb-6">
-                  <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-1">Montant Total TTC</p>
+                  <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-1">{t('transactions.form.amount_total_tax')}</p>
                   <div className="flex items-baseline justify-between">
                     <p className="text-xl font-extrabold text-kontrol-blue">{formatCurrency(selectedTrans.montantTotal)}</p>
                     {selectedTrans.devise && selectedTrans.devise !== 'XOF' && selectedTrans.montantDevise && (
@@ -840,28 +842,28 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
                   <div className="flex gap-3 text-[12.5px]">
                     <Calendar size={14} className="text-kontrol-ink-muted shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-kontrol-ink-muted text-[11px] font-bold uppercase tracking-tighter">Date d'émission</p>
+                      <p className="text-kontrol-ink-muted text-[11px] font-bold uppercase tracking-tighter">{t('transactions.issue_date')}</p>
                       <p className="text-kontrol-ink-soft font-medium">{new Date(selectedTrans.date).toLocaleDateString()}</p>
                     </div>
                   </div>
                   <div className="flex gap-3 text-[12.5px]">
                     <User size={14} className="text-kontrol-ink-muted shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-kontrol-ink-muted text-[11px] font-bold uppercase tracking-tighter">Type de tiers</p>
-                      <p className="text-kontrol-ink-soft font-medium">{selectedTrans.type === 'VENTE' ? 'Client' : 'Fournisseur'}</p>
+                      <p className="text-kontrol-ink-muted text-[11px] font-bold uppercase tracking-tighter">{t('transactions.party_type')}</p>
+                      <p className="text-kontrol-ink-soft font-medium">{selectedTrans.type === 'VENTE' ? t('tiers.form.type_client') : t('tiers.form.type_vendor')}</p>
                     </div>
                   </div>
                   <div className="flex gap-3 text-[12.5px]">
                     <CreditCard size={14} className="text-kontrol-ink-muted shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-kontrol-ink-muted text-[11px] font-bold uppercase tracking-tighter">Mode de paiement</p>
+                      <p className="text-kontrol-ink-muted text-[11px] font-bold uppercase tracking-tighter">{t('finance.form.method')}</p>
                       <p className="text-kontrol-ink-soft font-medium">{selectedTrans.modePaiement}</p>
                     </div>
                   </div>
                   <div className="flex gap-3 text-[12.5px]">
                     <CheckCircle2 size={14} className="text-kontrol-ink-muted shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-kontrol-ink-muted text-[11px] font-bold uppercase tracking-tighter">Statut du règlement</p>
+                      <p className="text-kontrol-ink-muted text-[11px] font-bold uppercase tracking-tighter">{t('transactions.payment_status')}</p>
                       <select 
                         className={cn(
                           "font-bold text-[12.5px] bg-transparent border-none outline-none focus:ring-0 p-0 cursor-pointer",
@@ -871,9 +873,9 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
                         value={selectedTrans.statut}
                         onChange={(e) => handleUpdateTransaction({ statut: e.target.value as any })}
                       >
-                        <option value="PAYE" className="text-emerald-600 font-bold italic">Payé</option>
-                        <option value="ATTENTE" className="text-amber-600 font-bold italic">En attente</option>
-                        <option value="ANNULE" className="text-rose-600 font-bold italic">Annulé</option>
+                        <option value="PAYE" className="text-emerald-600 font-bold italic">{t('transactions.status.paid')}</option>
+                        <option value="ATTENTE" className="text-amber-600 font-bold italic">{t('transactions.status.pending')}</option>
+                        <option value="ANNULE" className="text-rose-600 font-bold italic">{t('transactions.status.cancelled')}</option>
                       </select>
                     </div>
                   </div>
@@ -905,7 +907,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
                 )}
 
                 <div className="mt-8 pt-4 border-t border-kontrol-border">
-                  <h5 className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest mb-3">Articles ({selectedTrans.articles.length})</h5>
+                  <h5 className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest mb-3">{t('transactions.articles')} ({selectedTrans.articles.length})</h5>
                   <div className="space-y-2 max-h-[150px] overflow-y-auto pr-2 custom-scrollbar">
                     {selectedTrans.articles.map((art, idx) => (
                       <div key={idx} className={cn(
@@ -928,13 +930,13 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
                       onClick={() => generateInvoicePDF(selectedTrans, currentUserProfile)}
                       className="flex-1 btn-outline text-[10px] py-2.5 font-bold flex items-center justify-center gap-2 uppercase tracking-widest"
                     >
-                      <Printer size={14} /> Facture
+                      <Printer size={14} /> {t('transactions.invoice')}
                     </button>
                     <button 
                       onClick={() => generateReceiptPDF(selectedTrans, currentUserProfile)}
                       className="flex-1 btn-outline text-[10px] py-2.5 font-bold flex items-center justify-center gap-2 uppercase tracking-widest"
                     >
-                      <Receipt size={14} /> Reçu
+                      <Receipt size={14} /> {t('transactions.receipt')}
                     </button>
                     {selectedTrans.invoiceFileUrl && (
                       <a 
@@ -942,13 +944,13 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
                         download={`Facture_${selectedTrans.reference}`}
                         className="flex-1 btn-primary text-xs py-2.5 font-bold flex items-center justify-center gap-2"
                       >
-                        <Download size={14} /> Facture Réelle
+                        <Download size={14} /> {t('transactions.real_invoice')}
                       </a>
                     )}
                     <button 
                       onClick={() => setIsDeleting(true)}
                       className="p-2.5 border border-rose-100 text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
-                      title="Supprimer"
+                      title={t('common.delete')}
                     >
                       <Trash2 size={16} />
                     </button>
@@ -960,7 +962,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
             <div className="flex flex-col items-center justify-center p-12 text-center h-full text-kontrol-ink-muted opacity-40">
               <FileText size={48} strokeWidth={1} className="mb-3" />
               <p className="text-[12.5px] font-medium leading-relaxed">
-                Sélectionnez une transaction<br />pour voir ses détails.
+                {t('transactions.select_prompt')}
               </p>
             </div>
           )}
@@ -969,7 +971,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
             <ModuleActivityLog 
               companyId={companyId!} 
               moduleName="transaction" 
-              title="Journal des transactions" 
+              title={t('transactions.activity_log') || "Journal des transactions"} 
             />
           </div>
         </div>
@@ -986,7 +988,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
               className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl"
             >
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-bold text-kontrol-dark">Payer via {qrData.type}</h3>
+                <h3 className="text-lg font-bold text-kontrol-dark">{t('transactions.pay_mobile', { type: qrData.type })}</h3>
                 <button onClick={() => setShowQR(false)} className="p-1 hover:bg-kontrol-bg rounded-lg">
                   <X size={20} />
                 </button>
@@ -994,13 +996,13 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
               <div className="bg-white p-4 rounded-2xl border-2 border-kontrol-bg inline-block mb-6 shadow-sm">
                 <QRCodeSVG value={`PAY:${qrData.type}:${qrData.phone}:${qrData.amount}`} size={200} />
               </div>
-              <p className="text-[14px] font-bold text-kontrol-dark mb-1">Montant : {formatCurrency(qrData.amount)}</p>
-              <p className="text-[12px] text-kontrol-ink-muted">Scanner ce code pour initier le paiement vers le numéro : <span className="font-bold text-kontrol-blue">{qrData.phone}</span></p>
+              <p className="text-[14px] font-bold text-kontrol-dark mb-1">{t('finance.form.amount')} : {formatCurrency(qrData.amount)}</p>
+              <p className="text-[12px] text-kontrol-ink-muted">{t('transactions.scan_qr_instruction', { phone: qrData.phone })}</p>
               <button 
                 onClick={() => setShowQR(false)}
                 className="w-full btn-primary mt-8 py-3"
               >
-                J'ai effectué le paiement
+                {t('common.confirm_payment') || "I've made the payment"}
               </button>
             </motion.div>
           </div>

@@ -1,34 +1,14 @@
 import React from 'react';
 import { 
   ChevronDown, 
-  PieChart, 
-  Users, 
-  Box, 
-  ArrowLeftRight, 
-  Receipt, 
-  History, 
-  UserCircle, 
-  Shield, 
-  LogOut,
   X,
-  Bell,
-  LayoutDashboard,
-  Boxes,
-  Settings,
-  CreditCard,
-  MessageCircle,
-  MessageSquare,
-  Building2,
-  Brain,
-  TrendingUp,
-  Activity,
-  Wallet as WalletIcon,
-  Sparkles
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '../../lib/utils';
 import { User } from '../../../api/firebase';
 import { UserProfile } from '../../types';
 import { Logo } from '../common/Logo';
+import { ERP_NAV_SECTIONS, COMPANY_NAV_SECTIONS } from '../../constants/navigation';
 
 interface SidebarProps {
   activeTab: string;
@@ -40,144 +20,35 @@ interface SidebarProps {
   setIsOpen: (open: boolean) => void;
 }
 
-interface NavSection {
-  title: string;
-  icon: React.ElementType;
-  items: { id: string; label: string; icon: React.ElementType }[];
-}
-
-const erpNavSections: NavSection[] = [
-  {
-    title: 'Command Center',
-    icon: LayoutDashboard,
-    items: [
-      { id: 'dashboard', label: 'Vue d\'ensemble', icon: PieChart },
-    ]
-  },
-  {
-    title: 'Supervision Écosystème',
-    icon: Building2,
-    items: [
-      { id: 'entreprises', label: 'Parc Entreprises', icon: Building2 },
-      { id: 'utilisateurs', label: 'Utilisateurs Globaux', icon: Users },
-      { id: 'ai', label: 'Intelligence Blue AI', icon: Brain },
-    ]
-  },
-  {
-    title: 'Pilotage Business KONTROL',
-    icon: TrendingUp,
-    items: [
-      { id: 'revenue', label: 'Croissance & MRR', icon: TrendingUp },
-      { id: 'subscriptions', label: 'Validation Paiements', icon: CreditCard },
-      { id: 'admin_tiers', label: 'Partenaires & Tiers', icon: Users },
-      { id: 'accounting', label: 'Trésorerie Centrale', icon: Receipt },
-      { id: 'admin_transactions', label: 'Journal des Ventes', icon: ArrowLeftRight },
-    ]
-  },
-  {
-    title: 'Coordination & Équipe',
-    icon: Shield,
-    items: [
-      { id: 'gestionnaires', label: 'Team KONTROL', icon: Shield },
-      { id: 'chat', label: 'K-Chat Interne', icon: MessageSquare },
-      { id: 'tickets', label: 'Tickets Support', icon: MessageCircle },
-    ]
-  },
-  {
-    title: 'Maintenance & Audit',
-    icon: Settings,
-    items: [
-      { id: 'system', label: 'Stats & Télémétrie', icon: Activity },
-      { id: 'actions', label: 'Audit Trail', icon: History },
-      { id: 'versions', label: 'Déploiements', icon: History },
-      { id: 'updates', label: 'Modèles IA', icon: Sparkles },
-    ]
-  },
-  {
-    title: 'Mon Compte',
-    icon: UserCircle,
-    items: [
-      { id: 'profil', label: 'Profil Admin', icon: UserCircle },
-    ]
-  }
-];
-
-const companyNavSections: NavSection[] = [
-  {
-    title: 'Pilotage',
-    icon: LayoutDashboard,
-    items: [
-      { id: 'dashboard', label: 'Tableau de bord', icon: PieChart },
-    ]
-  },
-  {
-    title: 'Gestion',
-    icon: Box,
-    items: [
-      { id: 'tiers', label: 'Tiers', icon: Users },
-      { id: 'produits', label: 'Produits', icon: Box },
-      { id: 'transactions', label: 'Transactions', icon: ArrowLeftRight },
-      { id: 'finance', label: 'Trésorerie', icon: WalletIcon },
-      { id: 'charges', label: 'Charges diverses', icon: Receipt },
-    ]
-  },
-  {
-    title: 'Stocks',
-    icon: Boxes,
-    items: [
-      { id: 'stocks', label: 'Mouvements', icon: Boxes },
-    ]
-  },
-  {
-    title: 'Communication',
-    icon: MessageSquare,
-    items: [
-      { id: 'chat', label: 'K-Chat', icon: MessageSquare },
-      { id: 'tickets', label: 'Support Technique', icon: MessageCircle },
-    ]
-  },
-  {
-    title: 'Système',
-    icon: Settings,
-    items: [
-      { id: 'ai', label: 'Blue AI', icon: Brain },
-      { id: 'notifications', label: 'Notifications', icon: Bell },
-      { id: 'company_profile', label: 'Profil Entreprise', icon: Building2 },
-      { id: 'profil', label: 'Mon profil', icon: UserCircle },
-      { id: 'abonnements', label: 'Abonnement', icon: CreditCard },
-      { id: 'utilisateurs', label: 'Utilisateurs', icon: Users },
-      { id: 'actions', label: 'Journal des actions', icon: History },
-    ]
-  }
-];
-
 export function Sidebar({ activeTab, setActiveTab, user, profile, onLogout, isOpen, setIsOpen }: SidebarProps) {
+  const { t } = useTranslation();
   const isKontrolAdmin = profile?.role === 'ADMINISTRATEUR_ERP' || profile?.role === 'GESTIONNAIRE_ERP' || profile?.role === 'ADMIN' || profile?.role === 'ADMINISTRATEUR_KONTROL' || profile?.role === 'GESTIONNAIRE_KONTROL';
-  const navSections = isKontrolAdmin ? erpNavSections : companyNavSections;
+  
+  const navSections = isKontrolAdmin ? ERP_NAV_SECTIONS : COMPANY_NAV_SECTIONS;
 
   const [openSections, setOpenSections] = React.useState<string[]>(
     isKontrolAdmin 
-      ? [erpNavSections[0].title, erpNavSections[1].title] 
-      : [companyNavSections[0].title, companyNavSections[1].title]
+      ? [ERP_NAV_SECTIONS[0].titleKey, ERP_NAV_SECTIONS[1].titleKey] 
+      : [COMPANY_NAV_SECTIONS[0].titleKey, COMPANY_NAV_SECTIONS[1].titleKey]
   );
 
-  const toggleSection = (title: string) => {
+  const toggleSection = (titleKey: string) => {
     setOpenSections(prev => 
-      prev.includes(title) ? prev.filter(t => t !== title) : [...prev, title]
+      prev.includes(titleKey) ? prev.filter(t => t !== titleKey) : [...prev, titleKey]
     );
   };
 
   const formatRole = (role?: string) => {
     if (!role) return '';
     const roles: Record<string, string> = {
-      'ADMINISTRATEUR_ERP': 'Administrateur KONTROL',
-      'GESTIONNAIRE_ERP': 'Gestionnaire KONTROL',
-      'ADMINISTRATEUR_KONTROL': 'Administrateur KONTROL',
-      'GESTIONNAIRE_KONTROL': 'Gestionnaire KONTROL',
-      'ADMINISTRATEUR_ENTREPRISE': 'Administrateur Entreprise',
-      'GESTIONNAIRE_ENTREPRISE': 'Gestionnaire Entreprise',
-      'UTILISATEUR': 'Utilisateur',
-      'ADMIN': 'Administrateur'
+      'ADMINISTRATEUR_ERP': t('common.roles.admin_kontrol'),
+      'GESTIONNAIRE_ERP': t('common.roles.manager_kontrol'),
+      'ADMINISTRATEUR_KONTROL': t('common.roles.admin_kontrol'),
+      'GESTIONNAIRE_KONTROL': t('common.roles.manager_kontrol'),
+      'ADMINISTRATEUR_ENTREPRISE': t('common.roles.admin_company'),
+      'GESTIONNAIRE_ENTREPRISE': t('common.roles.manager_company'),
+      'UTILISATEUR': t('common.roles.user'),
+      'ADMIN': t('common.roles.admin')
     };
     return roles[role] || role.replace('_', ' ');
   };
@@ -217,40 +88,40 @@ export function Sidebar({ activeTab, setActiveTab, user, profile, onLogout, isOp
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-2 space-y-1">
+        <nav className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-none">
           {navSections.map((section) => (
-            <div key={section.title} className="mb-1">
+            <div key={section.titleKey} className="mb-1">
               <button
-                onClick={() => toggleSection(section.title)}
+                onClick={() => toggleSection(section.titleKey)}
                 className="w-full flex items-center justify-between px-2.5 py-2 text-[10.5px] font-bold text-white/40 uppercase tracking-widest hover:text-white/70 hover:bg-white/5 rounded-lg transition-all"
               >
                 <span className="flex items-center gap-2">
                   <section.icon size={14} />
-                  {section.title}
+                  {t(section.titleKey)}
                 </span>
                 <ChevronDown 
                   size={10} 
-                  className={cn("transition-transform duration-200", openSections.includes(section.title) ? "rotate-0" : "-rotate-90")} 
+                  className={cn("transition-transform duration-200", openSections.includes(section.titleKey) ? "rotate-0" : "-rotate-90")} 
                 />
               </button>
               
               <div className={cn(
                 "overflow-hidden transition-all duration-300",
-                openSections.includes(section.title) ? "max-h-[400px] opacity-100" : "max-h-0 opacity-0"
+                openSections.includes(section.titleKey) ? "max-h-[400px] opacity-100" : "max-h-0 opacity-0"
               )}>
                 {section.items.map((item) => (
                   <button
                     key={item.id}
-                    onClick={() => setActiveTab(item.id, section.title, item.label)}
+                    onClick={() => setActiveTab(item.id, t(section.titleKey), t(item.labelKey))}
                     className={cn(
-                      "w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] rounded-lg transition-all mb-0.5",
+                      "w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] rounded-lg transition-all mb-0.5 text-left",
                       activeTab === item.id 
                         ? "bg-kontrol-blue/20 text-kontrol-blue font-medium" 
-                        : "text-white/55 hover:bg-white/70 hover:text-white/90"
+                        : "text-white/55 hover:bg-white/10 hover:text-white/90"
                     )}
                   >
                     <item.icon size={14} className="shrink-0" />
-                    {item.label}
+                    {t(item.labelKey)}
                   </button>
                 ))}
               </div>
@@ -263,12 +134,12 @@ export function Sidebar({ activeTab, setActiveTab, user, profile, onLogout, isOp
           <div className="px-4 py-3 border-t border-white/10 mt-auto">
             <div className="p-2.5 bg-white/5 rounded-xl border border-white/10">
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[9px] font-extrabold uppercase tracking-widest text-white/30">Santé Système</span>
+                <span className="text-[9px] font-extrabold uppercase tracking-widest text-white/30">{t('sections.system')}</span>
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               </div>
               <div className="space-y-1">
                 <div className="flex items-center justify-between text-[9px]">
-                  <span className="text-white/40">Base de données</span>
+                  <span className="text-white/40">Database</span>
                   <span className="font-bold text-emerald-400">OK</span>
                 </div>
                 <div className="flex items-center justify-between text-[9px]">
@@ -295,7 +166,7 @@ export function Sidebar({ activeTab, setActiveTab, user, profile, onLogout, isOp
           </div>
           <div className="mt-2 text-center">
             <p className="text-[8px] text-white/20 font-bold uppercase tracking-[0.2em]">
-              Propulsé par <span className="text-kontrol-blue">BLUE AI</span> & <span className="text-kontrol-orange">INNOV'KORP</span>
+              {t('common.powered_by')} <span className="text-kontrol-blue">BLUE AI</span> & <span className="text-kontrol-orange">INNOV'KORP</span>
             </p>
           </div>
         </div>

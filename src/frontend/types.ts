@@ -35,6 +35,7 @@ export interface UserProfile {
   city?: string;
   address?: string;
   currency?: string;
+  language?: string;
 }
 
 export interface Company {

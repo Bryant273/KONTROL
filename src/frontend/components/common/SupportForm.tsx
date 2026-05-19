@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Send, Loader2, CheckCircle2 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 
 interface SupportFormProps {
   onSuccess?: () => void;
@@ -9,6 +10,7 @@ interface SupportFormProps {
 }
 
 export function SupportForm({ onSuccess, className, compact = false }: SupportFormProps) {
+  const { t } = useTranslation();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -56,9 +58,9 @@ export function SupportForm({ onSuccess, className, compact = false }: SupportFo
         <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center">
           <CheckCircle2 size={32} />
         </div>
-        <h3 className="text-xl font-extrabold text-kontrol-dark">Message envoyé !</h3>
+        <h3 className="text-xl font-extrabold text-kontrol-dark">{t('landing.support.success_title')}</h3>
         <p className="text-sm text-kontrol-ink-soft max-w-xs mx-auto font-medium">
-          Merci pour votre message. Notre équipe d'assistance vous répondra dans les plus brefs délais sur votre adresse email.
+          {t('landing.support.success_desc')}
         </p>
       </motion.div>
     );
@@ -68,44 +70,44 @@ export function SupportForm({ onSuccess, className, compact = false }: SupportFo
     <form className={`space-y-5 ${className}`} onSubmit={handleSubmit}>
       <div className={`grid ${compact ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'} gap-4`}>
         <div className="space-y-1.5">
-          <label className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">Nom complet</label>
+          <label className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">{t('landing.support.name_label')}</label>
           <input 
             name="name" 
             type="text" 
             required 
             className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl focus:outline-none focus:border-kontrol-blue transition-colors font-bold text-[13px]" 
-            placeholder="Jean Dupont" 
+            placeholder={t('landing.support.name_placeholder')} 
           />
         </div>
         <div className="space-y-1.5">
-          <label className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">Email professionnel</label>
+          <label className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">{t('landing.support.email_label')}</label>
           <input 
             name="email" 
             type="email" 
             required 
             className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl focus:outline-none focus:border-kontrol-blue transition-colors font-bold text-[13px]" 
-            placeholder="jean@entreprise.com" 
+            placeholder={t('landing.support.email_placeholder')} 
           />
         </div>
       </div>
       <div className="space-y-1.5">
-        <label className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">Sujet de votre demande</label>
+        <label className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">{t('landing.support.subject_label')}</label>
         <input 
           name="subject" 
           type="text" 
           required 
           className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl focus:outline-none focus:border-kontrol-blue transition-colors font-bold text-[13px]" 
-          placeholder="Demande de démo / Question technique" 
+          placeholder={t('landing.support.subject_placeholder')} 
         />
       </div>
       <div className="space-y-1.5">
-        <label className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">Votre message</label>
+        <label className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">{t('landing.support.message_label')}</label>
         <textarea 
           name="message" 
           required 
           rows={compact ? 4 : 5} 
           className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl focus:outline-none focus:border-kontrol-blue transition-colors font-bold text-[13px] resize-none" 
-          placeholder="Décrivez votre besoin en quelques lignes..." 
+          placeholder={t('landing.support.message_placeholder')} 
         />
       </div>
       <button 
@@ -116,11 +118,11 @@ export function SupportForm({ onSuccess, className, compact = false }: SupportFo
         {isSubmitting ? (
           <>
             <Loader2 size={18} className="animate-spin" />
-            Envoi en cours...
+            {t('landing.support.submitting')}
           </>
         ) : (
           <>
-            Envoyer le message
+            {t('landing.support.submit')}
             <Send size={16} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
           </>
         )}

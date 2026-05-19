@@ -1,0 +1,1004 @@
+{
+  "common": {
+    "dashboard": "Dashboard",
+    "overview": "Overview",
+    "tiers": "Tiers",
+    "products": "Products",
+    "transactions": "Transactions",
+    "finance": "Treasury",
+    "charges": "Miscellaneous Charges",
+    "stocks": "Stocks",
+    "movements": "Movements",
+    "chat": "K-Chat",
+    "support": "Technical Support",
+    "blue_ai": "Blue AI",
+    "notifications": "Notifications",
+    "company_profile": "Company Profile",
+    "profile": "My Profile",
+    "subscriptions": "Subscription",
+    "users": "Users",
+    "actions": "Actions",
+    "versions": "Versions",
+    "logout": "Log Out",
+    "active": "ACTIVE",
+    "never": "Never",
+    "roles": {
+      "admin_kontrol": "KONTROL Administrator",
+      "manager_kontrol": "KONTROL Manager",
+      "admin_company": "Company Administrator",
+      "manager_company": "Company Manager",
+      "user": "User",
+      "admin": "Administrator"
+    },
+    "status": {
+      "active": "Active",
+      "expired": "Expired",
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "paid": "Paid"
+    },
+    "search": "Search...",
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "update": "Update",
+    "download": "Download",
+    "to": "to",
+    "no_permission": "You do not have permission to perform this action.",
+    "no_activity": "No recent activity.",
+    "pagination": "Page {{current}} of {{total}}",
+    "error_company_id": "Error: Company ID not found.",
+    "powered_by": "Powered by",
+    "blocked": {
+      "title_deactivated": "Account Deactivated",
+      "title_restricted": "Restricted Access",
+      "desc_deactivated": "Your company account has been deleted or deactivated. Please contact support if you believe this is an error.",
+      "desc_expired": "Your KONTROL subscription has expired. Please renew your plan to continue accessing your management tools.",
+      "renew_now": "Renew Now"
+    },
+    "reminder": {
+      "title": "Renewal Soon",
+      "desc": "Your subscription expires in {{days}} days. Avoid any service interruption.",
+      "action": "Renew →"
+    },
+    "chatbot": {
+      "guest_restricted_auth": "Sorry, guest access is not yet configured (Anonymous Authentication disabled in Firebase). Please log in to use the chatbot.",
+      "guest_restricted_features": "Sorry, report generation and personalized advice are reserved for logged-in users. Please log in to access these features.",
+      "error": "An error occurred. Please try again later.",
+      "title": "Blue AI Intelligence",
+      "status_active": "Active Brain",
+      "delete_confirm_title": "Delete?",
+      "delete_confirm_text": "This action is irreversible. All data from this exchange will be lost.",
+      "welcome_title": "Welcome to KONTROL",
+      "welcome_desc": "An INNOV'KORP solution. Leave us your contact details so Blue can better assist you.",
+      "name_placeholder": "Your name",
+      "email_placeholder": "Your email",
+      "start_discussion": "Start discussion",
+      "hello": "Hello! I am Blue.",
+      "ask_me": "Ask me a question about your data or request a report.",
+      "thinking": "Blue is thinking...",
+      "input_placeholder": "Ask your question to Blue...",
+      "quick_prompts": {
+        "report": "Report",
+        "advice": "Advice",
+        "help": "Help"
+      }
+    }
+  },
+  "auth": {
+    "left_title": "The management of tomorrow, <br /> <span class=\"text-kontrol-blue\">available today.</span>",
+    "left_subtitle": "Join the INNOV'KORP ecosystem and transform your shop with KONTROL.",
+    "features": {
+      "security_title": "Total Security",
+      "security_desc": "Encrypted and backed up data.",
+      "performance_title": "Increased Performance",
+      "performance_desc": "Save time on your tasks.",
+      "support_title": "Local Support",
+      "support_desc": "Abidjan-based team 24/7."
+    },
+    "back": "Back",
+    "login_welcome": "Welcome back.",
+    "register_welcome": "Propel your shop.",
+    "login_subtitle": "Log in to regain control.",
+    "register_subtitle": "Simplify your management now.",
+    "login_tab": "Login",
+    "register_tab": "Sign Up",
+    "company_label": "Company",
+    "manager_label": "Manager",
+    "email_label": "Email",
+    "password_label": "Password",
+    "forgot_password": "Forgot?",
+    "login_submit": "Log In",
+    "register_submit": "Create My Account",
+    "or": "or",
+    "terms_text": "By continuing, you accept our <span class=\"font-bold\">Terms</span> and our <span class=\"font-bold\">Privacy Policy</span>.",
+    "loading": {
+      "title": "KONTROL SYSTEM",
+      "initializing": "Secure Initialization",
+      "protocols": "Blue AI protocols active • Encrypted connection"
+    }
+  },
+  "landing": {
+    "nav": {
+      "features": "Features",
+      "pricing": "Pricing",
+      "about": "About",
+      "client_space": "Access Client Space"
+    },
+    "hero": {
+      "title": "Manage your shop <br /> <span class=\"text-transparent bg-clip-text bg-gradient-to-r from-kontrol-blue to-kontrol-orange\">with ease.</span>",
+      "subtitle": "The all-in-one solution designed to simplify stock management, sales, and accounting for SMEs, shops, and small businesses.",
+      "cta_start": "Start for free",
+      "cta_demo": "Request a demo"
+    },
+    "features": {
+      "title": "Everything you need.",
+      "subtitle": "A complete suite of tools to drive your business in real-time.",
+      "items": {
+        "stock_title": "Stock Management",
+        "stock_desc": "Track your ins and outs in real-time with low stock alerts.",
+        "transactions_title": "Transactions",
+        "transactions_desc": "Manage your sales and purchases with an ultra-fast interface.",
+        "crm_title": "Tiers CRM",
+        "crm_desc": "Centralize your customers and suppliers for personalized tracking.",
+        "analytics_title": "Analytics",
+        "analytics_desc": "Visualize your performance with clear and precise charts.",
+        "security_title": "Maximum Security",
+        "security_desc": "Your data is encrypted and protected by banking standards.",
+        "blue_ai_title": "Blue AI",
+        "blue_ai_desc": "The artificial intelligence that helps you make the best decisions."
+      }
+    },
+    "pricing": {
+      "title": "Simple and transparent pricing.",
+      "subtitle": "No hidden fees, no bad surprises.",
+      "unique_offer": "Unique Offer",
+      "per_month": "/month",
+      "all_included": "All included, forever.",
+      "equivalent": "Equivalent to 10,000 F CFA",
+      "bullets": [
+        "Unlimited users",
+        "Unlimited transactions",
+        "Priority support 24/7",
+        "Blue AI included",
+        "Free updates",
+        "Data export"
+      ],
+      "cta": "Start now"
+    },
+    "about": {
+      "badge": "About us",
+      "title": "Innovation at the service of <br /> <span class=\"text-kontrol-blue\">your growth.</span>",
+      "desc": "KONTROL is a cutting-edge technological solution developed by INNOV'KORP, dedicated to the digital transformation of SMEs and shops. Our mission is to democratize cutting-edge management tools to enable every small shopkeeper to succeed.",
+      "stat1": "10+",
+      "stat1_desc": "Businesses trust us",
+      "stat2": "99.9%",
+      "stat2_desc": "Availability",
+      "hq_title": "Headquarters",
+      "hq_value": "Abidjan, Ivory Coast",
+      "quote": "\"Under the leadership of INNOV'KORP, our vision is to create tools so intuitive that they become invisible, letting the entrepreneur focus on their core business.\""
+    },
+    "contact": {
+      "title": "Let's talk about your <br /> <span class=\"text-kontrol-orange\">project.</span>",
+      "subtitle": "Got questions or need a personalized demo? Our team is at your service to assist you in your digital transformation."
+    },
+    "footer": {
+      "rights": "© 2026 KONTROL. All rights reserved.",
+      "mentions": "Legal Terms",
+      "privacy": "Privacy Policy"
+    },
+    "support": {
+      "success_title": "Message sent!",
+      "success_desc": "Thank you for your message. Our support team will reply as soon as possible to your email address.",
+      "name_label": "Full Name",
+      "email_label": "Professional Email",
+      "subject_label": "Subject of your request",
+      "message_label": "Your message",
+      "name_placeholder": "John Doe",
+      "email_placeholder": "john@business.com",
+      "subject_placeholder": "Demo request / Technical question",
+      "message_placeholder": "Describe your needs in a few lines...",
+      "submit": "Send Message",
+      "submitting": "Sending..."
+    }
+  },
+  "subscriptions": {
+    "title": "Subscription & Services",
+    "subtitle": "Manage your Standard plan and access your invoices",
+    "verified": "Verified Account",
+    "pending_validation": {
+      "title": "Manual validation in progress",
+      "verifying": "(Verifying...)",
+      "desc": "Our team is verifying your payment. Your access will be automatically extended once validated.",
+      "live_check": "Live Verification"
+    },
+    "hero": {
+      "promo_text": "Propel your Shop to the next level.",
+      "current_plan": "Current Plan: {{name}}",
+      "renew": "Renew"
+    },
+    "details": {
+      "active": "Standard Active",
+      "required": "Payment required",
+      "auto_renew": "30-day automatic renewal."
+    },
+    "features_title": "Included in your offer",
+    "protection": {
+      "title": "Total Protection",
+      "desc": "Your data is encrypted and backed up daily on our secure servers."
+    },
+    "history": {
+      "title": "Payment History",
+      "view_all": "View all",
+      "columns": {
+        "date": "Payment Date",
+        "desc": "Description",
+        "amount": "Amount",
+        "status": "Status",
+        "action": "Action"
+      },
+      "invoice": "Invoice",
+      "unavailable": "Unavailable"
+    },
+    "modal": {
+      "renewal": "Renewal",
+      "secure_payment": "Secure Payment",
+      "wave": {
+        "title": "Pay via Wave",
+        "subtitle": "Instant Wave Business payment",
+        "step1": "Pay via our secure Wave link",
+        "cta_wave": "Access Wave",
+        "step2": "Enter your payment reference",
+        "ref_label": "Wave Transaction ID",
+        "confirm": "Confirm my payment"
+      },
+      "success": {
+        "title": "Request sent!",
+        "desc": "Your validation request has been sent. Our team will verify your payment as soon as possible."
+      },
+      "invoice_details": {
+        "title": "Invoice Details",
+        "issuer": "Issuer",
+        "client": "Client",
+        "issue_date": "Issue Date",
+        "expiry": "Expiry",
+        "method": "Payment",
+        "status": "Status",
+        "designation": "Designation",
+        "net_to_pay": "Net to Pay",
+        "receipt": "Paid"
+      }
+    }
+  },
+  "tickets": {
+    "title": "Support & Tickets",
+    "subtitle": "Manage support requests received via the website",
+    "new_ticket": "New Ticket",
+    "new_ticket_title": "Open a new ticket",
+    "new_ticket_desc": "Explain your problem in detail.",
+    "placeholder_subject": "What is it about?",
+    "placeholder_message": "Describe your request...",
+    "send": "Send ticket",
+    "stats": {
+      "new": "New",
+      "open": "In progress",
+      "closed": "Resolved"
+    },
+    "search_placeholder": "Search a ticket...",
+    "no_tickets": "No ticket found",
+    "select_prompt": "Select a ticket",
+    "select_desc": "Choose a request from the list to view details and reply.",
+    "delete_title": "Delete ticket",
+    "delete_confirm": "Are you sure you want to delete this ticket? This action is irreversible.",
+    "labels": {
+      "client": "Client",
+      "email": "E-mail",
+      "date": "Date",
+      "message": "Message",
+      "quick_actions": "Quick actions",
+      "reply_email": "Reply by email",
+      "mark_open": "Mark in progress",
+      "close": "Close ticket",
+      "reopen": "Reopen"
+    },
+    "export": {
+      "title": "Tickets Log - KONTROL",
+      "filename": "Tickets_KONTROL"
+    },
+    "notif": {
+      "created_title": "🎫 Ticket connected!",
+      "created_msg": "Hi {{name}}! We have received your ticket \"{{subject}}\". A KONTROL advisor will take over shortly.",
+      "admin_new_title": "🆘 New Support Need",
+      "admin_new_msg": "Support alert: {{name}} needs help with: {{subject}}",
+      "update_title": "Your ticket has been updated",
+      "update_msg": "The status of your ticket \"{{subject}}\" has changed to: {{status}}."
+    }
+  },
+  "sections": {
+    "dashboard": "Dashboard",
+    "management": "Management",
+    "stocks": "Stocks",
+    "communication": "Communication",
+    "system": "System",
+    "control_tower": "Control Tower",
+    "ecosystem": "Ecosystem Supervision",
+    "business": "KONTROL Business Pilot",
+    "coordination": "Coordination & Team",
+    "maintenance": "Maintenance & Audit",
+    "account": "My Account"
+  },
+  "header": {
+    "company_view": "Company View",
+    "all_companies": "All Companies",
+    "language": "Language"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+      "subtitle": "Monitor your company's performance in real-time",
+      "welcome": "Glad to see you back, {{name}}",
+      "stats": {
+        "treasury": "Treasury",
+        "revenue": "Revenue",
+        "expenses": "Total Expenses",
+        "profit": "Net Profit",
+        "yield": "Yield",
+        "performance": "Gross margin on revenue",
+        "customers": "Customers",
+        "vendors": "Vendors",
+        "products": "Products",
+        "stock_value": "Stock Value"
+      },
+      "alerts": {
+        "subscription_expiring": "Your subscription is expiring soon",
+        "subscription_expiry_date": "Expires on {{date}} (in {{days}} days)",
+        "renew_now": "Renew"
+      },
+      "ai_analysis": {
+        "button": "IA Strategic Analysis",
+        "analyzing": "Analyzing...",
+        "analyzing_subtitle": "Our AI is reviewing your financial data",
+        "modal_title": "Blue AI Strategic Intelligence",
+        "modal_subtitle": "Financial Audit & Recommendations",
+        "export_pdf": "Export to PDF",
+        "close": "Close",
+        "fallback": "Sorry, I couldn't generate a strategic analysis at this time.",
+        "error": "An error occurred during AI analysis."
+      },
+      "periods": {
+        "month": "This Month",
+        "year": "This Year",
+        "all": "All Time"
+      },
+      "trends": {
+        "title": "Financial Trends",
+        "subtitle": "Evolution of Revenue and Charges over the last 6 months",
+        "revenue": "Revenue",
+        "charges": "Charges & Purchases"
+      },
+      "performance": {
+        "title": "Performance Index",
+        "label": "Profitability",
+        "subtitle": "Your current yield rate is {{percent}}%"
+      },
+      "activity": {
+        "title": "Recent Activity",
+        "no_activity": "No recent activity.",
+        "columns": {
+          "action": "Action",
+          "module": "Details",
+          "date": "Time"
+        }
+      }
+    },
+    "admin": {
+      "title": "Control Tower",
+      "subtitle": "Global supervision of KONTROL system",
+      "status": {
+        "operational": "System Status: Operational",
+        "sync_live": "Live Sync Activated"
+      },
+      "metrics": {
+        "mrr": "MRR (Monthly Recurring Revenue)",
+        "treasury": "Global Treasury",
+        "active_nodes": "Active Nodes (Users)",
+        "system_health": "System Health",
+        "server_load": "Server Load",
+        "global_treasury": "Global Treasury Balance",
+        "total_revenue": "Total Revenue Flow"
+      },
+      "supervision": {
+        "title": "Supervision Mode:",
+        "subtitle": "Visualizing as client",
+        "exit": "Exit view"
+      },
+      "metrics": {
+        "mrr": "Global MRR",
+        "treasury": "Global Treasury",
+        "active_nodes": "Active Nodes",
+        "system_health": "System Health"
+      },
+      "charts": {
+        "revenue_growth": "Revenue Growth",
+        "analysis_mrr_churn": "MRR vs Churn Analysis",
+        "period_7d": "7 Days",
+        "period_30d": "30 Days",
+        "top_companies": "Top Companies (Revenue)",
+        "plan_standard": "Standard Plan",
+        "no_data": "No data available",
+        "view_ecosystem": "View whole ecosystem"
+      },
+      "events": {
+        "title": "Real-Time Event Stream",
+        "live": "LIVE",
+        "user_performed": "performed",
+        "at": "at"
+      },
+      "alerts": {
+        "title": "Global Alerts & Anomalies",
+        "brute_force": "Brute Force Attempt Detected",
+        "brute_force_desc": "IP: 192.168.1.45 - Target: Admin Panel",
+        "db_latency": "High Database Latency",
+        "db_latency_desc": "Peak of 450ms detected on Europe-West2 cluster",
+        "ai_insight": "Blue AI Insight",
+        "ai_insight_desc": "12 companies are approaching their trial plan limit.",
+        "block_ip": "Block IP",
+        "view_telemetry": "View Telemetry",
+        "launch_campaign": "Launch Campaign"
+      },
+      "subscriptions": {
+        "title": "Subscription Management",
+        "unique_price": "Unique Plan Price",
+        "monthly_standard": "Monthly Standard Subscription",
+        "active_count": "Active Subscriptions",
+        "generators": "Revenue Generators",
+        "pending_validations": "Pending Validations",
+        "action_required": "Action Required",
+        "wave_requests": "Validation Requests (Wave)",
+        "priority": "Priority Action",
+        "export_list": "Export List",
+        "table": {
+          "company": "Company",
+          "plan": "Plan",
+          "status": "Status",
+          "expiry": "Expiry",
+          "actions": "Actions",
+          "reference": "Reference",
+          "amount": "Amount",
+          "date": "Date"
+        },
+        "actions": {
+          "approve": "Approve",
+          "reject": "Reject",
+          "trial": "Trial",
+          "subscribe": "Subscribe",
+          "days": "Days:"
+        }
+      },
+      "managers": {
+        "title": "Platform Managers",
+        "new_manager": "New Manager",
+        "role": "Role",
+        "revoke": "Revoke"
+      },
+      "companies": {
+        "search": "Search for a company...",
+        "new_company": "New Company",
+        "health_score": "Health Score",
+        "users": "Users",
+        "active": "Active",
+        "view_as_client": "Client Supervisor View",
+        "filters": "Filters"
+      },
+      "users": {
+        "directory": "Global User Directory",
+        "total_nodes": "Total Nodes",
+        "table": {
+          "user": "User",
+          "role_rank": "Role & Rank",
+          "affiliation": "Affiliation",
+          "activity": "Activity",
+          "actions": "Actions"
+        }
+      },
+      "modals": {
+        "entity_details": "Entity Details",
+        "edit_entity": "Edit Entity",
+        "delete_confirm": "Delete Entity",
+        "delete_message": "Are you sure you want to delete this entity? All associated data will be permanently lost.",
+        "new_entity": "New {{type}}",
+        "create": "Create {{type}}"
+      },
+      "intelligence": {
+        "title": "Blue AI Strategy Lab",
+        "subtitle": "Predictive Intelligence & Growth Simulation",
+        "tabs": {
+          "vision": "Supervision",
+          "sql": "SQL Bridge",
+          "simulator": "Simulator",
+          "training": "Training Lab",
+          "logs": "Status & Heartbeat"
+        },
+        "cards": {
+          "resilience": "Financial Resilience",
+          "resilience_status": "Optimal (92%)",
+          "predictive": "Predictive Engine",
+          "predictive_status": "Active - 42ms",
+          "churn": "Churn Analysis",
+          "churn_status": "Low Risk"
+        },
+        "audit": {
+          "title": "Cognitive Audit",
+          "button": "Launch Audit Lab",
+          "concept": "Generate a Global Strategic Report",
+          "configure": "Configure AI"
+        },
+        "performance": {
+          "title": "Blue AI Performance",
+          "subtitle": "Request Volume & Latency",
+          "requests": "Requests",
+          "latency": "Latency (ms)"
+        },
+        "insights": {
+          "title": "Live Insights",
+          "none": "No recent insights"
+        },
+        "engine": {
+          "title": "Blue Core Engine",
+          "indexing": "Semantic Indexing",
+          "synced": "Synchronized (SQL + DB)",
+          "inference": "Inference",
+          "context_window": "Context Window",
+          "sql_bridge_info": "The engine is now coupled with the SQL Bridge for immediate contextual analysis."
+        },
+        "simulator": {
+          "title": "Strategic Pivot",
+          "growth": "Growth Rate",
+          "churn": "Churn Rate",
+          "button": "Simulate Impact",
+          "result_mrr": "Projected MRR (12 months)",
+          "ai_confidence": "Blue AI Confidence",
+          "ready_title": "Ready for Simulation?",
+          "ready_desc": "Adjust growth levers to project KONTROL's future with AI."
+        },
+        "sql": {
+          "title": "SQL Tables",
+          "visualisation": "Visualization: {{table}}",
+          "select_table": "Select a table to start",
+          "no_data": "No data to display",
+          "actions": "Actions",
+          "audit_btn": "Audit"
+        },
+        "training": {
+          "title": "Architecture",
+          "pipeline": "Knowledge Pipeline",
+          "vector_connected": "Vector DB Connected",
+          "vector_disconnected": "Vector DB Disconnected",
+          "vector_connecting": "Connecting Vector DB",
+          "sync_knowledge": "Sync Knowledge",
+          "grounding": "Data Grounding",
+          "logs_title": "Training Logs",
+          "waiting": "Waiting for interaction with pipeline..."
+        },
+        "logs": {
+          "heartbeat": "System Heartbeat",
+          "governance": "ERP Governance",
+          "security_shield": "Security Shield",
+          "audit_proof": "Audit Proof",
+          "engine_service": "Engine Service",
+          "refresh": "Refresh Telemetry",
+          "maturity_title": "KONTROL Maturity",
+          "maturity_subtitle": "Multi-Engine Performance Audit",
+          "stream_title": "Live Security & Sync Stream",
+          "stream_status": "Live Pipeline"
+        }
+      },
+      "versions": {
+        "title": "Version Entry & Control",
+        "subtitle": "Active version controlling modules and features for KONTROL clients.",
+        "active_label": "Active System Version",
+        "production_live": "PRODUCTION LIVE",
+        "deployment_status": "Deployment Status",
+        "log_title": "Version History",
+        "log_subtitle": "Full history and control of the application backbone.",
+        "archive_current": "Archive current version",
+        "activate_this": "Activate this version",
+        "switching": "Switching...",
+        "switch_success": "System successfully switched to version {{version}}.",
+        "switch_error": "Error during version switch. Check your permissions.",
+        "archive_modal": {
+          "title": "Archive a Version",
+          "number": "Version Number",
+          "features": "Features (comma separated)",
+          "save": "Save to Log"
+        },
+        "defaults": {
+          "v3_desc": "Current version with full integration of Blue AI and Control Tower.",
+          "v3_features": ["Control Tower KONTROL", "Blue AI Chatbot", "Multi-company Management", "Actions"],
+          "v2_desc": "Major UI update and performance optimization.",
+          "v2_features": ["New Design System", "Firestore Optimization", "Excel Export"],
+          "v1_desc": "Historical initial launch of the KONTROL platform.",
+          "v1_features": ["Stock Management", "Sales & Purchases", "Base Accounting"]
+        }
+      },
+      "transactions": {
+        "title_global": "Global Transactions Stream",
+        "subtitle_global": "Real-time observability of all ecosystem transactions",
+        "add_button": "New Transaction",
+        "search_placeholder": "Search by reference or counterparty...",
+        "table": {
+          "reference": "Reference",
+          "date": "Date",
+          "tiers": "Counterparty",
+          "amount": "Amount",
+          "status": "Status"
+        }
+      },
+      "treasury": {
+        "title": "Platform Treasury",
+        "subtitle": "Global financial flow management of KONTROL",
+        "add_button": "New Movement",
+        "search_placeholder": "Search for a movement...",
+        "balance": "Global Treasury Balance",
+        "net_flow": "Cumulative platform net flow",
+        "inflows_period": "Inflows (Period)",
+        "outflows_period": "Outflows (Period)",
+        "incomes": "Financial entries",
+        "expenses": "Financial exits",
+        "all_flows": "All flows",
+        "encaissements": "Inflows",
+        "decaissements": "Outflows",
+        "table": {
+          "mode": "Mode"
+        },
+        "modal": {
+          "title": "New Movement",
+          "encaissement": "Inflow (+)",
+          "decaissement": "Outflow (-)"
+        },
+        "delete": {
+          "title": "Delete movement",
+          "message": "Are you sure you want to delete this treasury movement? This action is irreversible."
+        }
+      },
+      "actions": {
+        "title": "Global Actions Log",
+        "search_placeholder": "Search in logs...",
+        "export_csv": "Export CSV",
+        "table": {
+          "timestamp": "Timestamp",
+          "actor": "Actor",
+          "action": "Action",
+          "details": "Details",
+          "actions": "Actions"
+        },
+        "view": "View"
+      },
+      "updates": {
+        "title": "Blue AI Updates",
+        "subtitle": "Predictive Intelligence",
+        "description": "Discover and validate the evolutions suggested by AI for KONTROL.",
+        "generate_button": "Generate a proposal",
+        "generating": "Generating...",
+        "loading": "Analyzing proposals in progress...",
+        "impact": "Impact {{level}}",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "approve": "Approve",
+        "reject": "Reject",
+        "ready_deploy": "Ready for deployment",
+        "archived": "Proposal archived",
+        "categories": {
+          "UI": "UI",
+          "PERFORMANCE": "Performance",
+          "SECURITY": "Security",
+          "FEATURE": "Feature"
+        }
+      }
+    },
+  "stocks": {
+    "title": "Stock Management",
+    "subtitle": "Automatic Movements & AVCO Valuation",
+    "movements_tab": "Movements",
+    "inventory_tab": "Stock Status",
+    "stats": {
+      "total_value": "Total Value (AVCO)",
+      "entries": "Entries (Month)",
+      "exits": "Exits (Month)",
+      "alerts": "Out of Stock / Alerts"
+    },
+    "table": {
+      "date": "Date",
+      "type": "Type",
+      "product": "Product",
+      "quantity": "Quantity",
+      "unit_price": "U.P.",
+      "source": "Source",
+      "ref": "Ref",
+      "designation": "Designation",
+      "stock": "Stock",
+      "cump": "AVCO",
+      "inventory_value": "Stock Value",
+      "status": "Status",
+      "status_rupture": "Out of Stock",
+      "status_low": "Low",
+      "status_ok": "OK"
+    },
+    "search_placeholder": "Search for a product...",
+    "no_movements": "No movements recorded.",
+    "no_inventory": "No products in stock.",
+    "cump_info": "AVCO = Average Cost / Weighted Average Cost",
+    "history_title": "Movement History",
+    "inventory_title": "Inventory & AVCO Valuation",
+    "total_movements": "{{count}} movements total",
+    "total_products": "{{count}} products total",
+    "movement_journal": "Movement Journal",
+    "notif_low_stock_title": "Low Stock Alert",
+    "notif_low_stock_msg": "The product \"{{name}}\" is almost out of stock ({{count}} left)."
+  },
+  "tiers": {
+    "title": "Tiers",
+    "subtitle": "Customers and suppliers — TIERS Sheet",
+    "new_tier": "New tier",
+    "edit_tier": "Edit Tier",
+    "delete_tier": "Delete tier",
+    "delete_tier_confirm": "Are you sure you want to delete \"{{name}}\"? This action is irreversible.",
+    "form": {
+      "name": "Full name",
+      "type": "Type",
+      "email": "Email",
+      "phone": "Phone",
+      "address": "Address",
+      "status": "Status",
+      "type_client": "Customer",
+      "type_vendor": "Supplier"
+    },
+    "table": {
+      "id": "ID",
+      "name": "Name",
+      "type": "Type",
+      "status": "Status"
+    },
+    "search_placeholder": "Search name, email, address…",
+    "filter_all": "All types",
+    "filter_clients": "Customers",
+    "filter_vendors": "Suppliers",
+    "no_tiers": "No tiers found.",
+    "total_count": "{{count}} tiers total",
+    "log_modified": "Tier modified",
+    "log_deleted": "Tier deleted",
+    "details": {
+      "title": "Tier details",
+      "select_prompt": "Select a tier to see details.",
+      "transactions": "Transactions",
+      "balance": "Balance"
+    }
+  },
+  "produits": {
+    "title": "Products",
+    "subtitle": "Catalog — PRODUCTS Sheet",
+    "new_product": "New product",
+    "edit_product": "Edit Product",
+    "delete_product": "Delete Product",
+    "delete_product_confirm": "Are you sure you want to delete \"{{name}}\"? This action is irreversible.",
+    "import": "Import",
+    "import_success": "{{count}} products imported successfully.",
+    "import_error": "Error during import. Check the file format.",
+    "save_product": "Save Product",
+    "save_success": "Product saved successfully!",
+    "search_placeholder": "Search designation, reference…",
+    "no_products": "No products found.",
+    "total_count": "{{count}} products total",
+    "status_out": "Out of stock",
+    "status_low": "Low stock",
+    "status_in": "In stock",
+    "activity_log": "Product Activity Log",
+    "form": {
+      "reference": "Reference",
+      "designation": "Designation",
+      "buy_price": "Buy Price",
+      "sell_price": "Sell Price",
+      "initial_stock": "Initial Stock",
+      "alert_stock": "Alert Stock",
+      "tva": "VAT",
+      "tva_label": "Applicable VAT",
+      "required_fields": "Please fill in all required fields."
+    },
+    "table": {
+      "reference": "Reference",
+      "designation": "Designation",
+      "stock": "Stock"
+    },
+    "details": {
+      "title": "Product Sheet",
+      "characteristic": "Characteristic",
+      "value": "Value",
+      "current_stock": "Current Stock",
+      "stock_value": "Stock Value",
+      "gross_margin": "Gross Margin",
+      "created_at": "Created At",
+      "sheet": "Sheet",
+      "select_prompt": "Select a product to view details."
+    }
+  },
+  "finance": {
+    "title": "Treasury & Finance",
+    "subtitle": "",
+    "calculate_bridge": "Calculate Bridge Eligibility",
+    "calculating": "Calculating...",
+    "new_movement": "New Movement",
+    "delete_movement": "Delete movement",
+    "delete_movement_confirm": "Are you sure you want to delete this movement of {{amount}}? This action is irreversible.",
+    "bridge_offer": "KONTROL Financing Guarantee",
+    "bridge_calc_info": "Estimation based on your real cash flows. Support your loan request with this certified statement: {{amount}}.",
+    "preferential_rate": "Guarantee Rate",
+    "annual": "ANNUAL",
+    "unlock_funds": "Generate Certificate",
+    "total_cash": "Total Treasury",
+    "cash_status": "Current balance of your treasury",
+    "inflow_period": "Inflows (Period)",
+    "inflow_total": "Total inflows for the period",
+    "outflow_period": "Outflows (Period)",
+    "outflow_total": "Total outflows for the period",
+    "search_placeholder": "Search description, tiers...",
+    "filter_all": "All flows",
+    "filter_in": "Inflows only",
+    "filter_out": "Outflows only",
+    "history_title": "Flow History",
+    "no_movements": "No movements recorded for this period.",
+    "total_count": "{{count}} flows total",
+    "form": {
+      "type_in": "Inflow (+)",
+      "type_out": "Outflow (-)",
+      "date": "Date",
+      "amount": "Amount",
+      "method": "Payment Method",
+      "party": "Party (Optional)",
+      "no_party": "No party",
+      "description": "Description",
+      "description_placeholder": "Ex: Settlement of invoice #123, Counter sale...",
+      "pay_wave": "Pay with Wave Business",
+      "save_movement": "Save movement"
+    },
+    "table": {
+      "date": "Date",
+      "description_party": "Description / Party",
+      "method": "Method",
+      "amount": "Amount"
+    }
+  },
+  "transactions": {
+    "title": "Transactions",
+    "subtitle": "Sales and Purchases — TRANSACTIONS Sheet",
+    "new_transaction": "New transaction",
+    "edit_transaction": "Edit transaction",
+    "delete_transaction": "Delete transaction",
+    "delete_transaction_confirm": "Are you sure you want to delete transaction {{ref}}? Product stocks will be automatically adjusted.",
+    "cash_flow_report": "Cash Flow",
+    "no_transactions": "No transactions found.",
+    "total_count": "{{count}} transactions total",
+    "details_title": "Transaction details",
+    "select_prompt": "Select a transaction to see details.",
+    "issue_date": "Issue Date",
+    "party_type": "Counterparty type",
+    "payment_status": "Payment status",
+    "invoice": "Invoice",
+    "receipt": "Receipt",
+    "real_invoice": "Real Invoice",
+    "pay_mobile": "Pay via {{type}}",
+    "articles": "Items",
+    "total_xof": "Total Transaction (XOF)",
+    "total_in": "Total in {{devise}}",
+    "activity_log": "Transaction Activity Log",
+    "scan_qr_instruction": "Scan this code to initiate payment to: <span class=\"font-bold text-kontrol-blue\">{{phone}}</span>",
+    "form": {
+      "type_sale": "Sale (Stock Out)",
+      "type_purchase": "Purchase (Stock In)",
+      "party": "Party (Client/Vendor)",
+      "select_party": "Select a party",
+      "no_party_found": "No {{type}} found",
+      "devise": "Currency",
+      "rate": "Rate",
+      "invoice_file": "Vendor Invoice (Optional)",
+      "change_file": "Change file",
+      "import_invoice": "Import invoice",
+      "file_hint": "PDF or Image (Max 2MB)",
+      "add_product": "Add a product...",
+      "no_products_found": "No products found",
+      "amount_total_tax": "Total Amount (incl. Tax)"
+    },
+    "status": {
+      "paid": "Paid",
+      "pending": "Pending",
+      "cancelled": "Cancelled"
+    }
+  },
+  "charges": {
+    "title": "Expenses & Charges",
+    "subtitle": "Fixed and variable costs — CHARGES Sheet",
+    "new_charge": "New expense",
+    "edit_charge": "Edit expense",
+    "delete_charge": "Delete expense",
+    "delete_charge_confirm": "Are you sure you want to delete the expense \"{{description}}\"? This action is irreversible.",
+    "no_charges": "No expenses found.",
+    "total_count": "{{count}} expenses total",
+    "details_title": "Expense details",
+    "select_prompt": "Select an expense to see details.",
+    "total_period": "Total expenses (period)",
+    "pieces_count": "Documents count",
+    "average_charge": "Average / expense",
+    "stats": {
+      "pieces": "{{count}} documents"
+    },
+    "form": {
+      "category": "Category",
+      "description": "Description",
+      "amount": "Amount",
+      "date": "Date",
+      "payment_method": "Payment method",
+      "proof": "Proof (Image/PDF)",
+      "choose_file": "Choose a file",
+      "change_file": "Change file",
+      "file_too_large": "The file is too large (max 1MB)."
+    },
+    "categories": {
+      "rent": "Rent",
+      "electricity": "Electricity",
+      "water": "Water",
+      "internet": "Internet",
+      "salaries": "Salaries",
+      "transport": "Transport",
+      "marketing": "Marketing",
+      "others": "Others"
+    },
+    "auto_kontrol": {
+      "title": "Automated Expense",
+      "desc": "This expense was automatically generated by the KONTROL system (Subscription)."
+    }
+  },
+  "users": {
+    "title": "Team Management",
+    "subtitle": "View and manage access for your team members",
+    "new_user": "New user",
+    "add_member": "Add a member",
+    "no_users": "No users found.",
+    "total_count": "{{count}} users total",
+    "details_title": "User details",
+    "select_prompt": "Select a member to see details.",
+    "search_placeholder": "Search by name, email, role...",
+    "active_count": "Active users",
+    "roles": {
+      "admin_enterprise": "Company Admin",
+      "manager_enterprise": "Company Manager",
+      "admin_kontrol": "KONTROL Admin",
+      "manager_kontrol": "KONTROL Support",
+      "user": "User"
+    },
+    "status": {
+      "active": "Active Account",
+      "suspended": "Suspended Account",
+      "online": "Online",
+      "offline": "Offline"
+    },
+    "form": {
+      "fullname": "Full name",
+      "email": "Business Email",
+      "password": "Password",
+      "role": "Role",
+      "phone": "Phone",
+      "create_user": "Create user",
+      "email_exists": "This email is already in use by another user.",
+      "admin_no_disable": "The enterprise admin account cannot be disabled."
+    },
+    "security": {
+      "title": "Security & Access",
+      "uid": "Unique ID (UID)",
+      "reset_password": "Reset Password",
+      "reset_confirm": "Send a password reset email to {{name}} ({{email}})?",
+      "reset_success": "Reset email sent successfully.",
+      "reset_error": "Error sending email."
+    }
+  }
+}

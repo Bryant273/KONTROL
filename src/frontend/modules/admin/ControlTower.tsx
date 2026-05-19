@@ -109,6 +109,12 @@ import { UpdatesView } from './UpdatesView';
 import { emailService } from '../../../api/services/emailService';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { sendNotification } from '../../../api/services/notificationService';
+import { useTranslation } from 'react-i18next';
+
+const formatRole = (role: string) => {
+  if (!role) return 'N/A';
+  return role.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+};
 
 interface ControlTowerProps {
   activeSubTab?: string;
@@ -116,23 +122,24 @@ interface ControlTowerProps {
   profile?: UserProfile | null;
 }
 
-const formatRole = (role?: string) => {
-  if (!role) return '';
-  const roles: Record<string, string> = {
-    'ADMINISTRATEUR_ERP': 'Administrateur KONTROL',
-    'GESTIONNAIRE_ERP': 'Gestionnaire KONTROL',
-    'ADMINISTRATEUR_KONTROL': 'Administrateur KONTROL',
-    'GESTIONNAIRE_KONTROL': 'Gestionnaire KONTROL',
-    'ADMINISTRATEUR_ENTREPRISE': 'Administrateur Entreprise',
-    'GESTIONNAIRE_ENTREPRISE': 'Gestionnaire Entreprise',
-    'UTILISATEUR': 'Utilisateur',
-    'ADMIN': 'Administrateur'
-  };
-  return roles[role] || role.replace(/_/g, ' ');
-};
-
 export function ControlTower({ activeSubTab = 'dashboard', user, profile }: ControlTowerProps) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
+
+  const formatRole = (role?: string) => {
+    if (!role) return '';
+    const roles: Record<string, string> = {
+      'ADMINISTRATEUR_ERP': t('common.roles.admin_kontrol'),
+      'GESTIONNAIRE_ERP': t('common.roles.manager_kontrol'),
+      'ADMINISTRATEUR_KONTROL': t('common.roles.admin_kontrol'),
+      'GESTIONNAIRE_KONTROL': t('common.roles.manager_kontrol'),
+      'ADMINISTRATEUR_ENTREPRISE': t('common.roles.admin_enterprise'),
+      'GESTIONNAIRE_ENTREPRISE': t('common.roles.manager_enterprise'),
+      'UTILISATEUR': t('common.roles.user'),
+      'ADMIN': t('common.roles.admin_kontrol')
+    };
+    return roles[role] || role.replace(/_/g, ' ');
+  };
   const [stats, setStats] = useState({
     totalUsers: 0,
     activeCompanies: 0,
@@ -310,28 +317,30 @@ export function ControlTower({ activeSubTab = 'dashboard', user, profile }: Cont
   useEffect(() => {
     if (!user || !profile) return;
     
-    const interval = setInterval(async () => {
-      try {
-        await addDoc(collection(db, 'system_metrics'), {
-          cpu: 10 + Math.random() * 15,
-          ram: 4.1 + Math.random() * 0.5,
-          latency: 40 + Math.random() * 20,
-          errors: Math.random() > 0.95 ? 1 : 0,
-          timestamp: Date.now()
-        });
-        
-        // Cleanup old metrics (keep last 50)
-        const snap = await getDocs(query(collection(db, 'system_metrics'), orderBy('timestamp', 'desc')));
-        if (snap.size > 50) {
-          const toDelete = snap.docs.slice(50);
-          for (const d of toDelete) {
-            await deleteDoc(d.ref);
+    const interval = setInterval(() => {
+      const runMetricsTask = async () => {
+        try {
+          await addDoc(collection(db, 'system_metrics'), {
+            cpu: 10 + Math.random() * 15,
+            ram: 4.1 + Math.random() * 0.5,
+            latency: 40 + Math.random() * 20,
+            errors: Math.random() > 0.95 ? 1 : 0,
+            timestamp: Date.now()
+          });
+          
+          // Cleanup old metrics (keep last 50)
+          const snap = await getDocs(query(collection(db, 'system_metrics'), orderBy('timestamp', 'desc')));
+          if (snap.size > 50) {
+            const toDelete = snap.docs.slice(50);
+            for (const d of toDelete) {
+              await deleteDoc(d.ref);
+            }
           }
+        } catch (e) {
+          console.error("System metrics background task failed:", e);
         }
-      } catch (e) {
-        console.error("System metrics background task failed:", e);
-        // We don't re-throw here to avoid unhandled rejections in setInterval
-      }
+      };
+      runMetricsTask();
     }, 30000); // Every 30s
     return () => clearInterval(interval);
   }, []);
@@ -350,16 +359,16 @@ export function ControlTower({ activeSubTab = 'dashboard', user, profile }: Cont
             </button>
             <div>
               <h3 className="text-sm font-bold text-kontrol-dark uppercase tracking-widest">
-                Mode Supervision: <span className="text-kontrol-blue">{targetProfile?.companyName || targetProfile?.displayName}</span>
+                {t('admin.supervision.title')} <span className="text-kontrol-blue">{targetProfile?.companyName || targetProfile?.displayName}</span>
               </h3>
-              <p className="text-[10px] text-kontrol-ink-muted font-bold uppercase tracking-tighter">Visualisation en tant que client</p>
+              <p className="text-[10px] text-kontrol-ink-muted font-bold uppercase tracking-tighter">{t('admin.supervision.subtitle')}</p>
             </div>
           </div>
           <button 
             onClick={() => setViewingCompanyId(null)}
             className="px-4 py-2 bg-kontrol-dark text-white text-[10px] font-extrabold uppercase tracking-widest rounded-xl"
           >
-            Quitter la vue
+            {t('admin.supervision.exit')}
           </button>
         </div>
         
@@ -379,22 +388,13 @@ export function ControlTower({ activeSubTab = 'dashboard', user, profile }: Cont
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-kontrol-blue mb-1">
             <Activity size={18} className="animate-pulse" />
-            <span className="text-[10px] font-extrabold uppercase tracking-[0.3em]">Statut Système: Opérationnel</span>
+            <span className="text-[10px] font-extrabold uppercase tracking-[0.3em]">{t('admin.status.operational')}</span>
           </div>
-          <h2 className="text-4xl font-extrabold text-kontrol-dark tracking-tighter uppercase">
-            {activeSubTab === 'dashboard' ? 'Command Center' : 
-             activeSubTab === 'subscriptions' || activeSubTab === 'revenue' || activeSubTab === 'accounting' ? 'Gestion Financière' :
-             activeSubTab === 'entreprises' || activeSubTab === 'utilisateurs' ? 'Écosystème' :
-             activeSubTab === 'ai_core' ? 'Intelligence Blue AI' :
-             activeSubTab === 'telemetry' || activeSubTab === 'system' || activeSubTab === 'versions' || activeSubTab === 'updates' ? 'Système & Télémétrie' :
-             'Contrôle & Sécurité'}
-          </h2>
-          <p className="text-[12px] text-kontrol-ink-muted font-bold uppercase tracking-widest">CONTROL TOWER • v3.0.0-PRO</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="px-4 py-2 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[10px] font-extrabold text-emerald-600 uppercase tracking-widest">Sync Live Activée</span>
+            <span className="text-[10px] font-extrabold text-emerald-600 uppercase tracking-widest">{t('admin.status.sync_live')}</span>
           </div>
           <button className="p-3 bg-white border border-kontrol-dark/10 hover:bg-kontrol-bg transition-colors rounded-xl shadow-sm">
             <RefreshCw size={18} className="text-kontrol-ink-muted" />
@@ -599,6 +599,7 @@ export function ControlTower({ activeSubTab = 'dashboard', user, profile }: Cont
 // --- SUB-VIEWS ---
 
 function VisionView({ stats, companies, recentActions, treasuryBalance, systemStats }: any) {
+  const { t } = useTranslation();
   const [period, setPeriod] = useState<'7' | '30'>('30');
   const topCompanies = [...companies]
     .sort((a, b) => (b.revenue || 0) - (a.revenue || 0))
@@ -614,10 +615,10 @@ function VisionView({ stats, companies, recentActions, treasuryBalance, systemSt
     >
       {/* Global KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="MRR Global" value={formatCurrency(stats.mrr)} change="+12.5%" icon={TrendingUp} color="blue" trend="up" />
-        <StatCard title="Trésorerie Globale" value={formatCurrency(treasuryBalance)} change="Live" icon={WalletIcon} color="amber" trend="up" />
-        <StatCard title="Noeuds Actifs" value={stats.totalUsers} change="+45" icon={Users} color="blue" trend="up" />
-        <StatCard title="Santé Système" value="99.9%" change="Stable" icon={Activity} color="emerald" trend="up" />
+        <StatCard title={t('admin.metrics.mrr')} value={formatCurrency(stats.mrr)} change="+12.5%" icon={TrendingUp} color="blue" trend="up" />
+        <StatCard title={t('admin.metrics.treasury')} value={formatCurrency(treasuryBalance)} change="Live" icon={WalletIcon} color="amber" trend="up" />
+        <StatCard title={t('admin.metrics.active_nodes')} value={stats.totalUsers} change="+45" icon={Users} color="blue" trend="up" />
+        <StatCard title={t('admin.metrics.system_health')} value="99.9%" change="Stable" icon={Activity} color="emerald" trend="up" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -625,8 +626,8 @@ function VisionView({ stats, companies, recentActions, treasuryBalance, systemSt
         <div className="lg:col-span-2 card p-8">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted mb-1">Croissance des Revenus</h3>
-              <p className="text-2xl font-extrabold text-kontrol-dark tracking-tight">Analyse MRR vs Churn</p>
+              <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted mb-1">{t('admin.charts.revenue_growth')}</h3>
+              <p className="text-2xl font-extrabold text-kontrol-dark tracking-tight">{t('admin.charts.analysis_mrr_churn')}</p>
             </div>
             <div className="flex bg-kontrol-bg p-1 rounded-2xl border border-kontrol-border">
               <button 
@@ -636,7 +637,7 @@ function VisionView({ stats, companies, recentActions, treasuryBalance, systemSt
                   period === '7' ? "bg-kontrol-blue text-white shadow-lg shadow-kontrol-blue/20" : "text-kontrol-ink-soft hover:bg-kontrol-border"
                 )}
               >
-                7 Jours
+                {t('admin.charts.period_7d')}
               </button>
               <button 
                 onClick={() => setPeriod('30')}
@@ -645,7 +646,7 @@ function VisionView({ stats, companies, recentActions, treasuryBalance, systemSt
                   period === '30' ? "bg-kontrol-blue text-white shadow-lg shadow-kontrol-blue/20" : "text-kontrol-ink-soft hover:bg-kontrol-border"
                 )}
               >
-                30 Jours
+                {t('admin.charts.period_30d')}
               </button>
             </div>
           </div>
@@ -672,7 +673,7 @@ function VisionView({ stats, companies, recentActions, treasuryBalance, systemSt
 
         {/* Top Companies */}
         <div className="card p-8">
-          <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted mb-6">Top Entreprises (Revenus)</h3>
+          <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted mb-6">{t('admin.charts.top_companies')}</h3>
           <div className="space-y-6">
             {topCompanies.length > 0 ? topCompanies.map((company, idx) => (
               <div key={company.id} className="flex items-center justify-between group cursor-pointer">
@@ -682,17 +683,17 @@ function VisionView({ stats, companies, recentActions, treasuryBalance, systemSt
                   </div>
                   <div>
                     <p className="text-[13px] font-extrabold text-kontrol-dark group-hover:text-kontrol-blue transition-colors">{company.companyName || company.displayName}</p>
-                    <p className="text-[10px] text-kontrol-ink-muted uppercase tracking-widest">Plan Standard</p>
+                    <p className="text-[10px] text-kontrol-ink-muted uppercase tracking-widest">{t('admin.charts.plan_standard')}</p>
                   </div>
                 </div>
                 <p className="text-[13px] font-extrabold text-kontrol-dark">{formatCurrency(company.revenue || 10000)}</p>
               </div>
             )) : (
-              <p className="text-[11px] text-kontrol-ink-muted italic">Aucune donnée disponible</p>
+              <p className="text-[11px] text-kontrol-ink-muted italic">{t('admin.charts.no_data')}</p>
             )}
           </div>
           <button className="w-full mt-8 py-3 bg-kontrol-bg text-kontrol-ink-soft text-[10px] font-extrabold uppercase tracking-widest rounded-xl hover:bg-kontrol-border transition-all">
-            Voir tout l'écosystème
+            {t('admin.charts.view_ecosystem')}
           </button>
         </div>
       </div>
@@ -715,7 +716,7 @@ function VisionView({ stats, companies, recentActions, treasuryBalance, systemSt
                 <div>
                   <p className="text-[12px] text-kontrol-dark">
                     <span className="font-extrabold uppercase">{action.userName}</span>
-                    <span className="mx-2 text-kontrol-ink-muted">a effectué</span>
+                    <span className="mx-2 text-kontrol-ink-muted">{t('admin.events.user_performed')}</span>
                     <span className="font-bold text-kontrol-blue">{action.action}</span>
                   </p>
                   <p className="text-[11px] text-kontrol-ink-muted mt-1 italic">"{action.details}"</p>
@@ -728,16 +729,16 @@ function VisionView({ stats, companies, recentActions, treasuryBalance, systemSt
 
         {/* Global Alerts & Anomalies */}
         <div className="card p-8">
-          <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted mb-6">Alertes Globales & Anomalies</h3>
+          <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted mb-6">{t('admin.alerts.title')}</h3>
           <div className="space-y-4">
             <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl flex gap-4">
               <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center text-rose-600 shrink-0">
                 <Shield size={20} />
               </div>
               <div>
-                <p className="text-[13px] font-extrabold text-rose-900">Tentative de Brute Force Détectée</p>
-                <p className="text-[11px] text-rose-700 mt-1">IP: 192.168.1.45 - Cible: Admin Panel</p>
-                <button className="mt-2 text-[10px] font-extrabold text-rose-600 uppercase tracking-widest hover:underline">Bloquer l'IP</button>
+                <p className="text-[13px] font-extrabold text-rose-900">{t('admin.alerts.brute_force')}</p>
+                <p className="text-[11px] text-rose-700 mt-1">{t('admin.alerts.brute_force_desc')}</p>
+                <button className="mt-2 text-[10px] font-extrabold text-rose-600 uppercase tracking-widest hover:underline">{t('admin.alerts.block_ip')}</button>
               </div>
             </div>
             <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex gap-4">
@@ -745,9 +746,9 @@ function VisionView({ stats, companies, recentActions, treasuryBalance, systemSt
                 <Activity size={20} />
               </div>
               <div>
-                <p className="text-[13px] font-extrabold text-amber-900">Latence Base de Données Élevée</p>
-                <p className="text-[11px] text-amber-700 mt-1">Pic de 450ms détecté sur le cluster Europe-West2</p>
-                <button className="mt-2 text-[10px] font-extrabold text-amber-600 uppercase tracking-widest hover:underline">Voir Télémétrie</button>
+                <p className="text-[13px] font-extrabold text-amber-900">{t('admin.alerts.db_latency')}</p>
+                <p className="text-[11px] text-amber-700 mt-1">{t('admin.alerts.db_latency_desc')}</p>
+                <button className="mt-2 text-[10px] font-extrabold text-amber-600 uppercase tracking-widest hover:underline">{t('admin.alerts.view_telemetry')}</button>
               </div>
             </div>
             <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex gap-4">
@@ -755,9 +756,9 @@ function VisionView({ stats, companies, recentActions, treasuryBalance, systemSt
                 <Brain size={20} />
               </div>
               <div>
-                <p className="text-[13px] font-extrabold text-blue-900">Insight Blue AI: Opportunité MRR</p>
-                <p className="text-[11px] text-blue-700 mt-1">12 entreprises approchent de la limite de leur plan d'essai.</p>
-                <button className="mt-2 text-[10px] font-extrabold text-blue-600 uppercase tracking-widest hover:underline">Lancer Campagne</button>
+                <p className="text-[13px] font-extrabold text-blue-900">{t('admin.alerts.ai_insight')}</p>
+                <p className="text-[11px] text-blue-700 mt-1">{t('admin.alerts.ai_insight_desc')}</p>
+                <button className="mt-2 text-[10px] font-extrabold text-blue-600 uppercase tracking-widest hover:underline">{t('admin.alerts.launch_campaign')}</button>
               </div>
             </div>
           </div>
@@ -768,6 +769,7 @@ function VisionView({ stats, companies, recentActions, treasuryBalance, systemSt
 }
 
 function BusinessSubscriptionsView({ companies, paymentRequests = [], allUsers = [] }: any) {
+  const { t } = useTranslation();
   const [trialDays, setTrialDays] = useState('30');
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
 
@@ -991,23 +993,23 @@ function BusinessSubscriptionsView({ companies, paymentRequests = [], allUsers =
     >
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="card p-8 bg-kontrol-dark text-white">
-          <p className="text-[10px] font-extrabold uppercase tracking-widest text-white/40 mb-2">Prix Unique du Plan</p>
+          <p className="text-[10px] font-extrabold uppercase tracking-widest text-white/40 mb-2">{t('admin.subscriptions.unique_price')}</p>
           <h3 className="text-4xl font-extrabold tracking-tighter">10,000 FCFA</h3>
-          <p className="text-[11px] text-white/60 mt-2">Abonnement Mensuel Standard</p>
+          <p className="text-[11px] text-white/60 mt-2">{t('admin.subscriptions.monthly_standard')}</p>
         </div>
         <div className="card p-8">
-          <p className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted mb-2">Abonnements Actifs</p>
+          <p className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted mb-2">{t('admin.subscriptions.active_count')}</p>
           <h3 className="text-4xl font-extrabold text-kontrol-dark tracking-tighter">
             {companies.filter((c: any) => c.subscriptionStatus === 'ACTIVE').length}
           </h3>
-          <p className="text-[11px] text-emerald-600 font-bold mt-2">Générateurs de Revenus</p>
+          <p className="text-[11px] text-emerald-600 font-bold mt-2">{t('admin.subscriptions.generators')}</p>
         </div>
         <div className="card p-8 bg-amber-50 border-amber-100">
-          <p className="text-[10px] font-extrabold uppercase tracking-widest text-amber-600 mb-2">Validations en Attente</p>
+          <p className="text-[10px] font-extrabold uppercase tracking-widest text-amber-600 mb-2">{t('admin.subscriptions.pending_validations')}</p>
           <h3 className="text-4xl font-extrabold text-amber-700 tracking-tighter">
             {paymentRequests.length}
           </h3>
-          <p className="text-[11px] text-amber-600 font-bold mt-2">Action Requise</p>
+          <p className="text-[11px] text-amber-600 font-bold mt-2">{t('admin.subscriptions.action_required')}</p>
         </div>
       </div>
 
@@ -1015,21 +1017,21 @@ function BusinessSubscriptionsView({ companies, paymentRequests = [], allUsers =
         <div className="card border-amber-200 shadow-xl shadow-amber-500/5">
           <div className="p-6 border-b border-amber-100 bg-amber-50/50 flex items-center justify-between">
             <h3 className="text-sm font-extrabold uppercase tracking-tighter text-amber-900 flex items-center gap-2">
-              <Clock size={18} /> Demandes de Validation (Wave)
+              <Clock size={18} /> {t('admin.subscriptions.wave_requests')}
             </h3>
             <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-lg text-[10px] font-bold uppercase tracking-widest">
-              Action Priority
+              {t('admin.subscriptions.priority')}
             </span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-amber-50/30 border-b border-amber-100">
-                  <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-amber-700">Client / Entreprise</th>
-                  <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-amber-700">Référence</th>
-                  <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-amber-700">Montant</th>
-                  <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-amber-700">Date</th>
-                  <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-amber-700 text-right">Action</th>
+                  <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-amber-700">{t('admin.subscriptions.table.company')}</th>
+                  <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-amber-700">{t('admin.subscriptions.table.reference')}</th>
+                  <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-amber-700">{t('admin.subscriptions.table.amount')}</th>
+                  <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-amber-700">{t('admin.subscriptions.table.date')}</th>
+                  <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-amber-700 text-right">{t('admin.subscriptions.table.actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-amber-100">
@@ -1060,13 +1062,13 @@ function BusinessSubscriptionsView({ companies, paymentRequests = [], allUsers =
                             onClick={() => handleRejectPayment(req)}
                             className="px-4 py-2 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-extrabold uppercase tracking-widest hover:bg-rose-100 transition-all border border-rose-100 shadow-sm"
                           >
-                            Refuser
+                            {t('admin.subscriptions.actions.reject')}
                           </button>
                           <button 
                             onClick={() => handleApprovePayment(req)}
                             className="px-4 py-2 bg-emerald-500 text-white rounded-xl text-[10px] font-extrabold uppercase tracking-widest hover:bg-emerald-600 transition-all flex items-center gap-2 shadow-lg shadow-emerald-500/20"
                           >
-                            <CheckCircle2 size={14} /> Valider
+                            <CheckCircle2 size={14} /> {t('admin.subscriptions.actions.approve')}
                           </button>
                         </div>
                       </td>
@@ -1081,23 +1083,23 @@ function BusinessSubscriptionsView({ companies, paymentRequests = [], allUsers =
 
       <div className="card overflow-hidden">
         <div className="p-6 border-b border-kontrol-border flex items-center justify-between">
-          <h3 className="text-[11px] font-extrabold uppercase tracking-widest">Gestion des Abonnements</h3>
+          <h3 className="text-[11px] font-extrabold uppercase tracking-widest">{t('admin.subscriptions.title')}</h3>
           <button 
             onClick={handleExport}
             className="px-4 py-2 bg-kontrol-blue text-white text-[10px] font-extrabold uppercase tracking-widest rounded-xl hover:bg-blue-600 transition-all"
           >
-            Exporter la Liste
+            {t('admin.subscriptions.export_list')}
           </button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-kontrol-bg/50 border-b border-kontrol-border">
-                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Entreprise</th>
-                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Plan</th>
-                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Statut</th>
-                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Expiration</th>
-                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted text-right">Actions</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">{t('admin.subscriptions.table.company')}</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">{t('admin.subscriptions.table.plan')}</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">{t('admin.subscriptions.table.status')}</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">{t('admin.subscriptions.table.expiry')}</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted text-right">{t('admin.subscriptions.table.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-kontrol-border">
@@ -1142,7 +1144,7 @@ function BusinessSubscriptionsView({ companies, paymentRequests = [], allUsers =
                           title="Activer une période d'essai"
                         >
                           {isProcessing === (company.id || company.uid) ? <Loader2 size={12} className="animate-spin" /> : <Clock size={14} />} 
-                          Essai
+                          {t('admin.subscriptions.actions.trial')}
                         </button>
                         <button 
                           onClick={() => handleUpgradeToSubscriber(company.id || company.uid, parseInt(trialDays), false)}
@@ -1151,7 +1153,7 @@ function BusinessSubscriptionsView({ companies, paymentRequests = [], allUsers =
                           title="Passer en abonnement payant"
                         >
                           {isProcessing === (company.id || company.uid) ? <Loader2 size={12} className="animate-spin" /> : <Zap size={14} />} 
-                          Abonner
+                          {t('admin.subscriptions.actions.subscribe')}
                         </button>
                       </div>
                     </div>
@@ -1167,6 +1169,7 @@ function BusinessSubscriptionsView({ companies, paymentRequests = [], allUsers =
 }
 
 function AdminManagersView({ users, onDetail, onEdit, onDelete, onAdd }: any) {
+  const { t } = useTranslation();
   const managers = users.filter((u: any) => u.role === 'ADMINISTRATEUR_ERP' || u.role === 'GESTIONNAIRE_ERP' || u.role === 'ADMINISTRATEUR_KONTROL' || u.role === 'GESTIONNAIRE_KONTROL');
   
   return (
@@ -1229,6 +1232,7 @@ function AdminManagersView({ users, onDetail, onEdit, onDelete, onAdd }: any) {
 }
 
 function FinancialAnalyticsView({ stats, systemStats }: any) {
+  const { t } = useTranslation();
   const [showAddMovement, setShowAddMovement] = useState(false);
   const [movements, setMovements] = useState<any[]>([]);
   const [newMovement, setNewMovement] = useState({
@@ -1309,6 +1313,7 @@ function FinancialAnalyticsView({ stats, systemStats }: any) {
 }
 
 function EcosystemCompaniesView({ companies, allUsers, onDetail, onEdit, onDelete, onAdd, onViewAsClient }: any) {
+  const { t } = useTranslation();
   return (
     <motion.div 
       initial={{ opacity: 0, x: 20 }}
@@ -1320,19 +1325,19 @@ function EcosystemCompaniesView({ companies, allUsers, onDetail, onEdit, onDelet
           <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
           <input 
             type="text" 
-            placeholder="Rechercher une entreprise..." 
+            placeholder={t('admin.companies.search')}
             className="w-full pl-12 pr-4 py-3 bg-white border border-kontrol-border rounded-2xl focus:outline-none focus:border-kontrol-blue shadow-sm text-[13px]"
           />
         </div>
         <div className="flex gap-3">
           <button className="px-6 py-3 bg-white border border-kontrol-border text-kontrol-ink-soft rounded-2xl text-[11px] font-extrabold uppercase tracking-widest hover:bg-kontrol-bg transition-all flex items-center gap-2">
-            <Filter size={16} /> Filtres
+            <Filter size={16} /> {t('admin.companies.filters')}
           </button>
           <button 
             onClick={onAdd}
             className="px-6 py-3 bg-kontrol-blue text-white rounded-2xl text-[11px] font-extrabold uppercase tracking-widest hover:bg-blue-600 transition-all flex items-center gap-2 shadow-lg shadow-kontrol-blue/20"
           >
-            <Plus size={16} /> Nouvelle Entreprise
+            <Plus size={16} /> {t('admin.companies.new_company')}
           </button>
         </div>
       </div>
@@ -1406,7 +1411,7 @@ function EcosystemCompaniesView({ companies, allUsers, onDetail, onEdit, onDelet
                 className="w-full flex items-center justify-center gap-2 py-3 bg-kontrol-blue text-white text-[10px] font-extrabold uppercase tracking-widest rounded-xl hover:bg-blue-600 transition-all shadow-lg shadow-kontrol-blue/20"
               >
                 <LayoutDashboard size={14} />
-                Vue Superviseur Client
+                {t('admin.companies.actions.view_as_client')}
               </button>
             </div>
           );
@@ -1417,6 +1422,7 @@ function EcosystemCompaniesView({ companies, allUsers, onDetail, onEdit, onDelet
 }
 
 function EcosystemUsersView({ users, onDetail, onEdit, onDelete }: any) {
+  const { t } = useTranslation();
   const sortedUsers = [...users].sort((a: any, b: any) => {
     // Priority: ERP Admin > Enterprise Admin > Others
     const getPriority = (role: string) => {
@@ -1438,20 +1444,20 @@ function EcosystemUsersView({ users, onDetail, onEdit, onDelete }: any) {
     >
       <div className="card overflow-hidden">
         <div className="p-6 border-b border-kontrol-border flex items-center justify-between bg-kontrol-bg/30">
-          <h3 className="text-[11px] font-extrabold uppercase tracking-widest">Répertoire Global des Utilisateurs</h3>
+          <h3 className="text-[11px] font-extrabold uppercase tracking-widest">{t('admin.users.directory')}</h3>
           <div className="flex gap-4">
-            <span className="text-[10px] font-bold text-kontrol-ink-muted uppercase">Nodes Totaux: {users.length}</span>
+            <span className="text-[10px] font-bold text-kontrol-ink-muted uppercase">{t('admin.users.total_nodes')}: {users.length}</span>
           </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-kontrol-bg/50 border-b border-kontrol-border">
-                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Utilisateur</th>
-                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Rôle & Rang</th>
-                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Affiliation</th>
-                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Activité</th>
-                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted text-right">Actions</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">{t('admin.users.table.user')}</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">{t('admin.users.table.role_rank')}</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">{t('admin.users.table.affiliation')}</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">{t('admin.users.table.activity')}</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted text-right">{t('admin.users.table.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-kontrol-border">
@@ -1492,7 +1498,7 @@ function EcosystemUsersView({ users, onDetail, onEdit, onDelete }: any) {
                     </div>
                   </td>
                   <td className="px-6 py-4 text-[11px] text-kontrol-ink-muted font-mono">
-                    {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'Jamais'}
+                    {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : t('common.never')}
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
@@ -1527,6 +1533,7 @@ function EcosystemUsersView({ users, onDetail, onEdit, onDelete }: any) {
 }
 
 function IntelligenceAIView({ stats, systemStats }: any) {
+  const { t } = useTranslation();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState('');
   const [activeTab, setActiveTab] = useState<'vision' | 'sql' | 'simulator' | 'training' | 'logs'>('vision');
@@ -1562,7 +1569,7 @@ function IntelligenceAIView({ stats, systemStats }: any) {
   const handleIndexKnowledge = async () => {
     if (vectorDbStatus !== 'connected') return;
     setIsIndexing(true);
-    setTrainingLogs(prev => [`[${new Date().toLocaleTimeString()}] Handshake Go-Gateway: OK`, ...prev]);
+    setTrainingLogs(prev => [`[${new Date().toLocaleTimeString()}] Handshake Gateway: OK`, ...prev]);
     
     try {
       const res = await apiClient.fetch('/api/sql/tables');
@@ -1570,8 +1577,8 @@ function IntelligenceAIView({ stats, systemStats }: any) {
       setSqlTables(tables);
       
       setTrainingLogs(prev => [
-        `[${new Date().toLocaleTimeString()}] Validation Rust Shield: Intégrité 100%`,
-        `[${new Date().toLocaleTimeString()}] 100% du schéma SQL synchronisé via Spring Core.`,
+        `[${new Date().toLocaleTimeString()}] Validation Sécurité: Intégrité 100%`,
+        `[${new Date().toLocaleTimeString()}] 100% du schéma SQL synchronisé avec le Noyau.`,
         ...prev
       ]);
     } catch (e) {
@@ -1597,7 +1604,7 @@ function IntelligenceAIView({ stats, systemStats }: any) {
       const healthData = await healthRes.json();
       const auditData = await auditRes.json();
       setSystemHealth(healthData);
-      setGovernance({ governance: auditData.polyglot_sync, audit: { proof: auditData.audit_log } });
+      setGovernance({ governance: auditData.engine_sync, audit: { proof: auditData.audit_log } });
     } catch (e) {
       console.warn("Audit/Health sync failed - Shield blocking");
     }
@@ -1629,7 +1636,7 @@ function IntelligenceAIView({ stats, systemStats }: any) {
   };
 
   const handleAuditRow = async (row: any) => {
-    const description = `Audit: ${selectedTable} verified via Rust Shield.`;
+    const description = `Audit: ${selectedTable} verified via Security Layer.`;
     
     try {
       const res = await apiClient.fetch('/api/admin/audit/perform');
@@ -1641,10 +1648,10 @@ function IntelligenceAIView({ stats, systemStats }: any) {
           type: 'SECURE_AUDIT',
           createdAt: Date.now()
         }, ...prev]);
-        toast.success("Audit validé par le bouclier Rust");
+        toast.success("Audit validé par le système");
       }
     } catch (e) {
-      toast.error("Violation Securité : Accès refusé par le Gateway");
+      toast.error("Violation Securité : Accès refusé par la Gateway");
     }
   };
 
@@ -1780,10 +1787,10 @@ Sois audacieux mais réaliste.`;
           </div>
           <div>
             <h3 className="text-xl font-extrabold text-kontrol-dark uppercase tracking-tighter flex items-center gap-2">
-              Blue AI Strategy Lab
+              {t('admin.intelligence.title')}
               <span className="px-2 py-0.5 bg-emerald-100 text-emerald-600 text-[9px] font-black rounded-lg border border-emerald-200">v2.5 ALPHA</span>
             </h3>
-            <p className="text-[11px] text-kontrol-ink-muted font-bold uppercase tracking-widest mt-1">Intelligence Prédictive & Simulation de Croissance</p>
+            <p className="text-[11px] text-kontrol-ink-muted font-bold uppercase tracking-widest mt-1">{t('admin.intelligence.subtitle')}</p>
           </div>
         </div>
         <div className="flex gap-2 p-1 bg-kontrol-bg rounded-2xl border border-kontrol-border self-start md:self-center">
@@ -1798,7 +1805,7 @@ Sois audacieux mais réaliste.`;
                   : "text-kontrol-ink-muted hover:bg-white/50"
               )}
             >
-              {tab === 'vision' ? 'Supervision' : tab === 'sql' ? 'SQL Bridge' : tab === 'simulator' ? 'Simulateur' : tab === 'training' ? 'Training Lab' : 'Status & Heartbeat'}
+              {t(`admin.intelligence.tabs.${tab}`)}
             </button>
           ))}
         </div>
@@ -1814,9 +1821,9 @@ Sois audacieux mais réaliste.`;
             className="space-y-8"
           >
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <AICard title="Résilience Financière" status="Optimal (92%)" icon={ShieldCheck} color="emerald" />
-              <AICard title="Moteur Prédictif" status="Actif - 42ms" icon={Zap} color="blue" />
-              <AICard title="Analyse de Churn" status="Risque Faible" icon={Target} color="purple" />
+              <AICard title={t('admin.intelligence.cards.resilience')} status={t('admin.intelligence.cards.resilience_status')} icon={ShieldCheck} color="emerald" />
+              <AICard title={t('admin.intelligence.cards.predictive')} status={t('admin.intelligence.cards.predictive_status')} icon={Zap} color="blue" />
+              <AICard title={t('admin.intelligence.cards.churn')} status={t('admin.intelligence.cards.churn_status')} icon={Target} color="purple" />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -1831,13 +1838,11 @@ Sois audacieux mais réaliste.`;
                       <div className="space-y-2">
                         <div className="inline-flex items-center gap-2 px-3 py-1 bg-kontrol-blue/20 text-kontrol-blue rounded-full border border-kontrol-blue/20">
                           <Sparkles size={12} className="animate-pulse" />
-                          <span className="text-[9px] font-black uppercase tracking-[0.2em]">Audit Cognitif</span>
+                          <span className="text-[9px] font-black uppercase tracking-[0.2em]">{t('admin.intelligence.audit.title')}</span>
                         </div>
-                        <h3 className="text-3xl font-black tracking-tight leading-tight">Générez un Rapport<br/>Stratégique Global</h3>
+                        <h3 className="text-3xl font-black tracking-tight leading-tight">{t('admin.intelligence.audit.concept')}</h3>
                       </div>
-                      <p className="text-white/60 text-[14px] leading-relaxed font-medium">
-                        Blue AI va scanner l'intégralité de la base de données ERP, de la trésorerie et des logs de sécurité pour proposer une amélioration innovante.
-                      </p>
+
                       <div className="flex flex-wrap gap-4">
                         <button 
                           onClick={runGlobalAudit}
@@ -1845,10 +1850,10 @@ Sois audacieux mais réaliste.`;
                           className="px-10 py-5 bg-kontrol-blue text-white rounded-[24px] font-black text-xs uppercase tracking-widest hover:bg-blue-600 transition-all flex items-center gap-3 shadow-2xl shadow-kontrol-blue/30 active:scale-95 disabled:opacity-50"
                         >
                           {isAnalyzing ? <Loader2 className="animate-spin" size={20} /> : <Zap size={20} />}
-                          Lancer l'Audit Lab
+                          {t('admin.intelligence.audit.button')}
                         </button>
                         <button className="px-6 py-5 bg-white/5 border border-white/10 hover:bg-white/10 text-white rounded-[24px] font-black text-xs uppercase tracking-widest transition-all">
-                          Paramétrer l'IA
+                          {t('admin.intelligence.audit.configure')}
                         </button>
                       </div>
                     </div>
@@ -1866,17 +1871,17 @@ Sois audacieux mais réaliste.`;
                 <div className="card p-8">
                   <div className="flex items-center justify-between mb-8">
                     <div>
-                      <h4 className="text-[11px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Performances Blue AI</h4>
-                      <p className="text-xl font-bold text-kontrol-dark">Volume de Requêtes & Latence</p>
+                      <h4 className="text-[11px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">{t('admin.intelligence.performance.title')}</h4>
+                      <p className="text-xl font-bold text-kontrol-dark">{t('admin.intelligence.performance.subtitle')}</p>
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2">
                         <div className="w-3 h-3 rounded-full bg-kontrol-blue" />
-                        <span className="text-[10px] font-bold text-kontrol-ink-muted uppercase">Requêtes</span>
+                        <span className="text-[10px] font-bold text-kontrol-ink-muted uppercase">{t('admin.intelligence.performance.requests')}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                        <span className="text-[10px] font-bold text-kontrol-ink-muted uppercase">Latence (ms)</span>
+                        <span className="text-[10px] font-bold text-kontrol-ink-muted uppercase">{t('admin.intelligence.performance.latency')}</span>
                       </div>
                     </div>
                   </div>
@@ -1926,7 +1931,7 @@ Sois audacieux mais réaliste.`;
                     <div className="w-10 h-10 bg-kontrol-blue/10 rounded-xl flex items-center justify-center text-kontrol-blue">
                       <Sparkles size={20} />
                     </div>
-                    <h4 className="text-sm font-black text-kontrol-dark uppercase tracking-widest">Insights Live</h4>
+                    <h4 className="text-sm font-black text-kontrol-dark uppercase tracking-widest">{t('admin.intelligence.insights.title')}</h4>
                   </div>
                   <div className="space-y-6">
                     {realInsights.length > 0 ? realInsights.map((insight, idx) => (
@@ -1941,7 +1946,7 @@ Sois audacieux mais réaliste.`;
                       </div>
                     )) : (
                       <div className="p-8 text-center border-2 border-dashed border-kontrol-border rounded-2xl opacity-40">
-                         <p className="text-[10px] font-bold text-kontrol-ink-muted uppercase tracking-widest">Aucun insight récent</p>
+                         <p className="text-[10px] font-bold text-kontrol-ink-muted uppercase tracking-widest">{t('admin.intelligence.insights.none')}</p>
                       </div>
                     )}
                   </div>
@@ -1953,7 +1958,7 @@ Sois audacieux mais réaliste.`;
                   
                   <div className="flex items-center justify-between mb-8">
                     <div>
-                      <h4 className="text-[11px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Blue Core Engine</h4>
+                      <h4 className="text-[11px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">{t('admin.intelligence.engine.title')}</h4>
                       <p className="text-lg font-black text-kontrol-dark tracking-tight mt-1">Gemini 2.0 Flash</p>
                     </div>
                     <div className="w-12 h-12 bg-kontrol-dark text-white rounded-2xl flex items-center justify-center shadow-lg shadow-kontrol-dark/20 animate-pulse">
@@ -1966,9 +1971,9 @@ Sois audacieux mais réaliste.`;
                     <div className="space-y-3">
                       <div className="flex justify-between items-end">
                         <div className="space-y-1">
-                          <p className="text-[9px] font-black text-kontrol-ink-muted uppercase tracking-widest">Indexation Sémantique</p>
+                          <p className="text-[9px] font-black text-kontrol-ink-muted uppercase tracking-widest">{t('admin.intelligence.engine.indexing')}</p>
                           <p className="text-[10px] font-bold text-emerald-600 flex items-center gap-1">
-                            <CheckCircle2 size={10} /> Synchronisé (SQL + DB)
+                            <CheckCircle2 size={10} /> {t('admin.intelligence.engine.synced')}
                           </p>
                         </div>
                         <span className="text-[11px] font-black text-kontrol-dark">100%</span>
@@ -1986,11 +1991,11 @@ Sois audacieux mais réaliste.`;
                     {/* Technical Pulse */}
                     <div className="grid grid-cols-2 gap-4 pt-4 border-t border-kontrol-border/50">
                       <div className="space-y-1">
-                        <p className="text-[8px] font-black text-kontrol-ink-muted uppercase tracking-widest">Inférence</p>
+                        <p className="text-[8px] font-black text-kontrol-ink-muted uppercase tracking-widest">{t('admin.intelligence.engine.inference')}</p>
                         <p className="text-xs font-bold text-kontrol-dark">Flash-Hybrid</p>
                       </div>
                       <div className="space-y-1">
-                        <p className="text-[8px] font-black text-kontrol-ink-muted uppercase tracking-widest">Context Window</p>
+                        <p className="text-[8px] font-black text-kontrol-ink-muted uppercase tracking-widest">{t('admin.intelligence.engine.context_window')}</p>
                         <p className="text-xs font-bold text-kontrol-dark">1.0M Tokens</p>
                       </div>
                     </div>
@@ -1998,7 +2003,7 @@ Sois audacieux mais réaliste.`;
                     <div className="p-4 bg-kontrol-dark/[0.03] rounded-2xl border border-kontrol-dark/[0.05] flex items-center gap-3">
                       <Sparkles size={14} className="text-kontrol-blue" />
                       <p className="text-[10px] font-medium text-kontrol-ink-soft leading-tight">
-                        Le moteur est désormais couplé au <span className="font-bold text-kontrol-dark">SQL Bridge</span> pour des analyses contextuelles immédiates.
+                        {t('admin.intelligence.engine.sql_bridge_info')}
                       </p>
                     </div>
                   </div>
@@ -2039,7 +2044,7 @@ Sois audacieux mais réaliste.`;
             <div className="card p-6 lg:col-span-1 space-y-6 h-fit bg-white/50 backdrop-blur-xl">
               <div className="flex items-center gap-3">
                 <Database size={24} className="text-kontrol-blue" />
-                <h3 className="text-lg font-black text-kontrol-dark uppercase tracking-tighter">Tables SQL</h3>
+                <h3 className="text-lg font-black text-kontrol-dark uppercase tracking-tighter">{t('admin.intelligence.sql.title')}</h3>
               </div>
               <div className="space-y-2">
                 {sqlTables.map((t: any) => (
@@ -2065,7 +2070,7 @@ Sois audacieux mais réaliste.`;
                     <div className="flex items-center gap-3">
                       <Terminal size={18} className="text-kontrol-ink-muted" />
                       <span className="text-[11px] font-black text-kontrol-ink-muted uppercase tracking-[0.2em]">
-                        {selectedTable ? `Visualisation: ${selectedTable}` : "Sélectionnez une table pour commencer"}
+                        {selectedTable ? t('admin.intelligence.sql.visualisation', { table: selectedTable }) : t('admin.intelligence.sql.select_table')}
                       </span>
                     </div>
                     {isLoadingSql && <Loader2 className="animate-spin text-kontrol-blue" size={18} />}
@@ -2082,7 +2087,7 @@ Sois audacieux mais réaliste.`;
                               </th>
                             ))}
                             <th className="px-6 py-4 font-black text-kontrol-ink-muted uppercase tracking-widest border-b border-kontrol-border">
-                                Actions
+                                {t('admin.intelligence.sql.actions')}
                             </th>
                           </tr>
                         </thead>
@@ -2099,7 +2104,7 @@ Sois audacieux mais réaliste.`;
                                   onClick={() => handleAuditRow(row)}
                                   className="flex items-center gap-2 px-3 py-1 bg-kontrol-dark text-white text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-kontrol-blue transition-colors"
                                 >
-                                  <ShieldCheck size={12} /> Audit
+                                  <ShieldCheck size={12} /> {t('admin.intelligence.sql.audit_btn')}
                                 </button>
                               </td>
                             </tr>
@@ -2109,7 +2114,7 @@ Sois audacieux mais réaliste.`;
                     ) : (
                       <div className="flex flex-col items-center justify-center h-full p-20 text-center space-y-4 opacity-40">
                         <Search size={48} className="text-kontrol-ink-muted" />
-                        <p className="text-sm font-bold text-kontrol-ink-muted">Aucune donnée à afficher</p>
+                        <p className="text-sm font-bold text-kontrol-ink-muted">{t('admin.intelligence.sql.no_data')}</p>
                       </div>
                     )}
                   </div>
@@ -2128,12 +2133,12 @@ Sois audacieux mais réaliste.`;
             <div className="card p-8 lg:col-span-1 space-y-8 h-fit">
               <div className="flex items-center gap-3">
                 <Workflow size={24} className="text-kontrol-blue" />
-                <h3 className="text-xl font-extrabold text-kontrol-dark">Pivot Stratégique</h3>
+                <h3 className="text-xl font-extrabold text-kontrol-dark">{t('admin.intelligence.simulator.title')}</h3>
               </div>
               <div className="space-y-6">
                  <div className="space-y-4">
                    <div className="flex justify-between">
-                     <label className="text-[10px] font-black text-kontrol-ink-muted uppercase tracking-widest">Taux de Croissance</label>
+                     <label className="text-[10px] font-black text-kontrol-ink-muted uppercase tracking-widest">{t('admin.intelligence.simulator.growth')}</label>
                      <span className="text-xs font-black text-kontrol-blue">{simParams.growth}%</span>
                    </div>
                    <input 
@@ -2145,7 +2150,7 @@ Sois audacieux mais réaliste.`;
                  </div>
                  <div className="space-y-4">
                    <div className="flex justify-between">
-                     <label className="text-[10px] font-black text-kontrol-ink-muted uppercase tracking-widest">Taux de Churn</label>
+                     <label className="text-[10px] font-black text-kontrol-ink-muted uppercase tracking-widest">{t('admin.intelligence.simulator.churn')}</label>
                      <span className="text-xs font-black text-rose-500">{simParams.churn}%</span>
                    </div>
                    <input 
@@ -2159,7 +2164,7 @@ Sois audacieux mais réaliste.`;
                   onClick={runSimulation}
                   className="w-full py-4 bg-kontrol-dark text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-kontrol-blue transition-all"
                  >
-                   Simuler l'Impact
+                   {t('admin.intelligence.simulator.button')}
                  </button>
               </div>
             </div>
@@ -2169,7 +2174,7 @@ Sois audacieux mais réaliste.`;
                 <div className="card p-10 bg-white border border-kontrol-border shadow-xl">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-10">
                     <div className="space-y-4">
-                      <p className="text-[11px] font-black text-kontrol-ink-muted uppercase tracking-widest">MRR Projeté (12 mois)</p>
+                      <p className="text-[11px] font-black text-kontrol-ink-muted uppercase tracking-widest">{t('admin.intelligence.simulator.result_mrr')}</p>
                       <h4 className="text-4xl font-black text-kontrol-dark">{formatCurrency(simResult.futureMRR)}</h4>
                       <p className={cn(
                         "text-lg font-bold flex items-center gap-2",
@@ -2180,7 +2185,7 @@ Sois audacieux mais réaliste.`;
                       </p>
                     </div>
                     <div className="flex flex-col items-center justify-center p-8 bg-kontrol-bg rounded-[32px] border border-kontrol-border">
-                       <p className="text-[11px] font-black text-kontrol-ink-muted uppercase mb-4">Confiance Blue AI</p>
+                       <p className="text-[11px] font-black text-kontrol-ink-muted uppercase mb-4">{t('admin.intelligence.simulator.ai_confidence')}</p>
                        <div className="relative w-32 h-32 flex items-center justify-center">
                           <svg className="w-full h-full transform -rotate-90">
                             <circle cx="64" cy="64" r="60" fill="transparent" stroke="currentColor" strokeWidth="8" className="text-kontrol-border" />
@@ -2195,8 +2200,8 @@ Sois audacieux mais réaliste.`;
                 <div className="card p-20 flex flex-col items-center justify-center text-center space-y-6 border-dashed border-2 border-kontrol-border bg-transparent">
                   <LineChart className="text-kontrol-ink-muted opacity-20" size={64} />
                   <div>
-                    <h4 className="text-xl font-bold text-kontrol-dark">Prêt pour la simulation ?</h4>
-                    <p className="text-sm text-kontrol-ink-soft max-w-sm mx-auto">Ajustez les leviers de croissance pour projeter l'avenir de KONTROL avec l'IA.</p>
+                    <h4 className="text-xl font-bold text-kontrol-dark">{t('admin.intelligence.simulator.ready_title')}</h4>
+                    <p className="text-sm text-kontrol-ink-soft max-w-sm mx-auto">{t('admin.intelligence.simulator.ready_desc')}</p>
                   </div>
                 </div>
               )}
@@ -2215,7 +2220,7 @@ Sois audacieux mais réaliste.`;
             <div className="card p-8 space-y-8 lg:col-span-1">
               <div className="flex items-center gap-3">
                 <Layers size={24} className="text-kontrol-blue" />
-                <h3 className="text-xl font-extrabold text-kontrol-dark uppercase tracking-tighter">Architecture</h3>
+                <h3 className="text-xl font-extrabold text-kontrol-dark uppercase tracking-tighter">{t('admin.intelligence.training.title')}</h3>
               </div>
               <div className="space-y-4">
                 {[
@@ -2256,8 +2261,8 @@ Sois audacieux mais réaliste.`;
             <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="card p-8 space-y-8 flex flex-col">
                 <div className="flex items-center gap-3">
-                  <Network size={24} className="text-kontrol-blue" />
-                  <h3 className="text-xl font-extrabold text-kontrol-dark uppercase tracking-tighter">Knowledge Pipeline</h3>
+                   <Network size={24} className="text-kontrol-blue" />
+                   <h3 className="text-xl font-extrabold text-kontrol-dark uppercase tracking-tighter">{t('admin.intelligence.training.pipeline')}</h3>
                 </div>
                 
                 <div className={cn(
@@ -2275,7 +2280,7 @@ Sois audacieux mais réaliste.`;
                         />
                       </div>
                       <div className="space-y-1">
-                        <p className="text-xs font-black text-emerald-700 uppercase tracking-widest">Vector DB Connectée</p>
+                        <p className="text-xs font-black text-emerald-700 uppercase tracking-widest">{t('admin.intelligence.training.vector_connected')}</p>
                         <p className="text-[10px] font-bold text-emerald-600/70">Vertex AI Search & Conversation</p>
                       </div>
                       <button 
@@ -2284,27 +2289,27 @@ Sois audacieux mais réaliste.`;
                         className="mt-4 px-8 py-4 bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all flex items-center gap-2 shadow-xl shadow-emerald-500/20 disabled:opacity-50"
                       >
                         {isIndexing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                        {isIndexing ? "Indexation..." : "Synchroniser le Savoir"}
+                        {isIndexing ? "Indexation..." : t('admin.intelligence.training.sync_knowledge')}
                       </button>
                     </>
                   ) : (
                     <>
                       <Database size={48} className="text-kontrol-ink-muted opacity-30" />
-                      <p className="text-xs font-bold text-kontrol-ink-muted uppercase tracking-widest italic opacity-60">Stockage Vectoriel non initialisé</p>
+                      <p className="text-xs font-bold text-kontrol-ink-muted uppercase tracking-widest italic opacity-60">{t('admin.intelligence.training.vector_disconnected')}</p>
                       <button 
                         onClick={handleConnectVectorDB}
                         disabled={vectorDbStatus === 'connecting'}
                         className="px-8 py-4 bg-kontrol-dark text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-kontrol-blue transition-all disabled:opacity-50 flex items-center gap-2"
                       >
                         {vectorDbStatus === 'connecting' ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
-                        {vectorDbStatus === 'connecting' ? "Connexion..." : "Connecter Vector DB"}
+                        {vectorDbStatus === 'connecting' ? "Connexion..." : t('admin.intelligence.training.vector_connecting')}
                       </button>
                     </>
                   )}
                 </div>
 
                 <div className="space-y-4 pt-4 border-t border-kontrol-border/50">
-                  <h4 className="text-[10px] font-black text-kontrol-ink-muted uppercase tracking-widest">Data Grounding</h4>
+                  <h4 className="text-[10px] font-black text-kontrol-ink-muted uppercase tracking-widest">{t('admin.intelligence.training.grounding')}</h4>
                   <div className="grid grid-cols-2 gap-4">
                     <button 
                       onClick={() => handleGroundingAction('SQL Analytics')}
@@ -2332,7 +2337,7 @@ Sois audacieux mais réaliste.`;
                 <div className="flex items-center justify-between border-b border-white/10 pb-4">
                   <div className="flex items-center gap-2 text-kontrol-blue">
                     <Terminal size={14} />
-                    <span className="font-bold uppercase tracking-widest">Training.log</span>
+                    <span className="font-bold uppercase tracking-widest">{t('admin.intelligence.training.logs_title')}</span>
                   </div>
                   <div className="flex gap-1">
                     <div className="w-2 h-2 rounded-full bg-red-500/50" />
@@ -2349,7 +2354,7 @@ Sois audacieux mais réaliste.`;
                       {log}
                     </div>
                   )) : (
-                    <div className="text-white/20 italic">En attente d'interaction avec le pipeline...</div>
+                    <div className="text-white/20 italic">{t('admin.intelligence.training.waiting')}</div>
                   )}
                   {isIndexing && (
                     <motion.div 
@@ -2377,13 +2382,13 @@ Sois audacieux mais réaliste.`;
               <div className="card p-8 md:col-span-1 space-y-6">
                 <div className="flex items-center gap-3">
                   <Activity size={24} className="text-kontrol-blue" />
-                  <h3 className="text-xl font-extrabold text-kontrol-dark uppercase tracking-tighter">System Heartbeat</h3>
+                  <h3 className="text-xl font-extrabold text-kontrol-dark uppercase tracking-tighter">{t('admin.intelligence.logs.heartbeat')}</h3>
                 </div>
                 {systemHealth && governance ? (
                   <div className="space-y-4">
                     <div className="p-5 bg-emerald-50/50 border border-emerald-100 rounded-[24px]">
                        <div className="flex items-center justify-between mb-2">
-                         <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">Gouvernance ERP</span>
+                         <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">{t('admin.intelligence.logs.governance')}</span>
                          <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{governance.governance.status}</span>
                        </div>
                        <div className="w-full h-1.5 bg-emerald-200 rounded-full overflow-hidden">
@@ -2396,15 +2401,15 @@ Sois audacieux mais réaliste.`;
                         <span className="text-kontrol-dark font-black tracking-tight">{governance.governance.score}</span>
                       </div>
                       <div className="flex justify-between items-center text-[11px] border-b border-kontrol-border pb-3">
-                        <span className="text-kontrol-ink-muted font-bold">Security Shield</span>
+                        <span className="text-kontrol-ink-muted font-bold">{t('admin.intelligence.logs.security_shield')}</span>
                         <span className="text-emerald-600 font-black tracking-tight">HARDENED (RUST)</span>
                       </div>
                       <div className="flex justify-between items-center text-[11px] border-b border-kontrol-border pb-3">
-                        <span className="text-kontrol-ink-muted font-bold">Audit Proof</span>
+                        <span className="text-kontrol-ink-muted font-bold">{t('admin.intelligence.logs.audit_proof')}</span>
                         <span className="text-kontrol-blue font-mono text-[9px] uppercase">{governance.audit.proof}</span>
                       </div>
                       <div className="flex justify-between items-center text-[11px]">
-                        <span className="text-kontrol-ink-muted font-bold">Engine Service</span>
+                        <span className="text-kontrol-ink-muted font-bold">{t('admin.intelligence.logs.engine_service')}</span>
                         <span className="text-kontrol-blue font-black tracking-tight">{governance.governance.engine}</span>
                       </div>
                     </div>
@@ -2412,7 +2417,7 @@ Sois audacieux mais réaliste.`;
                       onClick={checkHealth}
                       className="w-full py-4 bg-white border border-kontrol-border text-kontrol-ink-muted rounded-2xl text-[10px] font-black uppercase tracking-widest hover:border-kontrol-blue transition-all flex items-center justify-center gap-2 shadow-sm"
                     >
-                      <RefreshCw size={14} /> Rafraîchir Télémétrie
+                      <RefreshCw size={14} /> {t('admin.intelligence.logs.refresh')}
                     </button>
                   </div>
                 ) : (
@@ -2429,8 +2434,8 @@ Sois audacieux mais réaliste.`;
                     <Shield size={20} className="text-purple-600" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-black text-kontrol-dark uppercase tracking-tighter">Maturité KONTROL</h3>
-                    <p className="text-[10px] text-kontrol-ink-muted font-bold">Audit Polyglotte Java/Go/Rust</p>
+                    <h3 className="text-sm font-black text-kontrol-dark uppercase tracking-tighter">{t('admin.intelligence.logs.maturity_title')}</h3>
+                    <p className="text-[10px] text-kontrol-ink-muted font-bold">{t('admin.intelligence.logs.maturity_subtitle')}</p>
                   </div>
                 </div>
 
@@ -2459,11 +2464,11 @@ Sois audacieux mais réaliste.`;
                 <div className="p-6 border-b border-white/10 bg-white/5 flex items-center justify-between">
                    <div className="flex items-center gap-3">
                      <Terminal size={18} className="text-kontrol-blue" />
-                     <h4 className="text-[11px] font-black text-white/60 uppercase tracking-widest">Live Security & Sync Stream</h4>
+                     <h4 className="text-[11px] font-black text-white/60 uppercase tracking-widest">{t('admin.intelligence.logs.stream_title')}</h4>
                    </div>
                    <div className="flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                      <span className="text-[9px] font-black text-emerald-400 uppercase">Live Pipeline</span>
+                      <span className="text-[9px] font-black text-emerald-400 uppercase">{t('admin.intelligence.logs.stream_status')}</span>
                    </div>
                 </div>
                 <div className="p-8 font-mono text-[11px] h-[450px] overflow-y-auto space-y-2 custom-scrollbar bg-black/30">
@@ -2489,6 +2494,7 @@ Sois audacieux mais réaliste.`;
 }
 
 function SystemTelemetryView({ stats, metrics }: any) {
+  const { t } = useTranslation();
   const [isResetting, setIsResetting] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   
@@ -2618,6 +2624,7 @@ function SystemTelemetryView({ stats, metrics }: any) {
 }
 
 function ControlAuditView({ actions }: any) {
+  const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
   
   const filteredActions = actions.filter((a: any) => 
@@ -2649,7 +2656,7 @@ function ControlAuditView({ actions }: any) {
           <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
           <input 
             type="text" 
-            placeholder="Rechercher dans les logs..." 
+            placeholder={t('admin.actions.search_placeholder')} 
             className="w-full pl-12 pr-4 py-3 bg-white border border-kontrol-border rounded-2xl focus:outline-none focus:border-kontrol-blue shadow-sm text-[13px]"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -2659,23 +2666,23 @@ function ControlAuditView({ actions }: any) {
           onClick={handleExport}
           className="px-6 py-3 bg-white border border-kontrol-border text-kontrol-ink-soft rounded-2xl text-[11px] font-extrabold uppercase tracking-widest hover:bg-kontrol-bg transition-all flex items-center gap-2"
         >
-          <Download size={16} /> Exporter CSV
+          <Download size={16} /> {t('admin.actions.export_csv')}
         </button>
       </div>
 
       <div className="card overflow-hidden">
         <div className="p-6 border-b border-kontrol-border bg-kontrol-bg/30">
-          <h3 className="text-[11px] font-extrabold uppercase tracking-widest">Journal d'Audit Global</h3>
+          <h3 className="text-[11px] font-extrabold uppercase tracking-widest">{t('admin.actions.title')}</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-kontrol-bg/50 border-b border-kontrol-border">
-                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Horodatage</th>
-                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Acteur</th>
-                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Action</th>
-                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Détails</th>
-                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted text-right">Actions</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">{t('admin.actions.table.timestamp')}</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">{t('admin.actions.table.actor')}</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">{t('admin.actions.table.action')}</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">{t('admin.actions.table.details')}</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted text-right">{t('admin.actions.table.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-kontrol-border">
@@ -2698,7 +2705,7 @@ function ControlAuditView({ actions }: any) {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <button className="p-2 text-kontrol-blue hover:bg-kontrol-blue/10 rounded-lg transition-all" title="Voir">
+                      <button className="p-2 text-kontrol-blue hover:bg-kontrol-blue/10 rounded-lg transition-all" title={t('admin.actions.view')}>
                         <Eye size={16} />
                       </button>
                     </div>
@@ -2714,6 +2721,7 @@ function ControlAuditView({ actions }: any) {
 }
 
 function ControlSupportView({ tickets }: any) {
+  const { t } = useTranslation();
   const [showNoReply, setShowNoReply] = useState(false);
   const [noReplyData, setNoReplyData] = useState({ to: '', subject: '', body: '' });
   const [replyingTicket, setReplyingTicket] = useState<any>(null);

@@ -1,5 +1,5 @@
 {
   "name": "KONTROL",
-  "description": "KONTROL ERP - Plateforme de gestion haute performance assistée par IA. Architecture Polyglotte Java/Go/Rust Totalement Indexée avec Backend PostgreSQL Engine.",
+  "description": "KONTROL ERP - Plateforme de gestion haute performance assistée par IA avec architecture haute disponibilité et supervision intelligente.",
   "requestFramePermissions": []
 }

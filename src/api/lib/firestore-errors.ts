@@ -27,8 +27,21 @@ export interface FirestoreErrorInfo {
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null, authUser?: any, shouldThrow: boolean = true) {
+  let errorMessage = 'An unidentified database error occurred';
+  if (error instanceof Error) {
+    errorMessage = error.message || error.name || 'Error object with no description';
+  } else if (typeof error === 'string' && error.trim().length > 0) {
+    errorMessage = error;
+  } else if (error && typeof error === 'object') {
+    try {
+      errorMessage = JSON.stringify(error);
+    } catch {
+      errorMessage = 'Non-stringifiable error object';
+    }
+  }
+
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: `[FIRESTORE ${operationType.toUpperCase()}] ${errorMessage}`,
     authInfo: {
       userId: authUser?.uid,
       email: authUser?.email,
@@ -46,11 +59,16 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     path
   }
   
-  const errorJson = JSON.stringify(errInfo);
-  console.error('Firestore Error: ', errorJson);
+  const errorJson = JSON.stringify(errInfo, null, 2) || '{"error":"Catastrophic Firestore Failure"}';
+  console.error(`[FIRESTORE ERROR] ${operationType.toUpperCase()} on ${path}:`, errInfo);
   
   if (shouldThrow) {
-    throw new Error(errorJson);
+    const customError = new Error(errInfo.error || 'Firestore Operation failed with no further details');
+    (customError as any).firestoreInfo = errInfo;
+    (customError as any).rawError = error;
+    (customError as any).errorJson = errorJson;
+    (customError as any).name = 'FirestoreError';
+    throw customError;
   }
   
   return errInfo;

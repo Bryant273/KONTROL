@@ -2,6 +2,7 @@ import React from 'react';
 import {  AlertTriangle, BrainCircuit, TrendingUp, TrendingDown, Users, Package, Loader2, PieChart, Wallet, ArrowUpRight, ArrowDownRight, Sparkles, X, FileText, ShieldCheck, MessageCircle, Activity, Zap, Settings, Building2 } from 'lucide-react';
 import { exportToPDF } from '../../lib/export';
 import Markdown from 'react-markdown';
+import { useTranslation } from 'react-i18next';
 import { sendNotification } from '../../../api/services/notificationService';
 import { apiClient } from '../../../api/lib/api-client';
 import { 
@@ -43,6 +44,7 @@ interface DashboardProps {
 }
 
 export function Dashboard({ user, currentUserProfile }: DashboardProps) {
+  const { t, i18n } = useTranslation();
   const isKontrolAdmin = currentUserProfile?.role === 'ADMINISTRATEUR_ERP' || currentUserProfile?.role === 'GESTIONNAIRE_ERP' || currentUserProfile?.role === 'ADMINISTRATEUR_KONTROL' || currentUserProfile?.role === 'GESTIONNAIRE_KONTROL' || currentUserProfile?.role === 'ADMIN';
   const companyId = currentUserProfile?.companyId || user.uid;
 
@@ -229,10 +231,10 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
           produits: stats.produits
         }
       });
-      setAiAnalysis(res.text || "Désolé, je n'ai pas pu générer d'analyse pour le moment.");
+      setAiAnalysis(res.text || t('dashboard.ai_analysis.fallback'));
     } catch (error) {
       handleFirestoreError(error, OperationType.GET, 'ai_analysis', user, false);
-      setAiAnalysis("Une erreur est survenue lors de l'analyse IA. Veuillez réessayer plus tard.");
+      setAiAnalysis(t('dashboard.ai_analysis.error'));
     } finally {
       setIsAnalyzing(false);
     }
@@ -566,8 +568,6 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
               <Activity size={18} className="animate-pulse" />
               <span className="text-[10px] font-extrabold uppercase tracking-[0.3em]">System Status: Operational</span>
             </div>
-            <h2 className="text-4xl font-extrabold text-kontrol-dark tracking-tighter uppercase">Mission Control KONTROL</h2>
-            <p className="text-[12px] text-kontrol-ink-muted">Supervision de l'écosystème global • v2.4.0-stable</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex flex-col items-end">
@@ -705,7 +705,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
               )}
             </div>
             <button className="w-full py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-blue hover:bg-kontrol-dark hover:text-white transition-all border-t border-kontrol-dark/10">
-              Access Full Audit Trail
+              {t('common.actions')}
             </button>
           </div>
         </div>
@@ -818,20 +818,20 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
             </div>
             <div>
               <p className="text-sm font-bold text-amber-900">
-                Abonnement expirant bientôt
+                {t('dashboard.alerts.subscription_expiring')}
               </p>
               <p className="text-xs text-amber-700">
-                Votre abonnement KONTROL arrive à échéance le <span className="font-bold">{subscriptionAlert.expiryDate}</span> ({subscriptionAlert.daysLeft} jours restants).
+                {t('dashboard.alerts.subscription_expiry_date', { date: subscriptionAlert.expiryDate, days: subscriptionAlert.daysLeft })}
               </p>
             </div>
           </div>
           <a href="/subscriptions" className="px-4 py-2 bg-amber-600 text-white text-xs font-bold rounded-lg hover:bg-amber-700 transition-colors">
-            Renouveler maintenant
+            {t('dashboard.alerts.renew_now')}
           </a>
         </div>
       )}
 
-      <header className="flex items-start justify-between">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           {currentUserProfile?.companyLogo && (
             <div className="w-12 h-12 rounded-xl bg-white border border-kontrol-border p-1 shadow-sm overflow-hidden shrink-0">
@@ -839,10 +839,10 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
             </div>
           )}
           <div>
-            <h2 className="text-xl font-extrabold text-kontrol-dark tracking-tight">
-              {currentUserProfile?.companyName || 'Tableau de bord'}
-            </h2>
-            <p className="text-[13px] text-kontrol-ink-muted mt-1">Vue d'ensemble de votre activité</p>
+            <h2 className="text-2xl font-extrabold text-kontrol-dark tracking-tight">{t('dashboard.title')}</h2>
+            <p className="text-[13px] text-kontrol-ink-muted mt-1">
+              {t('dashboard.welcome', { name: currentUserProfile?.displayName || user.displayName || 'Utilisateur' })}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -852,12 +852,12 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
             className="btn-primary py-1.5 px-4 text-xs flex items-center gap-2 bg-gradient-to-r from-kontrol-blue to-kontrol-orange border-none shadow-lg hover:scale-105 transition-transform disabled:opacity-50"
           >
             {isAnalyzing ? <Loader2 className="animate-spin" size={14} /> : <BrainCircuit size={14} />}
-            Analyse IA
+            {t('dashboard.ai_analysis.button')}
           </button>
           <select className="bg-white border border-kontrol-border rounded-lg px-3 py-1.5 text-[13px] font-medium text-kontrol-ink-soft outline-none focus:border-kontrol-blue transition-colors">
-            <option>Ce mois</option>
-            <option>Cette année</option>
-            <option>Tout</option>
+            <option>{t('dashboard.periods.month')}</option>
+            <option>{t('dashboard.periods.year')}</option>
+            <option>{t('dashboard.periods.all')}</option>
           </select>
         </div>
       </header>
@@ -865,7 +865,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
       {/* KPI Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
         <div className="kpi bg-emerald-600 border-emerald-600">
-          <p className="kpi-lbl text-white/70">Trésorerie (Solde)</p>
+          <p className="kpi-lbl text-white/70">{t('dashboard.stats.treasury')}</p>
           <h3 className="kpi-val text-white">{formatCurrency(stats.tresorerie)}</h3>
           <p className={cn("text-[11px] mt-1.5 flex items-center gap-1 font-bold", 
             tresorerieComment.color.includes('emerald') ? 'text-emerald-200' : 'text-rose-200'
@@ -874,7 +874,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
           </p>
         </div>
         <div className="kpi bg-kontrol-dark border-kontrol-dark">
-          <p className="kpi-lbl text-white/50">CA (Ventes TTC)</p>
+          <p className="kpi-lbl text-white/50">{t('dashboard.stats.revenue')}</p>
           <h3 className="kpi-val text-kontrol-blue">{formatCurrency(stats.ca)}</h3>
           <p className={cn("text-[11px] mt-1.5 flex items-center gap-1 font-bold", 
             caComment.color.includes('emerald') ? 'text-emerald-400' : 'text-rose-400'
@@ -883,14 +883,14 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
           </p>
         </div>
         <div className="kpi">
-          <p className="kpi-lbl">Charges totales</p>
+          <p className="kpi-lbl">{t('dashboard.stats.expenses')}</p>
           <h3 className="kpi-val">{formatCurrency(totalExpenses)}</h3>
           <p className={cn("text-[11px] mt-1.5 flex items-center gap-1 font-bold", expensesComment.color)}>
             <expensesComment.Icon size={10} /> {expensesComment.text}
           </p>
         </div>
         <div className="kpi">
-          <p className="kpi-lbl">Bénéfice net</p>
+          <p className="kpi-lbl">{t('dashboard.stats.profit')}</p>
           <h3 className={cn("kpi-val", benefice >= 0 ? "text-emerald-600" : "text-rose-600")}>
             {formatCurrency(benefice)}
           </h3>
@@ -899,27 +899,28 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
           </p>
         </div>
         <div className="kpi">
-          <p className="kpi-lbl">Taux rendement</p>
+          <p className="kpi-lbl">{t('dashboard.stats.yield')}</p>
           <h3 className="kpi-val text-kontrol-orange">{rendement.toFixed(1)}%</h3>
-          <p className="text-[11px] text-kontrol-ink-muted mt-1.5">Performance globale</p>
+          <p className="text-[11px] text-kontrol-ink-muted mt-1.5">{t('dashboard.stats.performance')}</p>
         </div>
         <div className="kpi">
-          <p className="kpi-lbl">Nb clients</p>
+          <p className="kpi-lbl">{t('dashboard.stats.customers')}</p>
           <h3 className="kpi-val">{stats.clients}</h3>
         </div>
         <div className="kpi">
-          <p className="kpi-lbl">Nb fournisseurs</p>
+          <p className="kpi-lbl">{t('dashboard.stats.vendors')}</p>
           <h3 className="kpi-val">{stats.fournisseurs}</h3>
         </div>
         <div className="kpi">
-          <p className="kpi-lbl">Nb produits</p>
+          <p className="kpi-lbl">{t('dashboard.stats.products')}</p>
           <h3 className="kpi-val">{stats.produits}</h3>
         </div>
         <div className="kpi">
-          <p className="kpi-lbl">Valeur stock</p>
+          <p className="kpi-lbl">{t('dashboard.stats.stock_value')}</p>
           <h3 className="kpi-val">{formatCurrency(stats.stockValue)}</h3>
         </div>
       </div>
+
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -930,18 +931,18 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
                 <TrendingUp size={20} />
               </div>
               <div>
-                <h3 className="text-sm font-extrabold text-kontrol-dark uppercase tracking-widest">Tendances Financières</h3>
-                <p className="text-[11px] text-kontrol-ink-muted">Evolution du CA et des charges sur 6 mois</p>
+                <h3 className="text-sm font-extrabold text-kontrol-dark uppercase tracking-widest">{t('dashboard.trends.title')}</h3>
+                <p className="text-[11px] text-kontrol-ink-muted">{t('dashboard.trends.subtitle')}</p>
               </div>
             </div>
             <div className="hidden sm:flex items-center gap-4">
               <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-kontrol-blue" />
-                <span className="text-[10px] font-bold text-kontrol-ink-muted uppercase tracking-widest text-nowrap">Chiffre d'Affaires</span>
+                <span className="text-[10px] font-bold text-kontrol-ink-muted uppercase tracking-widest text-nowrap">{t('dashboard.trends.revenue')}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-kontrol-orange" />
-                <span className="text-[10px] font-bold text-kontrol-ink-muted uppercase tracking-widest text-nowrap">Charges</span>
+                <span className="text-[10px] font-bold text-kontrol-ink-muted uppercase tracking-widest text-nowrap">{t('dashboard.trends.charges')}</span>
               </div>
             </div>
           </div>
@@ -983,7 +984,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
                   strokeWidth={3}
                   fillOpacity={1} 
                   fill="url(#colorCa)" 
-                  name="Chiffre d'Affaires"
+                  name={t('dashboard.trends.revenue')}
                   animationDuration={1500}
                 />
                 <Area 
@@ -993,7 +994,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
                   strokeWidth={3}
                   fillOpacity={1} 
                   fill="url(#colorCharges)" 
-                  name="Charges"
+                  name={t('dashboard.trends.charges')}
                   animationDuration={1500}
                 />
               </AreaChart>
@@ -1008,7 +1009,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
               <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
                 <Activity size={20} className="text-kontrol-blue" />
               </div>
-              <h3 className="text-sm font-extrabold uppercase tracking-widest text-white/50">Performance de Marge</h3>
+              <h3 className="text-sm font-extrabold uppercase tracking-widest text-white/50">{t('dashboard.performance.title')}</h3>
             </div>
             
             <div className="flex-1 flex flex-col items-center justify-center py-6">
@@ -1037,30 +1038,31 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                   <span className="text-4xl font-extrabold tracking-tighter">{rendement.toFixed(1)}%</span>
-                  <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Rendement</span>
+                  <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t('dashboard.performance.label')}</span>
                 </div>
               </div>
               <p className="mt-6 text-xs text-center text-white/60 px-4">
-                Votre bénéfice net représente <span className="text-white font-extrabold">{rendement.toFixed(1)}%</span> de votre CA total ce mois-ci.
+                {t('dashboard.performance.subtitle', { percent: rendement.toFixed(1) })}
               </p>
             </div>
           </div>
         </div>
       </div>
 
+
       {/* Recent Activity */}
       <div className="card">
         <div className="card-hd">
-          <h4 className="card-title">Activité récente</h4>
+          <h4 className="card-title">{t('dashboard.activity.title')}</h4>
         </div>
         <div className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-kontrol-bg/50 border-b border-kontrol-border">
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Action</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Module</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Date</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('dashboard.activity.columns.action')}</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('dashboard.activity.columns.module')}</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('dashboard.activity.columns.date')}</th>
                 </tr>
               </thead>
                 <tbody className="divide-y divide-kontrol-border">
@@ -1086,13 +1088,14 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
                 {recentActions.length === 0 && (
                   <tr>
                     <td colSpan={3} className="px-4 py-8 text-center text-[13px] text-kontrol-ink-muted">
-                      Aucune action enregistrée aujourd'hui.
+                      {t('dashboard.activity.no_activity')}
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
+
           {recentActions.length > itemsPerPage && (
             <div className="p-4 border-t border-kontrol-border flex items-center justify-between bg-kontrol-bg/20">
               <p className="text-[10px] font-bold text-kontrol-ink-muted uppercase tracking-widest">
@@ -1128,8 +1131,8 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
                   <Sparkles size={20} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-extrabold text-kontrol-dark">Analyse Stratégique Blue AI</h3>
-                  <p className="text-[11px] text-kontrol-ink-muted font-medium uppercase tracking-wider">Intelligence Artificielle de KONTROL</p>
+                  <h3 className="text-lg font-extrabold text-kontrol-dark">{t('dashboard.ai_analysis.modal_title')}</h3>
+                  <p className="text-[11px] text-kontrol-ink-muted font-medium uppercase tracking-wider">{t('dashboard.ai_analysis.modal_subtitle')}</p>
                 </div>
               </div>
               <button onClick={() => setIsAIModalOpen(false)} className="p-2 hover:bg-kontrol-bg rounded-full text-kontrol-ink-muted transition-colors">
@@ -1145,8 +1148,8 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
                     <Sparkles className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-kontrol-orange animate-pulse" size={24} />
                   </div>
                   <div className="text-center">
-                    <p className="text-lg font-bold text-kontrol-dark">Analyse en cours...</p>
-                    <p className="text-sm text-kontrol-ink-muted">Blue AI examine vos performances financières</p>
+                    <p className="text-lg font-bold text-kontrol-dark">{t('dashboard.ai_analysis.analyzing')}</p>
+                    <p className="text-sm text-kontrol-ink-muted">{t('dashboard.ai_analysis.analyzing_subtitle')}</p>
                   </div>
                 </div>
               ) : (
@@ -1164,13 +1167,13 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
                 disabled={isAnalyzing || !aiAnalysis}
                 className="flex-1 btn-outline py-3 font-bold flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                <FileText size={18} /> Exporter en PDF
+                <FileText size={18} /> {t('dashboard.ai_analysis.export_pdf')}
               </button>
               <button 
                 onClick={() => setIsAIModalOpen(false)}
                 className="flex-1 bg-kontrol-dark text-white py-3 rounded-xl font-bold hover:bg-kontrol-dark/90 transition-all"
               >
-                Fermer
+                {t('dashboard.ai_analysis.close')}
               </button>
             </div>
           </div>

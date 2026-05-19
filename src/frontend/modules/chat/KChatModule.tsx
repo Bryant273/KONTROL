@@ -121,13 +121,23 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
   // Sync users for contact discovery
   useEffect(() => {
     if (!profile) return;
-    const q = collection(db, 'users');
+    
+    // Admins see all users, users see only users from their company
+    let q;
+    const isKontrolAdmin = ['ADMINISTRATEUR_ERP', 'GESTIONNAIRE_ERP', 'ADMINISTRATEUR_KONTROL', 'GESTIONNAIRE_KONTROL', 'ADMIN'].includes(profile.role);
+    
+    if (isKontrolAdmin) {
+      q = collection(db, 'users');
+    } else {
+      q = query(collection(db, 'users'), where('companyId', '==', profile.companyId));
+    }
+    
     const unsub = onSnapshot(q, (snap) => {
       const users = snap.docs.map(d => ({ id: d.id, ...d.data() } as UserProfile));
       setAllUsers(users);
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'users', user, false));
     return () => unsub();
-  }, [profile]);
+  }, [profile, user.uid]);
 
   // Sync conversations
   useEffect(() => {

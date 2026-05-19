@@ -1,0 +1,291 @@
+src/frontend/components/layout/Header.tsx:import { User, db, doc, updateDoc, handleFirestoreError, OperationType } from '../../../api/firebase';
+src/frontend/components/layout/Header.tsx:      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`, user, false);
+src/frontend/components/common/ModuleActivityLog.tsx:  handleFirestoreError,
+src/frontend/components/common/ModuleActivityLog.tsx:      handleFirestoreError(error, OperationType.LIST, 'actions', auth.currentUser, false);
+src/frontend/components/common/Chatbot.tsx:import { auth, signInAnonymously, handleFirestoreError, OperationType } from '../../../api/firebase';
+src/frontend/components/common/Chatbot.tsx:          handleFirestoreError(err, OperationType.WRITE, 'chatbot/sign-in', auth.currentUser, false);
+src/frontend/components/common/Chatbot.tsx:      handleFirestoreError(error, OperationType.WRITE, 'chatbot/request', auth.currentUser, false);
+src/frontend/components/common/Chatbot.tsx:      handleFirestoreError(error, OperationType.DELETE, `conversations/${conversationId}`, auth.currentUser, false);
+src/frontend/components/common/CompanySelector.tsx:import { db, collection, getDocs, query, where, orderBy, handleFirestoreError, OperationType, auth } from '../../../api/firebase';
+src/frontend/components/common/CompanySelector.tsx:        handleFirestoreError(error, OperationType.LIST, 'companies', auth.currentUser, false);
+src/frontend/components/common/SupportForm.tsx:      const { db, collection, addDoc, handleFirestoreError, OperationType, auth } = await import('../../../api/firebase');
+src/frontend/components/common/SupportForm.tsx:      const { handleFirestoreError, OperationType, auth } = await import('../../../api/firebase');
+src/frontend/components/common/SupportForm.tsx:      handleFirestoreError(err, OperationType.WRITE, 'tickets', auth.currentUser, false);
+src/frontend/components/dashboard/Dashboard.tsx:  handleFirestoreError,
+src/frontend/components/dashboard/Dashboard.tsx:    }, (error) => handleFirestoreError(error, OperationType.LIST, 'users', user, false));
+src/frontend/components/dashboard/Dashboard.tsx:    }, (error) => handleFirestoreError(error, OperationType.LIST, 'tickets', user, false));
+src/frontend/components/dashboard/Dashboard.tsx:    }, (error) => handleFirestoreError(error, OperationType.LIST, 'transactions', user, false));
+src/frontend/components/dashboard/Dashboard.tsx:    }, (error) => handleFirestoreError(error, OperationType.LIST, 'payments', user, false));
+src/frontend/components/dashboard/Dashboard.tsx:    }, (error) => handleFirestoreError(error, OperationType.LIST, 'actions', user, false));
+src/frontend/components/dashboard/Dashboard.tsx:      handleFirestoreError(error, OperationType.GET, 'ai_analysis', user, false);
+src/frontend/components/dashboard/Dashboard.tsx:      handleFirestoreError(error, OperationType.GET, 'code_analysis', user, false);
+src/frontend/components/dashboard/Dashboard.tsx:      }, (error) => handleFirestoreError(error, OperationType.LIST, 'users', user, false)));
+src/frontend/components/dashboard/Dashboard.tsx:      }, (error) => handleFirestoreError(error, OperationType.LIST, 'tickets', user, false)));
+src/frontend/components/dashboard/Dashboard.tsx:      }, (error) => handleFirestoreError(error, OperationType.LIST, 'actions', user, false)));
+src/frontend/components/dashboard/Dashboard.tsx:      }, (error) => handleFirestoreError(error, OperationType.LIST, 'payments', user, false)));
+src/frontend/components/dashboard/Dashboard.tsx:      }, (error) => handleFirestoreError(error, OperationType.LIST, 'transactions', user, false)));
+src/frontend/components/dashboard/Dashboard.tsx:      }, (error) => handleFirestoreError(error, OperationType.LIST, 'charges', user, false)));
+src/frontend/components/dashboard/Dashboard.tsx:          console.error("Error syncing dashboard trends:", e);
+src/frontend/components/dashboard/Dashboard.tsx:      }, (error) => handleFirestoreError(error, OperationType.LIST, 'tiers', user, false)));
+src/frontend/components/dashboard/Dashboard.tsx:      }, (error) => handleFirestoreError(error, OperationType.LIST, 'produits', user, false)));
+src/frontend/components/dashboard/Dashboard.tsx:      }, (error) => handleFirestoreError(error, OperationType.LIST, 'actions', user, false)));
+src/frontend/components/dashboard/Dashboard.tsx:      }, (error) => handleFirestoreError(error, OperationType.LIST, 'payment_requests', user, false)));
+src/frontend/components/auth/AuthPage.tsx:import { loginWithGoogle, loginWithEmail, registerWithEmail, auth, handleFirestoreError, OperationType, db } from '../../../api/firebase';
+src/frontend/components/auth/AuthPage.tsx:  const [authError, setAuthError] = React.useState('');
+src/frontend/components/auth/AuthPage.tsx:    setAuthError('');
+src/frontend/components/auth/AuthPage.tsx:      setAuthError(error.message);
+src/frontend/components/auth/AuthPage.tsx:              {authError && (
+src/frontend/components/auth/AuthPage.tsx:                  {authError}
+src/frontend/components/auth/AuthPage.tsx:                  handleFirestoreError(err, OperationType.WRITE, 'auth/google', null, false);
+src/frontend/components/auth/CompanySetupModal.tsx:import { updateUserProfile, logAction, db, handleFirestoreError, OperationType } from '../../../api/firebase';
+src/frontend/components/auth/CompanySetupModal.tsx:        handleFirestoreError(err, OperationType.WRITE, 'actions', profile, false);
+src/frontend/components/auth/CompanySetupModal.tsx:      handleFirestoreError(error, OperationType.WRITE, 'users', profile, false);
+src/frontend/components/notifications/NotificationCenter.tsx:  handleFirestoreError,
+src/frontend/components/notifications/NotificationCenter.tsx:    }, (error) => handleFirestoreError(error, OperationType.LIST, 'notifications', auth.currentUser, false));
+src/frontend/components/notifications/NotificationCenter.tsx:      handleFirestoreError(error, OperationType.UPDATE, `notifications/${id}`, auth.currentUser, false);
+src/frontend/components/notifications/NotificationCenter.tsx:      handleFirestoreError(error, OperationType.UPDATE, 'notifications', auth.currentUser, false);
+src/frontend/components/notifications/NotificationCenter.tsx:      handleFirestoreError(error, OperationType.DELETE, `notifications/${id}`, auth.currentUser, false);
+src/frontend/components/notifications/NotificationCenter.tsx:                        handleFirestoreError(error, OperationType.DELETE, 'notifications', auth.currentUser, false);
+src/frontend/modules/users/UsersModule.tsx:  handleFirestoreError,
+src/frontend/modules/users/UsersModule.tsx:      handleFirestoreError(error, OperationType.LIST, path, user, false);
+src/frontend/modules/users/UsersModule.tsx:      handleFirestoreError(error, OperationType.WRITE, 'users', user, false);
+src/frontend/modules/users/UsersModule.tsx:      handleFirestoreError(error, OperationType.UPDATE, 'users', user, false);
+src/frontend/modules/users/UsersModule.tsx:        ).catch(err => handleFirestoreError(err, OperationType.WRITE, 'actions', user, false));
+src/frontend/modules/users/UsersModule.tsx:      handleFirestoreError(error, OperationType.WRITE, 'auth/reset-password', user, false);
+src/frontend/modules/stocks/StocksModule.tsx:  handleFirestoreError,
+src/frontend/modules/stocks/StocksModule.tsx:      handleFirestoreError(error, OperationType.LIST, 'stock_movements', user, false);
+src/frontend/modules/stocks/StocksModule.tsx:      handleFirestoreError(error, OperationType.LIST, 'produits', user, false);
+src/frontend/modules/blue/BlueAIModule.tsx:  handleFirestoreError,
+src/frontend/modules/blue/BlueAIModule.tsx:      handleFirestoreError(error, OperationType.LIST, 'conversations', auth.currentUser, false);
+src/frontend/modules/blue/BlueAIModule.tsx:      handleFirestoreError(error, OperationType.DELETE, 'conversations', auth.currentUser, false);
+src/frontend/modules/blue/BlueAIModule.tsx:      handleFirestoreError(error, OperationType.CREATE, 'messages', auth.currentUser, false);
+src/frontend/modules/blue/BlueAIModule.tsx:      handleFirestoreError(error, OperationType.LIST, 'messages', auth.currentUser, false);
+src/frontend/modules/transactions/TransactionsModule.tsx:import { logAction, handleFirestoreError, OperationType, serverTimestamp } from '../../../api/firebase';
+src/frontend/modules/transactions/TransactionsModule.tsx:      handleFirestoreError(error, OperationType.DELETE, `transactions/${selectedId}`, user, false);
+src/frontend/modules/transactions/TransactionsModule.tsx:      handleFirestoreError(error, OperationType.CREATE, 'transactions', user, false);
+src/frontend/modules/transactions/TransactionsModule.tsx:      handleFirestoreError(error, OperationType.UPDATE, `transactions/${selectedId}`, user, false);
+src/frontend/modules/transactions/TransactionsModule.tsx:      console.error("PDF Error:", error);
+src/frontend/modules/charges/ChargesModule.tsx:  handleFirestoreError,
+src/frontend/modules/charges/ChargesModule.tsx:      // Error handled in service
+src/frontend/modules/charges/ChargesModule.tsx:      // Error handled in service
+src/frontend/modules/charges/ChargesModule.tsx:      handleFirestoreError(error, OperationType.LIST, path, user, false);
+src/frontend/modules/actions/ActionsModule.tsx:  handleFirestoreError,
+src/frontend/modules/actions/ActionsModule.tsx:      handleFirestoreError(error, OperationType.LIST, 'actions', user, false);
+src/frontend/modules/admin/ControlTowerTreasuryView.tsx:  handleFirestoreError,
+src/frontend/modules/admin/ControlTowerTreasuryView.tsx:        handleFirestoreError(error, OperationType.LIST, 'payments', auth.currentUser, false);
+src/frontend/modules/admin/ControlTowerTreasuryView.tsx:      handleFirestoreError(error, OperationType.WRITE, 'payments', auth.currentUser, false);
+src/frontend/modules/admin/ControlTowerTreasuryView.tsx:      handleFirestoreError(error, OperationType.DELETE, 'payments', auth.currentUser, false);
+src/frontend/modules/admin/VersionControlView.tsx:  handleFirestoreError,
+src/frontend/modules/admin/VersionControlView.tsx:        handleFirestoreError(error, OperationType.GET, 'system/config', auth.currentUser, false);
+src/frontend/modules/admin/VersionControlView.tsx:              handleFirestoreError(e, OperationType.WRITE, 'app_versions/init', auth.currentUser, false);
+src/frontend/modules/admin/VersionControlView.tsx:        handleFirestoreError(error, OperationType.LIST, 'app_versions', auth.currentUser, false);
+src/frontend/modules/admin/VersionControlView.tsx:      handleFirestoreError(error, OperationType.UPDATE, 'system/config', auth.currentUser, false);
+src/frontend/modules/admin/VersionControlView.tsx:      handleFirestoreError(error, OperationType.WRITE, 'app_versions/create', auth.currentUser, false);
+src/frontend/modules/admin/UpdatesView.tsx:import { db, collection, addDoc, getDocs, query, orderBy, onSnapshot, doc, updateDoc, serverTimestamp, handleFirestoreError, OperationType, auth } from '../../../api/firebase';
+src/frontend/modules/admin/UpdatesView.tsx:        handleFirestoreError(error, OperationType.LIST, 'ai_proposals', auth.currentUser, false);
+src/frontend/modules/admin/UpdatesView.tsx:      handleFirestoreError(error, OperationType.WRITE, 'ai_proposals/create', auth.currentUser, false);
+src/frontend/modules/admin/UpdatesView.tsx:      handleFirestoreError(error, OperationType.UPDATE, `ai_proposals/${id}`, auth.currentUser, false);
+src/frontend/modules/admin/ControlTowerTransactionsView.tsx:  handleFirestoreError,
+src/frontend/modules/admin/ControlTowerTransactionsView.tsx:        handleFirestoreError(error, OperationType.LIST, 'transactions', auth.currentUser, false);
+src/frontend/modules/admin/ControlTowerTransactionsView.tsx:      handleFirestoreError(error, OperationType.WRITE, 'transactions/create', auth.currentUser, false);
+src/frontend/modules/admin/ControlTower.tsx:  handleFirestoreError,
+src/frontend/modules/admin/ControlTower.tsx:      handleFirestoreError(error, OperationType.CREATE, 'users', auth.currentUser, false);
+src/frontend/modules/admin/ControlTower.tsx:      handleFirestoreError(error, OperationType.DELETE, `users/${selectedItem.id}`, auth.currentUser, false);
+src/frontend/modules/admin/ControlTower.tsx:      handleFirestoreError(error, OperationType.UPDATE, `users/${selectedItem.id}`, auth.currentUser, false);
+src/frontend/modules/admin/ControlTower.tsx:    }, (error) => handleFirestoreError(error, OperationType.LIST, 'users', user, false));
+src/frontend/modules/admin/ControlTower.tsx:    }, (error) => handleFirestoreError(error, OperationType.LIST, 'transactions', user, false));
+src/frontend/modules/admin/ControlTower.tsx:    }, (error) => handleFirestoreError(error, OperationType.LIST, 'payments', user, false));
+src/frontend/modules/admin/ControlTower.tsx:    }, (error) => handleFirestoreError(error, OperationType.LIST, 'system_stats', user, false));
+src/frontend/modules/admin/ControlTower.tsx:    }, (error) => handleFirestoreError(error, OperationType.LIST, 'actions', user, false)));
+src/frontend/modules/admin/ControlTower.tsx:    }, (error) => handleFirestoreError(error, OperationType.LIST, 'tickets', user, false)));
+src/frontend/modules/admin/ControlTower.tsx:    }, (error) => handleFirestoreError(error, OperationType.LIST, 'payment_requests', user, false)));
+src/frontend/modules/admin/ControlTower.tsx:    }, (error) => handleFirestoreError(error, OperationType.LIST, 'system_metrics', user, false)));
+src/frontend/modules/admin/ControlTower.tsx:      handleFirestoreError(error, OperationType.UPDATE, `users/${companyId}/subscription`, auth.currentUser, false);
+src/frontend/modules/admin/ControlTower.tsx:      handleFirestoreError(error, OperationType.UPDATE, `payment_requests/${request.id}`, auth.currentUser, false);
+src/frontend/modules/admin/ControlTower.tsx:      handleFirestoreError(error, OperationType.UPDATE, `payment_requests/${request.id}`, auth.currentUser, false);
+src/frontend/modules/admin/ControlTower.tsx:    }, (err) => handleFirestoreError(err, OperationType.LIST, 'treasury_movements', auth.currentUser, false));
+src/frontend/modules/admin/ControlTower.tsx:      handleFirestoreError(error, OperationType.CREATE, 'treasury_movements', auth.currentUser, false);
+src/frontend/modules/admin/ControlTower.tsx:      handleFirestoreError(e, OperationType.GET, 'api/sql/tables', auth.currentUser, false);
+src/frontend/modules/admin/ControlTower.tsx:      handleFirestoreError(e, OperationType.WRITE, 'api/sql/query', auth.currentUser, false);
+src/frontend/modules/admin/ControlTower.tsx:      handleFirestoreError(e, OperationType.GET, 'api/sql/tx-context', auth.currentUser, false);
+src/frontend/modules/admin/ControlTower.tsx:      handleFirestoreError(error, OperationType.WRITE, 'blue-ai/strategy', auth.currentUser, false);
+src/frontend/modules/admin/ControlTower.tsx:  const avgErrors = metrics.length > 0 ? (metrics.reduce((acc: number, m: any) => acc + m.errors, 0) / metrics.length).toFixed(2) : '0.00';
+src/frontend/modules/admin/ControlTower.tsx:      handleFirestoreError(error, OperationType.DELETE, 'all_collections', auth.currentUser, false);
+src/frontend/modules/admin/ControlTower.tsx:        <TelemetryCard title="Taux d'Erreur" value={`${avgErrors}%`} status="Nominal" icon={AlertCircle} />
+src/frontend/modules/admin/ControlTower.tsx:      handleFirestoreError(error, OperationType.WRITE, 'no_reply_email', auth.currentUser, false);
+src/frontend/modules/admin/ControlTower.tsx:      handleFirestoreError(error, OperationType.WRITE, `tickets/${replyingTicket.id}/reply`, auth.currentUser, false);
+src/frontend/modules/admin/ControlTower.tsx:      handleFirestoreError(error, OperationType.DELETE, `tickets/${isDeletingTicket.id}`, auth.currentUser, false);
+src/frontend/modules/admin/ControlTower.tsx:    }, (err) => handleFirestoreError(err, OperationType.LIST, 'payments', auth.currentUser, false));
+src/frontend/modules/profile/ProfileModule.tsx:  handleFirestoreError,
+src/frontend/modules/profile/ProfileModule.tsx:  const [passError, setPassError] = React.useState('');
+src/frontend/modules/profile/ProfileModule.tsx:      ).catch(err => handleFirestoreError(err, OperationType.WRITE, 'actions', auth.currentUser, false));
+src/frontend/modules/profile/ProfileModule.tsx:      handleFirestoreError(error, OperationType.WRITE, 'users', auth.currentUser, false);
+src/frontend/modules/profile/ProfileModule.tsx:      setPassError("Les mots de passe ne correspondent pas.");
+src/frontend/modules/profile/ProfileModule.tsx:      setPassError("Le mot de passe doit contenir au moins 6 caractères.");
+src/frontend/modules/profile/ProfileModule.tsx:    setPassError('');
+src/frontend/modules/profile/ProfileModule.tsx:      ).catch(err => handleFirestoreError(err, OperationType.WRITE, 'actions', auth.currentUser, false));
+src/frontend/modules/profile/ProfileModule.tsx:      handleFirestoreError(error, OperationType.WRITE, 'auth/password', auth.currentUser, false);
+src/frontend/modules/profile/ProfileModule.tsx:        setPassError("Le mot de passe actuel est incorrect.");
+src/frontend/modules/profile/ProfileModule.tsx:        setPassError("Une erreur est survenue lors de la mise à jour du mot de passe.");
+src/frontend/modules/profile/ProfileModule.tsx:      handleFirestoreError(error, OperationType.DELETE, 'companies', auth.currentUser, false);
+src/frontend/modules/profile/ProfileModule.tsx:              {passError && (
+src/frontend/modules/profile/ProfileModule.tsx:                  <AlertCircle size={14} /> {passError}
+src/frontend/modules/chat/KChatModule.tsx:  handleFirestoreError,
+src/frontend/modules/chat/KChatModule.tsx:    }, (error) => handleFirestoreError(error, OperationType.LIST, 'users', user, false));
+src/frontend/modules/chat/KChatModule.tsx:      handleFirestoreError(error, OperationType.LIST, 'conversations', user, false);
+src/frontend/modules/chat/KChatModule.tsx:    }, (error) => handleFirestoreError(error, OperationType.LIST, 'messages', user, false));
+src/frontend/modules/chat/KChatModule.tsx:            handleFirestoreError(e, OperationType.UPDATE, `messages/${msg.id}`, user, false);
+src/frontend/modules/chat/KChatModule.tsx:      handleFirestoreError(error, OperationType.WRITE, 'chat/send', user, false);
+src/frontend/modules/chat/KChatModule.tsx:      handleFirestoreError(error, OperationType.CREATE, 'conversations', user, false);
+src/frontend/modules/chat/KChatModule.tsx:      handleFirestoreError(error, OperationType.CREATE, 'conversations/group', user, false);
+src/frontend/modules/chat/KChatModule.tsx:      handleFirestoreError(error, OperationType.CREATE, 'conversations/channel', user, false);
+src/frontend/modules/chat/KChatModule.tsx:      handleFirestoreError(error, OperationType.DELETE, `conversations/${convId}`, user, false);
+src/frontend/modules/chat/KChatModule.tsx:        handleFirestoreError(e, OperationType.DELETE, 'messages/clear', user, false);
+src/frontend/modules/companies/CompanyProfileModule.tsx:  handleFirestoreError, 
+src/frontend/modules/companies/CompanyProfileModule.tsx:        handleFirestoreError(error, OperationType.GET, 'companies', auth.currentUser, false);
+src/frontend/modules/companies/CompanyProfileModule.tsx:      handleFirestoreError(error, OperationType.UPDATE, 'companies', auth.currentUser, false);
+src/frontend/modules/companies/CompaniesModule.tsx:  handleFirestoreError, 
+src/frontend/modules/companies/CompaniesModule.tsx:      handleFirestoreError(error, OperationType.DELETE, 'users', auth.currentUser, false);
+src/frontend/modules/companies/CompaniesModule.tsx:    }, (error) => handleFirestoreError(error, OperationType.LIST, 'users', auth.currentUser, false));
+src/frontend/modules/companies/CompaniesModule.tsx:      handleFirestoreError(error, OperationType.UPDATE, 'users', auth.currentUser, false);
+src/frontend/modules/companies/CompaniesModule.tsx:      handleFirestoreError(error, OperationType.UPDATE, 'users', auth.currentUser, false);
+src/frontend/modules/subscriptions/SubscriptionsModule.tsx:import { db, doc, getDoc, getDocs, updateDoc, logAction, serverTimestamp, collection, addDoc, query, where, onSnapshot, orderBy, handleFirestoreError, OperationType, auth } from '../../../api/firebase';
+src/frontend/modules/subscriptions/SubscriptionsModule.tsx:  const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
+src/frontend/modules/subscriptions/SubscriptionsModule.tsx:    const [hasError, setHasError] = useState(false);
+src/frontend/modules/subscriptions/SubscriptionsModule.tsx:      const handleError = (error: ErrorEvent) => {
+src/frontend/modules/subscriptions/SubscriptionsModule.tsx:        console.error("Caught by ErrorBoundary:", error);
+src/frontend/modules/subscriptions/SubscriptionsModule.tsx:        setHasError(true);
+src/frontend/modules/subscriptions/SubscriptionsModule.tsx:      window.addEventListener('error', handleError);
+src/frontend/modules/subscriptions/SubscriptionsModule.tsx:      return () => window.removeEventListener('error', handleError);
+src/frontend/modules/subscriptions/SubscriptionsModule.tsx:    if (hasError) {
+src/frontend/modules/subscriptions/SubscriptionsModule.tsx:            onClick={() => setHasError(false)}
+src/frontend/modules/subscriptions/SubscriptionsModule.tsx:      handleFirestoreError(error, OperationType.GET, 'payment_verification', auth.currentUser, false);
+src/frontend/modules/subscriptions/SubscriptionsModule.tsx:      handleFirestoreError(error, OperationType.WRITE, 'payment_requests', auth.currentUser, false);
+src/frontend/modules/subscriptions/SubscriptionsModule.tsx:    }, (err) => handleFirestoreError(err, OperationType.LIST, 'payment_requests', auth.currentUser, false));
+src/frontend/modules/subscriptions/SubscriptionsModule.tsx:      handleFirestoreError(error, OperationType.UPDATE, 'payment_requests', auth.currentUser, false);
+src/frontend/modules/subscriptions/SubscriptionsModule.tsx:    <ErrorBoundary>
+src/frontend/modules/subscriptions/SubscriptionsModule.tsx:    </ErrorBoundary>
+src/frontend/modules/produits/ProduitsModule.tsx:import { logAction, handleFirestoreError, OperationType, auth } from '../../../api/firebase';
+src/frontend/modules/produits/ProduitsModule.tsx:        handleFirestoreError(error, OperationType.WRITE, 'produits/import', user, false);
+src/frontend/modules/produits/ProduitsModule.tsx:      handleFirestoreError(error, OperationType.WRITE, 'produits', user, false);
+src/frontend/modules/produits/ProduitsModule.tsx:      handleFirestoreError(error, OperationType.UPDATE, `produits/${selectedId}`, user, false);
+src/frontend/modules/produits/ProduitsModule.tsx:      handleFirestoreError(error, OperationType.DELETE, `produits/${selectedId}`, user, false);
+src/frontend/modules/system/NotificationsCenterModule.tsx:  handleFirestoreError,
+src/frontend/modules/system/NotificationsCenterModule.tsx:      handleFirestoreError(error, OperationType.LIST, 'notifications', auth.currentUser, false);
+src/frontend/modules/system/NotificationsCenterModule.tsx:      handleFirestoreError(error, OperationType.UPDATE, `notifications/${id}`, auth.currentUser, false);
+src/frontend/modules/system/NotificationsCenterModule.tsx:      handleFirestoreError(error, OperationType.UPDATE, 'notifications/all', auth.currentUser, false);
+src/frontend/modules/system/NotificationsCenterModule.tsx:      handleFirestoreError(error, OperationType.DELETE, `notifications/${id}`, auth.currentUser, false);
+src/frontend/modules/system/NotificationsCenterModule.tsx:      handleFirestoreError(error, OperationType.DELETE, 'notifications/all', auth.currentUser, false);
+src/frontend/modules/system/SystemModule.tsx:import { db, collection, getDocs, query, where, deleteDoc, doc, auth, handleFirestoreError, OperationType, limit, orderBy, onSnapshot, writeBatch } from '../../../api/firebase';
+src/frontend/modules/system/SystemModule.tsx:      handleFirestoreError(error, OperationType.LIST, 'actions', auth.currentUser, false);
+src/frontend/modules/system/SystemModule.tsx:      handleFirestoreError(error, OperationType.LIST, 'users', auth.currentUser, false);
+src/frontend/modules/system/SystemModule.tsx:      handleFirestoreError(error, OperationType.LIST, 'global_stats', auth.currentUser, false);
+src/frontend/modules/system/SystemModule.tsx:      handleFirestoreError(error, OperationType.DELETE, 'users', auth.currentUser, false);
+src/frontend/modules/system/SystemModule.tsx:      handleFirestoreError(error, OperationType.DELETE, 'targeted_company_deletion', auth.currentUser, false);
+src/frontend/modules/system/SystemModule.tsx:      handleFirestoreError(error, OperationType.DELETE, 'system_reset', auth.currentUser, false);
+src/frontend/modules/system/SystemModule.tsx:      handleFirestoreError(error, OperationType.DELETE, 'total_system_reset', auth.currentUser, false);
+src/frontend/modules/finance/FinanceModule.tsx:  handleFirestoreError,
+src/frontend/modules/finance/FinanceModule.tsx:    }, (error) => handleFirestoreError(error, OperationType.LIST, 'payments', user, false)));
+src/frontend/modules/finance/FinanceModule.tsx:    }, (error) => handleFirestoreError(error, OperationType.LIST, 'tiers', user, false)));
+src/frontend/modules/finance/FinanceModule.tsx:        throw new Error("URL de paiement non reçue");
+src/frontend/modules/finance/FinanceModule.tsx:      handleFirestoreError(error, OperationType.WRITE, 'payments', user, false);
+src/frontend/modules/finance/FinanceModule.tsx:      handleFirestoreError(error, OperationType.DELETE, 'payments', user, false);
+src/frontend/modules/finance/FinanceModule.tsx:      handleFirestoreError(e, OperationType.GET, 'bridge_calc', user, false);
+src/frontend/modules/tickets/TicketsModule.tsx:  handleFirestoreError,
+src/frontend/modules/tickets/TicketsModule.tsx:      handleFirestoreError(error, OperationType.CREATE, 'tickets', user, false);
+src/frontend/modules/tickets/TicketsModule.tsx:      handleFirestoreError(error, OperationType.LIST, 'tickets', user, false);
+src/frontend/modules/tickets/TicketsModule.tsx:      handleFirestoreError(error, OperationType.UPDATE, `tickets/${ticketId}`, user, false);
+src/frontend/modules/tickets/TicketsModule.tsx:      handleFirestoreError(error, OperationType.DELETE, `tickets/${selectedTicket.id}`, user, false);
+src/frontend/modules/tiers/TiersModule.tsx:  handleFirestoreError,
+src/frontend/modules/tiers/TiersModule.tsx:      handleFirestoreError(error, OperationType.WRITE, 'tiers', user, false);
+src/frontend/modules/tiers/TiersModule.tsx:      handleFirestoreError(error, OperationType.UPDATE, 'tiers', user, false);
+src/frontend/modules/tiers/TiersModule.tsx:      handleFirestoreError(error, OperationType.DELETE, 'tiers', user, false);
+src/frontend/modules/tiers/TiersModule.tsx:      handleFirestoreError(error, OperationType.LIST, path, user, false);
+src/frontend/App.tsx:  handleFirestoreError,
+src/frontend/App.tsx:              handleFirestoreError(err, OperationType.WRITE, 'auth/anonymous', null, false);
+src/frontend/App.tsx:      handleFirestoreError(error, OperationType.GET, 'auth_state', null, false);
+src/frontend/App.tsx:          handleFirestoreError(err, OperationType.CREATE, `users/${user.uid}`, user, false);
+src/frontend/App.tsx:      handleFirestoreError(error, OperationType.GET, `users/${user.uid}`, user, false);
+src/frontend/App.tsx:          handleFirestoreError(err, OperationType.CREATE, 'actions', user, false);
+src/frontend/App.tsx:        handleFirestoreError(err, OperationType.GET, 'firebase_module', user, false);
+src/frontend/App.tsx:      handleFirestoreError(error, OperationType.WRITE, 'auth/logout', null, false);
+src/api/services/emailService.ts:  handleFirestoreError,
+src/api/services/emailService.ts:      handleFirestoreError(error, OperationType.LIST, 'tickets', null, false);
+src/api/services/emailService.ts:      handleFirestoreError(error, OperationType.WRITE, `tickets/${ticketId}/replies`, null, false);
+src/api/services/baseFirestoreService.ts:  handleFirestoreError,
+src/api/services/baseFirestoreService.ts:      handleFirestoreError(error, OperationType.LIST, this.collectionName, auth.currentUser, false);
+src/api/services/baseFirestoreService.ts:      handleFirestoreError(error, OperationType.GET, `${this.collectionName}/${id}`, auth.currentUser, false);
+src/api/services/baseFirestoreService.ts:      handleFirestoreError(error, OperationType.CREATE, this.collectionName, user || auth.currentUser, false);
+src/api/services/baseFirestoreService.ts:      handleFirestoreError(error, OperationType.UPDATE, `${this.collectionName}/${id}`, user || auth.currentUser, false);
+src/api/services/baseFirestoreService.ts:      handleFirestoreError(error, OperationType.DELETE, `${this.collectionName}/${id}`, user || auth.currentUser, false);
+src/api/services/baseFirestoreService.ts:      handleFirestoreError(error, OperationType.LIST, this.collectionName, user || auth.currentUser, false);
+src/api/services/baseFirestoreService.ts:      handleFirestoreError(error, OperationType.LIST, this.collectionName, user || auth.currentUser, false);
+src/api/services/transactionService.ts:import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
+src/api/services/transactionService.ts:      handleFirestoreError(error, OperationType.WRITE, 'transactions', user, false);
+src/api/services/transactionService.ts:      if (!transDoc.exists()) throw new Error('Transaction not found');
+src/api/services/transactionService.ts:      handleFirestoreError(error, OperationType.WRITE, 'transactions', user, false);
+src/api/services/transactionService.ts:      handleFirestoreError(error, OperationType.DELETE, 'transactions', user, false);
+src/api/services/userService.ts:import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
+src/api/services/userService.ts:      handleFirestoreError(error, OperationType.UPDATE, 'users', user, false);
+src/api/services/userService.ts:      handleFirestoreError(error, OperationType.UPDATE, 'companies', user, false);
+src/api/services/dataResetService.ts:  handleFirestoreError,
+src/api/services/dataResetService.ts:    handleFirestoreError(error, OperationType.DELETE, 'mass_reset', auth.currentUser, false);
+src/api/services/blueAIService.ts:  handleFirestoreError,
+src/api/services/blueAIService.ts:      handleFirestoreError(error, OperationType.LIST, 'company_data', auth.currentUser, false);
+src/api/services/blueAIService.ts:      handleFirestoreError(error, OperationType.DELETE, `conversations/${conversationId}`, auth.currentUser, false);
+src/api/services/blueAIService.ts:      handleFirestoreError(error, OperationType.CREATE, 'conversations', auth.currentUser, false);
+src/api/services/blueAIService.ts:      handleFirestoreError(error, OperationType.CREATE, 'messages', auth.currentUser, false);
+src/api/services/blueAIService.ts:        handleFirestoreError(error, OperationType.CREATE, 'messages/assistant', auth.currentUser, false);
+src/api/services/blueAIService.ts:        handleFirestoreError(error, OperationType.UPDATE, `conversations/${currentConvId}`, auth.currentUser, false);
+src/api/services/blueAIService.ts:      handleFirestoreError(error, OperationType.WRITE, 'ai/blue-brain', auth.currentUser, true);
+src/api/services/blueAIService.ts:      handleFirestoreError(error, OperationType.LIST, 'conversations', auth.currentUser, false);
+src/api/services/blueAIService.ts:      handleFirestoreError(error, OperationType.LIST, 'messages', auth.currentUser, false);
+src/api/services/blueAIService.ts:      handleFirestoreError(error, OperationType.WRITE, 'ai/blue-brain/analyze', auth.currentUser, false);
+src/api/services/notificationService.ts:import { db, collection, addDoc, serverTimestamp, handleFirestoreError, OperationType, auth } from '../firebase';
+src/api/services/notificationService.ts:    handleFirestoreError(error, OperationType.CREATE, 'notifications', auth.currentUser, false);
+src/api/services/notificationService.ts:export async function notifyPaymentError(companyId: string, userId: string, amount: number, errorDetail: string) {
+src/api/services/notificationService.ts:      isPaymentError: true
+src/api/services/stockService.ts:    throw new Error(`Produit ${movement.produitId} non trouvé`);
+src/api/services/financeService.ts:import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
+src/api/services/financeService.ts:      handleFirestoreError(error, OperationType.UPDATE, 'wallets', user, false);
+src/api/services/financeService.ts:      handleFirestoreError(error, OperationType.WRITE, 'payments', user, false);
+src/api/services/financeService.ts:      handleFirestoreError(error, OperationType.WRITE, 'charges', user, false);
+src/api/services/chargeService.ts:import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
+src/api/services/chargeService.ts:      handleFirestoreError(error, OperationType.WRITE, 'charges', user, false);
+src/api/services/chargeService.ts:      handleFirestoreError(error, OperationType.WRITE, 'charges', user, false);
+src/api/services/chargeService.ts:      handleFirestoreError(error, OperationType.DELETE, 'charges', user, false);
+src/api/services/productService.ts:import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
+src/api/services/productService.ts:      handleFirestoreError(error, OperationType.WRITE, 'produits', user, false);
+src/api/services/productService.ts:       handleFirestoreError(error, OperationType.WRITE, 'produits', user, false);
+src/api/services/productService.ts:      handleFirestoreError(error, OperationType.DELETE, 'produits', user, false);
+src/api/firebase.ts:  handleFirestoreError 
+src/api/firebase.ts:  handleFirestoreError,
+src/api/firebase.ts:        handleFirestoreError(error, OperationType.CREATE, `users/${user.uid}`, user, false);
+src/api/firebase.ts:        handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`, user, false);
+src/api/firebase.ts:    handleFirestoreError(error, OperationType.WRITE, `users/${uid}`, auth.currentUser, false);
+src/api/firebase.ts:    handleFirestoreError(error, OperationType.CREATE, 'actions', auth.currentUser, false);
+src/api/firebase.ts:    if (!productDoc.exists()) throw new Error("Produit non trouvé");
+src/api/firebase.ts:    handleFirestoreError(error, OperationType.WRITE, 'stock_movements', auth.currentUser, false);
+src/api/lib/api-client.ts:      throw new Error(errorData.message || `API Error: ${response.status}`);
+src/api/lib/api-client.ts:      console.error(`[API-CLIENT] JSON Parse Error for GET ${url}:`, e);
+src/api/lib/api-client.ts:      throw new Error(`Invalid JSON response from server at ${url}`);
+src/api/lib/api-client.ts:      console.error(`[API-CLIENT] JSON Parse Error for POST ${url}:`, e);
+src/api/lib/api-client.ts:      throw new Error(`Invalid JSON response from server at ${url}`);
+src/api/lib/firestore-errors.ts:export interface FirestoreErrorInfo {
+src/api/lib/firestore-errors.ts:export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null, authUser?: any, shouldThrow: boolean = true) {
+src/api/lib/firestore-errors.ts:  if (error instanceof Error) {
+src/api/lib/firestore-errors.ts:    errorMessage = error.message || error.name || 'Error with no message';
+src/api/lib/firestore-errors.ts:  const errInfo: FirestoreErrorInfo = {
+src/api/lib/firestore-errors.ts:  const errorJson = JSON.stringify(errInfo, null, 2) || '{"error":"Unknown Error"}';
+src/api/lib/firestore-errors.ts:    const customError = new Error(errorJson);
+src/api/lib/firestore-errors.ts:    (customError as any).firestoreInfo = errInfo;
+src/api/lib/firestore-errors.ts:    throw customError;
+src/i18n/locales/en.json:    "error_company_id": "Error: Company ID not found.",
+src/i18n/locales/en.json:        "switch_error": "Error during version switch. Check your permissions.",
+src/i18n/locales/en.json:    "import_error": "Error during import. Check the file format.",
+src/i18n/locales/en.json:        "reset_error": "Error sending email."
+src/main.tsx:  console.error("Error Object:", event.error);
+src/main.tsx:  const isErrorLike = reason && typeof reason === 'object' && ('message' in reason || 'stack' in reason);
+src/main.tsx:  if (reason instanceof Error || isErrorLike) {
+src/main.tsx:    console.error("Error Name:", reason.name || (reason.constructor ? reason.constructor.name : "Error"));
+src/main.tsx:    console.error("Error Message:", reason.message || "(empty message)");

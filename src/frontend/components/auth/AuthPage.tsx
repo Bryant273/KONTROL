@@ -16,6 +16,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
 import { Logo } from '../common/Logo';
+import { useTranslation, Trans } from 'react-i18next';
 import { loginWithGoogle, loginWithEmail, registerWithEmail, auth, handleFirestoreError, OperationType, db } from '../../../api/firebase';
 import { notifySecurityEvent } from '../../../api/services/notificationService';
 
@@ -25,6 +26,7 @@ interface AuthPageProps {
 }
 
 export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
+  const { t } = useTranslation();
   const [authMode, setAuthMode] = React.useState<'login' | 'register'>(initialMode);
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
@@ -100,19 +102,18 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
           >
             <div className="space-y-4">
               <h2 className="text-4xl font-extrabold text-white tracking-tighter leading-[1.1]">
-                La gestion de demain, <br />
-                <span className="text-kontrol-blue">disponible aujourd'hui.</span>
+                <Trans i18nKey="auth.left_title" />
               </h2>
               <p className="text-lg text-white/50 font-medium leading-relaxed">
-                Rejoignez l'écosystème <strong>INNOV'KORP</strong> et transformez votre boutique avec KONTROL.
+                {t('auth.left_subtitle')}
               </p>
             </div>
 
             <div className="grid grid-cols-1 gap-4">
               {[
-                { icon: ShieldCheck, title: "Sécurité Totale", desc: "Données chiffrées et sauvegardées." },
-                { icon: Rocket, title: "Performance Accrue", desc: "Gagnez du temps sur vos tâches." },
-                { icon: CheckCircle2, title: "Support Local", desc: "Équipe basée à Abidjan 24/7." }
+                { icon: ShieldCheck, title: t('auth.features.security_title'), desc: t('auth.features.security_desc') },
+                { icon: Rocket, title: t('auth.features.performance_title'), desc: t('auth.features.performance_desc') },
+                { icon: CheckCircle2, title: t('auth.features.support_title'), desc: t('auth.features.support_desc') }
               ].map((item, i) => (
                 <motion.div 
                   key={i}
@@ -146,7 +147,7 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
           className="group flex items-center gap-2 text-[12px] font-bold text-kontrol-ink-muted hover:text-kontrol-dark transition-colors mb-8 w-fit"
         >
           <ChevronLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
-          Retour
+          {t('auth.back')}
         </button>
 
         <div className="max-w-[380px] mx-auto w-full flex-1 flex flex-col justify-center py-4">
@@ -156,12 +157,12 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
               <span className="text-3xl font-extrabold text-kontrol-dark tracking-tighter uppercase">KONTROL</span>
             </div>
             <h1 className="text-2xl font-extrabold text-kontrol-dark tracking-tighter leading-tight mb-2">
-              {authMode === 'login' ? 'Bon retour.' : 'Propulsez votre boutique.'}
+              {authMode === 'login' ? t('auth.login_welcome') : t('auth.register_welcome')}
             </h1>
             <p className="text-sm text-kontrol-ink-soft font-medium leading-relaxed">
               {authMode === 'login' 
-                ? 'Connectez-vous pour reprendre le contrôle.' 
-                : 'Simplifiez votre gestion dès maintenant.'}
+                ? t('auth.login_subtitle') 
+                : t('auth.register_subtitle')}
             </p>
           </div>
 
@@ -173,7 +174,7 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
                 authMode === 'login' ? "bg-white text-kontrol-dark shadow-sm" : "text-kontrol-ink-muted hover:text-kontrol-dark"
               )}
             >
-              Connexion
+              {t('auth.login_tab')}
             </button>
             <button 
               onClick={() => setAuthMode('register')}
@@ -182,7 +183,7 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
                 authMode === 'register' ? "bg-white text-kontrol-dark shadow-sm" : "text-kontrol-ink-muted hover:text-kontrol-dark"
               )}
             >
-              Inscription
+              {t('auth.register_tab')}
             </button>
           </div>
 
@@ -210,7 +211,7 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
                   className="space-y-4"
                 >
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest ml-1">Entreprise</label>
+                    <label className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest ml-1">{t('auth.company_label')}</label>
                     <div className="relative group">
                       <input 
                         type="text"
@@ -225,7 +226,7 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest ml-1">Gérant</label>
+                    <label className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest ml-1">{t('auth.manager_label')}</label>
                     <div className="relative group">
                       <input 
                         type="text"
@@ -243,7 +244,7 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
             </AnimatePresence>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest ml-1">Email</label>
+              <label className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest ml-1">{t('auth.email_label')}</label>
               <div className="relative group">
                 <input 
                   type="email"
@@ -259,8 +260,8 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
 
             <div className="space-y-1.5">
               <div className="flex justify-between items-center ml-1">
-                <label className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">Mot de passe</label>
-                {authMode === 'login' && <button type="button" className="text-[10px] font-bold text-kontrol-blue hover:underline">Oublié ?</button>}
+                <label className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">{t('auth.password_label')}</label>
+                {authMode === 'login' && <button type="button" className="text-[10px] font-bold text-kontrol-blue hover:underline">{t('auth.forgot_password')}</button>}
               </div>
               <div className="relative group">
                 <input 
@@ -284,7 +285,7 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
             >
               {authLoading ? <Loader2 className="animate-spin" size={18} /> : (
                 <>
-                  {authMode === 'login' ? 'Se connecter' : 'Créer mon compte'}
+                  {authMode === 'login' ? t('auth.login_submit') : t('auth.register_submit')}
                   <ArrowRight size={18} />
                 </>
               )}
@@ -295,7 +296,7 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
                 <div className="w-full border-t border-kontrol-border"></div>
               </div>
               <div className="relative flex justify-center text-[9px] uppercase tracking-[0.2em] font-extrabold">
-                <span className="bg-white px-4 text-kontrol-ink-muted">ou</span>
+                <span className="bg-white px-4 text-kontrol-ink-muted">{t('auth.or')}</span>
               </div>
             </div>
 
@@ -317,7 +318,7 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
           </form>
 
           <p className="mt-8 text-center text-[11px] text-kontrol-ink-muted font-medium">
-            En continuant, vous acceptez nos <button className="text-kontrol-dark font-bold hover:underline">Conditions</button> et notre <button className="text-kontrol-dark font-bold hover:underline">Confidentialité</button>.
+            <Trans i18nKey="auth.terms_text" />
           </p>
         </div>
       </motion.div>

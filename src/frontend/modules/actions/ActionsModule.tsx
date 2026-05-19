@@ -18,6 +18,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 import { 
   db, 
   collection, 
@@ -50,6 +51,7 @@ interface ActionsModuleProps {
 }
 
 export function ActionsModule({ user, currentUserProfile }: ActionsModuleProps) {
+  const { t } = useTranslation();
   const isERPAdmin = currentUserProfile?.role === 'ADMINISTRATEUR_ERP' || currentUserProfile?.role === 'GESTIONNAIRE_ERP';
   const [selectedCompanyId, setSelectedCompanyId] = React.useState<string | null>(currentUserProfile?.companyId || null);
   
@@ -128,14 +130,13 @@ export function ActionsModule({ user, currentUserProfile }: ActionsModuleProps) 
             <History size={24} />
           </div>
           <div>
-            <h2 className="text-xl font-extrabold text-kontrol-dark tracking-tight">Journal des Actions</h2>
-            <p className="text-[13px] text-kontrol-ink-muted mt-1">Traçabilité complète des opérations système</p>
+            <h2 className="text-xl font-extrabold text-kontrol-dark tracking-tight">{t('common.actions')}</h2>
           </div>
         </div>
         
         {isERPAdmin && (
           <div className="flex items-center gap-3">
-            <span className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Filtrer par entité :</span>
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">{t('admin.companies.filters')} :</span>
             <CompanySelector 
               selectedId={selectedCompanyId} 
               onSelect={setSelectedCompanyId} 
@@ -150,7 +151,7 @@ export function ActionsModule({ user, currentUserProfile }: ActionsModuleProps) 
           <Search size={16} className="text-kontrol-ink-muted" />
           <input 
             type="text"
-            placeholder="Rechercher un utilisateur, une action ou un détail..."
+            placeholder={t('admin.companies.search')}
             className="bg-transparent border-none outline-none text-[13px] w-full text-kontrol-ink placeholder:text-kontrol-ink-muted font-medium"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -164,13 +165,10 @@ export function ActionsModule({ user, currentUserProfile }: ActionsModuleProps) 
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
           >
-            <option value="ALL">Toutes les actions</option>
-            <option value="CONNEXION">Connexions</option>
-            <option value="DÉCONNEXION">Déconnexions</option>
-            <option value="créé">Créations</option>
-            <option value="modifié">Modifications</option>
-            <option value="supprimé">Suppressions</option>
-            <option value="validée">Validations</option>
+            <option value="ALL">{t('admin.subscriptions.table.status')}</option>
+            <option value="CONNEXION">{t('auth.login.title')}</option>
+            <option value="DÉCONNEXION">{t('common.logout')}</option>
+            <option value="créé">{t('admin.modals.create', { type: '' })}</option>
           </select>
         </div>
       </div>
@@ -181,10 +179,10 @@ export function ActionsModule({ user, currentUserProfile }: ActionsModuleProps) 
           <table className="w-full text-left text-[13px]">
             <thead>
               <tr className="bg-kontrol-dark text-white/40 border-b border-white/10">
-                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest">Horodatage</th>
-                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest">Utilisateur</th>
-                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest">Action</th>
-                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest">Détails de l'opération</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest">{t('admin.subscriptions.table.date')}</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest">{t('admin.users.table.user')}</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest">{t('admin.users.table.actions')}</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest">{t('common.overview')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-kontrol-border">

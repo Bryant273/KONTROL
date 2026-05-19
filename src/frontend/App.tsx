@@ -44,8 +44,11 @@ import { SystemModule } from './modules/system/SystemModule';
 import { KChatModule } from './modules/chat/KChatModule';
 import { NotificationsCenterModule } from './modules/system/NotificationsCenterModule';
 import { Toaster } from 'sonner';
+import { useTranslation } from 'react-i18next';
+import { ERP_NAV_SECTIONS, COMPANY_NAV_SECTIONS } from './constants/navigation';
 
 export default function App() {
+  const { t, i18n } = useTranslation();
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -73,6 +76,19 @@ export default function App() {
   const [authInitialMode, setAuthInitialMode] = useState<'login' | 'register'>('login');
 
   const isKontrolAdmin = profile?.role === 'ADMINISTRATEUR_ERP' || profile?.role === 'GESTIONNAIRE_ERP' || profile?.role === 'ADMIN' || profile?.role === 'ADMINISTRATEUR_KONTROL' || profile?.role === 'GESTIONNAIRE_KONTROL';
+
+  // Sync labels when language changes
+  useEffect(() => {
+    const sections = isKontrolAdmin ? ERP_NAV_SECTIONS : COMPANY_NAV_SECTIONS;
+    for (const section of sections) {
+      const item = section.items.find(i => i.id === activeTab);
+      if (item) {
+        setActiveSection(t(section.titleKey));
+        setActiveLabel(t(item.labelKey));
+        break;
+      }
+    }
+  }, [i18n.language, activeTab, isKontrolAdmin, t]);
   
   // Auth state listener
   useEffect(() => {
@@ -91,7 +107,12 @@ export default function App() {
       } else {
         const saved = localStorage.getItem('customUser');
         if (saved) {
-          setUser(JSON.parse(saved));
+          try {
+            setUser(JSON.parse(saved));
+          } catch (err) {
+            console.warn("Failed to parse saved custom user:", err);
+            localStorage.removeItem('customUser');
+          }
           setLoading(false);
         } else {
           // Sign in anonymously if no user is found
@@ -297,19 +318,19 @@ export default function App() {
                 <AlertTriangle size={40} />
               </div>
               <h2 className="text-2xl font-extrabold text-kontrol-dark mb-2 tracking-tighter">
-                {profile?.active === false ? "Compte désactivé" : "Accès restreint"}
+                {profile?.active === false ? t('common.blocked.title_deactivated') : t('common.blocked.title_restricted')}
               </h2>
               <p className="text-kontrol-ink-muted max-w-md mb-8 font-medium">
                 {profile?.active === false 
-                  ? "Votre compte entreprise a été supprimé ou désactivé. Veuillez contacter le support si vous pensez qu'il s'agit d'une erreur."
-                  : "Votre abonnement KONTROL a expiré. Veuillez renouveler votre forfait pour continuer à accéder à vos outils de gestion."}
+                  ? t('common.blocked.desc_deactivated')
+                  : t('common.blocked.desc_expired')}
               </p>
               {profile?.active !== false && (
                 <button 
-                  onClick={() => handleTabChange('abonnements', 'Compte', 'Abonnement')}
+                  onClick={() => handleTabChange('abonnements', t('sections.account'), t('common.subscriptions'))}
                   className="btn-primary px-8 py-4 rounded-2xl font-extrabold text-sm uppercase tracking-widest shadow-xl shadow-kontrol-blue/20"
                 >
-                  Renouveler maintenant
+                  {t('common.blocked.renew_now')}
                 </button>
               )}
               {profile?.active === false && (
@@ -317,7 +338,7 @@ export default function App() {
                   onClick={handleLogout}
                   className="btn-primary px-8 py-4 rounded-2xl font-extrabold text-sm uppercase tracking-widest shadow-xl shadow-kontrol-blue/20"
                 >
-                  Déconnexion
+                  {t('common.logout')}
                 </button>
               )}
             </div>
@@ -373,15 +394,15 @@ export default function App() {
               <Clock size={20} className="text-white" />
             </div>
             <div className="flex-1">
-              <h4 className="text-sm font-extrabold tracking-tight">Renouvellement proche</h4>
+              <h4 className="text-sm font-extrabold tracking-tight">{t('common.reminder.title')}</h4>
               <p className="text-[12px] text-white/60 mt-1 leading-relaxed">
-                Votre abonnement expire dans <span className="text-white font-bold">{showReminder.days} jours</span>. Évitez toute interruption de service.
+                {t('common.reminder.desc', { days: showReminder.days })}
               </p>
               <button 
-                onClick={() => handleTabChange('abonnements', 'Compte', 'Abonnement')}
+                onClick={() => handleTabChange('abonnements', t('sections.account'), t('common.subscriptions'))}
                 className="mt-3 text-[11px] font-extrabold uppercase tracking-widest text-kontrol-blue hover:text-white transition-colors"
               >
-                Renouveler →
+                {t('common.reminder.action')}
               </button>
             </div>
             <button onClick={() => setShowReminder(null)} className="text-white/30 hover:text-white transition-colors">

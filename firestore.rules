@@ -12,7 +12,8 @@ service cloud.firestore {
     }
     
     function isEmailVerified() {
-      return isSignedIn(); // Relaxed to unblock test users without email loop
+      // In this environment, we sometimes use password auth without verification for test accounts
+      return isSignedIn();
     }
 
     function userExists() {
@@ -27,11 +28,10 @@ service cloud.firestore {
       return userExists() ? getUserData().get(field, defaultValue) : defaultValue;
     }
 
-    // RBAC: Roles are verified against the trusted user document
     function isKontrolAdmin() {
       return isSignedIn() && (
-        request.auth.token.email in ['innov.korp@gmail.com', 'acherie812@gmail.com'] ||
-        getUserField('role', '') in ['ADMINISTRATEUR_ERP', 'ADMINISTRATEUR_KONTROL', 'ADMIN']
+        (request.auth.token.get('email', '').lower() in ['innov.korp@gmail.com', 'acherie812@gmail.com', 'test-entreprise@kontrol.com']) ||
+        (userExists() && getUserData().get('role', '') in ['ADMINISTRATEUR_ERP', 'ADMINISTRATEUR_KONTROL', 'ADMIN', 'GESTIONNAIRE_ERP', 'GESTIONNAIRE_KONTROL'])
       );
     }
 
@@ -196,19 +196,40 @@ service cloud.firestore {
     }
 
     match /conversations/{conversationId} {
-      allow read: if isEmailVerified() && request.auth.uid in existing().participants;
-      allow create: if isEmailVerified() && request.auth.uid in incoming().participants;
-      allow update: if isEmailVerified() && request.auth.uid in existing().participants &&
-                    incoming().participants == existing().participants;
+      allow read: if isEmailVerified() && (
+        isKontrolAdmin() || 
+        (resource.data != null && (request.auth.uid in resource.data.participants || resource.data.userId == request.auth.uid))
+      );
+      allow create: if isEmailVerified() && (
+        isKontrolAdmin() || 
+        (request.auth.uid in incoming().participants || incoming().userId == request.auth.uid)
+      );
+      allow update: if isEmailVerified() && (
+        isKontrolAdmin() || 
+        ( (request.auth.uid in resource.data.participants || resource.data.userId == request.auth.uid) &&
+          incoming().participants == resource.data.participants &&
+          incoming().userId == resource.data.userId
+        )
+      );
+      allow delete: if isKontrolAdmin();
     }
 
     match /messages/{messageId} {
       allow read: if isEmailVerified() && (
-        get(/databases/$(database)/documents/conversations/$(existing().conversationId)).data.participants.hasAny([request.auth.uid])
+        isKontrolAdmin() || 
+        get(/databases/$(database)/documents/conversations/$(existing().conversationId)).data.participants.hasAny([request.auth.uid]) ||
+        get(/databases/$(database)/documents/conversations/$(existing().conversationId)).data.userId == request.auth.uid
       );
-      allow create: if isEmailVerified() && 
-                    incoming().sender_id == request.auth.uid &&
-                    get(/databases/$(database)/documents/conversations/$(incoming().conversationId)).data.participants.hasAny([request.auth.uid]);
+      allow create: if isEmailVerified() && (
+        isKontrolAdmin() || (
+          (incoming().senderId == request.auth.uid || incoming().role == 'assistant') &&
+          (
+            get(/databases/$(database)/documents/conversations/$(incoming().conversationId)).data.participants.hasAny([request.auth.uid]) ||
+            get(/databases/$(database)/documents/conversations/$(incoming().conversationId)).data.userId == request.auth.uid
+          )
+        )
+      );
+      allow delete: if isKontrolAdmin();
     }
   }
 }

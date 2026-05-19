@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   Search, 
   Filter, 
@@ -47,6 +48,7 @@ interface TicketsModuleProps {
 }
 
 export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) {
+  const { t } = useTranslation();
   const [tickets, setTickets] = React.useState<Ticket[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -61,6 +63,15 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
 
   const isKontrolAdmin = ['ADMINISTRATEUR_ERP', 'GESTIONNAIRE_ERP', 'ADMINISTRATEUR_KONTROL', 'GESTIONNAIRE_KONTROL', 'ADMIN', 'SUPER_ADMIN'].includes(currentUserProfile?.role || '');
 
+  const getStatusLabel = (status: Ticket['status']) => {
+    switch (status) {
+      case 'NEW': return t('tickets.stats.new');
+      case 'OPEN': return t('tickets.stats.open');
+      case 'CLOSED': return t('tickets.stats.closed');
+      default: return status;
+    }
+  };
+
   const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTicket.subject || !newTicket.message) return;
@@ -68,7 +79,7 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
     setIsSubmitting(true);
     try {
       const ticketRef = await addDoc(collection(db, 'tickets'), {
-        name: currentUserProfile?.displayName || user.displayName || 'Utilisateur K',
+        name: currentUserProfile?.displayName || user.displayName || t('common.roles.user'),
         email: user.email,
         subject: newTicket.subject,
         message: newTicket.message,
@@ -82,16 +93,16 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
       await sendNotification({
         companyId: currentUserProfile?.companyId || user.uid,
         userId: user.uid,
-        title: "🎫 Ticket branché !",
-        message: `Salut ${currentUserProfile?.displayName || 'cher utilisateur'} ! Nous avons bien reçu votre ticket "${newTicket.subject}". Un conseiller KONTROL va prendre le relais rapidement.`,
+        title: t('tickets.notif.created_title'),
+        message: t('tickets.notif.created_msg', { name: currentUserProfile?.displayName || t('common.roles.user'), subject: newTicket.subject }),
         type: 'info'
       });
 
       // Notification Admin
       await sendNotification({
         companyId: 'SYSTEM',
-        title: "🆘 Nouveau Besoin Support",
-        message: `Alerte support : ${currentUserProfile?.displayName || user.email} a besoin d'aide pour : ${newTicket.subject}`,
+        title: t('tickets.notif.admin_new_title'),
+        message: t('tickets.notif.admin_new_msg', { name: currentUserProfile?.displayName || user.email, subject: newTicket.subject }),
         type: 'info',
         link: '/admin?tab=tickets'
       });
@@ -106,7 +117,7 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
   };
 
   const handleExportPDF = () => {
-    const headers = ['Date', 'Client', 'E-mail', 'Sujet', 'Statut'];
+    const headers = [t('tickets.labels.date'), t('tickets.labels.client'), t('tickets.labels.email'), t('produits.form.designation'), t('common.status.active')];
     const data = filteredTickets.map(t => [
       new Date(t.createdAt).toLocaleDateString(),
       t.name,
@@ -114,7 +125,7 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
       t.subject,
       t.status
     ]);
-    exportToPDF('Journal des Tickets - KONTROL', headers, data, 'Tickets_KONTROL', currentUserProfile?.companyLogo || currentUserProfile?.logoUrl);
+    exportToPDF(t('tickets.export.title'), headers, data, t('tickets.export.filename'), currentUserProfile?.companyLogo || currentUserProfile?.logoUrl);
   };
 
   const handleExportExcel = () => {
@@ -158,8 +169,8 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
         await sendNotification({
           companyId: ticketObj.companyId || '',
           userId: ticketObj.userId,
-          title: "Mise à jour de votre ticket",
-          message: `Le statut de votre ticket "${ticketObj.subject}" est passé à : ${getStatusLabel(newStatus)}.`,
+          title: t('tickets.notif.update_title'),
+          message: t('tickets.notif.update_msg', { subject: ticketObj.subject, status: getStatusLabel(newStatus) }),
           type: newStatus === 'CLOSED' ? 'success' : 'info'
         });
       }
@@ -209,15 +220,6 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
     }
   };
 
-  const getStatusLabel = (status: Ticket['status']) => {
-    switch (status) {
-      case 'NEW': return 'Nouveau';
-      case 'OPEN': return 'En cours';
-      case 'CLOSED': return 'Fermé';
-      default: return status;
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -230,8 +232,8 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-extrabold text-kontrol-dark tracking-tight">Support & Tickets</h2>
-          <p className="text-[13px] text-kontrol-ink-muted mt-1">Gérez les demandes d'assistance reçues via le site web</p>
+          <h2 className="text-2xl font-extrabold text-kontrol-dark tracking-tight">{t('tickets.title')}</h2>
+          <p className="text-[13px] text-kontrol-ink-muted mt-1">{t('tickets.subtitle')}</p>
         </div>
         <div className="flex gap-2">
           {!isKontrolAdmin && (
@@ -239,7 +241,7 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
               onClick={() => setIsCreating(true)}
               className="btn-primary text-xs py-1.5 px-4 flex items-center gap-2 shadow-lg shadow-kontrol-blue/20"
             >
-              <Plus size={14} /> Nouveau Ticket
+              <Plus size={14} /> {t('tickets.new_ticket')}
             </button>
           )}
           <button 
@@ -265,7 +267,7 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
               <AlertCircle size={24} />
             </div>
             <div>
-              <p className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Nouveaux</p>
+              <p className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">{t('tickets.stats.new')}</p>
               <p className="text-2xl font-extrabold text-kontrol-dark">{tickets.filter(t => t.status === 'NEW').length}</p>
             </div>
           </div>
@@ -276,7 +278,7 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
               <Clock size={24} />
             </div>
             <div>
-              <p className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">En cours</p>
+              <p className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">{t('tickets.stats.open')}</p>
               <p className="text-2xl font-extrabold text-kontrol-dark">{tickets.filter(t => t.status === 'OPEN').length}</p>
             </div>
           </div>
@@ -287,7 +289,7 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
               <CheckCircle2 size={24} />
             </div>
             <div>
-              <p className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Résolus</p>
+              <p className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">{t('tickets.stats.closed')}</p>
               <p className="text-2xl font-extrabold text-kontrol-dark">{tickets.filter(t => t.status === 'CLOSED').length}</p>
             </div>
           </div>
@@ -300,7 +302,7 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" size={18} />
           <input
             type="text"
-            placeholder="Rechercher un ticket..."
+            placeholder={t('tickets.search_placeholder')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-11 pr-4 py-3 bg-kontrol-bg border-none rounded-2xl text-[13px] focus:ring-2 focus:ring-kontrol-blue/20 transition-all"
@@ -318,7 +320,7 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
                   : "bg-kontrol-bg text-kontrol-ink-muted hover:bg-kontrol-border"
               )}
             >
-              {status === 'ALL' ? 'Tous' : getStatusLabel(status as Ticket['status'])}
+              {status === 'ALL' ? t('finance.filter_all') : getStatusLabel(status as Ticket['status'])}
             </button>
           ))}
         </div>
@@ -331,7 +333,7 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
             {paginatedTickets.length === 0 ? (
               <div className="bg-white p-8 rounded-3xl border border-dashed border-kontrol-border text-center">
                 <MessageSquare className="mx-auto text-kontrol-ink-muted mb-3" size={32} />
-                <p className="text-[13px] text-kontrol-ink-muted font-medium">Aucun ticket trouvé</p>
+                <p className="text-[13px] text-kontrol-ink-muted font-medium">{t('tickets.no_tickets')}</p>
               </div>
             ) : (
               paginatedTickets.map((ticket) => (
@@ -379,7 +381,7 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
                 <ChevronLeft size={16} />
               </button>
               <span className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">
-                Page {currentPage} / {totalPages}
+                {t('common.pagination', { current: currentPage, total: totalPages })}
               </span>
               <button
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
@@ -434,7 +436,7 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
                         <User size={24} />
                       </div>
                       <div>
-                        <p className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Client</p>
+                        <p className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">{t('tickets.labels.client')}</p>
                         <p className="text-[14px] font-bold text-kontrol-dark">{selectedTicket.name}</p>
                       </div>
                     </div>
@@ -443,7 +445,7 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
                         <Mail size={24} />
                       </div>
                       <div>
-                        <p className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">E-mail</p>
+                        <p className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">{t('tickets.labels.email')}</p>
                         <p className="text-[14px] font-bold text-kontrol-dark">{selectedTicket.email}</p>
                       </div>
                     </div>
@@ -452,7 +454,7 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
                         <Calendar size={24} />
                       </div>
                       <div>
-                        <p className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Date</p>
+                        <p className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">{t('tickets.labels.date')}</p>
                         <p className="text-[14px] font-bold text-kontrol-dark">{new Date(selectedTicket.createdAt).toLocaleString()}</p>
                       </div>
                     </div>
@@ -461,7 +463,7 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
 
                 <div className="p-8">
                   <div className="mb-8">
-                    <h4 className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider mb-4">Message</h4>
+                    <h4 className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider mb-4">{t('tickets.labels.message')}</h4>
                     <div className="bg-kontrol-bg/50 p-6 rounded-3xl border border-kontrol-border">
                       <p className="text-[15px] text-kontrol-dark leading-relaxed whitespace-pre-wrap">
                         {selectedTicket.message}
@@ -471,14 +473,14 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
 
                   <div className="flex flex-wrap gap-4 pt-8 border-t border-kontrol-border">
                     <div className="flex-1 min-w-[200px]">
-                      <h4 className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider mb-3">Actions rapides</h4>
+                      <h4 className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider mb-3">{t('tickets.labels.quick_actions')}</h4>
                       <div className="flex gap-3">
                         {selectedTicket.status !== 'OPEN' && (
                           <button
                             onClick={() => handleUpdateStatus(selectedTicket.id, 'OPEN')}
                             className="px-6 py-3 bg-amber-50 text-amber-600 text-[13px] font-extrabold rounded-2xl hover:bg-amber-100 transition-all flex items-center gap-2"
                           >
-                            <Clock size={16} /> Marquer en cours
+                            <Clock size={16} /> {t('tickets.labels.mark_open')}
                           </button>
                         )}
                         {selectedTicket.status !== 'CLOSED' && (
@@ -486,7 +488,7 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
                             onClick={() => handleUpdateStatus(selectedTicket.id, 'CLOSED')}
                             className="px-6 py-3 bg-emerald-50 text-emerald-600 text-[13px] font-extrabold rounded-2xl hover:bg-emerald-100 transition-all flex items-center gap-2"
                           >
-                            <CheckCircle2 size={16} /> Fermer le ticket
+                            <CheckCircle2 size={16} /> {t('tickets.labels.close')}
                           </button>
                         )}
                         {selectedTicket.status === 'CLOSED' && (
@@ -494,7 +496,7 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
                             onClick={() => handleUpdateStatus(selectedTicket.id, 'NEW')}
                             className="px-6 py-3 bg-blue-50 text-blue-600 text-[13px] font-extrabold rounded-2xl hover:bg-blue-100 transition-all flex items-center gap-2"
                           >
-                            <AlertCircle size={16} /> Réouvrir
+                            <AlertCircle size={16} /> {t('tickets.labels.reopen')}
                           </button>
                         )}
                       </div>
@@ -504,7 +506,7 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
                         href={`mailto:${selectedTicket.email}?subject=Re: ${selectedTicket.subject}`}
                         className="btn-primary px-8 py-3 flex items-center gap-2 shadow-lg shadow-kontrol-blue/20"
                       >
-                        <Mail size={18} /> Répondre par email
+                        <Mail size={18} /> {t('tickets.labels.reply_email')}
                       </a>
                     </div>
                   </div>
@@ -515,9 +517,9 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
                 <div className="w-20 h-20 rounded-full bg-kontrol-bg flex items-center justify-center text-kontrol-ink-muted mb-6">
                   <MessageSquare size={40} />
                 </div>
-                <h3 className="text-xl font-extrabold text-kontrol-dark mb-2">Sélectionnez un ticket</h3>
+                <h3 className="text-xl font-extrabold text-kontrol-dark mb-2">{t('tickets.select_prompt')}</h3>
                 <p className="text-[14px] text-kontrol-ink-muted max-w-xs mx-auto">
-                  Choisissez une demande dans la liste pour consulter les détails et y répondre.
+                  {t('tickets.select_desc')}
                 </p>
               </div>
             )}
@@ -529,9 +531,9 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
         isOpen={isDeleting}
         onClose={() => setIsDeleting(false)}
         onConfirm={handleDeleteTicket}
-        title="Supprimer le ticket"
-        message="Êtes-vous sûr de vouloir supprimer ce ticket ? Cette action est irréversible."
-        confirmLabel="Supprimer"
+        title={t('tickets.delete_title')}
+        message={t('tickets.delete_confirm')}
+        confirmLabel={t('common.delete')}
         variant="danger"
       />
 
@@ -555,8 +557,8 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
               <div className="p-8 border-b border-kontrol-border bg-kontrol-bg/30">
                 <div className="flex justify-between items-center">
                   <div>
-                    <h3 className="text-xl font-extrabold text-kontrol-dark tracking-tight">Ouvrir un nouveau ticket</h3>
-                    <p className="text-[13px] text-kontrol-ink-muted">Expliquez-nous votre problème en détail.</p>
+                    <h3 className="text-xl font-extrabold text-kontrol-dark tracking-tight">{t('tickets.new_ticket_title')}</h3>
+                    <p className="text-[13px] text-kontrol-ink-muted">{t('tickets.new_ticket_desc')}</p>
                   </div>
                   <button 
                     onClick={() => setIsCreating(false)}
@@ -569,22 +571,22 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
 
               <form onSubmit={handleCreateTicket} className="p-8 space-y-6">
                 <div className="space-y-2">
-                  <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest pl-1">Sujet</label>
+                  <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest pl-1">{t('tickets.placeholder_subject')}</label>
                   <input 
                     type="text" 
                     required
-                    placeholder="De quoi s'agit-il ?"
+                    placeholder={t('tickets.placeholder_subject')}
                     className="w-full p-4 bg-kontrol-bg border-none rounded-2xl text-[14px] focus:ring-2 focus:ring-kontrol-blue/20 outline-none transition-all"
                     value={newTicket.subject}
                     onChange={(e) => setNewTicket(prev => ({ ...prev, subject: e.target.value }))}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest pl-1">Message</label>
+                  <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest pl-1">{t('tickets.labels.message')}</label>
                   <textarea 
                     required
                     rows={5}
-                    placeholder="Décrivez votre demande..."
+                    placeholder={t('tickets.placeholder_message')}
                     className="w-full p-4 bg-kontrol-bg border-none rounded-2xl text-[14px] focus:ring-2 focus:ring-kontrol-blue/20 outline-none transition-all resize-none"
                     value={newTicket.message}
                     onChange={(e) => setNewTicket(prev => ({ ...prev, message: e.target.value }))}
@@ -597,7 +599,7 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
                     onClick={() => setIsCreating(false)}
                     className="flex-1 px-6 py-4 border border-kontrol-border rounded-2xl text-[13px] font-extrabold text-kontrol-ink-muted hover:bg-kontrol-bg transition-all"
                   >
-                    Annuler
+                    {t('common.cancel')}
                   </button>
                   <button 
                     type="submit"
@@ -607,7 +609,7 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
                     {isSubmitting ? (
                       <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     ) : (
-                      <>Envoyer le ticket</>
+                      <>{t('tickets.send')}</>
                     )}
                   </button>
                 </div>

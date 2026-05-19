@@ -131,6 +131,7 @@ class BlueAIService {
       await addDoc(collection(db, 'messages'), {
         conversationId: currentConvId,
         role: 'user',
+        senderId: userId,
         content: message,
         function: func,
         timestamp: Date.now()
@@ -142,7 +143,7 @@ class BlueAIService {
     // 3. Get Context Data
     // const companyData = await this.getCompanyData(companyId); // Context could be used by engine
 
-    // 4. Generate AI Response via Polyglot Neural Brain (Python Ensemble)
+    // 4. Generate AI Response via Blue Neural Engine
     try {
       const neuralData = await apiClient.post('/api/ai/blue-brain', {
         prompt: message,
@@ -158,13 +159,14 @@ class BlueAIService {
         await addDoc(collection(db, 'messages'), {
           conversationId: currentConvId,
           role: 'assistant',
+          senderId: 'blue-ai',
           content: assistantContent,
           function: func,
           timestamp: Date.now(),
           neural_consensus: neuralData.consensus // Store consensus meta
         });
       } catch (error) {
-        handleFirestoreError(error, OperationType.CREATE, 'messages', auth.currentUser, false);
+        handleFirestoreError(error, OperationType.CREATE, 'messages/assistant', auth.currentUser, false);
       }
 
       // 6. Update Conversation
@@ -182,8 +184,7 @@ class BlueAIService {
         conversationId: currentConvId
       };
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'ai/blue-brain', auth.currentUser, false);
-      throw error;
+      handleFirestoreError(error, OperationType.WRITE, 'ai/blue-brain', auth.currentUser, true);
     }
   }
 

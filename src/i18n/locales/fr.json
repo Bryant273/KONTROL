@@ -1,0 +1,998 @@
+{
+  "common": {
+    "dashboard": "Tableau de bord",
+    "overview": "Vue d'ensemble",
+    "tiers": "Tiers",
+    "products": "Produits",
+    "transactions": "Transactions",
+    "finance": "Trésorerie",
+    "charges": "Charges diverses",
+    "stocks": "Stocks",
+    "movements": "Mouvements",
+    "chat": "K-Chat",
+    "support": "Support Technique",
+    "blue_ai": "Blue AI",
+    "notifications": "Notifications",
+    "company_profile": "Profil Entreprise",
+    "profile": "Mon profil",
+    "subscriptions": "Abonnement",
+    "users": "Utilisateurs",
+    "actions": "Actions",
+    "versions": "Versions",
+    "logout": "Se déconnecter",
+    "active": "ACTIF",
+    "never": "Jamais",
+    "roles": {
+      "admin_kontrol": "Administrateur KONTROL",
+      "manager_kontrol": "Gestionnaire KONTROL",
+      "admin_company": "Administrateur Entreprise",
+      "manager_company": "Gestionnaire Entreprise",
+      "user": "Utilisateur",
+      "admin": "Administrateur"
+    },
+    "status": {
+      "active": "Actif",
+      "expired": "Expiré",
+      "pending": "En attente",
+      "approved": "Approuvé",
+      "rejected": "Rejeté",
+      "paid": "Payé"
+    },
+    "search": "Rechercher...",
+    "loading": "Chargement...",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "edit": "Modifier",
+    "delete": "Supprimer",
+    "update": "Mettre à jour",
+    "download": "Télécharger",
+    "to": "au",
+    "no_permission": "Vous n'avez pas la permission d'effectuer cette action.",
+    "no_activity": "Aucune activité récente.",
+    "pagination": "Page {{current}} sur {{total}}",
+    "error_company_id": "Erreur: ID de l'entreprise non trouvé.",
+    "powered_by": "Propulsé par",
+    "blocked": {
+      "title_deactivated": "Compte désactivé",
+      "title_restricted": "Accès restreint",
+      "desc_deactivated": "Votre compte entreprise a été supprimé ou désactivé. Veuillez contacter le support si vous pensez qu'il s'agit d'une erreur.",
+      "desc_expired": "Votre abonnement KONTROL a expiré. Veuillez renouveler votre forfait pour continuer à accéder à vos outils de gestion.",
+      "renew_now": "Renouveler maintenant"
+    },
+    "reminder": {
+      "title": "Renouvellement proche",
+      "desc": "Votre abonnement expire dans {{days}} jours. Évitez toute interruption de service.",
+      "action": "Renouveler →"
+    },
+    "chatbot": {
+      "guest_restricted_auth": "Désolé, l'accès invité n'est pas encore configuré (Authentification Anonyme désactivée dans Firebase). Veuillez vous connecter pour utiliser le chatbot.",
+      "guest_restricted_features": "Désolé, la génération de rapports et les conseils personnalisés sont réservés aux utilisateurs connectés. Veuillez vous connecter pour accéder à ces fonctionnalités.",
+      "error": "Une erreur est survenue. Veuillez réessayer plus tard.",
+      "title": "Blue AI Intelligence",
+      "status_active": "Cerveau Actif",
+      "delete_confirm_title": "Supprimer ?",
+      "delete_confirm_text": "Cette action est irréversible. Toutes les données de cet échange seront perdues.",
+      "welcome_title": "Bienvenue chez KONTROL",
+      "welcome_desc": "Une solution INNOV'KORP. Laissez-nous vos coordonnées pour que Blue puisse mieux vous assister.",
+      "name_placeholder": "Votre nom",
+      "email_placeholder": "Votre email",
+      "start_discussion": "Commencer la discussion",
+      "hello": "Bonjour ! Je suis Blue.",
+      "ask_me": "Posez-moi une question sur vos données ou demandez un rapport.",
+      "thinking": "Blue réfléchit...",
+      "input_placeholder": "Posez votre question à Blue...",
+      "quick_prompts": {
+        "report": "Rapport",
+        "advice": "Conseils",
+        "help": "Aide"
+      }
+    }
+  },
+  "auth": {
+    "left_title": "La gestion de demain, <br /> <span class=\"text-kontrol-blue\">disponible aujourd'hui.</span>",
+    "left_subtitle": "Rejoignez l'écosystème INNOV'KORP et transformez votre boutique avec KONTROL.",
+    "features": {
+      "security_title": "Sécurité Totale",
+      "security_desc": "Données chiffrées et sauvegardées.",
+      "performance_title": "Performance Accrue",
+      "performance_desc": "Gagnez du temps sur vos tâches.",
+      "support_title": "Support Local",
+      "support_desc": "Équipe basée à Abidjan 24/7."
+    },
+    "back": "Retour",
+    "login_welcome": "Bon retour.",
+    "register_welcome": "Propulsez votre boutique.",
+    "login_subtitle": "Connectez-vous pour reprendre le contrôle.",
+    "register_subtitle": "Simplifiez votre gestion dès maintenant.",
+    "login_tab": "Connexion",
+    "register_tab": "Inscription",
+    "company_label": "Entreprise",
+    "manager_label": "Gérant",
+    "email_label": "Email",
+    "password_label": "Mot de passe",
+    "forgot_password": "Oublié ?",
+    "login_submit": "Se connecter",
+    "register_submit": "Créer mon compte",
+    "or": "ou",
+    "terms_text": "En continuant, vous acceptez nos <span class=\"font-bold\">Conditions</span> et notre <span class=\"font-bold\">Confidentialité</span>.",
+    "loading": {
+      "title": "KONTROL SYSTEM",
+      "initializing": "Initialisation sécurisée",
+      "protocols": "Protocoles Blue AI actifs • Connexion chiffrée"
+    }
+  },
+  "landing": {
+    "nav": {
+      "features": "Fonctionnalités",
+      "pricing": "Tarifs",
+      "about": "À propos",
+      "client_space": "Accéder à l'Espace Client"
+    },
+    "hero": {
+      "title": "Gérez votre boutique <br /> <span class=\"text-transparent bg-clip-text bg-gradient-to-r from-kontrol-blue to-kontrol-orange\">en toute simplicité.</span>",
+      "subtitle": "La solution tout-en-un conçue pour simplifier la gestion des stocks, des ventes et de la comptabilité des TPE, boutiques et petits commerces.",
+      "cta_start": "Démarrer gratuitement",
+      "cta_demo": "Demander une démo"
+    },
+    "features": {
+      "title": "Tout ce dont vous avez besoin.",
+      "subtitle": "Une suite complète d'outils pour piloter votre activité en temps réel.",
+      "items": {
+        "stock_title": "Gestion de Stock",
+        "stock_desc": "Suivez vos entrées et sorties en temps réel avec alertes de stock bas.",
+        "transactions_title": "Transactions",
+        "transactions_desc": "Gérez vos ventes et vos achats avec une interface ultra-rapide.",
+        "crm_title": "CRM Tiers",
+        "crm_desc": "Centralisez vos clients et fournisseurs pour un suivi personnalisé.",
+        "analytics_title": "Analytique",
+        "analytics_desc": "Visualisez vos performances avec des graphiques clairs et précis.",
+        "security_title": "Sécurité Maximale",
+        "security_desc": "Vos données sont chiffrées et protégées par les standards bancaires.",
+        "blue_ai_title": "Blue AI",
+        "blue_ai_desc": "L'intelligence artificielle qui vous aide à prendre les meilleures décisions."
+      }
+    },
+    "pricing": {
+      "title": "Un tarif simple et transparent.",
+      "subtitle": "Pas de frais cachés, pas de mauvaises surprises.",
+      "unique_offer": "Offre Unique",
+      "per_month": "/mois",
+      "all_included": "Tout inclus, pour toujours.",
+      "equivalent": "Équivalent à 10 000 F CFA",
+      "bullets": [
+        "Utilisateurs illimités",
+        "Transactions illimitées",
+        "Support prioritaire 24/7",
+        "Blue AI inclus",
+        "Mises à jour gratuites",
+        "Exportation de données"
+      ],
+      "cta": "Commencer maintenant"
+    },
+    "about": {
+      "badge": "À propos de nous",
+      "title": "L'innovation au service de <br /> <span class=\"text-kontrol-blue\">votre croissance.</span>",
+      "desc": "KONTROL est une solution technologique de pointe développée par INNOV'KORP, dédiée à la transformation numérique des TPE et boutiques. Notre mission est de démocratiser les outils de gestion de pointe pour permettre à chaque petit commerçant de réussir.",
+      "stat1": "10+",
+      "stat1_desc": "Entreprises nous font confiance",
+      "stat2": "99.9%",
+      "stat2_desc": "Disponibilité",
+      "hq_title": "Siège Social",
+      "hq_value": "Abidjan, Côte d'Ivoire",
+      "quote": "\"Sous la direction d'INNOV'KORP, notre vision est de créer des outils si intuitifs qu'ils deviennent invisibles, laissant l'entrepreneur se concentrer sur son coeur de métier.\""
+    },
+    "contact": {
+      "title": "Parlons de votre <br /> <span class=\"text-kontrol-orange\">projet.</span>",
+      "subtitle": "Vous avez des questions ou besoin d'une démonstration personnalisée ? Notre équipe est à votre écoute pour vous accompagner dans votre transformation numérique."
+    },
+    "footer": {
+      "rights": "© 2026 KONTROL. Tous droits réservés.",
+      "mentions": "Mentions légales",
+      "privacy": "Confidentialité"
+    },
+    "support": {
+      "success_title": "Message envoyé !",
+      "success_desc": "Merci pour votre message. Notre équipe d'assistance vous répondra dans les plus brefs délais sur votre adresse email.",
+      "name_label": "Nom complet",
+      "email_label": "Email professionnel",
+      "subject_label": "Sujet de votre demande",
+      "message_label": "Votre message",
+      "name_placeholder": "Jean Dupont",
+      "email_placeholder": "jean@entreprise.com",
+      "subject_placeholder": "Demande de démo / Question technique",
+      "message_placeholder": "Décrivez votre besoin en quelques lignes...",
+      "submit": "Envoyer le message",
+      "submitting": "Envoi en cours..."
+    }
+  },
+  "subscriptions": {
+    "title": "Abonnement & Services",
+    "subtitle": "Gérez votre forfait Standard et accédez à vos factures",
+    "verified": "Compte Vérifié",
+    "pending_validation": {
+      "title": "Validation manuelle en cours",
+      "verifying": "(Vérification...)",
+      "desc": "Notre équipe vérifie votre paiement. Votre accès sera prolongé automatiquement une fois validé.",
+      "live_check": "Vérification en direct"
+    },
+    "hero": {
+      "promo_text": "Propulsez votre Boutique au niveau supérieur.",
+      "current_plan": "Forfait Actuel: {{name}}",
+      "renew": "Renouveler"
+    },
+    "details": {
+      "active": "Standard Actif",
+      "required": "Paiement requis",
+      "auto_renew": "Renouvellement automatique de 30 jours."
+    },
+    "features_title": "Inclus dans votre offre",
+    "protection": {
+      "title": "Protection Totale",
+      "desc": "Vos données sont chiffrées et sauvegardées quotidiennement sur nos serveurs sécurisés."
+    },
+    "history": {
+      "title": "Historique des paiements",
+      "view_all": "Voir tout",
+      "columns": {
+        "date": "Date de paiement",
+        "desc": "Description",
+        "amount": "Montant",
+        "status": "Statut",
+        "action": "Action"
+      },
+      "invoice": "Facture",
+      "unavailable": "Indisponible"
+    },
+    "modal": {
+      "renewal": "Renouvellement",
+      "secure_payment": "Paiement Sécurisé",
+      "wave": {
+        "title": "Payer via Wave",
+        "subtitle": "Paiement instantané Wave Business",
+        "step1": "Payez via notre lien Wave sécurisé",
+        "cta_wave": "Accéder à Wave",
+        "step2": "Renseignez votre référence de paiement",
+        "ref_label": "ID Transaction Wave",
+        "confirm": "Confirmer mon paiement"
+      },
+      "success": {
+        "title": "Demande envoyée !",
+        "desc": "Votre demande de validation a été transmise. Notre équipe vérifiera votre paiement dans les plus brefs délais."
+      },
+      "invoice_details": {
+        "title": "Détails Facture",
+        "issuer": "Émetteur",
+        "client": "Client",
+        "issue_date": "Émission",
+        "expiry": "Échéance",
+        "method": "Paiement",
+        "status": "Statut",
+        "designation": "Désignation",
+        "net_to_pay": "Net à Payer",
+        "receipt": "Acquittée"
+      }
+    }
+  },
+  "tickets": {
+    "title": "Support & Tickets",
+    "subtitle": "Gérez les demandes d'assistance reçues via le site web",
+    "new_ticket": "Nouveau Ticket",
+    "new_ticket_title": "Ouvrir un nouveau ticket",
+    "new_ticket_desc": "Expliquez-nous votre problème en détail.",
+    "placeholder_subject": "De quoi s'agit-il ?",
+    "placeholder_message": "Décrivez votre demande...",
+    "send": "Envoyer le ticket",
+    "stats": {
+      "new": "Nouveaux",
+      "open": "En cours",
+      "closed": "Résolus"
+    },
+    "search_placeholder": "Rechercher un ticket...",
+    "no_tickets": "Aucun ticket trouvé",
+    "select_prompt": "Sélectionnez un ticket",
+    "select_desc": "Choisissez une demande dans la liste pour consulter les détails et y répondre.",
+    "delete_title": "Supprimer le ticket",
+    "delete_confirm": "Êtes-vous sûr de vouloir supprimer ce ticket ? Cette action est irréversible.",
+    "labels": {
+      "client": "Client",
+      "email": "E-mail",
+      "date": "Date",
+      "message": "Message",
+      "quick_actions": "Actions rapides",
+      "reply_email": "Répondre par email",
+      "mark_open": "Marquer en cours",
+      "close": "Fermer le ticket",
+      "reopen": "Réouvrir"
+    },
+    "export": {
+      "title": "Journal des Tickets - KONTROL",
+      "filename": "Tickets_KONTROL"
+    },
+    "notif": {
+      "created_title": "🎫 Ticket branché !",
+      "created_msg": "Salut {{name}} ! Nous avons bien reçu votre ticket \"{{subject}}\". Un conseiller KONTROL va prendre le relais rapidement.",
+      "admin_new_title": "🆘 Nouveau Besoin Support",
+      "admin_new_msg": "Alerte support : {{name}} a besoin d'aide pour : {{subject}}",
+      "update_title": "Mise à jour de votre ticket",
+      "update_msg": "Le statut de votre ticket \"{{subject}}\" est passé à : {{status}}."
+    }
+  },
+  "sections": {
+    "dashboard": "Tableau de bord",
+    "management": "Gestion",
+    "stocks": "Stocks",
+    "communication": "Communication",
+    "system": "Système",
+    "control_tower": "Tour de Contrôle",
+    "ecosystem": "Supervision Écosystème",
+    "business": "Pilotage Business KONTROL",
+    "coordination": "Coordination & Équipe",
+    "maintenance": "Maintenance & Audit",
+    "account": "Mon Compte"
+  },
+  "header": {
+    "company_view": "Vue Entreprise",
+    "all_companies": "Toutes les entreprises",
+    "language": "Langue"
+  },
+  "dashboard": {
+    "title": "Tableau de Bord",
+      "subtitle": "Surveillez les performances de votre entreprise en temps réel",
+      "welcome": "Ravi de vous revoir, {{name}}",
+      "stats": {
+        "treasury": "Trésorerie",
+        "revenue": "Chiffre d'Affaires",
+        "expenses": "Total Dépenses",
+        "profit": "Bénéfice Net",
+        "yield": "Rendement",
+        "performance": "Marge brute sur CA",
+        "customers": "Clients",
+        "vendors": "Fournisseurs",
+        "products": "Produits",
+        "stock_value": "Valeur Stock"
+      },
+      "alerts": {
+        "subscription_expiring": "Votre abonnement expire bientôt",
+        "subscription_expiry_date": "Expire le {{date}} (dans {{days}} jours)",
+        "renew_now": "Renouveler"
+      },
+      "ai_analysis": {
+        "button": "Analyse Stratégique IA",
+        "analyzing": "Analyse en cours...",
+        "analyzing_subtitle": "Notre IA examine vos données financières",
+        "modal_title": "Intelligence Stratégique Blue AI",
+        "modal_subtitle": "Audit financier & Recommandations",
+        "export_pdf": "Exporter en PDF",
+        "close": "Fermer",
+        "fallback": "Désolé, je n'ai pas pu générer d'analyse stratégique pour le moment.",
+        "error": "Une erreur est survenue lors de l'analyse IA."
+      },
+      "periods": {
+        "month": "Ce mois",
+        "year": "Cette année",
+        "all": "Tout"
+      },
+      "trends": {
+        "title": "Tendances Financières",
+        "subtitle": "Évolution du CA et des Charges sur les 6 derniers mois",
+        "revenue": "Chiffre d'Affaires",
+        "charges": "Charges & Achats"
+      },
+      "performance": {
+        "title": "Indice de Performance",
+        "label": "Rentabilité",
+        "subtitle": "Votre taux de rendement actuel est de {{percent}}%"
+      },
+      "activity": {
+        "title": "Activités Récentes",
+        "no_activity": "Aucune activité récente.",
+        "columns": {
+          "action": "Action",
+          "module": "Détails",
+          "date": "Heure"
+        }
+      }
+    },
+    "admin": {
+      "title": "Tour de Contrôle",
+      "subtitle": "Supervision globale du système KONTROL",
+      "status": {
+        "operational": "Statut Système: Opérationnel",
+        "sync_live": "Sync Live Activée"
+      },
+      "supervision": {
+        "title": "Mode Supervision :",
+        "subtitle": "Visualisation en tant que client",
+        "exit": "Quitter la vue"
+      },
+      "metrics": {
+        "mrr": "MRR (Revenu Récurrent Mensuel)",
+        "treasury": "Trésorerie Globale",
+        "active_nodes": "Nœuds Actifs (Utilisateurs)",
+        "system_health": "Santé Système",
+        "server_load": "Charge Serveur",
+        "global_treasury": "Solde de Trésorerie Global",
+        "total_revenue": "Flux de Revenus Total"
+      },
+      "charts": {
+        "revenue_growth": "Croissance des Revenus",
+        "analysis_mrr_churn": "Analyse MRR vs Churn",
+        "period_7d": "7 Jours",
+        "period_30d": "30 Jours",
+        "top_companies": "Top Entreprises (Revenus)",
+        "plan_standard": "Plan Standard",
+        "no_data": "Aucune donnée disponible",
+        "view_ecosystem": "Voir tout l'écosystème"
+      },
+      "events": {
+        "title": "Flux d'Événements Temps Réel",
+        "live": "LIVE",
+        "user_performed": "a effectué",
+        "at": "à"
+      },
+      "alerts": {
+        "title": "Alertes Globales & Anomalies",
+        "brute_force": "Tentative de Brute Force Détectée",
+        "brute_force_desc": "IP : 192.168.1.45 - Cible : Admin Panel",
+        "db_latency": "Latence Base de Données Élevée",
+        "db_latency_desc": "Pic de 450ms détecté sur le cluster Europe-West2",
+        "ai_insight": "Insight Blue AI",
+        "ai_insight_desc": "12 entreprises approchent de la limite de leur plan d'essai.",
+        "block_ip": "Bloquer l'IP",
+        "view_telemetry": "Voir Télémétrie",
+        "launch_campaign": "Lancer Campagne"
+      },
+      "subscriptions": {
+        "title": "Gestion des Abonnements",
+        "unique_price": "Prix Unique du Plan",
+        "monthly_standard": "Abonnement Mensuel Standard",
+        "active_count": "Abonnements Actifs",
+        "generators": "Générateurs de Revenus",
+        "pending_validations": "Validations en Attente",
+        "action_required": "Action Requise",
+        "wave_requests": "Demandes de Validation (Wave)",
+        "priority": "Action Prioritaire",
+        "export_list": "Exporter la Liste",
+        "table": {
+          "company": "Entreprise",
+          "plan": "Plan",
+          "status": "Statut",
+          "expiry": "Expiration",
+          "actions": "Actions",
+          "reference": "Référence",
+          "amount": "Montant",
+          "date": "Date"
+        },
+        "actions": {
+          "approve": "Valider",
+          "reject": "Refuser",
+          "trial": "Essai",
+          "subscribe": "Abonner",
+          "days": "Jours:"
+        }
+      },
+      "managers": {
+        "title": "Gestionnaires de la Plateforme",
+        "new_manager": "Nouveau Gestionnaire",
+        "role": "Rôle",
+        "revoke": "Révoquer"
+      },
+      "companies": {
+        "search": "Rechercher une entreprise...",
+        "new_company": "Nouvelle Entreprise",
+        "health_score": "Score Santé",
+        "users": "Utilisateurs",
+        "active": "Actifs",
+        "view_as_client": "Vue Superviseur Client",
+        "filters": "Filtres"
+      },
+      "users": {
+        "directory": "Répertoire Global des Utilisateurs",
+        "total_nodes": "Nodes Totaux",
+        "table": {
+          "user": "Utilisateur",
+          "role_rank": "Rôle & Rang",
+          "affiliation": "Affiliation",
+          "activity": "Activité",
+          "actions": "Actions"
+        }
+      },
+      "modals": {
+        "entity_details": "Détails de l'entité",
+        "edit_entity": "Modifier l'entité",
+        "delete_confirm": "Supprimer l'entité",
+        "delete_message": "Êtes-vous sûr de vouloir supprimer cette entité ? Toutes les données associées seront définitivement perdues.",
+        "new_entity": "Nouveau {{type}}",
+        "create": "Créer {{type}}"
+      },
+      "intelligence": {
+        "title": "Blue AI Strategy Lab",
+        "subtitle": "Intelligence Prédictive & Simulation de Croissance",
+        "tabs": {
+          "vision": "Supervision",
+          "sql": "SQL Bridge",
+          "simulator": "Simulateur",
+          "training": "Training Lab",
+          "logs": "Statut & Heartbeat"
+        },
+        "cards": {
+          "resilience": "Résilience Financière",
+          "resilience_status": "Optimal (92%)",
+          "predictive": "Moteur Prédictif",
+          "predictive_status": "Actif - 42ms",
+          "churn": "Analyse de Churn",
+          "churn_status": "Risque Faible"
+        },
+        "audit": {
+          "title": "Audit Cognitif",
+          "button": "Lancer l'Audit Lab",
+          "concept": "Générez un Rapport Stratégique Global",
+          "configure": "Paramétrer l'IA"
+        },
+        "performance": {
+          "title": "Performances Blue AI",
+          "subtitle": "Volume de Requêtes & Latence",
+          "requests": "Requêtes",
+          "latency": "Latence (ms)"
+        },
+        "insights": {
+          "title": "Insights Live",
+          "none": "Aucun insight récent"
+        },
+        "engine": {
+          "title": "Blue Core Engine",
+          "indexing": "Indexation Sémantique",
+          "synced": "Synchronisé (SQL + DB)",
+          "inference": "Inférence",
+          "context_window": "Fenêtre de Contexte",
+          "sql_bridge_info": "Le moteur est désormais couplé au SQL Bridge pour des analyses contextuelles immédiates."
+        },
+        "simulator": {
+          "title": "Pivot Stratégique",
+          "growth": "Taux de Croissance",
+          "churn": "Taux de Churn",
+          "button": "Simuler l'Impact",
+          "result_mrr": "MRR Projeté (12 mois)",
+          "ai_confidence": "Confiance Blue AI",
+          "ready_title": "Prêt pour la simulation ?",
+          "ready_desc": "Ajustez les leviers de croissance pour projeter l'avenir de KONTROL avec l'IA."
+        },
+        "sql": {
+          "title": "Tables SQL",
+          "visualisation": "Visualisation : {{table}}",
+          "select_table": "Sélectionnez une table pour commencer",
+          "no_data": "Aucune donnée à afficher",
+          "actions": "Actions",
+          "audit_btn": "Audit"
+        },
+        "training": {
+          "title": "Architecture",
+          "pipeline": "Knowledge Pipeline",
+          "vector_connected": "Vector DB Connectée",
+          "vector_disconnected": "Vector DB Déconnectée",
+          "vector_connecting": "Connexion Vector DB",
+          "sync_knowledge": "Synchroniser le Savoir",
+          "grounding": "Data Grounding",
+          "logs_title": "Logs d'Entraînement",
+          "waiting": "En attente d'interaction avec le pipeline..."
+        },
+        "logs": {
+          "heartbeat": "System Heartbeat",
+          "governance": "Gouvernance ERP",
+          "security_shield": "Security Shield",
+          "audit_proof": "Audit Proof",
+          "engine_service": "Engine Service",
+          "refresh": "Rafraîchir Télémétrie",
+          "maturity_title": "Maturité KONTROL",
+          "maturity_subtitle": "Audit Multinoyau de Performance",
+          "stream_title": "Live Security & Sync Stream",
+          "stream_status": "Live Pipeline"
+        }
+      },
+      "versions": {
+        "title": "Contrôle & Noyau Système",
+        "subtitle": "Cette version contrôle l'ensemble des modules et des fonctionnalités disponibles pour les clients KONTROL.",
+        "active_label": "Version Système Active",
+        "production_live": "PRODUCTION LIVE",
+        "deployment_status": "Statut de Déploiement",
+        "log_title": "Journal des Versions",
+        "log_subtitle": "Historique complet et contrôle du noyau applicatif.",
+        "archive_current": "Archiver la version actuelle",
+        "activate_this": "Activer cette version",
+        "switching": "Bascule...",
+        "switch_success": "Le système a été basculé avec succès vers la version {{version}}.",
+        "switch_error": "Erreur lors de la bascule de version. Vérifiez vos permissions.",
+        "archive_modal": {
+          "title": "Archiver une Version",
+          "number": "Numéro de Version",
+          "features": "Fonctionnalités (séparées par des virgules)",
+          "save": "Enregistrer dans le Journal"
+        },
+        "defaults": {
+          "v3_desc": "Version actuelle avec intégration complète de Blue AI et Control Tower.",
+          "v3_features": ["Control Tower KONTROL", "Blue AI Chatbot", "Gestion Multi-entreprises", "Actions"],
+          "v2_desc": "Mise à jour majeure de l'interface utilisateur et optimisation des performances.",
+          "v2_features": ["Nouveau Design System", "Optimisation Firestore", "Export Excel"],
+          "v1_desc": "Lancement initial historique de la plateforme KONTROL.",
+          "v1_features": ["Gestion de Stock", "Ventes & Achats", "Comptabilité de base"]
+        }
+      },
+      "transactions": {
+        "title_global": "Flux Global des Transactions",
+        "subtitle_global": "Observabilité en temps réel de toutes les transactions de l'écosystème",
+        "add_button": "Nouvelle Transaction",
+        "search_placeholder": "Rechercher par référence ou tiers...",
+        "table": {
+          "reference": "Référence",
+          "date": "Date",
+          "tiers": "Tiers",
+          "amount": "Montant",
+          "status": "Statut"
+        }
+      },
+      "treasury": {
+        "title": "Trésorerie Plateforme",
+        "subtitle": "Gestion des flux financiers globaux de KONTROL",
+        "add_button": "Nouveau Mouvement",
+        "search_placeholder": "Rechercher un mouvement...",
+        "balance": "Solde Trésorerie Global",
+        "net_flow": "Flux net cumulé de la plateforme",
+        "inflows_period": "Encaissements (Période)",
+        "outflows_period": "Décaissements (Période)",
+        "incomes": "Entrées financières",
+        "expenses": "Sorties financières",
+        "all_flows": "Tous les flux",
+        "encaissements": "Encaissements",
+        "decaissements": "Décaissements",
+        "table": {
+          "mode": "Mode"
+        },
+        "modal": {
+          "title": "Nouveau Mouvement",
+          "encaissement": "Encaissement (+)",
+          "decaissement": "Décaissement (-)"
+        },
+        "delete": {
+          "title": "Supprimer le mouvement",
+          "message": "Êtes-vous sûr de vouloir supprimer ce mouvement de trésorerie ? Cette action est irréversible."
+        }
+      },
+      "actions": {
+        "title": "Journal d'Actions Global",
+        "search_placeholder": "Rechercher dans les logs...",
+        "export_csv": "Exporter CSV",
+        "table": {
+          "timestamp": "Horodatage",
+          "actor": "Acteur",
+          "action": "Action",
+          "details": "Détails",
+          "actions": "Actions"
+        },
+        "view": "Voir"
+      },
+      "updates": {
+        "title": "Mises à jour BLUE AI",
+        "subtitle": "Intelligence Prédictive",
+        "description": "Découvrez et validez les évolutions suggérées par l'IA pour KONTROL.",
+        "generate_button": "Générer une proposition",
+        "generating": "Génération...",
+        "loading": "Analyse des propositions en cours...",
+        "impact": "Impact {{level}}",
+        "approved": "Approuvé",
+        "rejected": "Rejeté",
+        "approve": "Approuver",
+        "reject": "Rejeter",
+        "ready_deploy": "Prêt pour déploiement",
+        "archived": "Proposition archivée",
+        "categories": {
+          "UI": "Interface",
+          "PERFORMANCE": "Performance",
+          "SECURITY": "Sécurité",
+          "FEATURE": "Fonctionnalité"
+        }
+      }
+    },
+  "stocks": {
+    "title": "Gestion des Stocks",
+    "subtitle": "Mouvements automatiques & Valorisation CUMP",
+    "movements_tab": "Mouvements",
+    "inventory_tab": "État du stock",
+    "stats": {
+      "total_value": "Valeur Totale (CUMP)",
+      "entries": "Entrées (Mois)",
+      "exits": "Sorties (Mois)",
+      "alerts": "Ruptures / Alertes"
+    },
+    "table": {
+      "date": "Date",
+      "type": "Type",
+      "product": "Produit",
+      "quantity": "Quantité",
+      "unit_price": "P.U.",
+      "source": "Source",
+      "ref": "Réf",
+      "designation": "Désignation",
+      "stock": "Stock",
+      "cump": "CUMP",
+      "inventory_value": "Valeur Stock",
+      "status": "Statut",
+      "status_rupture": "Rupture",
+      "status_low": "Bas",
+      "status_ok": "OK"
+    },
+    "search_placeholder": "Rechercher un produit...",
+    "no_movements": "Aucun mouvement enregistré.",
+    "no_inventory": "Aucun produit en stock.",
+    "cump_info": "CUMP = Coût Unitaire Moyen Pondéré",
+    "history_title": "Historique des mouvements",
+    "inventory_title": "Inventaire & Valorisation CUMP",
+    "total_movements": "{{count}} mouvements au total",
+    "total_products": "{{count}} produits au total",
+    "movement_journal": "Journal des mouvements",
+    "notif_low_stock_title": "Alerte Stock Bas",
+    "notif_low_stock_msg": "Le produit \"{{name}}\" est presque en rupture ({{count}} restants)."
+  },
+  "tiers": {
+    "title": "Tiers",
+    "subtitle": "Clients et fournisseurs — Feuille TIERS",
+    "new_tier": "Nouveau tiers",
+    "edit_tier": "Modifier Tiers",
+    "delete_tier": "Supprimer le tiers",
+    "delete_tier_confirm": "Êtes-vous sûr de vouloir supprimer \"{{name}}\" ? Cette action est irréversible.",
+    "form": {
+      "name": "Nom complet",
+      "type": "Type",
+      "email": "Email",
+      "phone": "Téléphone",
+      "address": "Adresse",
+      "status": "Statut",
+      "type_client": "Client",
+      "type_vendor": "Fournisseur"
+    },
+    "table": {
+      "id": "ID",
+      "name": "Nom",
+      "type": "Type",
+      "status": "Statut"
+    },
+    "search_placeholder": "Rechercher nom, email, adresse…",
+    "filter_all": "Tous types",
+    "filter_clients": "Clients",
+    "filter_vendors": "Fournisseurs",
+    "no_tiers": "Aucun tiers trouvé.",
+    "total_count": "{{count}} tiers au total",
+    "log_modified": "Tiers modifié",
+    "log_deleted": "Tiers supprimé",
+    "details": {
+      "title": "Fiche tiers",
+      "select_prompt": "Sélectionnez un tiers pour voir ses détails.",
+      "transactions": "Transactions",
+      "balance": "Solde"
+    }
+  },
+  "produits": {
+    "title": "Produits",
+    "subtitle": "Catalogue — Feuille PRODUITS",
+    "new_product": "Nouveau produit",
+    "edit_product": "Modifier Produit",
+    "delete_product": "Supprimer le produit",
+    "delete_product_confirm": "Êtes-vous sûr de vouloir supprimer \"{{name}}\" ? Cette action est irréversible.",
+    "import": "Importer",
+    "import_success": "{{count}} produits importés avec succès.",
+    "import_error": "Erreur lors de l'importation. Vérifiez le format du fichier.",
+    "save_product": "Enregistrer le produit",
+    "save_success": "Produit enregistré avec succès !",
+    "search_placeholder": "Rechercher désignation, référence…",
+    "no_products": "Aucun produit trouvé.",
+    "total_count": "{{count}} produits au total",
+    "status_out": "Rupture",
+    "status_low": "Stock bas",
+    "status_in": "En stock",
+    "activity_log": "Journal des produits",
+    "form": {
+      "reference": "Référence",
+      "designation": "Désignation",
+      "buy_price": "Prix Achat",
+      "sell_price": "Prix Vente",
+      "initial_stock": "Stock Initial",
+      "alert_stock": "Stock d'alerte",
+      "tva": "TVA",
+      "tva_label": "TVA Applicable",
+      "required_fields": "Veuillez remplir tous les champs obligatoires."
+    },
+    "table": {
+      "reference": "Référence",
+      "designation": "Désignation",
+      "stock": "Stock"
+    },
+    "details": {
+      "title": "Fiche produit",
+      "characteristic": "Caractéristique",
+      "value": "Valeur",
+      "current_stock": "Stock Actuel",
+      "stock_value": "Valeur Stock",
+      "gross_margin": "Marge Brute",
+      "created_at": "Date Création",
+      "sheet": "Fiche",
+      "select_prompt": "Sélectionnez un produit pour voir ses détails."
+    }
+  },
+  "finance": {
+    "title": "Trésorerie Centrale",
+    "subtitle": "Suivi des flux financiers et simulation d'éligibilité au financement.",
+    "calculate_bridge": "Calculer éligibilité Bridge",
+    "calculating": "Calcul en cours...",
+    "new_movement": "Nouveau Mouvement",
+    "delete_movement": "Supprimer le mouvement",
+    "delete_movement_confirm": "Êtes-vous sûr de vouloir supprimer ce mouvement de {{amount}} ? Cette action est irréversible.",
+    "bridge_offer": "Garantie de Financement KONTROL",
+    "bridge_calc_info": "Estimation basée sur vos flux de trésorerie réels. Appuyez votre demande d'emprunt avec cet état certifié : {{amount}}.",
+    "preferential_rate": "Taux de Garantie",
+    "annual": "ANNUEL",
+    "unlock_funds": "Générer Certificat",
+    "total_cash": "Trésorerie Totale",
+    "cash_status": "Solde actuel de votre trésorerie",
+    "inflow_period": "Encaissements (Période)",
+    "inflow_total": "Total des entrées sur la période",
+    "outflow_period": "Décaissements (Période)",
+    "outflow_total": "Total des sorties sur la période",
+    "search_placeholder": "Rechercher description, tiers...",
+    "filter_all": "Tous les flux",
+    "filter_in": "Entrées uniquement",
+    "filter_out": "Sorties uniquement",
+    "history_title": "Historique des Flux",
+    "no_movements": "Aucun mouvement enregistré sur cette période.",
+    "total_count": "{{count}} flux au total",
+    "form": {
+      "type_in": "Encaissement (+)",
+      "type_out": "Décaissement (-)",
+      "date": "Date",
+      "amount": "Montant",
+      "method": "Mode de paiement",
+      "party": "Tiers (Optionnel)",
+      "no_party": "Aucun tiers",
+      "description": "Description",
+      "description_placeholder": "Ex: Règlement facture #123, Vente comptoir...",
+      "pay_wave": "Payer avec Wave Business",
+      "save_movement": "Enregistrer le mouvement"
+    },
+    "table": {
+      "date": "Date",
+      "description_party": "Description / Tiers",
+      "method": "Mode",
+      "amount": "Montant"
+    }
+  },
+  "transactions": {
+    "title": "Ventes & Achats",
+    "subtitle": "Gérez vos flux de transactions et générez vos factures instantanément.",
+    "new_transaction": "Nouvelle transaction",
+    "edit_transaction": "Modifier transaction",
+    "delete_transaction": "Supprimer la transaction",
+    "delete_transaction_confirm": "Êtes-vous sûr de vouloir supprimer la transaction {{ref}} ? Le stock des produits concernés sera automatiquement ajusté.",
+    "cash_flow_report": "Flux de Trésorerie",
+    "no_transactions": "Aucune transaction trouvée.",
+    "total_count": "{{count}} transactions au total",
+    "details_title": "Détails transaction",
+    "select_prompt": "Sélectionnez une transaction pour voir ses détails.",
+    "issue_date": "Date d'émission",
+    "party_type": "Type de tiers",
+    "payment_status": "Statut du règlement",
+    "invoice": "Facture",
+    "receipt": "Reçu",
+    "real_invoice": "Facture Réelle",
+    "pay_mobile": "Payer via {{type}}",
+    "articles": "Articles",
+    "total_xof": "Total Transaction (XOF)",
+    "total_in": "Total en {{devise}}",
+    "activity_log": "Journal des transactions",
+    "scan_qr_instruction": "Scannez ce code pour initier le paiement vers le numéro : <span class=\"font-bold text-kontrol-blue\">{{phone}}</span>",
+    "form": {
+      "type_sale": "Vente (Sortie de stock)",
+      "type_purchase": "Achat (Entrée en stock)",
+      "party": "Tiers (Client/Fournisseur)",
+      "select_party": "Sélectionner un tiers",
+      "no_party_found": "Aucun {{type}} trouvé",
+      "devise": "Devise",
+      "rate": "Taux",
+      "invoice_file": "Facture Fournisseur (Optionnel)",
+      "change_file": "Changer le fichier",
+      "import_invoice": "Importer la facture",
+      "file_hint": "PDF ou Image (Max 2MB)",
+      "add_product": "Ajouter un produit...",
+      "no_products_found": "Aucun produit trouvé",
+      "amount_total_tax": "Montant Total TTC"
+    },
+    "status": {
+      "paid": "Payé",
+      "pending": "En attente",
+      "cancelled": "Annulé"
+    }
+  },
+  "charges": {
+    "title": "Charges & Dépenses",
+    "subtitle": "Frais fixes et variables — Feuille CHARGES",
+    "new_charge": "Nouvelle charge",
+    "edit_charge": "Modifier la charge",
+    "delete_charge": "Supprimer la charge",
+    "delete_charge_confirm": "Êtes-vous sûr de vouloir supprimer la charge \"{{description}}\" ? Cette action est irréversible.",
+    "no_charges": "Aucune charge trouvée.",
+    "total_count": "{{count}} charges au total",
+    "details_title": "Détails de la charge",
+    "select_prompt": "Sélectionnez une dépense pour voir ses détails.",
+    "total_period": "Total charges (période)",
+    "pieces_count": "Nb de pièces",
+    "average_charge": "Moyenne / charge",
+    "stats": {
+      "pieces": "{{count}} pièces"
+    },
+    "form": {
+      "category": "Catégorie",
+      "description": "Description",
+      "amount": "Montant",
+      "date": "Date",
+      "payment_method": "Mode de paiement",
+      "proof": "Justificatif (Image/PDF)",
+      "choose_file": "Choisir un fichier",
+      "change_file": "Changer le fichier",
+      "file_too_large": "Le fichier est trop volumineux (max 1Mo)."
+    },
+    "categories": {
+      "rent": "Loyer",
+      "electricity": "Électricité",
+      "water": "Eau",
+      "internet": "Internet",
+      "salaries": "Salaires",
+      "transport": "Transport",
+      "marketing": "Marketing",
+      "others": "Autres"
+    },
+    "auto_kontrol": {
+      "title": "Charge Automatisée",
+      "desc": "Cette charge a été générée automatiquement par le système KONTROL (Abonnement)."
+    }
+  },
+  "users": {
+    "title": "Gestion du Personnel",
+    "subtitle": "Pilotez votre équipe et contrôlez les accès de votre entreprise.",
+    "new_user": "Nouvel utilisateur",
+    "add_member": "Ajouter un membre",
+    "no_users": "Aucun utilisateur trouvé.",
+    "total_count": "{{count}} utilisateurs au total",
+    "details_title": "Détails de l'utilisateur",
+    "select_prompt": "Sélectionnez un membre pour voir ses détails.",
+    "search_placeholder": "Rechercher par nom, email, rôle...",
+    "active_count": "Utilisateurs actifs",
+    "roles": {
+      "admin_enterprise": "Admin Entreprise",
+      "manager_enterprise": "Gestionnaire Entreprise",
+      "admin_kontrol": "Administrateur KONTROL",
+      "manager_kontrol": "Support KONTROL",
+      "user": "Utilisateur"
+    },
+    "status": {
+      "active": "Compte Actif",
+      "suspended": "Compte Suspendu",
+      "online": "En ligne",
+      "offline": "Hors ligne"
+    },
+    "form": {
+      "fullname": "Nom complet",
+      "email": "Email Professionnel",
+      "password": "Mot de passe",
+      "role": "Rôle",
+      "phone": "Téléphone",
+      "create_user": "Créer l'utilisateur",
+      "email_exists": "Cet e-mail est déjà utilisé par un autre utilisateur.",
+      "admin_no_disable": "Le compte administrateur entreprise ne peut pas être désactivé."
+    },
+    "security": {
+      "title": "Sécurité & Accès",
+      "uid": "Identifiant Unique (UID)",
+      "reset_password": "Réinitialiser MDP",
+      "reset_confirm": "Envoyer un email de réinitialisation de mot de passe à {{name}} ({{email}}) ?",
+      "reset_success": "Email de réinitialisation envoyé avec succès.",
+      "reset_error": "Erreur lors de l'envoi de l'email."
+    }
+  }
+}

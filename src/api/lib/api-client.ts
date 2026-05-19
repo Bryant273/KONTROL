@@ -1,7 +1,7 @@
 
 /**
- * KONTROL Polyglot API Client
- * Wraps fetch with the required Go Gateway & Rust Shield signatures.
+ * KONTROL Internal API Client
+ * Wraps fetch with the required Gateway & Shield signatures.
  */
 
 export interface FetchOptions extends RequestInit {
@@ -35,8 +35,8 @@ export const apiClient = {
       headers.set('x-kontrol-shield', token);
     }
 
-    // Node.js/Java/Go Identification
-    headers.set('x-polyglot-origin', 'react-frontend');
+    // System Identification
+    headers.set('x-kontrol-origin', 'react-frontend');
     headers.set('x-kontrol-timestamp', Date.now().toString());
 
     const response = await fetch(url, {
@@ -46,7 +46,9 @@ export const apiClient = {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `API Error: ${response.status}`);
+      const serverMessage = errorData.error || errorData.message || errorData.details || `Server Error ${response.status}`;
+      const finalMessage = `[API ERROR ${response.status}] ${serverMessage}`;
+      throw new Error(finalMessage);
     }
 
     return response;
@@ -54,7 +56,14 @@ export const apiClient = {
 
   async get<T = any>(url: string, options: FetchOptions = {}): Promise<T> {
     const response = await this.fetch(url, { ...options, method: 'GET' });
-    return response.json();
+    const text = await response.text();
+    try {
+      return text ? JSON.parse(text) : ({} as T);
+    } catch (e: any) {
+      console.error(`[API-CLIENT] JSON Parse Error for GET ${url}:`, e);
+      const snippet = text ? (text.length > 100 ? text.substring(0, 100) + '...' : text) : 'empty body';
+      throw new Error(`[API-JSON-PARSE-ERROR] Invalid response from ${url}: ${e?.message || 'Parse failed'}. Response snippet: ${snippet}`);
+    }
   },
 
   async post<T = any>(url: string, data: any, options: FetchOptions = {}): Promise<T> {
@@ -67,6 +76,13 @@ export const apiClient = {
       },
       body: JSON.stringify(data)
     });
-    return response.json();
+    const text = await response.text();
+    try {
+      return text ? JSON.parse(text) : ({} as T);
+    } catch (e: any) {
+      console.error(`[API-CLIENT] JSON Parse Error for POST ${url}:`, e);
+      const snippet = text ? (text.length > 100 ? text.substring(0, 100) + '...' : text) : 'empty body';
+      throw new Error(`[API-JSON-PARSE-ERROR] Invalid response from ${url}: ${e?.message || 'Parse failed'}. Response snippet: ${snippet}`);
+    }
   }
 };

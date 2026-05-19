@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { History, Clock, ArrowRight, Activity, Loader2, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { 
   db, 
@@ -31,11 +32,14 @@ interface ModuleActivityLogProps {
   title?: string;
 }
 
-export function ModuleActivityLog({ companyId, moduleName, limitCount = 50, title = "Activité du module" }: ModuleActivityLogProps) {
+export function ModuleActivityLog({ companyId, moduleName, limitCount = 50, title }: ModuleActivityLogProps) {
+  const { t } = useTranslation();
   const [actions, setActions] = React.useState<ActionLog[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [currentPage, setCurrentPage] = React.useState(1);
   const itemsPerPage = 10;
+
+  const displayTitle = title || t('common.actions');
 
   React.useEffect(() => {
     if (!companyId) return;
@@ -89,7 +93,7 @@ export function ModuleActivityLog({ companyId, moduleName, limitCount = 50, titl
       <div className="card-hd bg-kontrol-bg/30">
         <div className="flex items-center gap-2">
           <History size={16} className="text-kontrol-ink-muted" />
-          <h4 className="card-title">{title}</h4>
+          <h4 className="card-title">{displayTitle}</h4>
         </div>
       </div>
       <div className="p-0">
@@ -99,7 +103,7 @@ export function ModuleActivityLog({ companyId, moduleName, limitCount = 50, titl
               {actions.length === 0 ? (
                 <tr>
                   <td className="px-4 py-8 text-center text-kontrol-ink-muted">
-                    Aucune activité récente.
+                    {t('common.no_activity')}
                   </td>
                 </tr>
               ) : (
@@ -138,7 +142,7 @@ export function ModuleActivityLog({ companyId, moduleName, limitCount = 50, titl
         {totalPages > 1 && (
           <div className="px-4 py-3 border-t border-kontrol-border bg-kontrol-bg/30 flex items-center justify-between">
             <span className="text-[11px] text-kontrol-ink-muted font-bold uppercase tracking-widest">
-              Page {currentPage} sur {totalPages}
+              {t('common.pagination', { current: currentPage, total: totalPages })}
             </span>
             <div className="flex items-center gap-2">
               <button 

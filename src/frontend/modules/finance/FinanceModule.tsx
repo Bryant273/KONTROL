@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Table, TrendingUp, Search, Filter, Loader2, Plus, FileText, X, CheckCircle2, Trash2, Calendar, DollarSign, Banknote, CreditCard, Smartphone, Wallet as WalletIcon, ArrowUpCircle, ArrowDownCircle, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { motion } from 'motion/react';
 import { exportToPDF, exportToExcel } from '../../lib/export';
@@ -32,6 +33,7 @@ interface FinanceModuleProps {
 }
 
 export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) {
+  const { t } = useTranslation();
   const companyId = currentUserProfile?.companyId || user.uid;
   const [payments, setPayments] = React.useState<Payment[]>([]);
   const [tiers, setTiers] = React.useState<Tiers[]>([]);
@@ -87,7 +89,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
 
   const handleWavePayment = async () => {
     if (newPayment.montant <= 0) {
-      alert("Veuillez saisir un montant valide.");
+      alert(t('finance.form.amount_invalid')); // Should probably add this
       return;
     }
     
@@ -118,7 +120,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
   const handleAddPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!hasPermission(currentUserProfile?.role, 'FINANCE_CREATE')) {
-      alert("Vous n'avez pas la permission d'enregistrer un mouvement financier.");
+      alert(t('common.no_permission'));
       return;
     }
     if (newPayment.montant <= 0) return;
@@ -162,7 +164,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
   const handleDeletePayment = async () => {
     if (!isDeletingPayment) return;
     if (!hasPermission(currentUserProfile?.role, 'FINANCE_DELETE')) {
-      alert("Vous n'avez pas la permission de supprimer un mouvement financier.");
+      alert(t('common.no_permission'));
       return;
     }
     
@@ -210,7 +212,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
   );
 
   const handleExportPDF = () => {
-    const headers = ['Date', 'Description', 'Tiers', 'Mode', 'Type', 'Montant'];
+    const headers = [t('finance.table.date'), t('common.description'), t('finance.table.party'), t('finance.table.method'), t('common.type'), t('finance.table.amount')];
     const data = filteredPayments.map(p => [
       new Date(p.date).toLocaleDateString(),
       p.description,
@@ -219,17 +221,17 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
       p.type,
       formatCurrency(p.montant)
     ]);
-    exportToPDF('Journal de Trésorerie - KONTROL', headers, data, 'Tresorerie_KONTROL', currentUserProfile?.companyLogo || currentUserProfile?.logoUrl);
+    exportToPDF(`${t('finance.history_title')} - KONTROL`, headers, data, 'Tresorerie_KONTROL', currentUserProfile?.companyLogo || currentUserProfile?.logoUrl);
   };
 
   const handleExportExcel = () => {
     const data = filteredPayments.map(p => ({
-      Date: new Date(p.date).toLocaleDateString(),
-      Description: p.description,
-      Tiers: p.tiersNom || '—',
-      Mode: p.modePaiement,
-      Type: p.type,
-      Montant: p.montant
+      [t('finance.table.date')]: new Date(p.date).toLocaleDateString(),
+      [t('common.description')]: p.description,
+      [t('finance.table.party')]: p.tiersNom || '—',
+      [t('finance.table.method')]: p.modePaiement,
+      [t('common.type')]: p.type,
+      [t('finance.table.amount')]: p.montant
     }));
     exportToExcel(data, 'Tresorerie_KONTROL');
   };
@@ -258,8 +260,8 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-extrabold text-kontrol-dark tracking-tight">Trésorerie & Finance</h2>
-          <p className="text-[13px] text-kontrol-ink-muted mt-1">Géré par KONTROL Polyglot Core (Java/Go/Rust)</p>
+          <h2 className="text-xl font-extrabold text-kontrol-dark tracking-tight">{t('finance.title')}</h2>
+          <p className="text-[13px] text-kontrol-ink-muted mt-1">{t('finance.subtitle')}</p>
         </div>
         <div className="flex gap-2">
           <button 
@@ -268,7 +270,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
             className="btn-outline border-kontrol-blue text-kontrol-blue text-xs py-1.5 px-4 flex items-center gap-2 hover:bg-kontrol-blue hover:text-white transition-all"
           >
             {isCalculatingBridge ? <Loader2 size={14} className="animate-spin" /> : <TrendingUp size={14} />} 
-            Calculer éligibilité Bridge
+            {t('finance.calculate_bridge')}
           </button>
           {hasPermission(currentUserProfile?.role, 'FINANCE_EXPORT') && (
             <button 
@@ -283,7 +285,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
               onClick={() => setIsAddingPayment(true)}
               className="btn-primary text-xs py-1.5 px-4 flex items-center gap-2"
             >
-              <Plus size={14} /> Nouveau Mouvement
+              <Plus size={14} /> {t('finance.new_movement')}
             </button>
           )}
         </div>
@@ -298,16 +300,16 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
                 <CreditCard className="text-kontrol-blue" size={24} />
               </div>
               <div>
-                <h4 className="text-[13px] font-black text-kontrol-dark uppercase tracking-tight">Offre de Financement KONTROL</h4>
-                <p className="text-[11px] text-kontrol-ink-muted font-bold">Bridge calculé via Java Spring Core : <span className="text-kontrol-blue">{formatCurrency(bridgeResult.amount_eligible)}</span> éligibles</p>
+                <h4 className="text-[13px] font-black text-kontrol-dark uppercase tracking-tight">{t('finance.bridge_offer')}</h4>
+                <p className="text-[11px] text-kontrol-ink-muted font-bold">{t('finance.bridge_calc_info', { amount: formatCurrency(bridgeResult.amount_eligible) })}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <div className="text-right hidden sm:block">
-                <p className="text-[10px] font-black text-emerald-600 uppercase">Taux Préférentiel</p>
-                <p className="text-lg font-black text-kontrol-dark">3.5% <span className="text-[10px] text-kontrol-ink-muted">ANNUEL</span></p>
+                <p className="text-[10px] font-black text-emerald-600 uppercase">{t('finance.preferential_rate')}</p>
+                <p className="text-lg font-black text-kontrol-dark">3.5% <span className="text-[10px] text-kontrol-ink-muted">{t('finance.annual')}</span></p>
               </div>
-              <button className="btn-primary text-[10px] px-4 py-2 uppercase font-black" onClick={() => setBridgeResult(null)}>Débloquer les fonds</button>
+              <button className="btn-primary text-[10px] px-4 py-2 uppercase font-black" onClick={() => setBridgeResult(null)}>{t('finance.unlock_funds')}</button>
             </div>
           </div>
         </motion.div>
@@ -319,33 +321,33 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
           <div className="absolute top-0 right-0 p-4 opacity-10">
             <WalletIcon size={80} />
           </div>
-          <p className="text-[11px] font-bold text-white/40 uppercase tracking-widest mb-1">Trésorerie Totale</p>
+          <p className="text-[11px] font-bold text-white/40 uppercase tracking-widest mb-1">{t('finance.total_cash')}</p>
           <h3 className="text-3xl font-extrabold text-kontrol-blue">{formatCurrency(totalBalance)}</h3>
           <div className="mt-4 flex items-center gap-2 text-[11px] text-white/60">
             <TrendingUp size={14} className="text-emerald-400" />
-            <span>Solde actuel de votre trésorerie</span>
+            <span>{t('finance.cash_status')}</span>
           </div>
         </div>
 
         <div className="card p-6 bg-white border border-kontrol-border">
-          <p className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest mb-1">Encaissements (Période)</p>
+          <p className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest mb-1">{t('finance.inflow_period')}</p>
           <h3 className="text-2xl font-extrabold text-emerald-600">
             {formatCurrency(periodPayments.filter(p => p.type === 'ENCAISSEMENT').reduce((acc, p) => acc + p.montant, 0))}
           </h3>
           <div className="mt-4 flex items-center gap-2 text-[11px] text-emerald-600/70">
             <ArrowUpCircle size={14} />
-            <span>Total des entrées sur la période</span>
+            <span>{t('finance.inflow_total')}</span>
           </div>
         </div>
 
         <div className="card p-6 bg-white border border-kontrol-border">
-          <p className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest mb-1">Décaissements (Période)</p>
+          <p className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest mb-1">{t('finance.outflow_period')}</p>
           <h3 className="text-2xl font-extrabold text-rose-600">
             {formatCurrency(periodPayments.filter(p => p.type === 'DECAISSEMENT').reduce((acc, p) => acc + p.montant, 0))}
           </h3>
           <div className="mt-4 flex items-center gap-2 text-[11px] text-rose-600/70">
             <ArrowDownCircle size={14} />
-            <span>Total des sorties sur la période</span>
+            <span>{t('finance.outflow_total')}</span>
           </div>
         </div>
       </div>
@@ -361,7 +363,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
             />
-            <span className="text-kontrol-ink-muted text-[10px] font-bold uppercase">au</span>
+            <span className="text-kontrol-ink-muted text-[10px] font-bold uppercase">{t('common.to')}</span>
             <input 
               type="date" 
               className="px-2 py-1 bg-kontrol-bg border border-kontrol-border rounded text-[12px] font-bold"
@@ -377,7 +379,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
           <Search size={14} className="text-kontrol-ink-muted" />
           <input 
             type="text"
-            placeholder="Rechercher description, tiers..."
+            placeholder={t('finance.search_placeholder')}
             className="bg-transparent border-none outline-none text-[13px] w-full text-kontrol-ink placeholder:text-kontrol-ink-muted"
             value={searchTerm}
             onChange={(e) => {
@@ -395,25 +397,25 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
             setCurrentPage(1);
           }}
         >
-          <option value="ALL">Tous les flux</option>
-          <option value="ENCAISSEMENT">Entrées uniquement</option>
-          <option value="DECAISSEMENT">Sorties uniquement</option>
+          <option value="ALL">{t('finance.filter_all')}</option>
+          <option value="ENCAISSEMENT">{t('finance.filter_in')}</option>
+          <option value="DECAISSEMENT">{t('finance.filter_out')}</option>
         </select>
       </div>
 
       <div className="card overflow-hidden">
         <div className="p-4 border-b border-kontrol-border flex flex-wrap items-center justify-between gap-4 bg-kontrol-bg/30">
-          <h4 className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">Historique des Flux</h4>
+          <h4 className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">{t('finance.history_title')}</h4>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[13px]">
             <thead>
               <tr className="bg-kontrol-bg/50 border-b border-kontrol-border">
-                <th className="px-4 py-3 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Date</th>
-                <th className="px-4 py-3 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Description / Tiers</th>
-                <th className="px-4 py-3 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Mode</th>
-                <th className="px-4 py-3 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted text-right">Montant</th>
+                <th className="px-4 py-3 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">{t('finance.table.date')}</th>
+                <th className="px-4 py-3 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">{t('finance.table.description_party')}</th>
+                <th className="px-4 py-3 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">{t('finance.table.method')}</th>
+                <th className="px-4 py-3 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted text-right">{t('finance.table.amount')}</th>
                 <th className="px-4 py-3 w-10"></th>
               </tr>
             </thead>
@@ -427,7 +429,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
               ) : filteredPayments.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-12 text-center text-kontrol-ink-muted">
-                    Aucun mouvement enregistré sur cette période.
+                    {t('finance.no_movements')}
                   </td>
                 </tr>
               ) : (
@@ -476,7 +478,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
         {totalPages > 1 && (
           <div className="px-4 py-3 border-t border-kontrol-border bg-kontrol-bg/30 flex items-center justify-between">
             <span className="text-[11.5px] text-kontrol-ink-muted font-medium">
-              {filteredPayments.length} flux au total
+              {t('finance.total_count', { count: filteredPayments.length })}
             </span>
             <div className="flex items-center gap-2">
               <button 
@@ -487,7 +489,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
                 <ArrowDownLeft size={16} className="rotate-45" />
               </button>
               <span className="text-[11.5px] font-bold text-kontrol-dark">
-                Page {currentPage} sur {totalPages}
+                {t('common.pagination', { current: currentPage, total: totalPages })}
               </span>
               <button 
                 disabled={currentPage === totalPages}
@@ -510,7 +512,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
             className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"
           >
             <div className="p-6 border-b border-kontrol-border flex items-center justify-between">
-              <h3 className="text-lg font-extrabold text-kontrol-dark">Nouveau Mouvement</h3>
+              <h3 className="text-lg font-extrabold text-kontrol-dark">{t('finance.new_movement')}</h3>
               <button onClick={() => setIsAddingPayment(false)} className="p-2 hover:bg-kontrol-bg rounded-full text-kontrol-ink-muted">
                 <X size={20} />
               </button>
@@ -525,7 +527,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
                     newPayment.type === 'ENCAISSEMENT' ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "text-kontrol-ink-muted"
                   )}
                 >
-                  Encaissement (+)
+                  {t('finance.form.type_in')}
                 </button>
                 <button
                   type="button"
@@ -535,13 +537,13 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
                     newPayment.type === 'DECAISSEMENT' ? "bg-rose-500 text-white shadow-lg shadow-rose-500/20" : "text-kontrol-ink-muted"
                   )}
                 >
-                  Décaissement (-)
+                  {t('finance.form.type_out')}
                 </button>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Date</label>
+                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">{t('finance.form.date')}</label>
                   <div className="relative">
                     <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
                     <input 
@@ -554,7 +556,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Montant</label>
+                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">{t('finance.form.amount')}</label>
                   <input 
                     type="number"
                     required
@@ -566,7 +568,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Mode de paiement</label>
+                <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">{t('finance.form.method')}</label>
                 <select 
                   required
                   className="w-full px-3 py-2.5 bg-kontrol-bg border border-kontrol-border rounded-xl focus:outline-none focus:border-kontrol-blue text-[13px] font-medium"
@@ -583,7 +585,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Tiers (Optionnel)</label>
+                <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">{t('finance.form.party')}</label>
                 <select 
                   className="w-full px-3 py-2.5 bg-kontrol-bg border border-kontrol-border rounded-xl focus:outline-none focus:border-kontrol-blue text-[13px] font-medium"
                   value={newPayment.tiersId}
@@ -592,7 +594,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
                     setNewPayment({...newPayment, tiersId: e.target.value, tiersNom: t?.nom || ''});
                   }}
                 >
-                  <option value="">Aucun tiers</option>
+                  <option value="">{t('finance.form.no_party')}</option>
                   {tiers.map(t => (
                     <option key={t.id} value={t.id}>{t.nom} ({t.type})</option>
                   ))}
@@ -600,11 +602,11 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Description</label>
+                <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">{t('finance.form.description')}</label>
                 <textarea 
                   required
                   rows={2}
-                  placeholder="Ex: Règlement facture #123, Vente comptoir..."
+                  placeholder={t('finance.form.description_placeholder')}
                   className="w-full px-4 py-2.5 bg-kontrol-bg border border-kontrol-border rounded-xl focus:outline-none focus:border-kontrol-blue text-[13px]"
                   value={newPayment.description}
                   onChange={(e) => setNewPayment({...newPayment, description: e.target.value})}
@@ -619,7 +621,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
                   className="w-full bg-[#1dbf73] hover:bg-[#19a563] text-white py-4 rounded-xl font-black uppercase tracking-widest text-[12px] flex items-center justify-center gap-2 shadow-lg shadow-[#1dbf73]/20 transition-all"
                 >
                   {isWaveLoading ? <Loader2 size={18} className="animate-spin" /> : <Smartphone size={18} />}
-                  Payer avec Wave Business
+                  {t('finance.form.pay_wave')}
                 </button>
               ) : (
                 <button 
@@ -628,7 +630,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
                   className="w-full btn-primary py-4 font-extrabold uppercase tracking-widest text-[12px] flex items-center justify-center gap-2"
                 >
                   {loading ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
-                  Enregistrer le mouvement
+                  {t('finance.form.save_movement')}
                 </button>
               )}
             </form>
@@ -639,7 +641,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
         <ModuleActivityLog 
           companyId={companyId!} 
           moduleName="mouvement" 
-          title="Journal financier" 
+          title={t('finance.history_title')} 
         />
       </div>
 
@@ -647,9 +649,9 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
         isOpen={!!isDeletingPayment}
         onClose={() => setIsDeletingPayment(null)}
         onConfirm={handleDeletePayment}
-        title="Supprimer le mouvement"
-        message={`Êtes-vous sûr de vouloir supprimer ce mouvement de ${isDeletingPayment?.montant ? formatCurrency(isDeletingPayment.montant) : ''} ? Cette action est irréversible.`}
-        confirmLabel="Supprimer"
+        title={t('finance.delete_movement')}
+        message={t('finance.delete_movement_confirm', { amount: isDeletingPayment?.montant ? formatCurrency(isDeletingPayment.montant) : '' })}
+        confirmLabel={t('common.delete')}
         variant="danger"
       />
     </div>

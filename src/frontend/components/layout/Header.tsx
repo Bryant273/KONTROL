@@ -1,6 +1,7 @@
 import React from 'react';
 import { Menu, Bell, ChevronDown, UserCircle, Shield, LogOut, Globe } from 'lucide-react';
-import { User } from '../../../api/firebase';
+import { useTranslation } from 'react-i18next';
+import { User, db, doc, updateDoc, handleFirestoreError, OperationType } from '../../../api/firebase';
 import { cn } from '../../lib/utils';
 import { UserProfile } from '../../types';
 import { NotificationCenter } from '../notifications/NotificationCenter';
@@ -18,8 +19,30 @@ interface HeaderProps {
 }
 
 export function Header({ section, page, user, profile, onLogout, onTabChange, toggleSidebar, isSidebarOpen }: HeaderProps) {
+  const { i18n, t } = useTranslation();
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  const changeLanguage = async (lng: string) => {
+    try {
+      await i18n.changeLanguage(lng);
+      if (user && profile) {
+        await updateDoc(doc(db, 'users', user.uid), {
+          language: lng
+        });
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`, user, false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (profile?.language && i18n.language !== profile.language) {
+      i18n.changeLanguage(profile.language).catch(err => {
+        console.error("[i18n] Failed to sync language from profile:", err);
+      });
+    }
+  }, [profile?.language, i18n]);
 
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -64,21 +87,33 @@ export function Header({ section, page, user, profile, onLogout, onTabChange, to
         <div className="relative group">
           <button className="flex items-center gap-2 px-3 py-1.5 bg-kontrol-bg border border-kontrol-border rounded-lg hover:bg-kontrol-border transition-colors">
             <Globe size={14} className="text-kontrol-blue" />
-            <span className="text-[11px] font-bold uppercase">FR</span>
+            <span className="text-[11px] font-bold uppercase">{i18n.language.toUpperCase().slice(0, 2)}</span>
             <ChevronDown size={10} className="text-kontrol-ink-muted" />
           </button>
           <div className="absolute top-full right-0 mt-2 w-32 bg-white border border-kontrol-border rounded-xl shadow-xl overflow-hidden opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-[110]">
-            <button className="w-full px-4 py-2 text-left text-[11px] font-bold hover:bg-kontrol-bg transition-colors flex items-center justify-between">
-              Français <span className="text-[9px] text-kontrol-blue">ACTIF</span>
+            <button 
+              onClick={() => changeLanguage('fr')}
+              className={cn(
+                "w-full px-4 py-2 text-left text-[11px] font-bold hover:bg-kontrol-bg transition-colors flex items-center justify-between",
+                i18n.language.startsWith('fr') && "text-kontrol-blue bg-kontrol-blue/5"
+              )}
+            >
+              Français {i18n.language.startsWith('fr') && <span className="text-[9px] text-kontrol-blue">{t('common.active')}</span>}
             </button>
-            <button className="w-full px-4 py-2 text-left text-[11px] font-bold hover:bg-kontrol-bg transition-colors">Wolof</button>
-            <button className="w-full px-4 py-2 text-left text-[11px] font-bold hover:bg-kontrol-bg transition-colors">Fon</button>
-            <button className="w-full px-4 py-2 text-left text-[11px] font-bold hover:bg-kontrol-bg transition-colors">Bambara</button>
+            <button 
+              onClick={() => changeLanguage('en')}
+              className={cn(
+                "w-full px-4 py-2 text-left text-[11px] font-bold hover:bg-kontrol-bg transition-colors flex items-center justify-between",
+                i18n.language.startsWith('en') && "text-kontrol-blue bg-kontrol-blue/5"
+              )}
+            >
+              English {i18n.language.startsWith('en') && <span className="text-[9px] text-kontrol-blue">{t('common.active')}</span>}
+            </button>
           </div>
         </div>
 
         <div className="hidden sm:block text-[11.5px] text-kontrol-ink-muted px-2.5 py-1.5 bg-kontrol-bg border border-kontrol-border rounded-md whitespace-nowrap">
-          {new Date().toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+          {new Date().toLocaleDateString(i18n.language === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
         </div>
         
         <NotificationCenter profile={profile} onNavigate={onTabChange} />
@@ -103,23 +138,23 @@ export function Header({ section, page, user, profile, onLogout, onTabChange, to
               </div>
               <button 
                 onClick={() => {
-                  onTabChange('profil', 'Compte', 'Mon profil');
+                  onTabChange('profil', t('sections.account'), t('common.profile'));
                   setIsDropdownOpen(false);
                 }}
                 className="w-full flex items-center gap-2 px-3.5 py-2.5 text-[13px] text-kontrol-ink-soft hover:bg-kontrol-bg transition-colors"
               >
                 <UserCircle size={16} />
-                Mon profil
+                {t('common.profile')}
               </button>
               <button 
                 onClick={() => {
-                  onTabChange('utilisateurs', 'Administration', 'Utilisateurs');
+                  onTabChange('utilisateurs', t('sections.system'), t('common.users'));
                   setIsDropdownOpen(false);
                 }}
                 className="w-full flex items-center gap-2 px-3.5 py-2.5 text-[13px] text-kontrol-ink-soft hover:bg-kontrol-bg transition-colors"
               >
                 <Shield size={16} />
-                Utilisateurs
+                {t('common.users')}
               </button>
               <div className="h-px bg-kontrol-border" />
               <button 
@@ -127,7 +162,7 @@ export function Header({ section, page, user, profile, onLogout, onTabChange, to
                 className="w-full flex items-center gap-2 px-3.5 py-2.5 text-[13px] text-rose-600 hover:bg-rose-50 transition-colors"
               >
                 <LogOut size={16} />
-                Se déconnecter
+                {t('common.logout')}
               </button>
             </div>
           )}

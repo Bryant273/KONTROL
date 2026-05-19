@@ -2,11 +2,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Brain, X, Send, Bot, User, Loader2, Minimize2, Maximize2, Sparkles, FileText, Lightbulb, HelpCircle, Trash2, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
-import { blueAIService, BlueFunction, BlueMessage } from '../../../api/services/blueAIService';
+import { blueAIService, BlueMessage, BlueFunction } from '../../../api/services/blueAIService';
 import { auth, signInAnonymously, handleFirestoreError, OperationType } from '../../../api/firebase';
 import Markdown from 'react-markdown';
+import { useTranslation } from 'react-i18next';
 
 export function Chatbot() {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [input, setInput] = useState('');
@@ -30,7 +32,12 @@ export function Chatbot() {
   useEffect(() => {
     const savedLead = localStorage.getItem('blue_lead_info');
     if (savedLead) {
-      setLeadInfo(JSON.parse(savedLead));
+      try {
+        setLeadInfo(JSON.parse(savedLead));
+      } catch (err) {
+        console.warn("Failed to parse saved lead info:", err);
+        localStorage.removeItem('blue_lead_info');
+      }
     }
   }, []);
 
@@ -50,7 +57,7 @@ export function Chatbot() {
         if (err.code === 'auth/admin-restricted-operation') {
           setMessages(prev => [...prev, {
             role: 'assistant',
-            content: "Désolé, l'accès invité n'est pas encore configuré (Authentification Anonyme désactivée dans Firebase). Veuillez vous connecter pour utiliser le chatbot.",
+            content: t('common.chatbot.guest_restricted_auth'),
             function: BlueFunction.CHAT,
             timestamp: Date.now(),
             conversationId: 'auth-error'
@@ -73,7 +80,7 @@ export function Chatbot() {
     if (!user.email && (activeFunction === BlueFunction.REPORT || activeFunction === BlueFunction.CONSEIL)) {
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: "Désolé, la génération de rapports et les conseils personnalisés sont réservés aux utilisateurs connectés. Veuillez vous connecter pour accéder à ces fonctionnalités.",
+        content: t('common.chatbot.guest_restricted_features'),
         function: BlueFunction.CHAT,
         timestamp: Date.now(),
         conversationId: conversationId || 'guest-restricted'
@@ -135,7 +142,7 @@ export function Chatbot() {
       handleFirestoreError(error, OperationType.WRITE, 'chatbot/request', auth.currentUser, false);
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: "Une erreur est survenue. Veuillez réessayer plus tard.",
+        content: t('common.chatbot.error'),
         function: activeFunction,
         timestamp: Date.now(),
         conversationId: conversationId || 'error'
@@ -169,14 +176,16 @@ export function Chatbot() {
     localStorage.setItem('blue_lead_info', JSON.stringify(info));
     setShowLeadForm(false);
     if (input.trim()) {
-      handleSend();
+      handleSend().catch(err => {
+        console.error("Chatbot send error after lead submit:", err);
+      });
     }
   };
 
   const quickPrompts = [
-    { label: 'Rapport', icon: FileText, func: BlueFunction.REPORT, text: "Génère un rapport d'analyse de mon entreprise." },
-    { label: 'Conseils', icon: Lightbulb, func: BlueFunction.CONSEIL, text: "Donne-moi des conseils pour améliorer ma rentabilité." },
-    { label: 'Aide', icon: HelpCircle, func: BlueFunction.TUTO, text: "Comment utiliser la section Trésorerie ?" },
+    { label: t('common.chatbot.quick_prompts.report'), icon: FileText, func: BlueFunction.REPORT, text: "Génère un rapport d'analyse de mon entreprise." },
+    { label: t('common.chatbot.quick_prompts.advice'), icon: Lightbulb, func: BlueFunction.CONSEIL, text: "Donne-moi des conseils pour améliorer ma rentabilité." },
+    { label: t('common.chatbot.quick_prompts.help'), icon: HelpCircle, func: BlueFunction.TUTO, text: "Comment utiliser la section Trésorerie ?" },
   ];
 
   return (
@@ -219,10 +228,10 @@ export function Chatbot() {
                   <Brain size={18} className="text-white" />
                 </div>
                 <div>
-                  <h3 className="text-[13px] font-extrabold tracking-tight uppercase">Blue AI Intelligence</h3>
+                  <h3 className="text-[13px] font-extrabold tracking-tight uppercase">{t('common.chatbot.title')}</h3>
                   <div className="flex items-center gap-1.5">
                     <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                    <span className="text-[10px] text-white/60 font-bold uppercase tracking-widest">Cerveau Actif</span>
+                    <span className="text-[10px] text-white/60 font-bold uppercase tracking-widest">{t('common.chatbot.status_active')}</span>
                   </div>
                 </div>
               </div>
@@ -265,20 +274,20 @@ export function Chatbot() {
                         <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
                           <AlertCircle size={24} />
                         </div>
-                        <h4 className="text-sm font-extrabold text-kontrol-dark uppercase mb-2">Supprimer ?</h4>
-                        <p className="text-[11px] text-kontrol-ink-muted mb-6">Cette action est irréversible. Toutes les données de cet échange seront perdues.</p>
+                        <h4 className="text-sm font-extrabold text-kontrol-dark uppercase mb-2">{t('common.chatbot.delete_confirm_title')}</h4>
+                        <p className="text-[11px] text-kontrol-ink-muted mb-6">{t('common.chatbot.delete_confirm_text')}</p>
                         <div className="flex gap-3">
                           <button 
                             onClick={() => setShowDeleteConfirm(false)}
                             className="flex-1 py-2.5 bg-kontrol-bg text-kontrol-dark rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-kontrol-border transition-colors"
                           >
-                            Annuler
+                            {t('common.cancel')}
                           </button>
                           <button 
                             onClick={handleDeleteConversation}
                             className="flex-1 py-2.5 bg-red-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-red-700 transition-colors shadow-lg shadow-red-600/20"
                           >
-                            Supprimer
+                            {t('common.delete')}
                           </button>
                         </div>
                       </motion.div>
@@ -290,21 +299,21 @@ export function Chatbot() {
                       <div className="w-12 h-12 bg-kontrol-blue/10 text-kontrol-blue rounded-full flex items-center justify-center mb-4">
                         <User size={24} />
                       </div>
-                      <h4 className="text-sm font-extrabold text-kontrol-dark uppercase tracking-tight mb-2">Bienvenue chez KONTROL</h4>
-                      <p className="text-[11px] text-kontrol-ink-muted mb-6 font-medium">Une solution <strong>INNOV'KORP</strong>. Laissez-nous vos coordonnées pour que Blue puisse mieux vous assister.</p>
+                      <h4 className="text-sm font-extrabold text-kontrol-dark uppercase tracking-tight mb-2">{t('common.chatbot.welcome_title')}</h4>
+                      <p className="text-[11px] text-kontrol-ink-muted mb-6 font-medium">{t('common.chatbot.welcome_desc')}</p>
                       
                       <form onSubmit={handleLeadSubmit} className="w-full space-y-3">
                         <input 
                           name="name"
                           type="text"
-                          placeholder="Votre nom"
+                          placeholder={t('common.chatbot.name_placeholder')}
                           required
                           className="w-full px-4 py-2.5 bg-white border border-kontrol-border rounded-xl text-xs font-medium focus:ring-2 focus:ring-kontrol-blue/20 outline-none"
                         />
                         <input 
                           name="email"
                           type="email"
-                          placeholder="Votre email"
+                          placeholder={t('common.chatbot.email_placeholder')}
                           required
                           className="w-full px-4 py-2.5 bg-white border border-kontrol-border rounded-xl text-xs font-medium focus:ring-2 focus:ring-kontrol-blue/20 outline-none"
                         />
@@ -312,7 +321,7 @@ export function Chatbot() {
                           type="submit"
                           className="w-full py-3 bg-kontrol-blue text-white rounded-xl text-[11px] font-extrabold uppercase tracking-widest shadow-lg shadow-kontrol-blue/20 hover:bg-kontrol-blue/90 transition-all"
                         >
-                          Commencer la discussion
+                          {t('common.chatbot.start_discussion')}
                         </button>
                       </form>
                     </div>
@@ -323,8 +332,8 @@ export function Chatbot() {
                       <div className="w-12 h-12 bg-kontrol-blue/10 text-kontrol-blue rounded-full flex items-center justify-center mx-auto mb-4">
                         <Bot size={24} />
                       </div>
-                      <p className="text-sm font-bold text-kontrol-dark uppercase tracking-tight">Bonjour ! Je suis Blue.</p>
-                      <p className="text-xs text-kontrol-ink-muted mt-1 font-medium">Posez-moi une question sur vos données ou demandez un rapport.</p>
+                      <p className="text-sm font-bold text-kontrol-dark uppercase tracking-tight">{t('common.chatbot.hello')}</p>
+                      <p className="text-xs text-kontrol-ink-muted mt-1 font-medium">{t('common.chatbot.ask_me')}</p>
                       
                       <div className="grid grid-cols-1 gap-2 mt-6">
                         {quickPrompts.map((p, idx) => (
@@ -332,7 +341,9 @@ export function Chatbot() {
                             key={idx}
                             onClick={() => {
                               setActiveFunction(p.func);
-                              handleSend(undefined, p.text);
+                              handleSend(undefined, p.text).catch(err => {
+                                console.error("Chatbot quick prompt send error:", err);
+                              });
                             }}
                             className="flex items-center gap-3 p-3 bg-white border border-kontrol-border rounded-xl hover:border-kontrol-blue hover:bg-kontrol-blue/5 transition-all text-left group"
                           >
@@ -385,7 +396,7 @@ export function Chatbot() {
                       </div>
                       <div className="bg-white border border-kontrol-border p-3 rounded-2xl rounded-tl-none shadow-sm flex items-center gap-2">
                         <Loader2 size={16} className="animate-spin text-kontrol-blue" />
-                        <span className="text-[11px] font-bold text-kontrol-blue uppercase tracking-widest">Blue réfléchit...</span>
+                        <span className="text-[11px] font-bold text-kontrol-blue uppercase tracking-widest">{t('common.chatbot.thinking')}</span>
                       </div>
                     </div>
                   )}
@@ -399,7 +410,7 @@ export function Chatbot() {
                   <div className="relative">
                     <input 
                       type="text"
-                      placeholder="Posez votre question à Blue..."
+                      placeholder={t('common.chatbot.input_placeholder')}
                       className="w-full pl-4 pr-12 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px] font-medium"
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
@@ -414,7 +425,7 @@ export function Chatbot() {
                   </div>
                   <div className="flex items-center justify-center gap-4 mt-3">
                     <p className="text-[10px] text-kontrol-ink-muted font-bold uppercase tracking-widest">
-                      Propulsé par <span className="text-kontrol-blue">BLUE AI & INNOV'KORP</span>
+                      {t('common.powered_by')} <span className="text-kontrol-blue">BLUE AI & INNOV'KORP</span>
                     </p>
                     <div className="h-3 w-px bg-kontrol-border" />
                     <button 

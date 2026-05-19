@@ -13,6 +13,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '../../lib/utils';
 import { db, collection, addDoc, getDocs, query, orderBy, onSnapshot, doc, updateDoc, serverTimestamp, handleFirestoreError, OperationType, auth } from '../../../api/firebase';
 
@@ -27,6 +28,7 @@ interface AIProposal {
 }
 
 export function UpdatesView() {
+  const { t } = useTranslation();
   const [proposals, setProposals] = useState<AIProposal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -86,9 +88,9 @@ export function UpdatesView() {
     >
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h3 className="text-[11px] font-extrabold uppercase tracking-[0.3em] text-kontrol-blue mb-2">Intelligence Prédictive</h3>
-          <h2 className="text-3xl font-extrabold text-kontrol-dark tracking-tighter uppercase">Mises à jour BLUE AI</h2>
-          <p className="text-sm text-kontrol-ink-muted mt-1">Découvrez et validez les évolutions suggérées par l'IA pour KONTROL.</p>
+          <h3 className="text-[11px] font-extrabold uppercase tracking-[0.3em] text-kontrol-blue mb-2">{t('admin.updates.subtitle')}</h3>
+          <h2 className="text-3xl font-extrabold text-kontrol-dark tracking-tighter uppercase">{t('admin.updates.title')}</h2>
+          <p className="text-sm text-kontrol-ink-muted mt-1">{t('admin.updates.description')}</p>
         </div>
         <button 
           onClick={handleGenerateProposal}
@@ -96,14 +98,14 @@ export function UpdatesView() {
           className="flex items-center gap-3 px-8 py-4 bg-kontrol-dark text-white rounded-2xl font-extrabold text-[12px] uppercase tracking-widest hover:bg-kontrol-blue transition-all disabled:opacity-50 shadow-xl shadow-kontrol-dark/10"
         >
           {isGenerating ? <Loader2 size={18} className="animate-spin" /> : <Brain size={18} />}
-          Générer une proposition
+          {isGenerating ? t('admin.updates.generating') : t('admin.updates.generate_button')}
         </button>
       </div>
 
       {isLoading ? (
         <div className="flex flex-col items-center justify-center py-20">
           <Loader2 size={40} className="text-kontrol-blue animate-spin mb-4" />
-          <p className="text-[11px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Analyse des propositions en cours...</p>
+          <p className="text-[11px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">{t('admin.updates.loading')}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -151,14 +153,14 @@ export function UpdatesView() {
                       proposal.impact === 'MEDIUM' ? "bg-amber-50 text-amber-600 border-amber-100" :
                       "bg-blue-50 text-blue-600 border-blue-100"
                     )}>
-                      Impact {proposal.impact}
+                      {t('admin.updates.impact', { level: proposal.impact })}
                     </span>
                     {proposal.status !== 'PROPOSED' && (
                       <span className={cn(
                         "text-[8px] font-extrabold uppercase tracking-widest",
                         proposal.status === 'APPROVED' ? "text-emerald-600" : "text-rose-600"
                       )}>
-                        {proposal.status === 'APPROVED' ? 'Approuvé' : 'Rejeté'}
+                        {proposal.status === 'APPROVED' ? t('admin.updates.approved') : t('admin.updates.rejected')}
                       </span>
                     )}
                   </div>
@@ -178,7 +180,7 @@ export function UpdatesView() {
                         onClick={() => handleStatusUpdate(proposal.id, 'APPROVED')}
                         className="flex-1 flex items-center justify-center gap-2 py-3 bg-emerald-500 text-white rounded-xl text-[10px] font-extrabold uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
                       >
-                        <CheckCircle2 size={14} /> Approuver
+                        <CheckCircle2 size={14} /> {t('admin.updates.approve')}
                       </button>
                       <button 
                         onClick={() => handleStatusUpdate(proposal.id, 'REJECTED')}
@@ -190,7 +192,7 @@ export function UpdatesView() {
                   ) : (
                     <div className="w-full py-3 bg-kontrol-bg rounded-xl text-center">
                       <p className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">
-                        {proposal.status === 'APPROVED' ? 'Prêt pour déploiement' : 'Proposition archivée'}
+                        {proposal.status === 'APPROVED' ? t('admin.updates.ready_deploy') : t('admin.updates.archived')}
                       </p>
                     </div>
                   )}

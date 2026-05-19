@@ -4,7 +4,7 @@ import Database from "better-sqlite3";
 
 /**
  * KONTROL Blue Neural Brain Engine (v3.1)
- * Real Integration with Gemini & Polyglot Ensemble Logic
+ * Real Integration with Gemini & Multi-Engine Logic
  */
 export class BlueNeuralBrain {
   private genAI: GoogleGenerativeAI | null = null;
@@ -39,7 +39,7 @@ export class BlueNeuralBrain {
         responseText = "KONTROL Mode Dégradé: Clé API manquante. Utilisation du moteur heuristique local.";
       }
 
-      // 2. Ensemble Simulation Logic (Polyglot Kernels)
+      // 2. Ensemble Simulation Logic (Core Engines)
       const trustScore = 0.96 + Math.random() * 0.03;
       
       const ensemble = {

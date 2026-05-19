@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Plus, Search, MoreVertical, Mail, Phone, MapPin, Loader2, X, UserCircle, History, Trash2, Edit2, FileText, Table, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { exportToPDF, exportToExcel } from '../../lib/export';
 import { Tiers, TiersType, UserProfile } from '../../types';
@@ -29,6 +30,7 @@ interface TiersModuleProps {
 }
 
 export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
+  const { t } = useTranslation();
   const isERPAdmin = currentUserProfile?.role === 'ADMINISTRATEUR_ERP' || currentUserProfile?.role === 'GESTIONNAIRE_ERP';
   const [selectedCompanyId, setSelectedCompanyId] = React.useState<string | null>(currentUserProfile?.companyId || null);
   
@@ -58,7 +60,7 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
   const handleAddTiers = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!hasPermission(currentUserProfile?.role, 'TIERS_CREATE')) {
-      alert("Vous n'avez pas la permission de créer un tiers.");
+      alert(t('common.no_permission')); // I should probably add this to common
       return;
     }
     setLoading(true);
@@ -93,7 +95,7 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
     e.preventDefault();
     if (!selectedId) return;
     if (!hasPermission(currentUserProfile?.role, 'TIERS_UPDATE')) {
-      alert("Vous n'avez pas la permission de modifier un tiers.");
+      alert(t('common.no_permission'));
       return;
     }
     setLoading(true);
@@ -110,7 +112,7 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
           companyId!,
           user.uid,
           currentUserProfile.displayName,
-          "Tiers modifié",
+          t('tiers.log_modified'),
           `${currentTiers.nom} (${currentTiers.type})`
         );
       }
@@ -126,7 +128,7 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
   const handleDeleteTiers = async () => {
     if (!selectedId) return;
     if (!hasPermission(currentUserProfile?.role, 'TIERS_DELETE')) {
-      alert("Vous n'avez pas la permission de supprimer un tiers.");
+      alert(t('common.no_permission'));
       return;
     }
     setLoading(true);
@@ -141,7 +143,7 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
           companyId!,
           user.uid,
           currentUserProfile.displayName,
-          "Tiers supprimé",
+          t('tiers.log_deleted'),
           `${tiersToDelete.nom}`
         );
       }
@@ -216,24 +218,24 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
   );
 
   const handleExportPDF = () => {
-    const headers = ['Nom', 'Type', 'Email', 'Téléphone', 'Statut'];
-    const data = filteredTiers.map(t => [
-      t.nom,
-      t.type,
-      t.email || '',
-      t.telephone || '',
-      t.statut
+    const headers = [t('tiers.table.name'), t('tiers.table.type'), t('tiers.form.email'), t('tiers.form.phone'), t('tiers.table.status')];
+    const data = filteredTiers.map(tier => [
+      tier.nom,
+      tier.type,
+      tier.email || '',
+      tier.telephone || '',
+      tier.statut
     ]);
-    exportToPDF('Annuaire des Tiers - KONTROL', headers, data, 'Tiers_KONTROL', currentUserProfile?.companyLogo || currentUserProfile?.logoUrl);
+    exportToPDF(`${t('tiers.title')} - KONTROL`, headers, data, 'Tiers_KONTROL', currentUserProfile?.companyLogo || currentUserProfile?.logoUrl);
   };
 
   const handleExportExcel = () => {
-    const data = filteredTiers.map(t => ({
-      Nom: t.nom,
-      Type: t.type,
-      Email: t.email || '',
-      Téléphone: t.telephone || '',
-      Statut: t.statut
+    const data = filteredTiers.map(tier => ({
+      [t('tiers.table.name')]: tier.nom,
+      [t('tiers.table.type')]: tier.type,
+      [t('tiers.form.email')]: tier.email || '',
+      [t('tiers.form.phone')]: tier.telephone || '',
+      [t('tiers.table.status')]: tier.statut
     }));
     exportToExcel(data, 'Tiers_KONTROL');
   };
@@ -245,15 +247,15 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
         onClose={() => setIsDeleting(false)}
         onConfirm={handleDeleteTiers}
         loading={loading}
-        title="Supprimer le tiers"
-        message={`Êtes-vous sûr de vouloir supprimer "${selectedTiers?.nom}" ? Cette action est irréversible.`}
+        title={t('tiers.delete_tier')}
+        message={t('tiers.delete_tier_confirm', { name: selectedTiers?.nom })}
       />
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div>
-            <h2 className="text-xl font-extrabold text-kontrol-dark tracking-tight">Tiers</h2>
-            <p className="text-[13px] text-kontrol-ink-muted mt-1">Clients et fournisseurs — Feuille TIERS</p>
+            <h2 className="text-xl font-extrabold text-kontrol-dark tracking-tight">{t('tiers.title')}</h2>
+            <p className="text-[13px] text-kontrol-ink-muted mt-1">{t('tiers.subtitle')}</p>
           </div>
           {isERPAdmin && (
             <div className="hidden md:block">
@@ -279,7 +281,7 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
                 setIsAdding(true);
               }}
             >
-              <Plus size={14} /> Nouveau tiers
+              <Plus size={14} /> {t('tiers.new_tier')}
             </button>
           )}
         </div>
@@ -289,7 +291,7 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
         <div className="fixed inset-0 bg-kontrol-dark/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[480px] overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="card-hd">
-              <h3 className="card-title">{isEditing ? 'Modifier Tiers' : 'Nouveau Tiers'}</h3>
+              <h3 className="card-title">{isEditing ? t('tiers.edit_tier') : t('tiers.new_tier')}</h3>
               <button 
                 onClick={() => { setIsAdding(false); setIsEditing(false); }}
                 className="p-1 text-kontrol-ink-muted hover:text-kontrol-dark hover:bg-kontrol-bg rounded-md transition-all"
@@ -300,7 +302,7 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
             <form onSubmit={isEditing ? handleEditTiers : handleAddTiers} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Nom complet</label>
+                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">{t('tiers.form.name')}</label>
                   <input 
                     type="text"
                     required
@@ -310,21 +312,21 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Type</label>
+                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">{t('tiers.form.type')}</label>
                   <select 
                     className="w-full px-3 py-2 bg-kontrol-bg border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px]"
                     value={currentTiers.type}
                     onChange={(e) => setCurrentTiers({ ...currentTiers, type: e.target.value as TiersType })}
                   >
-                    <option value="CLIENT">Client</option>
-                    <option value="FOURNISSEUR">Fournisseur</option>
+                    <option value="CLIENT">{t('tiers.form.type_client')}</option>
+                    <option value="FOURNISSEUR">{t('tiers.form.type_vendor')}</option>
                   </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Email</label>
+                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">{t('tiers.form.email')}</label>
                   <input 
                     type="email"
                     className="w-full px-3 py-2 bg-kontrol-bg border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px]"
@@ -333,7 +335,7 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Téléphone</label>
+                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">{t('tiers.form.phone')}</label>
                   <input 
                     type="tel"
                     className="w-full px-3 py-2 bg-kontrol-bg border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px]"
@@ -344,7 +346,7 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Adresse</label>
+                <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">{t('tiers.form.address')}</label>
                 <textarea 
                   className="w-full px-3 py-2 bg-kontrol-bg border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px] min-h-[80px]"
                   value={currentTiers.adresse}
@@ -358,14 +360,14 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
                   onClick={() => { setIsAdding(false); setIsEditing(false); }}
                   className="flex-1 py-2.5 border border-kontrol-border text-kontrol-ink-soft font-bold rounded-xl hover:bg-kontrol-bg transition-all text-[13px]"
                 >
-                  Annuler
+                  {t('common.cancel')}
                 </button>
                 <button 
                   type="submit"
                   disabled={loading}
                   className="flex-1 py-2.5 bg-kontrol-blue text-white font-bold rounded-xl hover:bg-kontrol-blue/90 transition-all text-[13px] shadow-lg shadow-kontrol-blue/20 flex items-center justify-center gap-2"
                 >
-                  {loading ? <Loader2 className="animate-spin" size={16} /> : 'Enregistrer'}
+                  {loading ? <Loader2 className="animate-spin" size={16} /> : t('common.save')}
                 </button>
               </div>
             </form>
@@ -379,7 +381,7 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
           <Search size={14} className="text-kontrol-ink-muted" />
           <input 
             type="text"
-            placeholder="Rechercher nom, email, adresse…"
+            placeholder={t('tiers.search_placeholder')}
             className="bg-transparent border-none outline-none text-[13px] w-full text-kontrol-ink placeholder:text-kontrol-ink-muted"
             value={searchTerm}
             onChange={(e) => {
@@ -396,9 +398,9 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
             setCurrentPage(1);
           }}
         >
-          <option value="ALL">Tous types</option>
-          <option value="CLIENT">Clients</option>
-          <option value="FOURNISSEUR">Fournisseurs</option>
+          <option value="ALL">{t('tiers.filter_all')}</option>
+          <option value="CLIENT">{t('tiers.filter_clients')}</option>
+          <option value="FOURNISSEUR">{t('tiers.filter_vendors')}</option>
         </select>
       </div>
 
@@ -409,10 +411,10 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
             <table className="w-full text-left border-collapse text-[13px]">
               <thead>
                 <tr className="bg-kontrol-bg border-b border-kontrol-border">
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">ID</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Nom</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Type</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Statut</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('tiers.table.id')}</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('tiers.table.name')}</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('tiers.table.type')}</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('tiers.table.status')}</th>
                   <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted"></th>
                 </tr>
               </thead>
@@ -426,7 +428,7 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
                 ) : paginatedTiers.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-4 py-12 text-center text-kontrol-ink-muted">
-                      Aucun tiers trouvé.
+                      {t('tiers.no_tiers')}
                     </td>
                   </tr>
                 ) : (
@@ -471,7 +473,7 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
           </div>
           <div className="px-4 py-3 border-t border-kontrol-border bg-kontrol-bg/30 flex items-center justify-between">
             <span className="text-[11.5px] text-kontrol-ink-muted font-medium">
-              {filteredTiers.length} tiers affichés
+              {t('tiers.total_count', { count: filteredTiers.length })}
             </span>
             {totalPages > 1 && (
               <div className="flex items-center gap-2">
@@ -483,7 +485,7 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
                   <ArrowDownLeft size={16} className="rotate-45" />
                 </button>
                 <span className="text-[11.5px] font-bold text-kontrol-dark">
-                  Page {currentPage} sur {totalPages}
+                  {t('common.pagination', { current: currentPage, total: totalPages })}
                 </span>
                 <button 
                   disabled={currentPage === totalPages}
@@ -502,7 +504,7 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
           {selectedTiers ? (
             <div className="animate-in fade-in slide-in-from-right-2 duration-300">
               <div className="card-hd">
-                <h4 className="card-title">Fiche tiers</h4>
+                <h4 className="card-title">{t('tiers.details.title')}</h4>
                 <button 
                   className="p-1 text-kontrol-ink-muted hover:text-kontrol-dark hover:bg-kontrol-bg rounded-md transition-all"
                   onClick={() => setSelectedId(null)}
@@ -537,11 +539,11 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
 
                 <div className="grid grid-cols-2 gap-2 mb-6">
                   <div className="bg-kontrol-bg rounded-lg p-3">
-                    <p className="text-[10px] font-bold text-kontrol-ink-muted uppercase tracking-widest mb-1">Transactions</p>
+                    <p className="text-[10px] font-bold text-kontrol-ink-muted uppercase tracking-widest mb-1">{t('tiers.details.transactions')}</p>
                     <p className="text-lg font-extrabold text-kontrol-dark">0</p>
                   </div>
                   <div className="bg-kontrol-bg rounded-lg p-3">
-                    <p className="text-[10px] font-bold text-kontrol-ink-muted uppercase tracking-widest mb-1">Solde</p>
+                    <p className="text-[10px] font-bold text-kontrol-ink-muted uppercase tracking-widest mb-1">{t('tiers.details.balance')}</p>
                     <p className="text-lg font-extrabold text-kontrol-dark">0 FCFA</p>
                   </div>
                 </div>
@@ -550,21 +552,21 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
                   <div className="flex gap-3 text-[12.5px]">
                     <Mail size={14} className="text-kontrol-ink-muted shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-kontrol-ink-muted text-[11px] font-bold uppercase tracking-tighter">Email</p>
+                      <p className="text-kontrol-ink-muted text-[11px] font-bold uppercase tracking-tighter">{t('tiers.form.email')}</p>
                       <p className="text-kontrol-ink-soft truncate font-medium">{selectedTiers.email || '—'}</p>
                     </div>
                   </div>
                   <div className="flex gap-3 text-[12.5px]">
                     <Phone size={14} className="text-kontrol-ink-muted shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-kontrol-ink-muted text-[11px] font-bold uppercase tracking-tighter">Téléphone</p>
+                      <p className="text-kontrol-ink-muted text-[11px] font-bold uppercase tracking-tighter">{t('tiers.form.phone')}</p>
                       <p className="text-kontrol-ink-soft font-medium">{selectedTiers.telephone || '—'}</p>
                     </div>
                   </div>
                   <div className="flex gap-3 text-[12.5px]">
                     <MapPin size={14} className="text-kontrol-ink-muted shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-kontrol-ink-muted text-[11px] font-bold uppercase tracking-tighter">Adresse</p>
+                      <p className="text-kontrol-ink-muted text-[11px] font-bold uppercase tracking-tighter">{t('tiers.form.address')}</p>
                       <p className="text-kontrol-ink-soft font-medium leading-snug">{selectedTiers.adresse || '—'}</p>
                     </div>
                   </div>
@@ -576,7 +578,7 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
                       className="flex-1 btn-outline text-xs py-2.5 font-bold flex items-center justify-center gap-2"
                       onClick={() => openEdit(selectedTiers)}
                     >
-                      <Edit2 size={14} /> Modifier
+                      <Edit2 size={14} /> {t('common.edit')}
                     </button>
                   )}
                   {hasPermission(currentUserProfile?.role, 'TIERS_DELETE') && (
@@ -584,7 +586,7 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
                       className="flex-1 bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs py-2.5 font-bold rounded-xl transition-all flex items-center justify-center gap-2"
                       onClick={() => setIsDeleting(true)}
                     >
-                      <Trash2 size={14} /> Supprimer
+                      <Trash2 size={14} /> {t('common.delete')}
                     </button>
                   )}
                 </div>
@@ -594,7 +596,7 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
             <div className="flex flex-col items-center justify-center p-12 text-center h-full text-kontrol-ink-muted opacity-40">
               <UserCircle size={48} strokeWidth={1} className="mb-3" />
               <p className="text-[12.5px] font-medium leading-relaxed">
-                Sélectionnez un tiers<br />pour voir ses détails.
+                {t('tiers.details.select_prompt')}
               </p>
             </div>
           )}
