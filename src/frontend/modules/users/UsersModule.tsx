@@ -57,7 +57,12 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
   const [filterDate, setFilterDate] = React.useState<string>('');
   const [isAdding, setIsAdding] = React.useState(false);
   const [selectedUser, setSelectedUser] = React.useState<UserProfile | null>(null);
+  const [idCopied, setIdCopied] = React.useState(false);
   const [currentPage, setCurrentPage] = React.useState(1);
+
+  const isSha256 = (str: string) => {
+    return /^[0-9a-fA-F]{64}$/.test(str);
+  };
   const itemsPerPage = 10;
   
   const canCreateUser = hasPermission(currentUserProfile?.role, 'USER_CREATE');
@@ -411,11 +416,12 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
                           <button 
                             onClick={() => {
                               navigator.clipboard.writeText(selectedUser.uid || selectedUser.id || '');
-                              alert(t('common.save_success'));
+                              setIdCopied(true);
+                              setTimeout(() => setIdCopied(false), 2000);
                             }}
                             className="text-[10px] font-extrabold text-kontrol-blue hover:underline shrink-0"
                           >
-                            {t('common.copy')}
+                            {idCopied ? (t('common.copied') || 'Copié !') : t('common.copy')}
                           </button>
                         </div>
                       </div>
@@ -429,7 +435,13 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
                         <p className="text-[10px] font-bold text-kontrol-ink-muted uppercase tracking-wider">{t('users.form.password')}</p>
                         {currentUserProfile?.role === 'ADMINISTRATEUR_ENTREPRISE' || currentUserProfile?.uid === selectedUser.uid ? (
                           <p className="text-[13px] font-bold text-kontrol-dark bg-kontrol-bg px-2 py-1 rounded mt-1">
-                            {selectedUser.password || t('common.na')}
+                            {selectedUser.password ? (
+                              isSha256(selectedUser.password) ? (
+                                <span className="text-[11px] font-medium text-kontrol-ink-muted italic">•••••••• (Chiffré en base)</span>
+                              ) : (
+                                selectedUser.password
+                              )
+                            ) : t('common.na')}
                           </p>
                         ) : (
                           <p className="text-[11px] text-kontrol-ink-muted leading-tight">
@@ -534,12 +546,12 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-kontrol-bg/50 border-b border-kontrol-border">
-                <th className="px-6 py-4 text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest">{t('common.user')}</th>
+                <th className="px-6 py-4 text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest">{t('users.table_headers.user')}</th>
                 {canAdminERP && <th className="px-6 py-4 text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest">{t('tiers.form.type_vendor')}</th>}
-                <th className="px-6 py-4 text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest">{t('users.form.role')}</th>
-                <th className="px-6 py-4 text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest">{t('common.status')}</th>
-                <th className="px-6 py-4 text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest">{t('common.date')}</th>
-                <th className="px-6 py-4 text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest text-right">Actions</th>
+                <th className="px-6 py-4 text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest">{t('users.table_headers.role')}</th>
+                <th className="px-6 py-4 text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest">{t('users.table_headers.status')}</th>
+                <th className="px-6 py-4 text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest">{t('users.table_headers.date')}</th>
+                <th className="px-6 py-4 text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest text-right">{t('users.table_headers.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-kontrol-border">

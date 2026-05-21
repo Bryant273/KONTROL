@@ -287,7 +287,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
   );
 
   const handleExportPDF = () => {
-    const headers = [t('common.ref'), t('common.date'), t('finance.table.party'), t('common.type'), t('finance.table.amount'), t('common.status')];
+    const headers = [t('common.ref'), t('common.date'), t('finance.table.party'), t('common.type'), t('finance.table.amount'), t('common.status_label')];
     const data = filteredTransactions.map(tx => [
       tx.reference,
       new Date(tx.date).toLocaleDateString(),
@@ -306,7 +306,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
       [t('finance.table.party')]: tx.tiersNom,
       [t('common.type')]: tx.type,
       [t('finance.table.amount')]: tx.montantTotal,
-      [t('common.status')]: tx.statut
+      [t('common.status_label')]: tx.statut
     }));
     exportToExcel(data, 'Transactions_KONTROL');
   };
@@ -620,12 +620,6 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
           >
             <Table size={14} /> Excel
           </button>
-          <button 
-            onClick={handleCashFlowReport}
-            className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2 border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100"
-          >
-            <FileText size={14} /> {t('transactions.cash_flow_report')}
-          </button>
           {hasPermission(currentUserProfile?.role, 'TRANSACTION_CREATE') && (
             <button onClick={() => setIsAdding(true)} className="btn-primary text-xs py-1.5 px-4 flex items-center gap-2">
               <Plus size={14} /> {t('transactions.new_transaction')}
@@ -709,7 +703,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
                   <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('common.date')}</th>
                   <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('finance.table.party')}</th>
                   <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted text-right">{t('finance.table.amount')}</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('common.status')}</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('common.status_label')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-kontrol-border">

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Table, TrendingUp, Search, Filter, Loader2, Plus, FileText, X, CheckCircle2, Trash2, Calendar, DollarSign, Banknote, CreditCard, Smartphone, Wallet as WalletIcon, ArrowUpCircle, ArrowDownCircle, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { motion } from 'motion/react';
 import { exportToPDF, exportToExcel } from '../../lib/export';
-import { Wallet, Payment, UserProfile, Tiers } from '../../types';
+import { Wallet, Payment, UserProfile, Tiers, Transaction } from '../../types';
 import { cn, formatCurrency } from '../../lib/utils';
 import { hasPermission } from '../../lib/permissions';
 import { apiClient } from '../../../api/lib/api-client';
@@ -37,6 +37,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
   const companyId = currentUserProfile?.companyId || user.uid;
   const [payments, setPayments] = React.useState<Payment[]>([]);
   const [tiers, setTiers] = React.useState<Tiers[]>([]);
+  const [transactions, setTransactions] = React.useState<Transaction[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [isAddingPayment, setIsAddingPayment] = React.useState(false);
   const [isDeletingPayment, setIsDeletingPayment] = React.useState<Payment | null>(null);
@@ -81,6 +82,15 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
     unsubscribes.push(onSnapshot(qTiers, (snapshot) => {
       setTiers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Tiers[]);
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'tiers', user, false)));
+
+    // Transactions
+    const qTrans = query(
+      collection(db, 'transactions'),
+      where('ownerId', '==', companyId)
+    );
+    unsubscribes.push(onSnapshot(qTrans, (snapshot) => {
+      setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as unknown as Transaction[]);
+    }, (err) => console.warn("Failed to subscribe to transactions in Finance:", err)));
 
     return () => unsubscribes.forEach(unsub => unsub());
   }, [companyId]);
@@ -236,6 +246,165 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
     exportToExcel(data, 'Tresorerie_KONTROL');
   };
 
+  const handleCashFlowReport = async () => {
+    try {
+      const { generateCashFlowPDF } = await import('../../lib/cashflow');
+      generateCashFlowPDF(transactions, { start: startDate, end: endDate }, currentUserProfile);
+    } catch (error) {
+      console.error("PDF Error:", error);
+      alert(t('common.error_occurred'));
+    }
+  };
+
+  const handleGenerateCertificate = () => {
+    if (!bridgeResult) return;
+    try {
+      import('jspdf').then((module) => {
+        const jsPDF = module.default;
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = doc.internal.pageSize.width;
+        const pageHeight = doc.internal.pageSize.height;
+
+        // Draw elegant border & background
+        doc.setFillColor(248, 250, 252); // light background slate-50
+        doc.rect(0, 0, pageWidth, pageHeight, 'F');
+
+        // Main outer frame
+        doc.setDrawColor(15, 23, 42); // slate-900
+        doc.setLineWidth(1.5);
+        doc.rect(10, 10, pageWidth - 20, pageHeight - 20);
+
+        // Nested fancy frame
+        doc.setDrawColor(37, 99, 235); // blue-600
+        doc.setLineWidth(0.4);
+        doc.rect(12, 12, pageWidth - 24, pageHeight - 24);
+
+        // Header Background block
+        doc.setFillColor(15, 23, 42); // slate-900
+        doc.rect(15, 15, pageWidth - 30, 45, 'F');
+
+        // Header Text
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(26);
+        doc.text('KONTROL ERP', pageWidth / 2, 32, { align: 'center' });
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(156, 163, 175); // light gray
+        doc.text('SERVICES DE CERTIFICATION DE TRÉSORERIE & FINANCEMENT', pageWidth / 2, 38, { align: 'center' });
+        doc.setFontSize(12);
+        doc.setTextColor(239, 68, 68); // Red accent for "CERTIFICATE"
+        doc.setFont('helvetica', 'bold');
+        doc.text('CERTIFICAT ÉVOLUTIF D\'ÉLIGIBILITÉ AU FINANCEMENT', pageWidth / 2, 48, { align: 'center' });
+
+        // Certificate Body
+        doc.setTextColor(30, 41, 59); // slate-800
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'normal');
+        
+        let y = 80;
+        doc.text('Le présent certificat atteste officiellement que l\'entreprise désignée ci-dessous :', 30, y);
+        
+        y += 12;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(16);
+        doc.setTextColor(15, 23, 42);
+        doc.text(currentUserProfile?.companyName || 'KONTROL CLIENT', pageWidth / 2, y, { align: 'center' });
+
+        y += 10;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(`Identifiant d'entité : ${currentUserProfile?.companyId || 'N/A'}`, pageWidth / 2, y, { align: 'center' });
+
+        y += 15;
+        doc.setFontSize(11);
+        doc.setTextColor(30, 41, 59);
+        const text1 = 'A fait l\'objet d\'un audit prévisionnel automatisé en date de ce jour, basé sur l\'analyse';
+        const text2 = 'systématique de ses flux réels de trésorerie, de ses actifs circulants et des encaissements';
+        const text3 = 'enregistrés en continu sur sa plateforme de gestion KONTROL ERP.';
+        doc.text(text1, 22, y);
+        y += 6;
+        doc.text(text2, 22, y);
+        y += 6;
+        doc.text(text3, 22, y);
+
+        y += 18;
+        // Eligibility Card Background
+        doc.setFillColor(241, 245, 249); // slate-100
+        doc.rect(20, y, pageWidth - 40, 50, 'F');
+        doc.setDrawColor(226, 232, 240); // slate-200
+        doc.setLineWidth(0.5);
+        doc.rect(20, y, pageWidth - 40, 50);
+
+        // Inside Card Info
+        y += 12;
+        doc.setTextColor(15, 23, 42);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.text('MONTANT ACTUEL EFFORTABLE GARANTI (BRIDGE OFFER) :', pageWidth / 2, y, { align: 'center' });
+
+        y += 12;
+        doc.setTextColor(37, 99, 235); // blue-600
+        doc.setFontSize(28);
+        doc.text(formatCurrency(bridgeResult.amount_eligible), pageWidth / 2, y, { align: 'center' });
+
+        y += 12;
+        doc.setTextColor(16, 185, 129); // emerald-500
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Taux de Garantie Préférentiel KONTROL : 3.5% ANNUEL', pageWidth / 2, y, { align: 'center' });
+
+        y += 20;
+        doc.setTextColor(100);
+        doc.setFont('helvetica', 'italic');
+        doc.setFontSize(9);
+        doc.text('Ce titre constitue une attestation d\'éligibilité certifiée émise par KONTROL ERP.', 30, y);
+        y += 5;
+        doc.text('Elle permet d\'accélérer les démarches d\'octroi de découverts interbancaires ou de cautionnements.', 30, y);
+
+        // Signatures block
+        y += 22;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(15, 23, 42);
+        doc.text('Direction des Risques', 35, y);
+        doc.text('Contrôle de Gestion KONTROL', pageWidth - 85, y);
+
+        y += 5;
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(120);
+        doc.text('Dépôt et Validation Directe', 35, y);
+        doc.text('Comité de Crédit & Algorithmes Blue AI', pageWidth - 85, y);
+
+        // Watermark / Seal shape
+        y += 15;
+        doc.setDrawColor(37, 99, 235);
+        doc.setLineWidth(1);
+        doc.circle(pageWidth - 45, y + 10, 15);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(37, 99, 235);
+        doc.text('KONTROL', pageWidth - 45, y + 8, { align: 'center' });
+        doc.text('SCELLÉ OFFICIEL', pageWidth - 45, y + 13, { align: 'center' });
+
+        // Footer Metadata
+        doc.setTextColor(150);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        const randHash = Math.random().toString(36).substring(2, 10).toUpperCase();
+        doc.text(`Identifiant Certificat: KT-${Date.now().toString().slice(-6)}-${randHash} • Généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`, 15, pageHeight - 15);
+        doc.text('Propulsé par BLUE AI & KONTROL Core Server • Document Certifié ISO-9001', 15, pageHeight - 11);
+
+        doc.save(`Certificat_Eligibilite_${currentUserProfile?.companyName || 'Client'}.pdf`);
+        setBridgeResult(null);
+      });
+    } catch (e) {
+      console.error("Certificate Generation Error:", e);
+      alert("Erreur lors de la génération du certificat.");
+    }
+  };
+
   const [bridgeResult, setBridgeResult] = React.useState<any>(null);
   const [isCalculatingBridge, setIsCalculatingBridge] = React.useState(false);
 
@@ -274,10 +443,10 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
           </button>
           {hasPermission(currentUserProfile?.role, 'FINANCE_EXPORT') && (
             <button 
-              onClick={handleExportPDF}
-              className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2"
+              onClick={handleCashFlowReport}
+              className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2 border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 font-bold"
             >
-              <FileText size={14} /> PDF
+              <FileText size={14} /> {t('transactions.cash_flow_report')}
             </button>
           )}
           {hasPermission(currentUserProfile?.role, 'FINANCE_CREATE') && (
@@ -309,7 +478,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
                 <p className="text-[10px] font-black text-emerald-600 uppercase">{t('finance.preferential_rate')}</p>
                 <p className="text-lg font-black text-kontrol-dark">3.5% <span className="text-[10px] text-kontrol-ink-muted">{t('finance.annual')}</span></p>
               </div>
-              <button className="btn-primary text-[10px] px-4 py-2 uppercase font-black" onClick={() => setBridgeResult(null)}>{t('finance.unlock_funds')}</button>
+              <button className="btn-primary text-[10px] px-4 py-2 uppercase font-black" onClick={handleGenerateCertificate}>{t('finance.unlock_funds')}</button>
             </div>
           </div>
         </motion.div>

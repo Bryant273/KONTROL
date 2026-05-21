@@ -102,7 +102,7 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
         
         <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-kontrol-bg border border-kontrol-border rounded-full mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
           <Sparkles size={14} className="text-kontrol-orange" />
-          <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-kontrol-ink-muted">{t('common.chatbot.powered_by')} BLUE AI & INNOV'KORP</span>
+          <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-kontrol-ink-muted">{t('common.powered_by')} BLUE AI & INNOV'KORP</span>
         </div>
 
         <h1 className="text-4xl lg:text-6xl font-extrabold tracking-tighter leading-[0.9] mb-6 animate-in fade-in slide-in-from-bottom-6 duration-700 delay-100">

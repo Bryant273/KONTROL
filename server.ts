@@ -54,7 +54,7 @@ const neuralBrain = new BlueNeuralBrain(db);
 
 const securityShield = {
   validate: (req: any) => {
-    // Logic bridging Go Gateway and Rust Shield
+    // Logic for API Gateway and Security Shield validation
     const shieldToken = req.headers['x-kontrol-shield'];
     const hasShield = shieldToken === 'HARDENED' || shieldToken === 'SHIELD_SIG_KONTROL_2026_MASTER';
     const isSensitive = req.path.includes('/admin') || req.path.includes('/business') || req.path.includes('/sql');
@@ -64,7 +64,7 @@ const securityShield = {
 };
 
 function initDb() {
-  console.log("PostgreSQL Bridge Engine: Operational");
+  console.log("Database Core Engine: Operational");
   try {
     const files = fs.readdirSync(sqlDir);
     for (const file of files) {
@@ -176,9 +176,9 @@ function initDb() {
       db.prepare(`
         INSERT INTO actions (id, userId, type, description, createdAt)
         VALUES 
-          ('act_1', 'admin_1', 'SUCCÈS', 'Connexion sécurisée établie via SSL (Go Gateway)', ?),
+          ('act_1', 'admin_1', 'SUCCÈS', 'Connexion sécurisée établie via SSL (Gateway)', ?),
           ('act_2', 'admin_1', 'INFO', 'Indexation SQL du module Trésorerie terminée', ?),
-          ('act_3', 'system', 'ALERTE', 'Détection de croissance MRR (+12%) par Java Core', ?)
+          ('act_3', 'system', 'ALERTE', 'Détection de croissance MRR (+12%) par le Core Engine', ?)
       `).run(now, now - 1800000, now - 3600000);
     }
   } catch (err) {
@@ -191,6 +191,9 @@ initDb();
 async function startServer() {
   const app = express();
   const PORT = 3000;
+
+  // Enable trusting proxy headers (necessary for rate limiting behind reverse proxies/ingress like Cloud Run)
+  app.set('trust proxy', 1);
 
   // --- 1. GLOBAL SECURITY HEADERS (HELMET) ---
   app.use(helmet({
@@ -224,19 +227,22 @@ async function startServer() {
     max: 2000, 
     standardHeaders: true,
     legacyHeaders: false,
-    message: { error: "TOO_MANY_REQUESTS", message: "Trop de requêtes, veuillez patienter." }
+    message: { error: "TOO_MANY_REQUESTS", message: "Trop de requêtes, veuillez patienter." },
+    validate: { trustProxy: false, forwardedHeader: false }
   });
 
   const apiLimiter = rateLimit({
     windowMs: 1 * 60 * 1000, // 1 minute
     max: 500, 
-    message: { error: "API_THROTTLE", message: "Vitesse de requête API limitée." }
+    message: { error: "API_THROTTLE", message: "Vitesse de requête API limitée." },
+    validate: { trustProxy: false, forwardedHeader: false }
   });
 
   const paymentLimiter = rateLimit({
     windowMs: 1 * 60 * 1000, 
     max: 50, 
-    message: { error: "PAYMENT_THROTTLE", message: "Tentatives de paiement limitées pour sécurité." }
+    message: { error: "PAYMENT_THROTTLE", message: "Tentatives de paiement limitées pour sécurité." },
+    validate: { trustProxy: false, forwardedHeader: false }
   });
 
   app.use("/api/", apiLimiter);
@@ -314,7 +320,7 @@ async function startServer() {
     const origin = req.headers['x-kontrol-origin'];
     if (!origin) {
       // Log warning but allow for now to prevent deployment failure until frontend is updated
-      console.warn(`[ISOLATION] Missing x-polyglot-origin: ${req.method} ${req.path}`);
+      console.warn(`[ISOLATION] Missing x-kontrol-origin: ${req.method} ${req.path}`);
       // return res.status(401).json({ ... }); // Disabled for compatibility
     }
     next();
@@ -326,8 +332,8 @@ async function startServer() {
       console.warn(`[SHIELD] Security violation detected on ${req.path}`);
       return res.status(403).json({ 
         error: "SHIELD_VIOLATION",
-        message: "Untrusted origin or memory integrity failure (Rust Shield)",
-        trace: "GO-GATEWAY-REJECTED"
+        message: "Untrusted origin or API token validation failure (Security Shield)",
+        trace: "API-GATEWAY-REJECTED"
       });
     }
     next();
@@ -391,7 +397,7 @@ async function startServer() {
 
   app.use(polyglotGate);
 
-  // --- SYSTEM MODULES (POLYGLOT INTEGRATION) ---
+  // --- SYSTEM MODULES (INTEGRATION) ---
   app.get("/system/status", (req, res) => {
     res.json({
       orchestrator: "KONTROL V4",
@@ -403,9 +409,9 @@ async function startServer() {
   });
 
   app.get("/system/audit", (req, res) => {
-    // Simulated Java Core Audit Response
+    // Simulated Core Audit Response
     res.json({
-      module: "JAVA_AUDITOR",
+      module: "AUDIT_ENGINE",
       result: "SUCCESS",
       timestamp: Date.now(),
       data: {
@@ -418,45 +424,45 @@ async function startServer() {
   });
 
   app.get("/system/token", (req, res) => {
-    // Go Auth Kernel Token Issuance
+    // Auth Token Issuance
     const userId = (req.query.userId as string) || "admin_1";
-    const token = `KONTROL_GO_${userId.toUpperCase()}_${Buffer.from(Date.now().toString()).toString('base64').substring(0, 12)}`;
+    const token = `KONTROL_SYS_${userId.toUpperCase()}_${Buffer.from(Date.now().toString()).toString('base64').substring(0, 12)}`;
     res.json({
       token,
-      issued_by: "GO-KERNEL-AUTH-V4",
+      issued_by: "KONTROL-AUTH-V4",
       expires_at: Date.now() + 86400000,
       claims: ["ADMIN", "AUDITOR", "USER"],
-      status: "HARDENED"
+      status: "SECURE"
     });
   });
 
   app.get("/system/cache/status", (req, res) => {
     res.json({
-      engine: "GO-IN-MEMORY-CACHE",
+      engine: "MEMORY-CACHE",
       status: "OPTIMAL",
       entries: Math.floor(Math.random() * 100) + 50,
       eviction: "LRU"
     });
   });
 
-  // --- POLYGLOT CONTROLLERS (MAPPING JAVA/PYTHON/RUST MODULES) ---
+  // --- SYSTEM CONTROLLERS (MAPPING CORE MODULES) ---
   const erpExpert = {
     stockAudit: (req: any, res: any) => {
       const products = db.prepare("SELECT * FROM produits").all();
       res.json({
-        module: "JAVA_ERP_STOCK",
+        module: "CORE_ERP_STOCK",
         total_valuation: products.reduce((acc: number, p: any) => acc + (p.stock * p.prix_achat), 0),
         items: products.length,
-        status: "OPTIMIZED_RUST_SHIELD"
+        status: "OPTIMIZED_SECURITY"
       });
     },
     movements: (req: any, res: any) => {
       const moves = db.prepare("SELECT * FROM stock_movements ORDER BY created_at DESC LIMIT 50").all();
-      res.json({ module: "JAVA_STOCK_MOVEMENTS", data: moves });
+      res.json({ module: "CORE_STOCK_MOVEMENTS", data: moves });
     },
     tiers: (req: any, res: any) => {
       const tiers = db.prepare("SELECT * FROM tiers").all();
-      res.json({ module: "JAVA_TIERS_MANAGER", count: tiers.length, data: tiers, shield: "RUST_VERIFIED" });
+      res.json({ module: "CORE_TIERS_MANAGER", count: tiers.length, data: tiers, shield: "SECURE_VERIFIED" });
     },
     products: (req: any, res: any) => {
       const products = db.prepare("SELECT * FROM produits").all();
@@ -584,7 +590,7 @@ async function startServer() {
     },
     subscriptions: (req: any, res: any) => {
       res.json({ 
-        module: "JAVA_SUBSCRIPTION_MANAGER", 
+        module: "CORE_SUBSCRIPTION_MANAGER", 
         status: "SYNCED",
         plans: ["FREE", "PRO", "ENTERPRISE"]
       });
@@ -594,13 +600,13 @@ async function startServer() {
   // API routes REGISTRY
   app.get("/api/health", (req, res) => res.status(200).send("OK"));
   
-  // Go Gateway Simulation Point
+  // API Gateway Shield Identification
   app.get("/api/gateway/shield/identify", (req, res) => {
     const shieldToken = "SHIELD_SIG_KONTROL_2026_MASTER";
     res.json({
       authorized: true,
       shield_uid: shieldToken,
-      node: "GO-GATEWAY-DECORATOR",
+      node: "API-GATEWAY-SHIELD",
       latency: "1ms",
       protected: true
     });
@@ -659,13 +665,13 @@ async function startServer() {
   app.get("/api/system/audit", (req, res) => {
     res.json({
       boot_status: "HEALTHY",
-      bridge: "PostgreSQL_Ready",
-      polyglot_sync: {
-        go: "8081_READY",
-        java: "8082_ORCHESTRATED",
-        rust: "L2_SHIELD_ACTIVE"
+      bridge: "Database_Core_Ready",
+      engine_sync: {
+        gateway: "ACTIVE",
+        core: "ORCHESTRATED",
+        shield: "SHIELD_ACTIVE"
       },
-      audit_log: "System checked via Rust Integrity module"
+      audit_log: "System checked via Security Integrity module"
     });
   });
 

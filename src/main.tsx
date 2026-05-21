@@ -24,16 +24,22 @@ window.addEventListener('unhandledrejection', (event) => {
   const isErrorLike = reason && typeof reason === 'object' && ('message' in reason || 'stack' in reason);
   
   if (reason instanceof Error || isErrorLike) {
-    const name = reason.name || (reason.constructor ? reason.constructor.name : "Error");
-    const message = (reason.message === "" ? "[EMPTY_MESSAGE_STRING]" : (reason.message || "[NULL_OR_UNDEFINED_MESSAGE]"));
-    const stack = reason.stack || "[NO_STACK_TRACE]";
+    let name = String(reason.name || (reason.constructor ? reason.constructor.name : "Error") || "Error").trim() || "Error";
+    if (name === "Error") {
+      name = "UnhandledPromiseRejection";
+    }
+    const rawMsg = (reason.message !== undefined && reason.message !== null) ? String(reason.message).trim() : "";
+    const message = rawMsg === "" ? "[EMPTY_LIMIT_OR_BLANK_REJECTION_MSG]" : rawMsg;
+    const rawStack = (reason.stack !== undefined && reason.stack !== null) ? String(reason.stack).trim() : "";
+    const stack = rawStack === "" ? "[NO_STACK_TRACE]" : rawStack;
 
-    console.error("K-REJECTION-NAME (IDENTIFIED):", name);
-    console.error("K-REJECTION-MSG (IDENTIFIED):", message);
-    console.error("K-REJECTION-STACK (IDENTIFIED):", stack);
+    // Log identifiers as clear single strings to prevent automatic terminal argument splitting on newlines
+    console.error(`K-REJECTION-NAME (IDENTIFIED): ${name}`);
+    console.error(`K-REJECTION-MSG (IDENTIFIED): ${message}`);
+    console.error(`K-REJECTION-STACK (IDENTIFIED): ${stack}`);
     
     // Log the actual object for deep inspection if it's a generic Error or lacks message
-    if (name === "Error" && (message === "[EMPTY_MESSAGE_STRING]" || message === "[NULL_OR_UNDEFINED_MESSAGE]")) {
+    if (name === "UnhandledPromiseRejection" && rawMsg === "") {
       console.error("K-REJECTION-RAW-ERROR-OBJECT:", reason);
     }
     

@@ -17,6 +17,12 @@
     "profile": "My Profile",
     "subscriptions": "Subscription",
     "users": "Users",
+    "user": "User",
+    "date": "Creation Date",
+    "ref": "Reference",
+    "type": "Type",
+    "description": "Description",
+    "status_label": "Status",
     "actions": "Actions",
     "versions": "Versions",
     "logout": "Log Out",
@@ -38,6 +44,9 @@
       "rejected": "Rejected",
       "paid": "Paid"
     },
+    "view": "View",
+    "copy": "Copy",
+    "copied": "Copied!",
     "search": "Search...",
     "loading": "Loading...",
     "save": "Save",
@@ -68,8 +77,8 @@
       "guest_restricted_auth": "Sorry, guest access is not yet configured (Anonymous Authentication disabled in Firebase). Please log in to use the chatbot.",
       "guest_restricted_features": "Sorry, report generation and personalized advice are reserved for logged-in users. Please log in to access these features.",
       "error": "An error occurred. Please try again later.",
-      "title": "Blue AI Intelligence",
-      "status_active": "Active Brain",
+      "title": "BLUE AI",
+      "status_active": "Virtual Assistant",
       "delete_confirm_title": "Delete?",
       "delete_confirm_text": "This action is irreversible. All data from this exchange will be lost.",
       "welcome_title": "Welcome to KONTROL",
@@ -89,7 +98,7 @@
     }
   },
   "auth": {
-    "left_title": "The management of tomorrow, <br /> <span class=\"text-kontrol-blue\">available today.</span>",
+    "left_title": "The management of tomorrow, available today.",
     "left_subtitle": "Join the INNOV'KORP ecosystem and transform your shop with KONTROL.",
     "features": {
       "security_title": "Total Security",
@@ -114,7 +123,7 @@
     "login_submit": "Log In",
     "register_submit": "Create My Account",
     "or": "or",
-    "terms_text": "By continuing, you accept our <span class=\"font-bold\">Terms</span> and our <span class=\"font-bold\">Privacy Policy</span>.",
+    "terms_text": "By continuing, you accept our Terms and our Privacy Policy.",
     "loading": {
       "title": "KONTROL SYSTEM",
       "initializing": "Secure Initialization",
@@ -129,7 +138,7 @@
       "client_space": "Access Client Space"
     },
     "hero": {
-      "title": "Manage your shop <br /> <span class=\"text-transparent bg-clip-text bg-gradient-to-r from-kontrol-blue to-kontrol-orange\">with ease.</span>",
+      "title": "Manage your shop with ease.",
       "subtitle": "The all-in-one solution designed to simplify stock management, sales, and accounting for SMEs, shops, and small businesses.",
       "cta_start": "Start for free",
       "cta_demo": "Request a demo"
@@ -171,7 +180,7 @@
     },
     "about": {
       "badge": "About us",
-      "title": "Innovation at the service of <br /> <span class=\"text-kontrol-blue\">your growth.</span>",
+      "title": "Innovation at the service of your growth.",
       "desc": "KONTROL is a cutting-edge technological solution developed by INNOV'KORP, dedicated to the digital transformation of SMEs and shops. Our mission is to democratize cutting-edge management tools to enable every small shopkeeper to succeed.",
       "stat1": "10+",
       "stat1_desc": "Businesses trust us",
@@ -182,7 +191,7 @@
       "quote": "\"Under the leadership of INNOV'KORP, our vision is to create tools so intuitive that they become invisible, letting the entrepreneur focus on their core business.\""
     },
     "contact": {
-      "title": "Let's talk about your <br /> <span class=\"text-kontrol-orange\">project.</span>",
+      "title": "Let's talk about your project.",
       "subtitle": "Got questions or need a personalized demo? Our team is at your service to assist you in your digital transformation."
     },
     "footer": {
@@ -865,6 +874,7 @@
     "table": {
       "date": "Date",
       "description_party": "Description / Party",
+      "party": "Party",
       "method": "Method",
       "amount": "Amount"
     }
@@ -892,7 +902,7 @@
     "total_xof": "Total Transaction (XOF)",
     "total_in": "Total in {{devise}}",
     "activity_log": "Transaction Activity Log",
-    "scan_qr_instruction": "Scan this code to initiate payment to: <span class=\"font-bold text-kontrol-blue\">{{phone}}</span>",
+    "scan_qr_instruction": "Scan this code to initiate payment to: {{phone}}",
     "form": {
       "type_sale": "Sale (Stock Out)",
       "type_purchase": "Purchase (Stock In)",
@@ -961,6 +971,13 @@
   "users": {
     "title": "Team Management",
     "subtitle": "View and manage access for your team members",
+    "table_headers": {
+      "user": "USER",
+      "role": "ROLE",
+      "status": "STATUS",
+      "date": "CREATION DATE",
+      "actions": "ACTIONS"
+    },
     "new_user": "New user",
     "add_member": "Add a member",
     "no_users": "No users found.",
@@ -994,7 +1011,7 @@
     },
     "security": {
       "title": "Security & Access",
-      "uid": "Unique ID (UID)",
+      "uid": "ID",
       "reset_password": "Reset Password",
       "reset_confirm": "Send a password reset email to {{name}} ({{email}})?",
       "reset_success": "Reset email sent successfully.",

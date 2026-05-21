@@ -29,7 +29,7 @@ export const apiClient = {
   async fetch(url: string, options: FetchOptions = {}) {
     const headers = new Headers(options.headers || {});
     
-    // Inject Shield Token (Dynamic from Go Gateway)
+    // Inject Shield Token (Dynamic from API Gateway)
     if (!headers.has('x-kontrol-shield') && !url.includes('/shield/identify')) {
       const token = await fetchShieldToken();
       headers.set('x-kontrol-shield', token);

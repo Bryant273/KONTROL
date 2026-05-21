@@ -509,7 +509,7 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
                   <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('produits.table.designation')}</th>
                   <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted text-right">{t('produits.form.sell_price')}</th>
                   <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted text-center">{t('produits.table.stock')}</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('common.status')}</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('common.status_label')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-kontrol-border">

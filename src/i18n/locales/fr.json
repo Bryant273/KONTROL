@@ -17,6 +17,12 @@
     "profile": "Mon profil",
     "subscriptions": "Abonnement",
     "users": "Utilisateurs",
+    "user": "Utilisateur",
+    "date": "Date de création",
+    "ref": "Référence",
+    "type": "Type",
+    "description": "Description",
+    "status_label": "Statut",
     "actions": "Actions",
     "versions": "Versions",
     "logout": "Se déconnecter",
@@ -38,6 +44,9 @@
       "rejected": "Rejeté",
       "paid": "Payé"
     },
+    "view": "Voir",
+    "copy": "Copier",
+    "copied": "Copié !",
     "search": "Rechercher...",
     "loading": "Chargement...",
     "save": "Enregistrer",
@@ -68,8 +77,8 @@
       "guest_restricted_auth": "Désolé, l'accès invité n'est pas encore configuré (Authentification Anonyme désactivée dans Firebase). Veuillez vous connecter pour utiliser le chatbot.",
       "guest_restricted_features": "Désolé, la génération de rapports et les conseils personnalisés sont réservés aux utilisateurs connectés. Veuillez vous connecter pour accéder à ces fonctionnalités.",
       "error": "Une erreur est survenue. Veuillez réessayer plus tard.",
-      "title": "Blue AI Intelligence",
-      "status_active": "Cerveau Actif",
+      "title": "BLUE AI",
+      "status_active": "Assistant virtuel",
       "delete_confirm_title": "Supprimer ?",
       "delete_confirm_text": "Cette action est irréversible. Toutes les données de cet échange seront perdues.",
       "welcome_title": "Bienvenue chez KONTROL",
@@ -89,7 +98,7 @@
     }
   },
   "auth": {
-    "left_title": "La gestion de demain, <br /> <span class=\"text-kontrol-blue\">disponible aujourd'hui.</span>",
+    "left_title": "La gestion de demain, disponible aujourd'hui.",
     "left_subtitle": "Rejoignez l'écosystème INNOV'KORP et transformez votre boutique avec KONTROL.",
     "features": {
       "security_title": "Sécurité Totale",
@@ -114,7 +123,7 @@
     "login_submit": "Se connecter",
     "register_submit": "Créer mon compte",
     "or": "ou",
-    "terms_text": "En continuant, vous acceptez nos <span class=\"font-bold\">Conditions</span> et notre <span class=\"font-bold\">Confidentialité</span>.",
+    "terms_text": "En continuant, vous acceptez nos Conditions et notre Confidentialité.",
     "loading": {
       "title": "KONTROL SYSTEM",
       "initializing": "Initialisation sécurisée",
@@ -129,7 +138,7 @@
       "client_space": "Accéder à l'Espace Client"
     },
     "hero": {
-      "title": "Gérez votre boutique <br /> <span class=\"text-transparent bg-clip-text bg-gradient-to-r from-kontrol-blue to-kontrol-orange\">en toute simplicité.</span>",
+      "title": "Gérez votre boutique en toute simplicité.",
       "subtitle": "La solution tout-en-un conçue pour simplifier la gestion des stocks, des ventes et de la comptabilité des TPE, boutiques et petits commerces.",
       "cta_start": "Démarrer gratuitement",
       "cta_demo": "Demander une démo"
@@ -171,7 +180,7 @@
     },
     "about": {
       "badge": "À propos de nous",
-      "title": "L'innovation au service de <br /> <span class=\"text-kontrol-blue\">votre croissance.</span>",
+      "title": "L'innovation au service de votre croissance.",
       "desc": "KONTROL est une solution technologique de pointe développée par INNOV'KORP, dédiée à la transformation numérique des TPE et boutiques. Notre mission est de démocratiser les outils de gestion de pointe pour permettre à chaque petit commerçant de réussir.",
       "stat1": "10+",
       "stat1_desc": "Entreprises nous font confiance",
@@ -182,7 +191,7 @@
       "quote": "\"Sous la direction d'INNOV'KORP, notre vision est de créer des outils si intuitifs qu'ils deviennent invisibles, laissant l'entrepreneur se concentrer sur son coeur de métier.\""
     },
     "contact": {
-      "title": "Parlons de votre <br /> <span class=\"text-kontrol-orange\">projet.</span>",
+      "title": "Parlons de votre projet.",
       "subtitle": "Vous avez des questions ou besoin d'une démonstration personnalisée ? Notre équipe est à votre écoute pour vous accompagner dans votre transformation numérique."
     },
     "footer": {
@@ -859,6 +868,7 @@
     "table": {
       "date": "Date",
       "description_party": "Description / Tiers",
+      "party": "Tiers",
       "method": "Mode",
       "amount": "Montant"
     }
@@ -886,8 +896,8 @@
     "total_xof": "Total Transaction (XOF)",
     "total_in": "Total en {{devise}}",
     "activity_log": "Journal des transactions",
-    "scan_qr_instruction": "Scannez ce code pour initier le paiement vers le numéro : <span class=\"font-bold text-kontrol-blue\">{{phone}}</span>",
-    "form": {
+      "scan_qr_instruction": "Scannez ce code pour initier le paiement vers le numéro : {{phone}}",
+      "form": {
       "type_sale": "Vente (Sortie de stock)",
       "type_purchase": "Achat (Entrée en stock)",
       "party": "Tiers (Client/Fournisseur)",
@@ -955,6 +965,13 @@
   "users": {
     "title": "Gestion du Personnel",
     "subtitle": "Pilotez votre équipe et contrôlez les accès de votre entreprise.",
+    "table_headers": {
+      "user": "UTILISATEUR",
+      "role": "ROLE",
+      "status": "STATUT",
+      "date": "DATE DE CREATION",
+      "actions": "ACTIONS"
+    },
     "new_user": "Nouvel utilisateur",
     "add_member": "Ajouter un membre",
     "no_users": "Aucun utilisateur trouvé.",
@@ -988,7 +1005,7 @@
     },
     "security": {
       "title": "Sécurité & Accès",
-      "uid": "Identifiant Unique (UID)",
+      "uid": "Identifiant",
       "reset_password": "Réinitialiser MDP",
       "reset_confirm": "Envoyer un email de réinitialisation de mot de passe à {{name}} ({{email}}) ?",
       "reset_success": "Email de réinitialisation envoyé avec succès.",

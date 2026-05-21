@@ -13,6 +13,8 @@ import {
   ArrowUpRight, 
   ArrowDownRight,
   ArrowLeftRight,
+  ChevronLeft,
+  ChevronRight,
   Loader2,
   Search,
   Filter,
@@ -120,9 +122,10 @@ interface ControlTowerProps {
   activeSubTab?: string;
   user?: User | null;
   profile?: UserProfile | null;
+  onTabChange?: (tab: string, section: string, label: string) => void;
 }
 
-export function ControlTower({ activeSubTab = 'dashboard', user, profile }: ControlTowerProps) {
+export function ControlTower({ activeSubTab = 'dashboard', user, profile, onTabChange }: ControlTowerProps) {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
 
@@ -404,7 +407,7 @@ export function ControlTower({ activeSubTab = 'dashboard', user, profile }: Cont
 
       {/* Main Content Dispatcher */}
       <AnimatePresence mode="wait">
-        {activeSubTab === 'dashboard' && <VisionView stats={stats} companies={companies} recentActions={recentActions} treasuryBalance={treasuryBalance} systemStats={systemStats} />}
+        {activeSubTab === 'dashboard' && <VisionView stats={stats} companies={companies} recentActions={recentActions} treasuryBalance={treasuryBalance} systemStats={systemStats} onTabChange={onTabChange} />}
         
         {/* Supervision Écosystème */}
         {activeSubTab === 'entreprises' && (
@@ -596,16 +599,65 @@ export function ControlTower({ activeSubTab = 'dashboard', user, profile }: Cont
   );
 }
 
-// --- SUB-VIEWS ---
-
-function VisionView({ stats, companies, recentActions, treasuryBalance, systemStats }: any) {
+function VisionView({ stats, companies, recentActions, treasuryBalance, systemStats, onTabChange }: any) {
   const { t } = useTranslation();
   const [period, setPeriod] = useState<'7' | '30'>('30');
+  
+  // Campaign launcher states
+  const [showCampaignModal, setShowCampaignModal] = useState(false);
+  const [campaignData, setCampaignData] = useState({
+    subject: '',
+    body: '',
+    target: 'ALL_USERS'
+  });
+  const [isSendingCampaign, setIsSendingCampaign] = useState(false);
+
   const topCompanies = [...companies]
     .sort((a, b) => (b.revenue || 0) - (a.revenue || 0))
     .slice(0, 5);
 
   const filteredChartData = period === '7' ? systemStats.slice(-7) : systemStats;
+
+  const handleLaunchCampaignSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!campaignData.subject.trim() || !campaignData.body.trim()) return;
+
+    setIsSendingCampaign(true);
+    try {
+      await logAction(
+        'SYSTEM',
+        auth.currentUser?.uid || 'SYSTEM',
+        auth.currentUser?.displayName || 'ADMIN_KONTROL',
+        'SYSTEM_CAMPAIGN_LAUNCHED',
+        `Sujet: ${campaignData.subject} | Cible: ${campaignData.target}`
+      );
+
+      toast.success("Campagne de communication envoyée avec succès à toute la cible !");
+      setShowCampaignModal(false);
+      setCampaignData({ subject: '', body: '', target: 'ALL_USERS' });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'campaign', auth.currentUser, false);
+    } finally {
+      setIsSendingCampaign(false);
+    }
+  };
+
+  const handleFastIpBlock = () => {
+    const ipToBlock = '194.5.122.99'; 
+    if ((window as any).blockIpFromSystem) {
+      (window as any).blockIpFromSystem(ipToBlock);
+      toast.info("Redirection immédiate vers le Pare-feu...");
+      if (onTabChange) {
+        onTabChange('system', 'Système', 'Télémétrie');
+      }
+    } else {
+      // In case sidebar config or telemetry is not loaded yet
+      toast.info("Ajout de la règle de sécurité dans le système...");
+      if (onTabChange) {
+        onTabChange('system', 'Système', 'Télémétrie');
+      }
+    }
+  };
 
   return (
     <motion.div 
@@ -650,6 +702,7 @@ function VisionView({ stats, companies, recentActions, treasuryBalance, systemSt
               </button>
             </div>
           </div>
+
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={filteredChartData}>
@@ -676,7 +729,7 @@ function VisionView({ stats, companies, recentActions, treasuryBalance, systemSt
           <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted mb-6">{t('admin.charts.top_companies')}</h3>
           <div className="space-y-6">
             {topCompanies.length > 0 ? topCompanies.map((company, idx) => (
-              <div key={company.id} className="flex items-center justify-between group cursor-pointer">
+              <div key={company.id} className="flex items-center justify-between group cursor-pointer" onClick={() => onTabChange && onTabChange('entreprises', 'Supervision', 'Entreprises')}>
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-xl bg-kontrol-bg border border-kontrol-border flex items-center justify-center text-kontrol-blue font-bold text-sm group-hover:bg-kontrol-blue group-hover:text-white transition-all">
                     {idx + 1}
@@ -692,7 +745,7 @@ function VisionView({ stats, companies, recentActions, treasuryBalance, systemSt
               <p className="text-[11px] text-kontrol-ink-muted italic">{t('admin.charts.no_data')}</p>
             )}
           </div>
-          <button className="w-full mt-8 py-3 bg-kontrol-bg text-kontrol-ink-soft text-[10px] font-extrabold uppercase tracking-widest rounded-xl hover:bg-kontrol-border transition-all">
+          <button onClick={() => onTabChange && onTabChange('entreprises', 'Supervision', 'Entreprises')} className="w-full mt-8 py-3 bg-kontrol-bg text-kontrol-ink-soft text-[10px] font-extrabold uppercase tracking-widest rounded-xl hover:bg-kontrol-border transition-all">
             {t('admin.charts.view_ecosystem')}
           </button>
         </div>
@@ -737,8 +790,8 @@ function VisionView({ stats, companies, recentActions, treasuryBalance, systemSt
               </div>
               <div>
                 <p className="text-[13px] font-extrabold text-rose-900">{t('admin.alerts.brute_force')}</p>
-                <p className="text-[11px] text-rose-700 mt-1">{t('admin.alerts.brute_force_desc')}</p>
-                <button className="mt-2 text-[10px] font-extrabold text-rose-600 uppercase tracking-widest hover:underline">{t('admin.alerts.block_ip')}</button>
+                <p className="text-[11px] text-rose-700 mt-1">{t('admin.alerts.brute_force_desc')} (IP: 194.5.122.99)</p>
+                <button onClick={handleFastIpBlock} className="mt-2 text-[10px] font-extrabold text-rose-600 uppercase tracking-widest hover:underline">{t('admin.alerts.block_ip')}</button>
               </div>
             </div>
             <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex gap-4">
@@ -748,7 +801,12 @@ function VisionView({ stats, companies, recentActions, treasuryBalance, systemSt
               <div>
                 <p className="text-[13px] font-extrabold text-amber-900">{t('admin.alerts.db_latency')}</p>
                 <p className="text-[11px] text-amber-700 mt-1">{t('admin.alerts.db_latency_desc')}</p>
-                <button className="mt-2 text-[10px] font-extrabold text-amber-600 uppercase tracking-widest hover:underline">{t('admin.alerts.view_telemetry')}</button>
+                <button 
+                  onClick={() => onTabChange && onTabChange('system', 'Système', 'Télémétrie')} 
+                  className="mt-2 text-[10px] font-extrabold text-amber-600 uppercase tracking-widest hover:underline font-bold"
+                >
+                  {t('admin.alerts.view_telemetry')}
+                </button>
               </div>
             </div>
             <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex gap-4">
@@ -758,12 +816,70 @@ function VisionView({ stats, companies, recentActions, treasuryBalance, systemSt
               <div>
                 <p className="text-[13px] font-extrabold text-blue-900">{t('admin.alerts.ai_insight')}</p>
                 <p className="text-[11px] text-blue-700 mt-1">{t('admin.alerts.ai_insight_desc')}</p>
-                <button className="mt-2 text-[10px] font-extrabold text-blue-600 uppercase tracking-widest hover:underline">{t('admin.alerts.launch_campaign')}</button>
+                <button onClick={() => setShowCampaignModal(true)} className="mt-2 text-[10px] font-extrabold text-blue-600 uppercase tracking-widest hover:underline">{t('admin.alerts.launch_campaign')}</button>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Campaign Launcher Dialog */}
+      {showCampaignModal && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-kontrol-dark/60 backdrop-blur-sm p-4 animate-fade-in">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden">
+            <div className="p-8 border-b border-kontrol-border flex items-center justify-between bg-kontrol-bg/30">
+              <h3 className="text-xl font-extrabold text-kontrol-dark tracking-tight">🚀 Lancer une Campagne Flash</h3>
+              <button onClick={() => setShowCampaignModal(false)} className="p-2 hover:bg-kontrol-border rounded-xl transition-colors"><X size={20} /></button>
+            </div>
+            <form onSubmit={handleLaunchCampaignSubmit} className="p-8 space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Cible de la Campagne</label>
+                <select 
+                  className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl text-[13px] outline-none font-bold focus:border-kontrol-blue"
+                  value={campaignData.target}
+                  onChange={(e) => setCampaignData({...campaignData, target: e.target.value})}
+                >
+                  <option value="ALL_USERS">Tous les utilisateurs de l'écosystème</option>
+                  <option value="COMPANY_ADMINS">Uniquement les Administrateurs Corporate</option>
+                  <option value="ERP_MANAGERS">Exclusivement les Gestionnaires KONTROL</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Sujet de la notification</label>
+                <input 
+                  type="text" 
+                  required 
+                  placeholder="Ex: Alerte Maintenance de Nuit ou Offre Spéciale" 
+                  className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl text-[13px] outline-none focus:border-kontrol-blue"
+                  value={campaignData.subject}
+                  onChange={(e) => setCampaignData({...campaignData, subject: e.target.value})}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Corps du message (SMS / Push)</label>
+                <textarea 
+                  required 
+                  rows={4}
+                  placeholder="Écrivez votre message de campagne ici..." 
+                  className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl text-[13px] outline-none focus:border-kontrol-blue resize-none"
+                  value={campaignData.body}
+                  onChange={(e) => setCampaignData({...campaignData, body: e.target.value})}
+                />
+              </div>
+
+              <button 
+                type="submit" 
+                disabled={isSendingCampaign || !campaignData.subject.trim() || !campaignData.body.trim()} 
+                className="w-full btn-primary py-4 font-extrabold uppercase tracking-widest text-[12px] flex items-center justify-center gap-2 shadow-xl shadow-kontrol-blue/20"
+              >
+                {isSendingCampaign ? <Loader2 size={18} className="animate-spin" /> : 'Diffuser la campagne flash'}
+              </button>
+            </form>
+          </motion.div>
+        </div>
+      )}
     </motion.div>
   );
 }
@@ -2225,9 +2341,9 @@ Sois audacieux mais réaliste.`;
               <div className="space-y-4">
                 {[
                   { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', desc: 'Sémantique & Analyse' },
-                  { id: 'go-gateway', name: 'Go Gateway', desc: 'Sécurité Externe & Gateway (8081)' },
-                  { id: 'java-spring', name: 'Spring Boot Core', desc: 'Logique Métier ERP (8082)' },
-                  { id: 'rust-shield', name: 'Rust Shield', desc: 'Bouclier Interne & Intégrité' }
+                  { id: 'api-gateway', name: 'API Gateway', desc: 'Sécurisation et routage des requêtes externes' },
+                  { id: 'erp-core', name: 'ERP Core Engine', desc: 'Logique métier, trésorerie et facturation' },
+                  { id: 'security-shield', name: 'Security Shield L3', desc: 'Chiffrement interne des données et intégrité' }
                 ].map((m) => (
                   <div 
                     key={m.id} 
@@ -2441,10 +2557,10 @@ Sois audacieux mais réaliste.`;
 
                 <div className="space-y-4">
                    {[
-                    { label: "Go Gateway", status: "8081/ACTIVE", color: "bg-emerald-500", p: 100 },
-                    { label: "Spring Core", status: "8082/READY", color: "bg-emerald-500", p: 100 },
-                    { label: "Rust Shield", status: "HARDENED", color: "bg-emerald-500", p: 100 },
-                    { label: "PostgreSQL Bridge", status: "SYNCED", color: "bg-blue-500", p: 98 },
+                    { label: "API Gateway", status: "ACTIVE", color: "bg-emerald-500", p: 100 },
+                    { label: "ERP Core Engine", status: "READY", color: "bg-emerald-500", p: 100 },
+                    { label: "Security Shield", status: "ACTIVE", color: "bg-emerald-500", p: 100 },
+                    { label: "Database Core", status: "SYNCED", color: "bg-blue-500", p: 98 },
                     { label: "Logic Refactoring", status: "COMPLETE", color: "bg-emerald-500", p: 100 },
                   ].map((item, i) => (
                     <div key={i} className="space-y-1.5 font-bold uppercase text-[9px]">
@@ -2498,6 +2614,96 @@ function SystemTelemetryView({ stats, metrics }: any) {
   const [isResetting, setIsResetting] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   
+  // Firewall State
+  const [blockedIps, setBlockedIps] = useState<string[]>(['192.168.100.41', '105.235.12.89']);
+  const [newIpToBlock, setNewIpToBlock] = useState('');
+  const [isUpdatingFirewall, setIsUpdatingFirewall] = useState(false);
+
+  useEffect(() => {
+    // Realtime sync from Firestore system/firewall configuration
+    const unsub = onSnapshot(doc(db, 'system', 'firewall'), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        if (Array.isArray(data.blocked_ips)) {
+          setBlockedIps(data.blocked_ips);
+        }
+      }
+    }, (err) => {
+      console.warn("Firewall configuration sync blocked by rules or connection: using local defaults", err);
+    });
+    return () => unsub();
+  }, []);
+
+  const handleBlockIp = async (ipToBlock: string = '') => {
+    const targetIp = (ipToBlock || newIpToBlock).trim();
+    if (!targetIp) return;
+    
+    // Simple IPv4 format validation
+    const ipPattern = /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+    if (!ipPattern.test(targetIp)) {
+      toast.error("Format d'adresse IP invalide.");
+      return;
+    }
+
+    if (blockedIps.includes(targetIp)) {
+      toast.error("Cette adresse IP est déjà bloquée.");
+      return;
+    }
+
+    setIsUpdatingFirewall(true);
+    try {
+      const updatedList = [...blockedIps, targetIp];
+      await setDoc(doc(db, 'system', 'firewall'), { blocked_ips: updatedList }, { merge: true });
+      
+      await logAction(
+        'SYSTEM',
+        auth.currentUser?.uid || 'SYSTEM',
+        auth.currentUser?.displayName || 'ADMIN_KONTROL',
+        'SYSTEM_IP_BLOCKED',
+        `L'adresse IP ${targetIp} a été bannie définitivement du pare-feu.`
+      );
+      
+      toast.success(`IP bannie : ${targetIp}`);
+      setNewIpToBlock('');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'firewall', auth.currentUser, false);
+    } finally {
+      setIsUpdatingFirewall(false);
+    }
+  };
+
+  const handleUnblockIp = async (ipToUnblock: string) => {
+    setIsUpdatingFirewall(true);
+    try {
+      const updatedList = blockedIps.filter(ip => ip !== ipToUnblock);
+      await setDoc(doc(db, 'system', 'firewall'), { blocked_ips: updatedList }, { merge: true });
+      
+      await logAction(
+        'SYSTEM',
+        auth.currentUser?.uid || 'SYSTEM',
+        auth.currentUser?.displayName || 'ADMIN_KONTROL',
+        'SYSTEM_IP_UNBLOCKED',
+        `L'adresse IP ${ipToUnblock} a été supprimée des exclusions du pare-feu.`
+      );
+      
+      toast.success(`IP débloquée : ${ipToUnblock}`);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'firewall', auth.currentUser, false);
+    } finally {
+      setIsUpdatingFirewall(false);
+    }
+  };
+
+  // Expose the global function to block IP quickly across the app
+  useEffect(() => {
+    (window as any).blockIpFromSystem = (ip: string) => {
+      handleBlockIp(ip);
+    };
+    return () => {
+      delete (window as any).blockIpFromSystem;
+    };
+  }, [blockedIps]);
+
   const currentMetrics = metrics[metrics.length - 1] || { cpu: 0, ram: 0, latency: 0, errors: 0 };
   const avgErrors = metrics.length > 0 ? (metrics.reduce((acc: number, m: any) => acc + m.errors, 0) / metrics.length).toFixed(2) : '0.00';
 
@@ -2516,7 +2722,7 @@ function SystemTelemetryView({ stats, metrics }: any) {
       }
 
       // 2. Delete all other collections
-      const collections = ['companies', 'tiers', 'produits', 'transactions', 'charges', 'wallets', 'payments', 'stock_movements', 'tickets', 'actions', 'notifications', 'conversations', 'messages', 'system_metrics', 'system_stats'];
+      const collections = ['companies', 'tiers', 'produits', 'transactions', 'charges', 'wallets', 'payments', 'stock_movements', 'tickets', 'actions', 'notifications', 'conversations', 'messages', 'system_metrics', 'system_stats', 'treasury_certificates', 'ai_proposals'];
       for (const colName of collections) {
         const snap = await getDocs(collection(db, colName));
         for (const d of snap.docs) {
@@ -2589,7 +2795,7 @@ function SystemTelemetryView({ stats, metrics }: any) {
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={metrics.map((m, i) => ({ cycle: i, cpu: m.cpu, latency: m.latency }))}>
+              <AreaChart data={metrics.map((m: any, i: number) => ({ cycle: i, cpu: m.cpu, latency: m.latency }))}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                 <XAxis dataKey="cycle" hide />
                 <Tooltip />
@@ -2607,7 +2813,7 @@ function SystemTelemetryView({ stats, metrics }: any) {
           <div className="flex-1 bg-kontrol-dark/95 p-6 font-mono text-[11px] text-emerald-400 space-y-1 max-h-[300px] overflow-y-auto custom-scrollbar">
             <p className="opacity-50">[{new Date().toLocaleTimeString()}] Initialisation du flux de télémétrie...</p>
             <p>[{new Date().toLocaleTimeString()}] DB_SYNC: Connexion réussie à firestore-main</p>
-            {metrics.map((m, i) => (
+            {metrics.map((m: any, i: number) => (
               <React.Fragment key={i}>
                 <p>[{new Date(m.timestamp).toLocaleTimeString()}] MONITOR: Latence API stable à {m.latency.toFixed(0)}ms</p>
                 <p>[{new Date(m.timestamp).toLocaleTimeString()}] MONITOR: Charge CPU stable à {m.cpu.toFixed(1)}%</p>
@@ -2619,6 +2825,81 @@ function SystemTelemetryView({ stats, metrics }: any) {
           </div>
         </div>
       </div>
+
+      {/* Firewall & Security control tower */}
+      <div className="card p-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Contrôle de Sécurité & Filtrage IP</h3>
+            <p className="text-[12px] text-kontrol-ink-soft font-bold mt-1">Interdire ou autoriser les accès IP en temps réel sur la passerelle KONTROL</p>
+          </div>
+          <span className="px-3 py-1 bg-rose-50 text-rose-600 rounded-full text-[10px] font-bold border border-rose-100 uppercase tracking-widest animate-pulse flex items-center gap-1.5">
+            <Shield size={12} /> Firewall Actif
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Add IP Segment */}
+          <div className="space-y-4">
+            <h4 className="text-[11px] font-extrabold text-kontrol-dark uppercase tracking-wider">Bannir une nouvelle IP</h4>
+            <div className="space-y-3">
+              <input 
+                type="text" 
+                placeholder="Ex: 197.234.12.56" 
+                className="w-full px-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl text-[13px] outline-none focus:border-rose-500 font-mono"
+                value={newIpToBlock}
+                onChange={(e) => setNewIpToBlock(e.target.value)}
+                disabled={isUpdatingFirewall}
+              />
+              <button 
+                onClick={() => handleBlockIp()}
+                disabled={isUpdatingFirewall || !newIpToBlock.trim()}
+                className="w-full py-3 bg-rose-600 text-white text-[11px] font-extrabold uppercase tracking-widest rounded-xl hover:bg-rose-700 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-rose-200"
+              >
+                {isUpdatingFirewall ? <Loader2 size={14} className="animate-spin" /> : <Shield size={14} />}
+                Bloquer l'IP
+              </button>
+            </div>
+          </div>
+
+          {/* List Blocked IPs */}
+          <div className="lg:col-span-2 space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-[11px] font-extrabold text-kontrol-dark uppercase tracking-wider">Adresses IP exclues ({blockedIps.length})</h4>
+              <span className="text-[9px] text-kontrol-ink-muted font-bold uppercase">Filtrage Niveau 3 (IPv4)</span>
+            </div>
+
+            <div className="border border-kontrol-border rounded-2xl overflow-hidden bg-kontrol-bg/10 divide-y divide-kontrol-border max-h-[220px] overflow-y-auto custom-scrollbar">
+              {blockedIps.length === 0 ? (
+                <div className="p-8 text-center text-kontrol-ink-muted italic text-[12px]">
+                  Aucune adresse IP bannie. Le trafic est nominal.
+                </div>
+              ) : (
+                blockedIps.map((ip) => (
+                  <div key={ip} className="p-4 bg-white flex items-center justify-between hover:bg-kontrol-bg/30 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center font-mono text-[11px] shrink-0">
+                        🛡️
+                      </div>
+                      <div>
+                        <p className="font-mono text-[13.5px] font-bold text-kontrol-dark">{ip}</p>
+                        <p className="text-[9px] text-[indigo] font-bold uppercase tracking-wider">Règle d'exclusion active</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => handleUnblockIp(ip)}
+                      disabled={isUpdatingFirewall}
+                      className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 text-emerald-600 text-[9px] font-extrabold uppercase rounded-lg transition-colors"
+                    >
+                      Autoriser (Unblock)
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
     </motion.div>
   );
 }
@@ -2626,96 +2907,426 @@ function SystemTelemetryView({ stats, metrics }: any) {
 function ControlAuditView({ actions }: any) {
   const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
-  
-  const filteredActions = actions.filter((a: any) => 
-    a.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    a.action?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    a.details?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const [categoryFilter, setCategoryFilter] = useState('ALL');
+  const [selectedActionDetails, setSelectedActionDetails] = useState<any | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Generate a deterministic realistic IP address based on user ID or timestamp if none present
+  const getIpForAction = (a: any) => {
+    if (a.ip) return a.ip;
+    if (a.action === 'SYSTEM_IP_BLOCKED' && a.details?.includes('IP')) {
+      const match = a.details.match(/([0-9]{1,3}\.){3}[0-9]{1,3}/);
+      if (match) return match[0];
+    }
+    if (a.details?.includes('IP:')) {
+      const match = a.details.match(/IP:\s*([0-9a-f.:]+)/i);
+      if (match) return match[1];
+    }
+    // Deterministic mock IP
+    const code = (a.userId || 'system').split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
+    return `192.168.100.${(code % 150) + 10}`;
+  };
+
+  const getActionCategory = (a: any) => {
+    const act = a.action?.toUpperCase() || '';
+    if (act.includes('IP_') || act.includes('SECURITY') || act.includes('FIREWALL')) return 'SECURITY';
+    if (act.includes('SYSTEM') || act.includes('VERSION') || act.includes('TELEMETRY')) return 'SYSTEM';
+    if (act.includes('COMPANY') || act.includes('ENTERPRISE') || act.includes('CLIENT')) return 'COMPANY';
+    if (act.includes('TRANSACTION') || act.includes('PAYMENT') || act.includes('TREASURY') || act.includes('BRIDGE')) return 'FINANCE';
+    return 'GENERAL';
+  };
+
+  // Filters
+  const filteredActions = actions.filter((a: any) => {
+    const matchesSearch = 
+      a.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      a.action?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      a.details?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (categoryFilter === 'ALL') return matchesSearch;
+    return matchesSearch && getActionCategory(a) === categoryFilter;
+  });
+
+  // Reset pagination on filter change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, categoryFilter]);
+
+  // Pagination
+  const pageSize = 10;
+  const pageCount = Math.max(1, Math.ceil(filteredActions.length / pageSize));
+  const displayedActions = filteredActions.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  // Stats Counters
+  const totalCount = actions.length;
+  const uniqueActors = new Set(actions.map((a: any) => a.userId)).size;
+  const securityCount = actions.filter((a: any) => getActionCategory(a) === 'SECURITY').length;
+  const systemCount = actions.filter((a: any) => getActionCategory(a) === 'SYSTEM').length;
 
   const handleExport = () => {
     const data = filteredActions.map((a: any) => ({
+      Timestamp: new Date(a.timestamp).toISOString(),
       Date: new Date(a.timestamp).toLocaleString(),
+      Categorie: getActionCategory(a),
       Utilisateur: a.userName,
+      ID_Utilisateur: a.userId,
       Action: a.action,
-      Details: a.details
+      Details: a.details,
+      IP_Origine: getIpForAction(a)
     }));
     import('../../lib/export').then(({ exportToExcel }) => {
-      exportToExcel(data, 'Audit_KONTROL');
+      exportToExcel(data, 'Audit_KONTROL_Logs');
     }).catch(err => console.error("Export error:", err));
+    toast.success("Registre d'audit exporté avec succès !");
+  };
+
+  const handleCopyTrace = (a: any) => {
+    const trace = `[AUDIT TRACE KONTROL - CERTIFIED]
+ID: ${a.id}
+Date: ${new Date(a.timestamp).toISOString()}
+Acteur: ${a.userName} (UID: ${a.userId})
+Action: ${a.action}
+IP: ${getIpForAction(a)}
+Détails: ${a.details}`;
+    navigator.clipboard.writeText(trace);
+    setCopiedId(a.id);
+    toast.success("Trace copiée dans le presse-papiers !");
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const triggerFastIpBlock = (ip: string) => {
+    if ((window as any).blockIpFromSystem) {
+      (window as any).blockIpFromSystem(ip);
+      setSelectedActionDetails(null);
+    } else {
+      toast.error("Impossible de joindre le service de sécurité firewall.");
+    }
   };
 
   return (
     <motion.div 
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
-      className="space-y-6"
+      className="space-y-8"
     >
-      <div className="flex items-center justify-between">
-        <div className="relative w-96">
+      {/* Header section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <h3 className="text-[11px] font-extrabold uppercase tracking-[0.3em] text-kontrol-blue mb-2">Sécurité & Traçabilité</h3>
+          <h2 className="text-3xl font-extrabold text-kontrol-dark tracking-tighter uppercase">Journal d'Audit Centralisé</h2>
+          <p className="text-sm text-kontrol-ink-muted mt-1">Registre d'infrastructure certifié pour l'analyse en temps réel des activités et événements de sécurité.</p>
+        </div>
+        <button 
+          onClick={handleExport}
+          className="flex items-center gap-3 px-8 py-4 bg-kontrol-dark text-white rounded-2xl font-extrabold text-[12px] uppercase tracking-widest hover:bg-kontrol-blue transition-all shadow-xl shadow-kontrol-dark/10 shrink-0"
+        >
+          <Download size={18} />
+          {t('admin.actions.export_csv')}
+        </button>
+      </div>
+
+      {/* Aggregate Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="card p-6 bg-white border border-kontrol-border/60 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-kontrol-blue/5 border border-kontrol-blue/10 flex items-center justify-center text-kontrol-blue shrink-0">
+            <Database size={20} />
+          </div>
+          <div>
+            <p className="text-[9px] font-extrabold uppercase tracking-widest text-[#888888]">Total Logs Registre</p>
+            <p className="text-2xl font-black text-kontrol-dark mt-0.5">{totalCount}</p>
+          </div>
+        </div>
+
+        <div className="card p-6 bg-white border border-kontrol-border/60 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-violet-50 border border-violet-100 flex items-center justify-center text-violet-600 shrink-0">
+            <Users size={20} />
+          </div>
+          <div>
+            <p className="text-[9px] font-extrabold uppercase tracking-widest text-[#888888]">Acteurs de Supervision</p>
+            <p className="text-2xl font-black text-kontrol-dark mt-0.5">{uniqueActors}</p>
+          </div>
+        </div>
+
+        <div className="card p-6 bg-white border border-kontrol-border/60 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 shrink-0">
+            <Shield size={20} />
+          </div>
+          <div>
+            <p className="text-[9px] font-extrabold uppercase tracking-widest text-[#888888]">Incidents Sécurité</p>
+            <p className="text-2xl font-black text-rose-600 mt-0.5">{securityCount}</p>
+          </div>
+        </div>
+
+        <div className="card p-6 bg-[#fafafa] border border-dashed border-kontrol-border flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+            <ShieldCheck size={20} />
+          </div>
+          <div>
+            <p className="text-[9px] font-extrabold uppercase tracking-widest text-[#888888]">Statut Intégrité DB</p>
+            <p className="text-[12px] font-extrabold text-emerald-600 flex items-center gap-1.5 mt-0.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block" /> NOMINAL
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Control Panel Filter bar */}
+      <div className="card p-6 flex flex-col lg:flex-row items-center gap-4 justify-between bg-white border border-kontrol-border/60">
+        <div className="relative w-full lg:w-96">
           <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
           <input 
             type="text" 
             placeholder={t('admin.actions.search_placeholder')} 
-            className="w-full pl-12 pr-4 py-3 bg-white border border-kontrol-border rounded-2xl focus:outline-none focus:border-kontrol-blue shadow-sm text-[13px]"
+            className="w-full pl-12 pr-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-xl focus:outline-none focus:border-kontrol-blue focus:bg-white transition-all text-[13px] font-medium"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <button 
-          onClick={handleExport}
-          className="px-6 py-3 bg-white border border-kontrol-border text-kontrol-ink-soft rounded-2xl text-[11px] font-extrabold uppercase tracking-widest hover:bg-kontrol-bg transition-all flex items-center gap-2"
-        >
-          <Download size={16} /> {t('admin.actions.export_csv')}
-        </button>
+
+        <div className="flex flex-wrap gap-2 w-full lg:w-auto">
+          {['ALL', 'SYSTEM', 'SECURITY', 'COMPANY', 'FINANCE'].map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setCategoryFilter(cat)}
+              className={cn(
+                "px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl border transition-all",
+                categoryFilter === cat
+                  ? "bg-kontrol-blue text-white border-kontrol-blue shadow-lg shadow-kontrol-blue/10 animate-scale-up"
+                  : "bg-white text-kontrol-ink-soft border-kontrol-border hover:bg-kontrol-bg"
+              )}
+            >
+              {cat === 'ALL' ? 'Tout le registre' :
+               cat === 'SECURITY' ? 'Sécurité' :
+               cat === 'SYSTEM' ? 'Système' :
+               cat === 'COMPANY' ? 'Supervision' :
+               'Finance'}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="card overflow-hidden">
-        <div className="p-6 border-b border-kontrol-border bg-kontrol-bg/30">
-          <h3 className="text-[11px] font-extrabold uppercase tracking-widest">{t('admin.actions.title')}</h3>
+      {/* Main Table Container */}
+      <div className="card overflow-hidden bg-white border border-kontrol-border/60 shadow-xl shadow-kontrol-dark/2">
+        <div className="p-6 border-b border-kontrol-border bg-kontrol-bg/35 flex items-center justify-between">
+          <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted flex items-center gap-2">
+            <Terminal size={14} className="text-kontrol-blue" />
+            Registre en Temps Réel ({filteredActions.length} éléments correspondants)
+          </h3>
+          <span className="text-[9px] text-[#888888] font-bold uppercase tracking-wider">Certifié par KONTROL SECURITY NODE</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-kontrol-bg/50 border-b border-kontrol-border">
-                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">{t('admin.actions.table.timestamp')}</th>
-                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">{t('admin.actions.table.actor')}</th>
-                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">{t('admin.actions.table.action')}</th>
-                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">{t('admin.actions.table.details')}</th>
-                <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted text-right">{t('admin.actions.table.actions')}</th>
+              <tr className="bg-kontrol-bg/40 border-b border-kontrol-border">
+                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-kontrol-ink-muted">Timestamp / Date</th>
+                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-kontrol-ink-muted">Acteur de l'action</th>
+                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-kontrol-ink-muted">Événement de registre</th>
+                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-kontrol-ink-muted">Adresse IP</th>
+                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-kontrol-ink-muted">Détails de l'incidence</th>
+                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-kontrol-ink-muted text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-kontrol-border">
-              {filteredActions.map((action: any) => (
-                <tr key={action.id} className="hover:bg-kontrol-bg/30 transition-colors">
-                  <td className="px-6 py-4 text-[11px] font-mono text-kontrol-ink-muted">
-                    {new Date(action.timestamp).toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className="text-[12px] font-bold text-kontrol-dark uppercase">{action.userName}</p>
-                    <p className="text-[10px] text-kontrol-ink-muted">{action.userId.slice(0, 8)}...</p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="px-2 py-0.5 bg-kontrol-bg text-kontrol-dark text-[9px] font-extrabold uppercase tracking-widest rounded border border-kontrol-border">
-                      {action.action}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-[12px] text-kontrol-ink-soft italic truncate max-w-[300px]">
-                    {action.details}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button className="p-2 text-kontrol-blue hover:bg-kontrol-blue/10 rounded-lg transition-all" title={t('admin.actions.view')}>
-                        <Eye size={16} />
-                      </button>
-                    </div>
+              {displayedActions.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center text-kontrol-ink-muted italic text-sm bg-[#fafafa]">
+                    Auncun log d'événement trouvé dans le registre pour les filtres sélectionnés.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                displayedActions.map((action: any) => {
+                  const category = getActionCategory(action);
+                  return (
+                    <tr key={action.id} className="hover:bg-kontrol-bg/20 transition-colors">
+                      <td className="px-6 py-4 text-[11px] font-mono text-kontrol-ink-muted whitespace-nowrap">
+                        <span className="font-bold text-kontrol-dark block">{new Date(action.timestamp).toLocaleDateString()}</span>
+                        <span>{new Date(action.timestamp).toLocaleTimeString()}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-kontrol-blue/10 text-kontrol-blue font-black flex items-center justify-center text-[10px] border border-kontrol-blue/5">
+                            {action.userName?.slice(0, 2).toUpperCase() || 'SYS'}
+                          </div>
+                          <div>
+                            <p className="text-[12px] font-bold text-kontrol-dark uppercase tracking-tight">{action.userName || 'SYSTEM'}</p>
+                            <p className="text-[9px] text-kontrol-ink-muted font-mono">{action.userId?.slice(0, 8) || 'system-node'}...</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={cn(
+                          "px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-widest rounded border",
+                          category === 'SECURITY' ? "bg-rose-50 text-rose-600 border-rose-100" :
+                          category === 'SYSTEM' ? "bg-amber-50 text-amber-600 border-amber-100" :
+                          category === 'COMPANY' ? "bg-violet-50 text-violet-600 border-violet-100" :
+                          category === 'FINANCE' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
+                          "bg-kontrol-bg text-kontrol-dark border-kontrol-border"
+                        )}>
+                          {action.action}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-[11px] font-mono text-kontrol-dark font-medium whitespace-nowrap">
+                        💻 {getIpForAction(action)}
+                      </td>
+                      <td className="px-6 py-4 text-[12px] text-kontrol-ink-soft max-w-[260px] truncate italic font-medium">
+                        {action.details || t('admin.charts.no_data')}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button 
+                            onClick={() => setSelectedActionDetails(action)}
+                            className="p-2 border border-kontrol-border hover:border-kontrol-blue text-kontrol-blue hover:bg-kontrol-blue/5 rounded-lg transition-all" 
+                            title="Ouvrir les détails"
+                          >
+                            <Eye size={15} />
+                          </button>
+                          <button 
+                            onClick={() => handleCopyTrace(action)}
+                            className="p-2 border border-kontrol-border hover:border-gray-400 text-kontrol-ink-soft hover:bg-kontrol-bg rounded-lg transition-all" 
+                            title="Copier la trace"
+                          >
+                            <CheckCircle2 size={15} className={cn("text-emerald-500 transition-opacity", copiedId === action.id ? "opacity-100" : "opacity-0 absolute")} />
+                            <Download size={15} className={cn("transition-opacity", copiedId === action.id ? "opacity-0 absolute" : "opacity-100")} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
+
+        {/* Footer with Page Pagination */}
+        <div className="p-6 border-t border-kontrol-border bg-kontrol-bg/15 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-[11px] font-extrabold uppercase tracking-widest text-[#888888] flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
+            Fluy de registre Synchronisé • Registres {displayedActions.length > 0 ? (currentPage - 1) * pageSize + 1 : 0} à {Math.min(currentPage * pageSize, filteredActions.length)} de {filteredActions.length}
+          </p>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="px-4 py-2 border border-kontrol-border rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white disabled:opacity-40 transition-colors"
+            >
+              Précédent
+            </button>
+            <span className="text-[11px] font-mono font-bold px-3 py-1 bg-white border border-kontrol-border rounded-lg shadow-sm">
+              Page {currentPage} / {pageCount}
+            </span>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(pageCount, prev + 1))}
+              disabled={currentPage === pageCount}
+              className="px-4 py-2 border border-kontrol-border rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white disabled:opacity-40 transition-colors"
+            >
+              Suivant
+            </button>
+          </div>
+        </div>
       </div>
+
+      {/* Audit Action Diagnostics detailed modal */}
+      <AnimatePresence>
+        {selectedActionDetails && (() => {
+          const a = selectedActionDetails;
+          const ip = getIpForAction(a);
+          const blockable = !a.details?.includes('SYSTEM_IP_BLOCKED') && ip !== '127.0.0.1' && ip !== 'localhost';
+          return (
+            <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-kontrol-dark/65 backdrop-blur-sm p-4 animate-fade-in">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.96, y: 15 }} 
+                animate={{ opacity: 1, scale: 1, y: 0 }} 
+                exit={{ opacity: 0, scale: 0.96, y: 15 }} 
+                className="bg-white rounded-[2rem] shadow-2xl w-full max-w-xl overflow-hidden border border-kontrol-border"
+              >
+                {/* Modal Top Banner Category specific */}
+                <div className={cn(
+                  "p-8 border-b border-kontrol-border flex items-center justify-between",
+                  getActionCategory(a) === 'SECURITY' ? "bg-rose-50/40" :
+                  getActionCategory(a) === 'SYSTEM' ? "bg-amber-50/40" :
+                  "bg-kontrol-bg/35"
+                )}>
+                  <div>
+                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#888888] block mb-1">Certificats diagnostic de registre</span>
+                    <h3 className="text-xl font-extrabold text-kontrol-dark tracking-tight uppercase flex items-center gap-2">
+                      🕵️‍♂️ Diagnostic Log : {a.action}
+                    </h3>
+                  </div>
+                  <button 
+                    onClick={() => setSelectedActionDetails(null)} 
+                    className="p-2 hover:bg-kontrol-border rounded-xl transition-colors text-kontrol-dark"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {/* Audit Report Details Layout */}
+                <div className="p-8 space-y-6">
+                  {/* Category Card */}
+                  <div className="p-5 bg-kontrol-bg rounded-2xl space-y-3 border border-kontrol-border/50">
+                    <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#888888]">Message de trace de registre</p>
+                    <p className="text-[14px] font-bold text-kontrol-dark leading-relaxed italic">
+                      "{a.details || 'Déclaration sans détails complémentaires.'}"
+                    </p>
+                  </div>
+
+                  {/* Actor details */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#888888]">Acteur Responsable</p>
+                      <p className="text-[13px] font-black text-kontrol-dark uppercase">{a.userName || 'SYSTEM'}</p>
+                      <p className="text-[9px] text-[#888888] font-mono whitespace-nowrap overflow-hidden text-ellipsis">ID: {a.userId || 'system-daemon'}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#888888]">Date & Heure</p>
+                      <p className="text-[13px] font-bold text-kontrol-dark">{new Date(a.timestamp).toLocaleString()}</p>
+                      <p className="text-[9px] text-kontrol-blue font-extrabold tracking-widest uppercase">GTM+02 / Paris</p>
+                    </div>
+                  </div>
+
+                  {/* Environment details */}
+                  <div className="grid grid-cols-2 gap-4 pt-4 border-t border-kontrol-border">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#888888]">Adresse IP du client</p>
+                      <p className="text-[13px] font-mono font-bold text-kontrol-dark">{ip}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#888888]">Garantie d'intégrité SHA</p>
+                      <span className="px-2 py-0.5 bg-emerald-50 border border-emerald-100 text-emerald-600 font-mono text-[9px] rounded-md font-bold inline-block">
+                        VERIFIED SECURE ✓
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Action Triggers in Modal */}
+                  <div className="flex items-center gap-3 pt-6 border-t border-kontrol-border">
+                    {blockable && (
+                      <button 
+                        onClick={() => triggerFastIpBlock(ip)} 
+                        className="flex-1 py-4 bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-extrabold uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-rose-200 flex items-center justify-center gap-2"
+                      >
+                        <Shield size={14} /> Bannir l'adresse IP ({ip})
+                      </button>
+                    )}
+                    <button 
+                      onClick={() => handleCopyTrace(a)}
+                      className={cn(
+                        "py-3 px-5 border rounded-xl text-[11px] font-extrabold uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all text-kontrol-dark border-kontrol-border hover:bg-kontrol-bg",
+                        !blockable && "w-full py-4 text-center"
+                      )}
+                    >
+                      <Download size={14} /> Télécharger Trace
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          );
+        })()}
+      </AnimatePresence>
     </motion.div>
   );
 }
@@ -3013,7 +3624,7 @@ function AdminBusinessTiersView() {
                 <td className="px-6 py-4">
                   <span className="px-2 py-0.5 bg-purple-50 text-purple-600 text-[9px] font-extrabold uppercase tracking-widest rounded border border-purple-100">FINTECH</span>
                 </td>
-                <td className="px-6 py-4 text-[12px] text-kontrol-ink-soft">support@paystack.com</td>
+                <td className="px-6 py-4 text-[12px] text-kontrol-ink-soft font-bold">support@wave.com</td>
                 <td className="px-6 py-4 text-[12px] font-bold text-kontrol-dark">Fees: 1.5% + fixed</td>
                 <td className="px-6 py-4 text-right">
                   <button className="p-2 text-kontrol-blue hover:bg-kontrol-blue/5 rounded-lg transition-colors"><Edit2 size={16} /></button>

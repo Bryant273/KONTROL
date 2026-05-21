@@ -175,7 +175,7 @@ export async function ensureUserProfile(user: User, companyName?: string, hashed
   const userDoc = await getDoc(userRef);
   
   const userEmail = user.email?.toLowerCase();
-  const isAdminEmail = userEmail === 'innov.korp@gmail.com' || userEmail === 'acherie812@gmail.com' || userEmail === 'test-entreprise@kontrol.com';
+  const isAdminEmail = userEmail === 'innov.korp@gmail.com' || userEmail === 'acherie812@gmail.com';
   const targetRole = isAdminEmail ? 'ADMINISTRATEUR_KONTROL' : 'ADMINISTRATEUR_ENTREPRISE';
 
     if (!userDoc.exists()) {
@@ -210,6 +210,11 @@ export async function ensureUserProfile(user: User, companyName?: string, hashed
     if (isAdminEmail && data.role !== 'ADMINISTRATEUR_KONTROL') {
       updates.role = 'ADMINISTRATEUR_KONTROL';
       updates.isProfileComplete = true;
+    }
+
+    // Demote test-entreprise@kontrol.com to company admin if it was admin
+    if (userEmail === 'test-entreprise@kontrol.com' && data.role !== 'ADMINISTRATEUR_ENTREPRISE') {
+      updates.role = 'ADMINISTRATEUR_ENTREPRISE';
     }
 
     if (!data.companyId && (data.role === 'ADMINISTRATEUR_ENTREPRISE' || data.role === 'GESTIONNAIRE_ENTREPRISE')) {

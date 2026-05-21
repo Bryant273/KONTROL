@@ -30,7 +30,7 @@ service cloud.firestore {
 
     function isKontrolAdmin() {
       return isSignedIn() && (
-        (request.auth.token.get('email', '').lower() in ['innov.korp@gmail.com', 'acherie812@gmail.com', 'test-entreprise@kontrol.com']) ||
+        (request.auth.token.get('email', '').lower() in ['innov.korp@gmail.com', 'acherie812@gmail.com']) ||
         (userExists() && getUserData().get('role', '') in ['ADMINISTRATEUR_ERP', 'ADMINISTRATEUR_KONTROL', 'ADMIN', 'GESTIONNAIRE_ERP', 'GESTIONNAIRE_KONTROL'])
       );
     }
@@ -161,6 +161,17 @@ service cloud.firestore {
     match /app_versions/{versionId} {
       allow read: if isSignedIn();
       allow write: if isKontrolAdmin();
+    }
+
+    match /ai_proposals/{proposalId} {
+      allow read: if isSignedIn();
+      allow write: if isKontrolAdmin();
+    }
+
+    match /treasury_certificates/{certId} {
+      allow read, list: if isEmailVerified() && (isKontrolAdmin() || resource.data.companyId == getUserField('companyId', ''));
+      allow create: if isEmailVerified() && incoming().companyId == getUserField('companyId', '');
+      allow update, delete: if isKontrolAdmin();
     }
 
     match /produits/{produitId} {

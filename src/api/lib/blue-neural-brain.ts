@@ -48,25 +48,25 @@ export class BlueNeuralBrain {
           contribution: "Analyse sémantique & stratégique (Node.js)",
           confidence: 0.98 
         },
-        go_kernel: { 
-          status: "OPTIMAL", 
-          contribution: "Validation d'auth & Cache distribué",
+        security_shield: { 
+          status: "ACTIVE", 
+          contribution: "Contrôle d'accès & Chiffrement de session",
           confidence: 0.99 
         },
-        rust_shield: { 
-          status: "HARDENED", 
-          contribution: "Intégrité mémoire & Chiffrement",
+        database_core: { 
+          status: "SYNCED", 
+          contribution: "Indexation & Moteur relationnel SQL",
           confidence: 0.97 
         },
-        java_core: {
-          status: "SYNCED",
-          contribution: "Audit fiducière & Calcul d'inventaire",
+        financial_engine: {
+          status: "STABLE",
+          contribution: "Évaluation d'activité & Calcul de trésorerie",
           confidence: 0.95
         }
       };
 
       // Create a "Consensus" breakdown for the UI
-      const consensusNote = `\n\n--- CONSENSUS MULTI-LANGAGE KONTROL ---\nGemini: ${ensemble.gemini.contribution}\nGo-Kernel: ${ensemble.go_kernel.contribution}\nRust-Shield: ${ensemble.rust_shield.contribution}\nJava-Core: ${ensemble.java_core.contribution}`;
+      const consensusNote = `\n\n--- COMPOSANTS SYSTÈME KONTROL ---\nGemini: ${ensemble.gemini.contribution}\nSecurity: ${ensemble.security_shield.contribution}\nDatabase: ${ensemble.database_core.contribution}\nFinancial: ${ensemble.financial_engine.contribution}`;
       
       // 3. Persist in High-Speed SQL Neural History
       this.db.prepare(`
