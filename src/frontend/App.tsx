@@ -10,6 +10,7 @@ import {
   onSnapshot,
   ensureUserProfile,
   handleFirestoreError,
+  logAction,
   OperationType,
   type User 
 } from '../api/firebase';
@@ -112,20 +113,12 @@ export default function App() {
           } catch (err) {
             console.warn("Failed to parse saved custom user:", err);
             localStorage.removeItem('customUser');
+            setUser(null);
           }
           setLoading(false);
         } else {
-          // Sign in anonymously if no user is found
-          signInAnonymously(auth).then(() => {
-            setLoading(false);
-          }).catch(err => {
-            if (err.code === 'auth/admin-restricted-operation') {
-              console.warn("L'authentification anonyme n'est pas activée dans la console Firebase. Le chatbot pour les invités pourrait ne pas fonctionner correctement.");
-            } else {
-              handleFirestoreError(err, OperationType.WRITE, 'auth/anonymous', null, false);
-            }
-            setLoading(false);
-          });
+          setUser(null);
+          setLoading(false);
         }
       }
     }, (error) => {
@@ -143,6 +136,12 @@ export default function App() {
   // Profile listener
   useEffect(() => {
     if (!user) return;
+    
+    if (user.isAnonymous) {
+      setProfile(null);
+      setLoading(false);
+      return;
+    }
     
     // Set a timeout to stop loading if profile fetch takes too long
     const timeout = setTimeout(() => setLoading(false), 3000);
@@ -208,20 +207,16 @@ export default function App() {
   // Action Logging - Login
   useEffect(() => {
     if (profile && !sessionStorage.getItem(`logged_in_${profile.uid}`)) {
-      import('../api/firebase').then(({ logAction }) => {
-        logAction(
-          profile.companyId, 
-          profile.uid, 
-          profile.displayName, 
-          'CONNEXION', 
-          'L\'utilisateur s\'est connecté à la plateforme'
-        ).then(() => {
-          sessionStorage.setItem(`logged_in_${profile.uid}`, 'true');
-        }).catch(err => {
-          handleFirestoreError(err, OperationType.CREATE, 'actions', user, false);
-        });
+      logAction(
+        profile.companyId, 
+        profile.uid, 
+        profile.displayName, 
+        'CONNEXION', 
+        'L\'utilisateur s\'est connecté à la plateforme'
+      ).then(() => {
+        sessionStorage.setItem(`logged_in_${profile.uid}`, 'true');
       }).catch(err => {
-        handleFirestoreError(err, OperationType.GET, 'firebase_module', user, false);
+        handleFirestoreError(err, OperationType.CREATE, 'actions', user, false);
       });
     }
   }, [profile]);
@@ -258,15 +253,25 @@ export default function App() {
     return <LoadingScreen />;
   }
 
-  if (!user) {
+  if (!user || user.isAnonymous) {
     if (authView === 'auth') {
-      return <AuthPage onBack={() => setAuthView('landing')} initialMode={authInitialMode} />;
+      return (
+        <div className="min-h-screen bg-kontrol-bg text-kontrol-dark">
+          <AuthPage onBack={() => setAuthView('landing')} initialMode={authInitialMode} />
+          <Chatbot />
+          <Toaster position="top-right" expand={false} richColors />
+        </div>
+      );
     }
     return (
-      <LandingPage onLoginClick={(mode) => {
-        setAuthInitialMode(mode === 'register' ? 'register' : 'login');
-        setAuthView('auth');
-      }} />
+      <div className="min-h-screen bg-kontrol-bg text-kontrol-dark">
+        <LandingPage onLoginClick={(mode) => {
+          setAuthInitialMode(mode === 'register' ? 'register' : 'login');
+          setAuthView('auth');
+        }} />
+        <Chatbot />
+        <Toaster position="top-right" expand={false} richColors />
+      </div>
     );
   }
 

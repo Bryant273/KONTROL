@@ -27,14 +27,23 @@ export class BlueNeuralBrain {
 
       // 1. Primary Inference via Gemini (acting as Orchestrator)
       if (this.genAI) {
-        const model = this.genAI.getGenerativeModel({ 
-          model: "gemini-1.5-flash",
-          systemInstruction: "Tu es BLUE AI, le cerveau neuronal de KONTROL. Tu es un expert en audit fiducière, gestion de stocks et stratégie business pour l'écosystème INNOV'KORP."
-        });
-        
-        const result = await model.generateContent(`Tu es le cerveau central de KONTROL. Analyse la requête suivante et propose une solution experte. Note: Tu intègres aussi les perspectives simulées de Qwen et DeepSeek. Requête: ${prompt}`);
-        responseText = result.response.text() || "Erreur d'inférence";
-        modelUsed = "GEMINI-1.5-FLASH";
+        try {
+          const model = this.genAI.getGenerativeModel({ 
+            model: "gemini-1.5-flash",
+            systemInstruction: "Tu es BLUE AI, le cerveau neuronal de KONTROL. Tu es un expert en audit fiducière, gestion de stocks et stratégie business pour l'écosystème INNOV'KORP."
+          });
+          
+          const result = await model.generateContent(`Tu es le cerveau central de KONTROL. Analyse la requête suivante et propose une solution experte. Note: Tu intègres aussi les perspectives simulées de Qwen et DeepSeek. Requête: ${prompt}`);
+          responseText = result.response.text() || "Erreur d'inférence";
+          modelUsed = "GEMINI-1.5-FLASH";
+        } catch (apiError: any) {
+          console.error("[NEURAL-BRAIN] Gemini API call failed. Falling back to local/heuristic engine. Error details:", apiError);
+          responseText = `[KONTROL Mode Secours - Consolidé] En raison d'un ajustement technique temporaire ou d'une limitation de clé API sur le réseau, BLUE AI opère en résilience locale autonome.
+          
+Analyse heuristique de votre demande de KONTROL ERP :
+Pour "${prompt.substring(0, 120)}${prompt.length > 120 ? '...' : ''}", l'écosystème KONTROL préconise une vérification rigoureuse des balances comptables en F CFA, des inventaires de stocks physiques et la conformité de vos écritures sous la gouvernance d'Innov'Korp.`;
+          modelUsed = "KONTROL-LOCAL-HEURISTIC";
+        }
       } else {
         responseText = "KONTROL Mode Dégradé: Clé API manquante. Utilisation du moteur heuristique local.";
       }

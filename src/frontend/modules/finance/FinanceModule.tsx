@@ -256,11 +256,11 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
     }
   };
 
-  const handleGenerateCertificate = () => {
+  const handleGenerateCertificate = async () => {
     if (!bridgeResult) return;
     try {
-      import('jspdf').then((module) => {
-        const jsPDF = module.default;
+      const module = await import('jspdf');
+      const jsPDF = module.default;
         const doc = new jsPDF('p', 'mm', 'a4');
         const pageWidth = doc.internal.pageSize.width;
         const pageHeight = doc.internal.pageSize.height;
@@ -398,7 +398,6 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
 
         doc.save(`Certificat_Eligibilite_${currentUserProfile?.companyName || 'Client'}.pdf`);
         setBridgeResult(null);
-      });
     } catch (e) {
       console.error("Certificate Generation Error:", e);
       alert("Erreur lors de la génération du certificat.");
