@@ -16,9 +16,23 @@ window.addEventListener('error', (event) => {
 });
 
 window.addEventListener('unhandledrejection', (event) => {
-  console.group("%c!!! KONTROL CRITICAL REJECTION !!!", "color: white; background: #e11d48; font-weight: bold; padding: 6px; border-radius: 4px;");
-  
   const reason = event.reason;
+  
+  // Suppress benign development Vite WebSocket/HMR connection failures
+  if (reason && typeof reason === 'object') {
+    const msg = String(reason.message || '');
+    const stack = String(reason.stack || '');
+    if (msg.includes('WebSocket') || msg.includes('vite') || stack.includes('@vite/client')) {
+      event.preventDefault();
+      return;
+    }
+  }
+  if (typeof reason === 'string' && (reason.includes('WebSocket') || reason.includes('vite') || reason.includes('HMR'))) {
+    event.preventDefault();
+    return;
+  }
+
+  console.group("%c!!! KONTROL CRITICAL REJECTION !!!", "color: white; background: #e11d48; font-weight: bold; padding: 6px; border-radius: 4px;");
   
   // Cross-context safe error detection
   const isErrorLike = reason && typeof reason === 'object' && ('message' in reason || 'stack' in reason);

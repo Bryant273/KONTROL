@@ -202,7 +202,7 @@ service cloud.firestore {
     }
     
     match /system/{document=**} {
-      allow read: if isKontrolAdmin();
+      allow read: if isSignedIn();
       allow write: if isKontrolAdmin();
     }
 

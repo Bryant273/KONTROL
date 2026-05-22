@@ -41,9 +41,10 @@ import {
 interface DashboardProps {
   user: FirebaseUser;
   currentUserProfile: UserProfile | null;
+  onNavigate?: (tab: string, section: string, label: string) => void;
 }
 
-export function Dashboard({ user, currentUserProfile }: DashboardProps) {
+export function Dashboard({ user, currentUserProfile, onNavigate }: DashboardProps) {
   const { t, i18n } = useTranslation();
   const isKontrolAdmin = currentUserProfile?.role === 'ADMINISTRATEUR_ERP' || currentUserProfile?.role === 'GESTIONNAIRE_ERP' || currentUserProfile?.role === 'ADMINISTRATEUR_KONTROL' || currentUserProfile?.role === 'GESTIONNAIRE_KONTROL' || currentUserProfile?.role === 'ADMIN';
   const companyId = currentUserProfile?.companyId || user.uid;
@@ -659,7 +660,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
               </div>
             </div>
             <div className="p-6 h-80">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <AreaChart data={globalStats.revenueData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                   <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#9ca3af', fontWeight: 'bold' }} />
@@ -825,9 +826,12 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
               </p>
             </div>
           </div>
-          <a href="/subscriptions" className="px-4 py-2 bg-amber-600 text-white text-xs font-bold rounded-lg hover:bg-amber-700 transition-colors">
+          <button 
+            onClick={() => onNavigate?.('abonnements', t('sections.system'), t('common.subscriptions'))}
+            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
+          >
             {t('dashboard.alerts.renew_now')}
-          </a>
+          </button>
         </div>
       )}
 
@@ -948,7 +952,7 @@ export function Dashboard({ user, currentUserProfile }: DashboardProps) {
           </div>
           
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <AreaChart data={monthlyData}>
                 <defs>
                   <linearGradient id="colorCa" x1="0" y1="0" x2="0" y2="1">

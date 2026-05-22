@@ -704,7 +704,7 @@ function VisionView({ stats, companies, recentActions, treasuryBalance, systemSt
           </div>
 
           <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <AreaChart data={filteredChartData}>
                 <defs>
                   <linearGradient id="colorMrr" x1="0" y1="0" x2="0" y2="1">
@@ -1413,7 +1413,7 @@ function FinancialAnalyticsView({ stats, systemStats }: any) {
           </div>
         </div>
         <div className="h-96">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <BarChart data={systemStats}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
               <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af', fontWeight: 'bold' }} />
@@ -2002,7 +2002,7 @@ Sois audacieux mais réaliste.`;
                     </div>
                   </div>
                   <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                       <AreaChart data={realMetrics.length > 0 ? realMetrics : [{ name: '00h', calls: 0 }]}>
                         <defs>
                           <linearGradient id="colorCalls" x1="0" y1="0" x2="0" y2="1">
@@ -2794,7 +2794,7 @@ function SystemTelemetryView({ stats, metrics }: any) {
             </div>
           </div>
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <AreaChart data={metrics.map((m: any, i: number) => ({ cycle: i, cpu: m.cpu, latency: m.latency }))}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                 <XAxis dataKey="cycle" hide />

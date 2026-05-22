@@ -317,7 +317,7 @@ export default function App() {
         isSidebarOpen ? "lg:pl-[250px]" : "pl-0"
       )}>
         <div className="p-6 lg:p-10 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-2 duration-500">
-          {isBlocked && activeTab !== 'abonnements' ? (
+          {isBlocked && activeTab !== 'abonnements' && activeTab !== 'subscriptions' ? (
             <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
               <div className="w-20 h-20 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mb-6 animate-bounce">
                 <AlertTriangle size={40} />
@@ -332,8 +332,16 @@ export default function App() {
               </p>
               {profile?.active !== false && (
                 <button 
-                  onClick={() => handleTabChange('abonnements', t('sections.account'), t('common.subscriptions'))}
-                  className="btn-primary px-8 py-4 rounded-2xl font-extrabold text-sm uppercase tracking-widest shadow-xl shadow-kontrol-blue/20"
+                  type="button"
+                  role="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const targetTab = isKontrolAdmin ? 'subscriptions' : 'abonnements';
+                    const targetSection = isKontrolAdmin ? t('sections.business') : t('sections.system');
+                    handleTabChange(targetTab, targetSection, t('common.subscriptions'));
+                  }}
+                  className="btn-primary px-8 py-4 rounded-2xl font-extrabold text-sm uppercase tracking-widest shadow-xl shadow-kontrol-blue/20 cursor-pointer"
                 >
                   {t('common.blocked.renew_now')}
                 </button>
@@ -349,7 +357,7 @@ export default function App() {
             </div>
           ) : (
             <>
-              {activeTab === 'dashboard' && (isKontrolAdmin ? <ControlTower user={user} profile={profile} /> : <Dashboard user={user} currentUserProfile={profile} />)}
+              {activeTab === 'dashboard' && (isKontrolAdmin ? <ControlTower user={user} profile={profile} /> : <Dashboard user={user} currentUserProfile={profile} onNavigate={handleTabChange} />)}
               {activeTab === 'subscriptions' && (isKontrolAdmin ? <ControlTower activeSubTab="subscriptions" user={user} profile={profile} /> : <SubscriptionsModule profile={profile} />)}
               {activeTab === 'revenue' && (isKontrolAdmin ? <ControlTower activeSubTab="revenue" user={user} profile={profile} /> : null)}
               {activeTab === 'accounting' && (isKontrolAdmin ? <ControlTower activeSubTab="accounting" user={user} profile={profile} /> : null)}
@@ -404,8 +412,15 @@ export default function App() {
                 {t('common.reminder.desc', { days: showReminder.days })}
               </p>
               <button 
-                onClick={() => handleTabChange('abonnements', t('sections.account'), t('common.subscriptions'))}
-                className="mt-3 text-[11px] font-extrabold uppercase tracking-widest text-kontrol-blue hover:text-white transition-colors"
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const targetTab = isKontrolAdmin ? 'subscriptions' : 'abonnements';
+                  const targetSection = isKontrolAdmin ? t('sections.business') : t('sections.system');
+                  handleTabChange(targetTab, targetSection, t('common.subscriptions'));
+                }}
+                className="mt-3 text-[11px] font-extrabold uppercase tracking-widest text-kontrol-blue hover:text-white transition-colors cursor-pointer"
               >
                 {t('common.reminder.action')}
               </button>

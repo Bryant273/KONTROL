@@ -938,17 +938,40 @@ async function startServer() {
 
   // Vite development bridge - MUST be before any catch-all routes
   if (process.env.NODE_ENV !== "production") {
-    try {
-      const { createServer: createViteServer } = await import("vite");
-      const vite = await createViteServer({
-        server: { middlewareMode: true },
-        appType: "spa",
-      });
-      app.use(vite.middlewares);
-      console.log("[KONTROL-ORCHESTRATOR] Vite Bridge: ACTIVE");
-    } catch (e) {
-      console.error("Vite server failed to start:", e);
-    }
+    let viteInstance: any = null;
+    const getVite = async () => {
+      if (!viteInstance) {
+        try {
+          console.log("[KONTROL-ORCHESTRATOR] Initialisation asynchrone du pont Vite...");
+          const { createServer: createViteServer } = await import("vite");
+          viteInstance = await createViteServer({
+            server: { middlewareMode: true },
+            appType: "spa",
+          });
+          console.log("[KONTROL-ORCHESTRATOR] Pont Vite dynamiquement ACTIF");
+        } catch (e) {
+          console.error("[CRITIQUE] Échec du démarrage dynamique de Vite:", e);
+        }
+      }
+      return viteInstance;
+    };
+
+    app.use(async (req, res, next) => {
+      // Do not process API or system calls inside Vite middleware
+      if (req.path.startsWith('/api/') || req.path.startsWith('/system/')) {
+        return next();
+      }
+      try {
+        const vite = await getVite();
+        if (vite) {
+          vite.middlewares(req, res, next);
+        } else {
+          next();
+        }
+      } catch (err) {
+        next(err);
+      }
+    });
   } else {
     // Production static serving
     const distPath = path.join(process.cwd(), 'dist');
@@ -1018,9 +1041,79 @@ async function startServer() {
   console.log(`[READY] Port 3000 ouvert. Zero-Latence.`);
   console.log("-----------------------------------------");
 
-  app.listen(PORT, "0.0.0.0", () => {
+  const server = app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
+
+  // Attach WebSocket server for real-time diagnostics, telemetry and notification syncing
+  try {
+    const { WebSocketServer } = await import("ws");
+    const wss = new WebSocketServer({ noServer: true });
+
+    wss.on("connection", (socket) => {
+      console.log("[KONTROL-WS-SERVER] Nouveau client connecté en temps réel");
+      
+      // Send dynamic status telemetry immediately
+      socket.send(JSON.stringify({ 
+        type: "welcome", 
+        telemetry: "STABLE", 
+        system: "KONTROL_ORCHESTRATOR_HIVE_V4",
+        timeref: new Date().toISOString()
+      }));
+
+      // Set up simple keepalive ping interval
+      const pingInterval = setInterval(() => {
+        if (socket.readyState === socket.OPEN) {
+          socket.send(JSON.stringify({ type: "ping" }));
+        }
+      }, 25000);
+
+      socket.on("message", (msg) => {
+        try {
+          const parsed = JSON.parse(msg.toString());
+          if (parsed.type === "pong") {
+            // Heartbeat received
+          }
+        } catch {
+          // Ignore
+        }
+      });
+
+      socket.on("close", () => {
+        clearInterval(pingInterval);
+        console.log("[KONTROL-WS-SERVER] Client temps réel déconnecté");
+      });
+
+      socket.on("error", (err) => {
+        clearInterval(pingInterval);
+        console.error("[KONTROL-WS-SERVER] Erreur socket:", err);
+      });
+    });
+
+    server.on("upgrade", (request, socket, head) => {
+      if (!request.url) {
+        socket.destroy();
+        return;
+      }
+      const u = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
+      if (u.pathname === "/api/ws") {
+        wss.handleUpgrade(request, socket, head, (ws) => {
+          wss.emit("connection", ws, request);
+        });
+      } else {
+        // Let Vite or other upgrades handle it, or destroy if not matching
+        if (process.env.NODE_ENV !== "production") {
+          // In dev, let Vite handle its own HMR upgrade
+        } else {
+          socket.destroy();
+        }
+      }
+    });
+
+    console.log("[KONTROL-WS-SERVER] WebSocket Server: ACTIVE sur /api/ws");
+  } catch (wsError) {
+    console.error("[KONTROL-WS-SERVER] Erreur d'initialisation du serveur WebSocket:", wsError);
+  }
 }
 
 startServer().catch(err => {
