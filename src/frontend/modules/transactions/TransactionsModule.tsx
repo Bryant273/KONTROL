@@ -634,7 +634,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
           <Search size={14} className="text-kontrol-ink-muted" />
           <input 
             type="text"
-            placeholder={t('transactions.search_placeholder') || t('produits.search_placeholder')}
+            placeholder={t('transactions.search_placeholder', 'Rechercher par référence, client, produit...')}
             className="bg-transparent border-none outline-none text-[13px] w-full text-kontrol-ink placeholder:text-kontrol-ink-muted"
             value={searchTerm}
             onChange={(e) => {
@@ -679,7 +679,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
               setCurrentPage(1);
             }}
           />
-          <span className="text-kontrol-ink-muted text-xs">{t('finance.form.to') || 'to'}</span>
+          <span className="text-kontrol-ink-muted text-xs">{t('common.to', 'au')}</span>
           <input 
             type="date"
             className="bg-transparent border-none outline-none text-[13px] font-medium text-kontrol-ink-soft"

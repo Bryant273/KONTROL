@@ -6,7 +6,6 @@ import { cn } from '../../lib/utils';
 import { UserProfile } from '../../types';
 import { NotificationCenter } from '../notifications/NotificationCenter';
 import { Logo } from '../common/Logo';
-import { useWebSocket } from '../../lib/websocketClient';
 
 interface HeaderProps {
   section: string;
@@ -23,7 +22,6 @@ export function Header({ section, page, user, profile, onLogout, onTabChange, to
   const { i18n, t } = useTranslation();
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
-  const { status, retryCount, nextRetryDelay, forceReconnect } = useWebSocket();
 
   const changeLanguage = async (lng: string) => {
     try {
@@ -118,81 +116,6 @@ export function Header({ section, page, user, profile, onLogout, onTabChange, to
           {new Date().toLocaleDateString(i18n.language === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
         </div>
 
-        {/* WebSocket Real-time Status Indicator with Micro-animations */}
-        <div className="relative group">
-          <button 
-            type="button"
-            onClick={forceReconnect}
-            title={`${t('common.connection_status') || 'État de connexion'}: ${status}. Cliquez pour forcer la synchronisation.`}
-            className={cn(
-              "flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-[10px] font-extrabold uppercase tracking-widest transition-all duration-300 pointer",
-              status === 'CONNECTED' && "bg-emerald-50 text-emerald-700 border-emerald-200/50 hover:bg-emerald-100/80 cursor-pointer",
-              status === 'CONNECTING' && "bg-amber-50 text-amber-700 border-amber-200/50 animate-pulse cursor-wait",
-              status === 'RECONNECTING' && "bg-amber-50 text-amber-700 border-amber-200/50 animate-pulse cursor-wait",
-              status === 'DISCONNECTED' && "bg-rose-50 text-rose-700 border-rose-200/50 hover:bg-rose-100/80 cursor-pointer"
-            )}
-          >
-            <span className={cn(
-              "w-1.5 h-1.5 rounded-full",
-              status === 'CONNECTED' && "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse",
-              status === 'CONNECTING' && "bg-amber-500 animate-ping",
-              status === 'RECONNECTING' && "bg-amber-500 animate-ping",
-              status === 'DISCONNECTED' && "bg-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]"
-            )} />
-            <span className="hidden md:inline-block">
-              {status === 'CONNECTED' && 'LIVE'}
-              {(status === 'CONNECTING' || status === 'RECONNECTING') && 'SYNC...'}
-              {status === 'DISCONNECTED' && 'OFFLINE'}
-            </span>
-          </button>
-          
-          {/* Real-time Telemetry Diagnostics Dropdown */}
-          <div className="absolute top-full right-0 mt-2 w-56 bg-white border border-kontrol-border rounded-xl shadow-xl p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[110] text-left">
-            <h5 className="text-[10px] uppercase font-extrabold tracking-widest text-kontrol-dark border-b pb-1.5 mb-2 flex items-center justify-between">
-              <span>Diagnostic Flux</span>
-              <span className={cn(
-                "px-1.5 py-0.5 rounded text-[8px] font-bold",
-                status === 'CONNECTED' && "bg-emerald-100 text-emerald-800",
-                (status === 'CONNECTING' || status === 'RECONNECTING') && "bg-amber-100 text-amber-800",
-                status === 'DISCONNECTED' && "bg-rose-100 text-rose-800"
-              )}>{status}</span>
-            </h5>
-            <div className="space-y-1.5 text-[10.5px] text-kontrol-ink-soft">
-              <div className="flex justify-between">
-                <span>Canal:</span>
-                <span className="font-mono text-[9px] font-bold">WebSocket (/api/ws)</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Statut:</span>
-                <span className="font-bold">
-                  {status === 'CONNECTED' ? 'Connecté (Actif)' : 'En attente / Recommencer'}
-                </span>
-              </div>
-              {(status === 'RECONNECTING' || status === 'DISCONNECTED') && retryCount > 0 && (
-                <>
-                  <div className="flex justify-between">
-                    <span>Tentatives:</span>
-                    <span className="font-bold text-amber-600 font-mono">{retryCount}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Prochaine tentative:</span>
-                    <span className="font-bold text-kontrol-blue font-mono">
-                      {Math.max(0, Math.round(nextRetryDelay / 1000))}s
-                    </span>
-                  </div>
-                </>
-              )}
-            </div>
-            <button 
-              type="button" 
-              onClick={forceReconnect}
-              className="mt-2.5 w-full bg-kontrol-bg hover:bg-kontrol-border text-[9.5px] font-bold uppercase py-1.5 rounded-lg border border-kontrol-border transition-colors text-center cursor-pointer"
-            >
-              Forcer la synchronisation
-            </button>
-          </div>
-        </div>
-        
         <NotificationCenter profile={profile} onNavigate={onTabChange} />
 
         <div className="relative" ref={dropdownRef}>

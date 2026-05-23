@@ -12,6 +12,7 @@ import {
   Clock, 
   ArrowRight,
   Loader2,
+  Sparkles,
   History as HistoryIcon,
   X,
   Printer,
@@ -298,6 +299,15 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
 
   if (!profile) return null;
 
+  const isDemo = profile.isDemo === true;
+  const endDate = profile.subscriptionEndDate || 0;
+  const createdAtDate = profile.createdAt || (endDate - 30 * 24 * 60 * 60 * 1000);
+  const totalDuration = Math.max(1, endDate - createdAtDate);
+  const elapsed = Math.max(0, Date.now() - createdAtDate);
+  const percentElapsed = Math.min(100, Math.round((elapsed / totalDuration) * 100));
+  const percentRemaining = 100 - percentElapsed;
+  const daysLeftTrial = Math.max(0, Math.ceil((endDate - Date.now()) / (1000 * 60 * 60 * 24)));
+
   const handleExportInvoice = (invoice: any) => {
     const headers = ['Libellé', 'Émission', 'Prochaine Échéance', 'Référence', 'Montant'];
     const data = [[
@@ -403,39 +413,66 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
           <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-12">
             <div className="space-y-6 max-w-xl">
               <div className="flex items-center gap-3">
-                <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-white/10 text-white text-[11px] font-extrabold uppercase tracking-[0.2em] border border-white/10 backdrop-blur-md">
-                  <Zap size={14} className="mr-2 text-kontrol-blue fill-kontrol-blue" /> 
-                  {t('subscriptions.hero.current_plan', { name: plan.name })}
+                <div className={cn(
+                  "inline-flex items-center px-4 py-1.5 rounded-full text-[11px] font-extrabold uppercase tracking-[0.2em] border backdrop-blur-md",
+                  isDemo 
+                    ? "bg-amber-500/20 text-amber-300 border-amber-500/30" 
+                    : "bg-white/10 text-white border-white/10"
+                )}>
+                  {isDemo ? (
+                    <>
+                      <Sparkles size={14} className="mr-2 text-amber-400 fill-amber-400" />
+                      PÉRIODE D'ESSAI
+                    </>
+                  ) : (
+                    <>
+                      <Zap size={14} className="mr-2 text-kontrol-blue fill-kontrol-blue" />
+                      {t('subscriptions.hero.current_plan', { name: plan.name })}
+                    </>
+                  )}
                 </div>
                 <div className={cn(
                   "inline-flex items-center px-4 py-1.5 rounded-full text-[11px] font-extrabold uppercase tracking-[0.2em] border backdrop-blur-md",
                   isExpired 
                     ? "bg-rose-500/20 text-rose-400 border-rose-500/30" 
+                    : isDemo 
+                    ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
                     : "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
                 )}>
-                  {isExpired ? t('common.status.expired') : t('common.status.active')}
+                  {isExpired 
+                    ? t('common.status.expired') 
+                    : isDemo 
+                    ? "PROLONGÉE" 
+                    : t('common.status.active')}
                 </div>
               </div>
               
               <h3 className="text-4xl sm:text-5xl font-extrabold tracking-tighter leading-none">
-                {t('subscriptions.hero.promo_text')}
+                {isDemo 
+                  ? "Votre période d'essai a été prolongée pour vous accompagner de manière durable !"
+                  : t('subscriptions.hero.promo_text')}
               </h3>
               
               <div className="grid sm:grid-cols-2 gap-8 pt-4">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10">
-                    <Calendar size={20} className="text-kontrol-blue" />
+                    <Calendar size={20} className={isDemo ? "text-amber-400" : "text-kontrol-blue"} />
                   </div>
-                  <div className="flex items-center gap-3">
-                    <p className="text-lg font-bold text-white">
-                      {profile.subscriptionEndDate ? new Date(profile.subscriptionEndDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '15 Avril 2026'}
-                    </p>
-                    <button 
-                      onClick={() => setIsPaying(true)}
-                      className="px-4 py-1.5 bg-white text-kontrol-dark rounded-xl font-extrabold text-[10px] uppercase tracking-wider hover:bg-kontrol-blue hover:text-white transition-all duration-300 shadow-lg flex items-center gap-1.5 group/btn"
-                    >
-                      {t('subscriptions.hero.renew')} <ArrowRight size={10} className="group-hover/btn:translate-x-0.5 transition-transform" />
-                    </button>
+                  <div>
+                    <span className="text-[10px] text-white/50 block font-bold uppercase tracking-wider">
+                      {isDemo ? "Date d'expiration de l'essai" : "Prochaine Échéance"}
+                    </span>
+                    <div className="flex items-center gap-3 mt-0.5">
+                      <p className="text-lg font-bold text-white">
+                        {profile.subscriptionEndDate ? new Date(profile.subscriptionEndDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '15 Avril 2026'}
+                      </p>
+                      <button 
+                        onClick={() => setIsPaying(true)}
+                        className="px-4 py-1.5 bg-white text-kontrol-dark rounded-xl font-extrabold text-[10px] uppercase tracking-wider hover:bg-kontrol-blue hover:text-white transition-all duration-300 shadow-lg flex items-center gap-1.5 group/btn"
+                      >
+                        {isDemo ? "S'abonner" : t('subscriptions.hero.renew')} <ArrowRight size={10} className="group-hover/btn:translate-x-0.5 transition-transform" />
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
@@ -449,18 +486,44 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
               </div>
             </div>
             
-            <div className="lg:w-72 shrink-0">
-              <div className="bg-white/5 p-8 rounded-3xl border border-white/10 backdrop-blur-xl text-center space-y-4">
-                <div>
-                  <p className={cn(
-                    "text-xl font-extrabold",
-                    isExpired ? "text-rose-400" : "text-emerald-400"
-                  )}>
-                    {isExpired ? t('subscriptions.details.required') : t('subscriptions.details.active')}
+            <div className="lg:w-80 shrink-0">
+              {isDemo ? (
+                <div className="bg-white/5 p-6 rounded-3xl border border-white/10 backdrop-blur-xl text-left space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-white/70 font-black uppercase tracking-widest">Suivi d'Évolution</span>
+                    <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2.5 py-0.5 rounded-lg font-black tracking-wider uppercase">
+                      {isExpired ? "Terminée" : `${daysLeftTrial} Jours Restants`}
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-[11px] text-white/50 font-bold">
+                      <span>Restant : {Math.max(0, percentRemaining)}%</span>
+                      <span>Écoulé : {Math.min(100, percentElapsed)}%</span>
+                    </div>
+                    <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden p-[2px] border border-white/5 shadow-inner">
+                      <div 
+                        className="h-full bg-gradient-to-r from-amber-400 via-amber-500 to-kontrol-orange rounded-full transition-all duration-1000"
+                        style={{ width: `${isExpired ? 0 : Math.max(0, percentRemaining)}%` }}
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-white/45 leading-relaxed font-medium">
+                    Ce compte bénéficie d'une période d'essai VIP prolongée de façon personnalisée par notre équipe de support.
                   </p>
                 </div>
-                <p className="text-[10px] text-white/30 italic">{t('subscriptions.details.auto_renew')}</p>
-              </div>
+              ) : (
+                <div className="bg-white/5 p-8 rounded-3xl border border-white/10 backdrop-blur-xl text-center space-y-4">
+                  <div>
+                    <p className={cn(
+                      "text-xl font-extrabold",
+                      isExpired ? "text-rose-400" : "text-emerald-400"
+                    )}>
+                      {isExpired ? t('subscriptions.details.required') : t('subscriptions.details.active')}
+                    </p>
+                  </div>
+                  <p className="text-[10px] text-white/30 italic">{t('subscriptions.details.auto_renew')}</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

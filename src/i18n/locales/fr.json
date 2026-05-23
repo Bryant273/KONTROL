@@ -23,6 +23,7 @@
     "type": "Type",
     "description": "Description",
     "status_label": "Statut",
+    "all_status": "Tous les statuts",
     "actions": "Actions",
     "versions": "Versions",
     "logout": "Se déconnecter",
@@ -875,7 +876,8 @@
   },
   "transactions": {
     "title": "Ventes & Achats",
-    "subtitle": "Gérez vos flux de transactions et générez vos factures instantanément.",
+    "subtitle": "Gerez vos flux de transactions et générez vos factures instantanément.",
+    "search_placeholder": "Rechercher par reference, client, produit...",
     "new_transaction": "Nouvelle transaction",
     "edit_transaction": "Modifier transaction",
     "delete_transaction": "Supprimer la transaction",
@@ -922,6 +924,7 @@
   "charges": {
     "title": "Charges & Dépenses",
     "subtitle": "Frais fixes et variables — Feuille CHARGES",
+    "search_placeholder": "Rechercher description, tiers... ou categorie",
     "new_charge": "Nouvelle charge",
     "edit_charge": "Modifier la charge",
     "delete_charge": "Supprimer la charge",

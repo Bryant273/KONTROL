@@ -946,9 +946,9 @@ function BusinessSubscriptionsView({ companies, paymentRequests = [], allUsers =
       await sendNotification({
         companyId: foundUser?.companyId || companyId,
         userId: companyId,
-        title: asTrial ? "Période d'essai activée" : "Abonnement KONTROL activé",
+        title: asTrial ? "Période d'essai prolongée !" : "Abonnement KONTROL activé",
         message: asTrial 
-          ? `Votre période d'essai de ${daysToAdd} jours est active. Profitez de toutes les fonctionnalités jusqu'au ${new Date(newEndDate).toLocaleDateString()}.`
+          ? `Bonne nouvelle ! Votre période d'essai a été prolongée de ${daysToAdd} jours. Profitez de toutes les fonctionnalités jusqu'au ${new Date(newEndDate).toLocaleDateString()}.`
           : `Votre abonnement Standard a été renouvelé avec succès. Prochaine échéance le ${new Date(newEndDate).toLocaleDateString()}.`,
         type: 'success'
       });

@@ -23,6 +23,7 @@
     "type": "Type",
     "description": "Description",
     "status_label": "Status",
+    "all_status": "All Statuses",
     "actions": "Actions",
     "versions": "Versions",
     "logout": "Log Out",
@@ -882,6 +883,7 @@
   "transactions": {
     "title": "Transactions",
     "subtitle": "Sales and Purchases — TRANSACTIONS Sheet",
+    "search_placeholder": "Search reference, client, product...",
     "new_transaction": "New transaction",
     "edit_transaction": "Edit transaction",
     "delete_transaction": "Delete transaction",
@@ -928,6 +930,7 @@
   "charges": {
     "title": "Expenses & Charges",
     "subtitle": "Fixed and variable costs — CHARGES Sheet",
+    "search_placeholder": "Search description, vendor... or category",
     "new_charge": "New expense",
     "edit_charge": "Edit expense",
     "delete_charge": "Delete expense",

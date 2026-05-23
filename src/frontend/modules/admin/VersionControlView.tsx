@@ -61,7 +61,7 @@ export function VersionControlView() {
   const { t } = useTranslation();
   const [versions, setVersions] = useState<AppVersion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [currentVersion, setCurrentVersion] = useState<string>('V3.0.0-PRO');
+  const [currentVersion, setCurrentVersion] = useState<string>('V4.3.0');
   const [isSwitching, setIsSwitching] = useState(false);
   const [isAddingVersion, setIsAddingVersion] = useState(false);
   const [newVersionData, setNewVersionData] = useState({
@@ -75,7 +75,7 @@ export function VersionControlView() {
     // Listen to system config for current version
     const unsubConfig = onSnapshot(doc(db, 'system', 'config'), (snap) => {
       if (snap.exists()) {
-        setCurrentVersion(snap.data().currentVersion || 'V3.0.0-PRO');
+        setCurrentVersion((snap.data().currentVersion || 'V4.3.0').replace(/-PRO/gi, ''));
       }
     }, (error) => {
       if (error.code !== 'permission-denied') {
@@ -90,7 +90,7 @@ export function VersionControlView() {
         // Initialize with default versions if empty
         const initialVersions: Omit<AppVersion, 'id'>[] = [
           {
-            version: 'V3.0.0-PRO',
+            version: 'V4.3.0',
             status: 'ACTIVE',
             releaseDate: Date.now() - 1000 * 60 * 60 * 24 * 5,
             description: t('admin.versions.defaults.v3_desc'),

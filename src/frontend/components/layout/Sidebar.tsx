@@ -24,18 +24,21 @@ export function Sidebar({ activeTab, setActiveTab, user, profile, onLogout, isOp
   const { t } = useTranslation();
   const isKontrolAdmin = profile?.role === 'ADMINISTRATEUR_ERP' || profile?.role === 'GESTIONNAIRE_ERP' || profile?.role === 'ADMIN' || profile?.role === 'ADMINISTRATEUR_KONTROL' || profile?.role === 'GESTIONNAIRE_KONTROL';
   
-  const [currentVersion, setCurrentVersion] = React.useState<string>('V3.0.0-PRO');
+  const [currentVersion, setCurrentVersion] = React.useState<string>('V4.3.0');
 
   React.useEffect(() => {
+    if (!user || user.isAnonymous) return;
     const unsub = onSnapshot(doc(db, 'system', 'config'), (snap) => {
       if (snap.exists()) {
-        setCurrentVersion(snap.data().currentVersion || 'V3.0.0-PRO');
+        setCurrentVersion((snap.data().currentVersion || 'V4.3.0').replace(/-PRO/gi, ''));
       }
     }, (error) => {
-      console.warn("Sidebar: version sync blocked by security or network", error);
+      if (error.code !== 'permission-denied') {
+        console.warn("Sidebar: version sync blocked by security or network", error);
+      }
     });
     return () => unsub();
-  }, []);
+  }, [user]);
 
   const navSections = isKontrolAdmin ? ERP_NAV_SECTIONS : COMPANY_NAV_SECTIONS;
 
@@ -181,8 +184,10 @@ export function Sidebar({ activeTab, setActiveTab, user, profile, onLogout, isOp
             <p className="text-[8px] text-white/20 font-bold uppercase tracking-[0.2em]">
               {t('common.powered_by')} <span className="text-kontrol-blue">BLUE AI</span> & <span className="text-kontrol-orange">INNOV'KORP</span>
             </p>
-            <p className="text-[8px] text-kontrol-blue/50 font-bold uppercase tracking-[0.2em] mt-1">
-              PROD ACTIVE : <span className="text-white bg-kontrol-blue/20 px-1.5 py-0.5 rounded ml-0.5">{currentVersion}</span>
+            <p className="text-[9.5px] text-white/40 font-mono font-bold tracking-widest mt-1.5 flex items-center justify-center gap-1">
+              <span className="text-white bg-white/10 px-2 py-0.5 rounded-md">
+                {currentVersion}
+              </span>
             </p>
           </div>
         </div>

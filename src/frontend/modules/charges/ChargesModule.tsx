@@ -433,7 +433,7 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
           <Search size={14} className="text-kontrol-ink-muted" />
           <input 
             type="text"
-            placeholder={t('charges.search_placeholder') || t('produits.search_placeholder')}
+            placeholder={t('charges.search_placeholder', 'Rechercher description, tiers... ou catégorie')}
             className="bg-transparent border-none outline-none text-[13px] w-full text-kontrol-ink placeholder:text-kontrol-ink-muted"
             value={searchTerm}
             onChange={(e) => {

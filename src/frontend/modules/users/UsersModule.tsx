@@ -509,7 +509,7 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
                     <Search size={16} className="text-kontrol-ink-muted" />
                     <input 
                       type="text"
-                      placeholder={t('users.search_placeholder') || t('produits.search_placeholder')}
+                      placeholder={t('users.search_placeholder', 'Rechercher par nom, email, rôle...')}
                       className="bg-transparent border-none outline-none text-[13px] w-full text-kontrol-ink placeholder:text-kontrol-ink-muted font-medium"
                       value={searchTerm}
                       onChange={(e) => {
