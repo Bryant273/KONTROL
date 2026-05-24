@@ -1,9 +1,14 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, Receipt, Loader2, X, History, Calendar, Tag, CreditCard, ArrowDownLeft, ArrowUpRight, ArrowDownRight, Edit2, Trash2, FileText, Table, Sparkles, Zap } from 'lucide-react';
+import { Plus, Search, Receipt, Loader2, X, History, Calendar, Tag, CreditCard, ArrowDownLeft, ArrowUpRight, ArrowDownRight, Edit2, Trash2, FileText, Table, Sparkles, Zap, Upload, Download } from 'lucide-react';
 import { exportToPDF, exportToExcel } from '../../lib/export';
+import * as XLSX from 'xlsx';
+import { toast } from 'sonner';
+import { ExcelImportPreviewModal, ColumnConfig } from '../../components/common/ExcelImportPreviewModal';
+import { downloadModuleTemplate, cleanImportedRows } from '../../lib/templates';
 import { Charge, UserProfile } from '../../types';
 import { cn, formatCurrency } from '../../lib/utils';
+import { hasPermission } from '../../lib/permissions';
 import { 
   db, 
   collection, 
@@ -53,6 +58,139 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
   });
 
   const [isViewingJustificatif, setIsViewingJustificatif] = React.useState(false);
+  const [excelPreviewData, setExcelPreviewData] = React.useState<any[] | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
+
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !companyId || !currentUserProfile) return;
+
+    if (!hasPermission(currentUserProfile.role, 'FINANCE_CREATE')) {
+      toast.error(t('common.no_permission'));
+      return;
+    }
+
+    setLoading(true);
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const rawJsonData = XLSX.utils.sheet_to_json(ws) as any[];
+
+        // Filtrer automatiquement les explications et exemples
+        const data = cleanImportedRows('charges', rawJsonData);
+
+        const parsedRows: any[] = [];
+
+        for (const item of data) {
+          const headers = Object.keys(item);
+          const descKey = headers.find(h => h.toLowerCase().includes('desc') || h.toLowerCase().includes('libel') || h.toLowerCase().includes('sujet') || h.toLowerCase().includes('motif') || h.toLowerCase().includes('nom'));
+          const catKey = headers.find(h => h.toLowerCase().includes('caté') || h.toLowerCase().includes('cate') || h.toLowerCase().includes('type'));
+          const mtKey = headers.find(h => h.toLowerCase().includes('mont') || h.toLowerCase().includes('amou') || h.toLowerCase().includes('prix') || h.toLowerCase().includes('valeur') || h.toLowerCase().includes('cout') || h.toLowerCase().includes('coût'));
+          const modeKey = headers.find(h => h.toLowerCase().includes('mode') || h.toLowerCase().includes('pai') || h.toLowerCase().includes('pay'));
+          const dateKey = headers.find(h => h.toLowerCase().includes('date'));
+
+          const descValue = descKey ? String(item[descKey] || '').trim() : '';
+          const rawMontant = mtKey ? item[mtKey] : '';
+
+          let catValue = catKey ? String(item[catKey] || '').trim() : 'Autres';
+          const knownCategories = ["Loyer", "Électricité", "Eau", "Internet", "Salaires", "Transport", "Marketing", "Autres"];
+          const matchedCat = knownCategories.find(c => c.toLowerCase() === catValue.toLowerCase());
+          if (matchedCat) {
+            catValue = matchedCat;
+          } else {
+            catValue = "Autres";
+          }
+
+          let modeValue = modeKey ? String(item[modeKey] || '').trim() : 'Espèces';
+          if (modeValue.toLowerCase().includes('mob') || modeValue.toLowerCase().includes('wave') || modeValue.toLowerCase().includes('om') || modeValue.toLowerCase().includes('momo') || modeValue.toLowerCase().includes('cel')) {
+            modeValue = 'Paiement Mobile';
+          } else if (modeValue.toLowerCase().includes('banq') || modeValue.toLowerCase().includes('vire') || modeValue.toLowerCase().includes('card') || modeValue.toLowerCase().includes('carte')) {
+            modeValue = 'Banque / Carte';
+          } else {
+            modeValue = 'Espèces';
+          }
+
+          let dateValue = Date.now();
+          let rawDateVal = dateKey ? String(item[dateKey] || '') : '';
+          if (rawDateVal) {
+            const parsedDate = Date.parse(rawDateVal);
+            if (!isNaN(parsedDate)) {
+              dateValue = parsedDate;
+            } else {
+              // Try Microsoft serial date check
+              if (!isNaN(Number(rawDateVal))) {
+                const serial = Number(rawDateVal);
+                const utc_days = Math.floor(serial - 25569);
+                dateValue = utc_days * 86400 * 1000;
+              }
+            }
+          }
+
+          parsedRows.push({
+            description: descValue,
+            categorie: catValue,
+            montant: isNaN(Number(rawMontant)) ? rawMontant : Number(rawMontant || 0),
+            modePaiement: modeValue,
+            date: dateValue,
+            rawDateText: rawDateVal
+          });
+        }
+
+        if (parsedRows.length > 0) {
+          setExcelPreviewData(parsedRows);
+          setIsPreviewOpen(true);
+        } else {
+          toast.info("Aucune ligne de charge valide n'a été détectée dans l'Excel.");
+        }
+      } catch (err) {
+        console.error("Export/Import Excel error charges:", err);
+        toast.error("Erreur durant l'import de charges. Vérifiez votre fichier excel.");
+      } finally {
+        setLoading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handleConfirmImport = async (finalData: any[]) => {
+    try {
+      let count = 0;
+      for (const item of finalData) {
+        await chargeService.createCharge({
+          description: item.description,
+          categorie: item.categorie,
+          montant: item.montant,
+          modePaiement: item.modePaiement,
+          date: item.date,
+          justificatifUrl: '',
+          ownerId: companyId,
+          createdAt: Date.now()
+        }, user);
+        count++;
+      }
+
+      await logAction(
+        companyId,
+        user.uid,
+        userName,
+        'Mouvement: Importation',
+        `${count} charges importées via assistant de prévisualisation (Excel)`
+      );
+
+      toast.success(`${count} charges importées avec succès !`);
+    } catch (err) {
+      console.error("Failed to confirm charges import:", err);
+      toast.error("Erreur technique lors de la validation de l'import.");
+      throw err;
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -229,6 +367,27 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
         <p className="text-[13px] text-kontrol-ink-muted mt-1">{t('charges.subtitle')}</p>
       </div>
         <div className="flex gap-2">
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleImportExcel} 
+            accept=".xlsx,.xls,.csv" 
+            className="hidden" 
+          />
+          <button 
+            onClick={() => downloadModuleTemplate('charges')} 
+            className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2 text-kontrol-blue border-kontrol-blue/20 hover:bg-kontrol-blue/5"
+            title="Télécharger le modèle Excel de charges"
+          >
+            <Download size={14} /> Modèle
+          </button>
+          <button 
+            onClick={() => fileInputRef.current?.click()} 
+            className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2"
+            title="Importer des charges depuis un fichier Excel/CSV"
+          >
+            <Upload size={14} /> {t('common.import', 'Importer')}
+          </button>
           <button onClick={handleExportPDF} className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2">
             <FileText size={14} /> PDF
           </button>
@@ -697,6 +856,44 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
             </div>
           </div>
         </div>
+      )}
+
+      {excelPreviewData && (
+        <ExcelImportPreviewModal
+          isOpen={isPreviewOpen}
+          onClose={() => {
+            setIsPreviewOpen(false);
+            setExcelPreviewData(null);
+          }}
+          onConfirm={handleConfirmImport}
+          rawData={excelPreviewData}
+          existingData={charges}
+          moduleKey="charges"
+          isDuplicate={(row, existing) => 
+            String(row.description).toLowerCase().trim() === String(existing.description).toLowerCase().trim() &&
+            Number(row.montant) === Number(existing.montant)
+          }
+          validateRow={(row) => {
+            if (!row.description || !String(row.description).trim()) {
+              return "Description ou libellé requis";
+            }
+            if (row.montant === undefined || row.montant === '' || isNaN(Number(row.montant)) || Number(row.montant) <= 0) {
+              return "Montant d'achat doit être un nombre positif supérieur à 0";
+            }
+            if (row.rawDateText && isNaN(Date.parse(row.rawDateText)) && isNaN(Number(row.rawDateText))) {
+              return "Format de date invalide (attendu: AAAA-MM-JJ)";
+            }
+            return null;
+          }}
+          title="Dépenses & Charges"
+          columns={[
+            { key: 'description', label: 'Description' },
+            { key: 'categorie', label: 'Catégorie' },
+            { key: 'montant', label: 'Montant', render: (val) => formatCurrency(val.montant) },
+            { key: 'modePaiement', label: 'Mode Paiement' },
+            { key: 'date', label: 'Date', render: (val) => new Date(val.date).toLocaleDateString() }
+          ]}
+        />
       )}
     </div>
   );

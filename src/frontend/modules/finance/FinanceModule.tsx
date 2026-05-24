@@ -1,8 +1,12 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Table, TrendingUp, Search, Filter, Loader2, Plus, FileText, X, CheckCircle2, Trash2, Calendar, DollarSign, Banknote, CreditCard, Smartphone, Wallet as WalletIcon, ArrowUpCircle, ArrowDownCircle, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { Table, TrendingUp, Search, Filter, Loader2, Plus, FileText, X, CheckCircle2, Trash2, Calendar, DollarSign, Banknote, CreditCard, Smartphone, Wallet as WalletIcon, ArrowUpCircle, ArrowDownCircle, ArrowDownLeft, ArrowUpRight, Upload, Download } from 'lucide-react';
 import { motion } from 'motion/react';
 import { exportToPDF, exportToExcel } from '../../lib/export';
+import * as XLSX from 'xlsx';
+import { toast } from 'sonner';
+import { ExcelImportPreviewModal } from '../../components/common/ExcelImportPreviewModal';
+import { downloadModuleTemplate, cleanImportedRows } from '../../lib/templates';
 import { Wallet, Payment, UserProfile, Tiers, Transaction } from '../../types';
 import { cn, formatCurrency } from '../../lib/utils';
 import { hasPermission } from '../../lib/permissions';
@@ -94,6 +98,146 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
 
     return () => unsubscribes.forEach(unsub => unsub());
   }, [companyId]);
+
+  const [excelPreviewData, setExcelPreviewData] = React.useState<any[] | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
+
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !companyId || !currentUserProfile) return;
+
+    if (!hasPermission(currentUserProfile.role, 'FINANCE_CREATE')) {
+      toast.error(t('common.no_permission'));
+      return;
+    }
+
+    setLoading(true);
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const rawJsonData = XLSX.utils.sheet_to_json(ws) as any[];
+
+        // Filtrer automatiquement les explications et exemples
+        const data = cleanImportedRows('finance', rawJsonData);
+
+        const parsedRows: any[] = [];
+        for (const item of data) {
+          const headers = Object.keys(item);
+          const descKey = headers.find(h => h.toLowerCase().includes('desc') || h.toLowerCase().includes('libel') || h.toLowerCase().includes('motif') || h.toLowerCase().includes('sujet'));
+          const mtKey = headers.find(h => h.toLowerCase().includes('mont') || h.toLowerCase().includes('amou') || h.toLowerCase().includes('valeur') || h.toLowerCase().includes('prix'));
+          const typeKey = headers.find(h => h.toLowerCase().includes('type'));
+          const modeKey = headers.find(h => h.toLowerCase().includes('mode') || h.toLowerCase().includes('pai') || h.toLowerCase().includes('pay'));
+          const dateKey = headers.find(h => h.toLowerCase().includes('date'));
+          const tiersKey = headers.find(h => h.toLowerCase().includes('tiers') || h.toLowerCase().includes('party') || h.toLowerCase().includes('nom') || h.toLowerCase().includes('client') || h.toLowerCase().includes('fourn'));
+
+          const descValue = descKey ? String(item[descKey] || '').trim() : '';
+          const rawMontant = mtKey ? item[mtKey] : '';
+
+          let typeValue: 'ENCAISSEMENT' | 'DECAISSEMENT' = 'ENCAISSEMENT';
+          if (typeKey) {
+            const rawType = String(item[typeKey] || '').toUpperCase();
+            if (rawType.includes('DEC') || rawType.includes('OUT') || rawType.includes('DEP') || rawType.includes('ACHAT')) {
+              typeValue = 'DECAISSEMENT';
+            }
+          }
+
+          let modeValue = modeKey ? String(item[modeKey] || '').trim() : 'Espèces';
+          if (!modeValue) modeValue = 'Espèces';
+
+          let dateValue = Date.now();
+          let rawDateVal = dateKey ? String(item[dateKey] || '') : '';
+          if (rawDateVal) {
+            const parsedDate = Date.parse(rawDateVal);
+            if (!isNaN(parsedDate)) {
+              dateValue = parsedDate;
+            } else {
+              // Try Microsoft serial date check
+              if (!isNaN(Number(rawDateVal))) {
+                const serial = Number(rawDateVal);
+                const utc_days = Math.floor(serial - 25569);
+                dateValue = utc_days * 86400 * 1000;
+              }
+            }
+          }
+
+          let rawTiersNom = tiersKey ? String(item[tiersKey] || '') : '';
+          let tiersIdVal = '';
+          if (rawTiersNom) {
+            const foundTiers = tiers.find(t => t.nom.toLowerCase() === rawTiersNom.toLowerCase());
+            if (foundTiers) {
+              tiersIdVal = foundTiers.id!;
+              rawTiersNom = foundTiers.nom;
+            }
+          }
+
+          parsedRows.push({
+            description: descValue,
+            montant: isNaN(Number(rawMontant)) ? rawMontant : Number(rawMontant || 0),
+            type: typeValue,
+            modePaiement: modeValue,
+            date: dateValue,
+            rawDateText: rawDateVal,
+            tiersId: tiersIdVal,
+            tiersNom: rawTiersNom
+          });
+        }
+
+        if (parsedRows.length > 0) {
+          setExcelPreviewData(parsedRows);
+          setIsPreviewOpen(true);
+        } else {
+          toast.info("Aucun mouvement de trésorerie valide n'a été détecté.");
+        }
+      } catch (err) {
+        console.error("Finance Excel import error:", err);
+        toast.error("Échec lors de l'import : Vérifiez votre fichier excel.");
+      } finally {
+        setLoading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handleConfirmImport = async (finalData: any[]) => {
+    try {
+      let count = 0;
+      for (const item of finalData) {
+        await addDoc(collection(db, 'payments'), {
+          description: item.description,
+          montant: item.montant,
+          type: item.type,
+          modePaiement: item.modePaiement,
+          date: item.date,
+          tiersId: item.tiersId,
+          tiersNom: item.tiersNom,
+          ownerId: companyId,
+          createdAt: Date.now()
+        });
+        count++;
+      }
+
+      await logAction(
+        companyId,
+        user.uid,
+        currentUserProfile.displayName,
+        "Mouvements trésorerie importés",
+        `${count} mouvements enregistrés via assistant de prévisualisation (Excel)`
+      );
+
+      toast.success(`${count} mouvements de trésorerie importés avec succès !`);
+    } catch (err) {
+      console.error("Failed to commit final treasury import:", err);
+      toast.error("Échec lors de la validation finale de l'importation de trésorerie.");
+      throw err;
+    }
+  };
 
   const [isWaveLoading, setIsWaveLoading] = React.useState(false);
 
@@ -574,6 +718,45 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
       <div className="card overflow-hidden">
         <div className="p-4 border-b border-kontrol-border flex flex-wrap items-center justify-between gap-4 bg-kontrol-bg/30">
           <h4 className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">{t('finance.history_title')}</h4>
+          <div className="flex items-center gap-2">
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              onChange={handleImportExcel} 
+              accept=".xlsx,.xls,.csv" 
+              className="hidden" 
+            />
+            {hasPermission(currentUserProfile?.role, 'FINANCE_CREATE') && (
+              <>
+                <button 
+                  onClick={() => downloadModuleTemplate('finance')} 
+                  className="btn-outline text-xs py-1 px-2.5 flex items-center gap-1.5 font-medium text-kontrol-blue border-kontrol-blue/20 hover:bg-kontrol-blue/5"
+                  title="Télécharger le modèle Excel de Trésorerie"
+                >
+                  <Download size={13} /> Modèle
+                </button>
+                <button 
+                  onClick={() => fileInputRef.current?.click()} 
+                  className="btn-outline text-xs py-1 px-2.5 flex items-center gap-1.5 font-medium"
+                  title="Importer des mouvements de trésorerie depuis un fichier Excel/CSV"
+                >
+                  <Upload size={13} /> {t('common.import', 'Importer')}
+                </button>
+              </>
+            )}
+            <button 
+              onClick={handleExportPDF} 
+              className="btn-outline text-xs py-1 px-2.5 flex items-center gap-1.5 font-medium"
+            >
+              <FileText size={13} /> PDF
+            </button>
+            <button 
+              onClick={handleExportExcel} 
+              className="btn-outline text-xs py-1 px-2.5 flex items-center gap-1.5 font-medium"
+            >
+              <Table size={13} /> Excel
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -822,6 +1005,49 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
         confirmLabel={t('common.delete')}
         variant="danger"
       />
+
+      {excelPreviewData && (
+        <ExcelImportPreviewModal
+          isOpen={isPreviewOpen}
+          onClose={() => {
+            setIsPreviewOpen(false);
+            setExcelPreviewData(null);
+          }}
+          onConfirm={handleConfirmImport}
+          rawData={excelPreviewData}
+          existingData={payments}
+          moduleKey="finance"
+          isDuplicate={(row, existing) => 
+            String(row.description).toLowerCase().trim() === String(existing.description).toLowerCase().trim() &&
+            Number(row.montant) === Number(existing.montant) &&
+            String(row.type) === String(existing.type)
+          }
+          validateRow={(row) => {
+            if (!row.description || !String(row.description).trim()) {
+              return "Motif/Description requis";
+            }
+            if (row.montant === undefined || row.montant === '' || isNaN(Number(row.montant)) || Number(row.montant) <= 0) {
+              return "Montant invalide (doit être > 0)";
+            }
+            if (!row.type || (row.type !== 'ENCAISSEMENT' && row.type !== 'DECAISSEMENT')) {
+              return "Type requis (ENCAISSEMENT / DECAISSEMENT)";
+            }
+            if (row.rawDateText && isNaN(Date.parse(row.rawDateText)) && isNaN(Number(row.rawDateText))) {
+              return "Format de date invalide (attendu: AAAA-MM-JJ)";
+            }
+            return null;
+          }}
+          title="Mouvements de Trésorerie"
+          columns={[
+            { key: 'description', label: 'Description/Motif' },
+            { key: 'tiersNom', label: 'Tiers' },
+            { key: 'type', label: 'Type' },
+            { key: 'montant', label: 'Montant', render: (val) => formatCurrency(val.montant) },
+            { key: 'modePaiement', label: 'Mode' },
+            { key: 'date', label: 'Date d\'exécution', render: (val) => new Date(val.date).toLocaleDateString() }
+          ]}
+        />
+      )}
     </div>
   );
 }

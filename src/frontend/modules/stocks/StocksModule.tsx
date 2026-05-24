@@ -10,9 +10,15 @@ import {
   TrendingUp, 
   TrendingDown,
   Package,
-  Info
+  Info,
+  Upload,
+  Download
 } from 'lucide-react';
 import { exportToPDF, exportToExcel } from '../../lib/export';
+import * as XLSX from 'xlsx';
+import { toast } from 'sonner';
+import { ExcelImportPreviewModal, ColumnConfig } from '../../components/common/ExcelImportPreviewModal';
+import { downloadModuleTemplate, cleanImportedRows } from '../../lib/templates';
 import { StockMovement, Produit, UserProfile } from '../../types';
 import { cn, formatCurrency } from '../../lib/utils';
 import { sendNotification } from '../../../api/services/notificationService';
@@ -25,7 +31,11 @@ import {
   orderBy, 
   User,
   handleFirestoreError,
-  OperationType
+  OperationType,
+  addDoc,
+  updateDoc,
+  doc,
+  logAction
 } from '../../../api/firebase';
 
 import { ModuleActivityLog } from '../../components/common/ModuleActivityLog';
@@ -45,6 +55,175 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
   const [activeView, setActiveView] = React.useState<'MOVEMENTS' | 'INVENTORY'>('MOVEMENTS');
   const [currentPage, setCurrentPage] = React.useState(1);
   const itemsPerPage = 10;
+
+  const [excelPreviewData, setExcelPreviewData] = React.useState<any[] | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
+
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !companyId || !currentUserProfile) return;
+
+    setLoading(true);
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const rawJsonData = XLSX.utils.sheet_to_json(ws) as any[];
+
+        // Filtrer automatiquement les explications et exemples
+        const data = cleanImportedRows(activeView === 'MOVEMENTS' ? 'stocks_movements' : 'stocks_inventory', rawJsonData);
+
+        const parsedRows: any[] = [];
+
+        if (activeView === 'MOVEMENTS') {
+          for (const item of data) {
+            const headers = Object.keys(item);
+            const dateKey = headers.find(h => h.toLowerCase().includes('date'));
+            const typeKey = headers.find(h => h.toLowerCase().includes('type'));
+            const prodKey = headers.find(h => h.toLowerCase().includes('prod') || h.toLowerCase().includes('design') || h.toLowerCase().includes('nom'));
+            const qtyKey = headers.find(h => h.toLowerCase().includes('quant') || h.toLowerCase().includes('qty') || h.toLowerCase().includes('qte'));
+            const priceKey = headers.find(h => h.toLowerCase().includes('prix') || h.toLowerCase().includes('price') || h.toLowerCase().includes('valeur') || h.toLowerCase().includes('unitaire') || h.toLowerCase().includes('cump'));
+            const srcKey = headers.find(h => h.toLowerCase().includes('sour') || h.toLowerCase().includes('orig'));
+
+            const pName = prodKey ? String(item[prodKey] || '').trim() : '';
+            const rawQty = qtyKey ? item[qtyKey] : '';
+
+            let dateVal = Date.now();
+            let rawDateVal = dateKey ? String(item[dateKey] || '') : '';
+            if (rawDateVal) {
+              const parsedDate = Date.parse(rawDateVal);
+              if (!isNaN(parsedDate)) {
+                dateVal = parsedDate;
+              } else {
+                // Try Microsoft serial date check
+                if (!isNaN(Number(rawDateVal))) {
+                  const serial = Number(rawDateVal);
+                  const utc_days = Math.floor(serial - 25569);
+                  dateVal = utc_days * 86400 * 1000;
+                }
+              }
+            }
+
+            const typeVal = typeKey ? String(item[typeKey]).toUpperCase() : 'AJUSTEMENT';
+            const priceVal = priceKey ? Number(item[priceKey] || 0) : 0;
+            const srcVal = srcKey ? String(item[srcKey] || '') : 'Import Excel';
+
+            parsedRows.push({
+              designation: pName,
+              quantite: isNaN(Number(rawQty)) ? rawQty : Number(rawQty || 0),
+              type: typeVal,
+              prixUnitaire: priceVal,
+              source: srcVal,
+              date: dateVal,
+              rawDateText: rawDateVal
+            });
+          }
+        } else {
+          // Inventory stock update
+          for (const item of data) {
+            const headers = Object.keys(item);
+            const refKey = headers.find(h => h.toLowerCase().includes('ref') || h.toLowerCase().includes('code') || h.toLowerCase().includes('num'));
+            const stockKey = headers.find(h => h.toLowerCase().includes('stock') || h.toLowerCase().includes('quant') || h.toLowerCase().includes('qty') || h.toLowerCase().includes('qte') || h.toLowerCase().includes('invent'));
+
+            const refVal = refKey ? String(item[refKey] || '').trim() : '';
+            const rawStock = stockKey ? item[stockKey] : '';
+
+            parsedRows.push({
+              reference: refVal,
+              stock: isNaN(Number(rawStock)) ? rawStock : Number(rawStock || 0)
+            });
+          }
+        }
+
+        if (parsedRows.length > 0) {
+          setExcelPreviewData(parsedRows);
+          setIsPreviewOpen(true);
+        } else {
+          toast.info("Aucun mouvement ou article repéré.");
+        }
+      } catch (err) {
+        console.error("Stocks Excel import error:", err);
+        toast.error("Échec lors de l'import. Assurez-vous d'avoir des colonnes valides.");
+      } finally {
+        setLoading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handleConfirmImport = async (finalData: any[]) => {
+    try {
+      let count = 0;
+
+      if (activeView === 'MOVEMENTS') {
+        for (const item of finalData) {
+          const matchedProd = produits.find(p => p.designation.toLowerCase() === item.designation.toLowerCase() || p.reference.toLowerCase() === item.designation.toLowerCase());
+          let prodId = 'EXTERNAL';
+          if (matchedProd && matchedProd.id) {
+            prodId = matchedProd.id;
+            const newStock = matchedProd.stock + (item.type === 'ENTREE' ? item.quantite : item.type === 'SORTIE' ? -item.quantite : item.quantite);
+            await updateDoc(doc(db, 'produits', matchedProd.id), { stock: newStock });
+          }
+
+          await addDoc(collection(db, 'stock_movements'), {
+            date: item.date,
+            type: item.type,
+            produitId: prodId,
+            designation: item.designation,
+            quantite: Math.abs(item.quantite),
+            prixUnitaire: item.prixUnitaire,
+            source: item.source,
+            ownerId: companyId,
+            createdAt: Date.now()
+          });
+          count++;
+        }
+        toast.success(`${count} mouvements de stock importés avec succès !`);
+      } else {
+        // Inventory level update
+        for (const item of finalData) {
+          const matchedProd = produits.find(p => p.reference.toLowerCase() === item.reference.toLowerCase());
+          if (matchedProd && matchedProd.id) {
+            const diff = item.stock - matchedProd.stock;
+            if (diff !== 0) {
+              await addDoc(collection(db, 'stock_movements'), {
+                date: Date.now(),
+                type: 'AJUSTEMENT',
+                produitId: matchedProd.id,
+                designation: matchedProd.designation,
+                quantite: Math.abs(diff),
+                prixUnitaire: matchedProd.cump || matchedProd.prixAchat || 0,
+                source: 'Inventaire Importé',
+                ownerId: companyId,
+                createdAt: Date.now()
+              });
+            }
+            await updateDoc(doc(db, 'produits', matchedProd.id), { stock: item.stock });
+            count++;
+          }
+        }
+        toast.success(`${count} articles d'inventaire mis à jour avec succès !`);
+      }
+
+      await logAction(
+        companyId,
+        user.uid,
+        currentUserProfile.displayName,
+        "Stocks: Importation Excel",
+        `${count} ajustements appliqués via assistant de prévisualisation`
+      );
+    } catch (err) {
+      console.error("Failed to commit stocks import:", err);
+      toast.error("Erreur durant la validation de l'importation de stock.");
+      throw err;
+    }
+  };
 
   React.useEffect(() => {
     setCurrentPage(1);
@@ -235,6 +414,33 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
           />
         </div>
         <div className="flex gap-2">
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleImportExcel} 
+            accept=".xlsx,.xls,.csv" 
+            className="hidden" 
+          />
+          <button 
+            onClick={() => {
+              if (activeView === 'MOVEMENTS') {
+                downloadModuleTemplate('stocks_movements');
+              } else {
+                downloadModuleTemplate('stocks_inventory');
+              }
+            }} 
+            className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2 text-kontrol-blue border-kontrol-blue/20 hover:bg-kontrol-blue/5"
+            title="Télécharger le modèle Excel de stock"
+          >
+            <Download size={14} /> Modèle
+          </button>
+          <button 
+            onClick={() => fileInputRef.current?.click()} 
+            className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2"
+            title={activeView === 'MOVEMENTS' ? "Importer des mouvements de stock depuis un fichier Excel" : "Mettre à jour l'inventaire depuis un fichier Excel"}
+          >
+            <Upload size={14} /> {t('common.import', 'Importer')}
+          </button>
           <button 
             onClick={handleExportPDF}
             className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2"
@@ -436,6 +642,65 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
           title={t('stocks.movement_journal')} 
         />
       </div>
+
+      {excelPreviewData && (
+        <ExcelImportPreviewModal
+          isOpen={isPreviewOpen}
+          onClose={() => {
+            setIsPreviewOpen(false);
+            setExcelPreviewData(null);
+          }}
+          onConfirm={handleConfirmImport}
+          rawData={excelPreviewData}
+          existingData={activeView === 'MOVEMENTS' ? movements : produits}
+          moduleKey={activeView === 'MOVEMENTS' ? "stocks_movements" : "stocks_inventory"}
+          isDuplicate={(row, existing) => {
+            if (activeView === 'MOVEMENTS') {
+              return String(row.designation).toLowerCase().trim() === String(existing.designation).toLowerCase().trim() &&
+                     Number(row.quantite) === Number(existing.quantite) &&
+                     String(row.type) === String(existing.type);
+            } else {
+              return String(row.reference).toLowerCase().trim() === String(existing.reference).toLowerCase().trim();
+            }
+          }}
+          validateRow={(row) => {
+            if (activeView === 'MOVEMENTS') {
+              if (!row.designation || !String(row.designation).trim()) {
+                return "Désignation ou référence d'article requise";
+              }
+              if (row.quantite === undefined || row.quantite === '' || isNaN(Number(row.quantite)) || Number(row.quantite) <= 0) {
+                return "Quantité invalide (doit être un nombre positif > 0)";
+              }
+              if (!row.type || (row.type !== 'ENTREE' && row.type !== 'SORTIE' && row.type !== 'AJUSTEMENT')) {
+                return "Type requis (ENTREE / SORTIE / AJUSTEMENT)";
+              }
+              if (row.rawDateText && isNaN(Date.parse(row.rawDateText)) && isNaN(Number(row.rawDateText))) {
+                return "Format de date invalide (attendu: AAAA-MM-JJ)";
+              }
+            } else {
+              if (!row.reference || !String(row.reference).trim()) {
+                return "Référence produit requise";
+              }
+              if (row.stock === undefined || row.stock === '' || isNaN(Number(row.stock)) || Number(row.stock) < 0) {
+                return "Nouveau niveau de stock doit être un nombre positif (≥ 0)";
+              }
+            }
+            return null;
+          }}
+          title={activeView === 'MOVEMENTS' ? "Mouvements de Stocks" : "Mise à jour Inventaire"}
+          columns={activeView === 'MOVEMENTS' ? [
+            { key: 'designation', label: 'Désignation Produit' },
+            { key: 'quantite', label: 'Quantité' },
+            { key: 'type', label: 'Type de Mouvement' },
+            { key: 'prixUnitaire', label: 'Prix Unitaire' },
+            { key: 'source', label: 'Source Originelle' },
+            { key: 'date', label: 'Date', render: (val) => new Date(val.date).toLocaleDateString() }
+          ] : [
+            { key: 'reference', label: 'Référence Produit' },
+            { key: 'stock', label: 'Nouveau niveau Stock' }
+          ]}
+        />
+      )}
     </div>
   );
 }

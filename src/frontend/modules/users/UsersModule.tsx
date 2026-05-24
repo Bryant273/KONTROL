@@ -18,8 +18,14 @@ import {
   Phone,
   Globe,
   ArrowDownLeft,
-  ArrowUpRight
+  ArrowUpRight,
+  Upload,
+  Table,
+  FileText
 } from 'lucide-react';
+import { exportToPDF, exportToExcel } from '../../lib/export';
+import * as XLSX from 'xlsx';
+import { toast } from 'sonner';
 import { UserProfile, UserRole } from '../../types';
 import { cn } from '../../lib/utils';
 import { 
@@ -76,6 +82,126 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
     password: '',
     role: 'GESTIONNAIRE_ENTREPRISE' as UserRole
   });
+
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentUserProfile) return;
+
+    if (!canCreateUser) {
+      toast.error(t('common.no_permission'));
+      return;
+    }
+
+    setLoading(true);
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws) as any[];
+
+        let importedCount = 0;
+        const path = 'users';
+        const companyId = currentUserProfile.companyId || user.uid;
+
+        for (const item of data) {
+          const headers = Object.keys(item);
+          const nameKey = headers.find(h => h.toLowerCase().includes('nom') || h.toLowerCase().includes('name') || h.toLowerCase().includes('complet'));
+          const emailKey = headers.find(h => h.toLowerCase().includes('mail'));
+          const roleKey = headers.find(h => h.toLowerCase().includes('role') || h.toLowerCase().includes('rôle') || h.toLowerCase().includes('fonction'));
+          const passwordKey = headers.find(h => h.toLowerCase().includes('pass') || h.toLowerCase().includes('mdp') || h.toLowerCase().includes('mot de passe'));
+
+          const emailValue = emailKey ? String(item[emailKey] || '').trim().toLowerCase() : '';
+          const nameValue = nameKey ? String(item[nameKey] || '').trim() : '';
+
+          if (emailValue && nameValue) {
+            const alreadyExists = users.some(u => u.email.toLowerCase() === emailValue);
+            if (!alreadyExists) {
+              const newUserRef = doc(collection(db, path));
+              const newUid = newUserRef.id;
+
+              let roleValue: UserRole = 'UTILISATEUR';
+              if (roleKey) {
+                const rawRole = String(item[roleKey]).toUpperCase();
+                if (rawRole.includes('ADMIN')) {
+                  roleValue = 'ADMINISTRATEUR_ENTREPRISE';
+                } else if (rawRole.includes('GEST') || rawRole.includes('MAN')) {
+                  roleValue = 'GESTIONNAIRE_ENTREPRISE';
+                } else if (rawRole.includes('COLL') || rawRole.includes('AGENT')) {
+                  roleValue = 'UTILISATEUR';
+                }
+              }
+
+              const passValue = passwordKey ? String(item[passwordKey]) : 'Kontrol123!';
+
+              const profile: UserProfile = {
+                uid: newUid,
+                email: emailValue,
+                displayName: nameValue,
+                role: roleValue,
+                companyId: companyId,
+                companyName: currentUserProfile.companyName || '',
+                companyLogo: currentUserProfile.companyLogo || '',
+                isProfileComplete: false,
+                active: true,
+                password: passValue,
+                createdAt: Date.now()
+              };
+
+              await setDoc(newUserRef, profile);
+              importedCount++;
+            }
+          }
+        }
+
+        await logAction(
+          companyId,
+          user.uid,
+          currentUserProfile.displayName,
+          "Import utilisateurs via Excel",
+          `${importedCount} utilisateurs créés`
+        );
+
+        if (importedCount > 0) {
+          toast.success(`${importedCount} utilisateurs importés avec succès !`);
+        } else {
+          toast.info("Aucun nouvel utilisateur n'a pu être importé. Vérifiez s'ils existent déjà.");
+        }
+      } catch (err) {
+        console.error("Users excel import error:", err);
+        toast.error("Échec lors de l'import : Vérifiez les colonnes et le format.");
+      } finally {
+        setLoading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handleExportPDF = () => {
+    const headers = [t('users.table.name'), t('users.table.email'), t('users.table.role'), t('users.table.status')];
+    const data = filteredUsers.map(u => [
+      u.displayName,
+      u.email,
+      u.role,
+      u.active !== false ? t('common.active', 'Actif') : t('common.inactive', 'Inactif')
+    ]);
+    exportToPDF(`${t('users.title')} - KONTROL`, headers, data, 'Utilisateurs_KONTROL', currentUserProfile?.companyLogo || currentUserProfile?.logoUrl);
+  };
+
+  const handleExportExcel = () => {
+    const data = filteredUsers.map(u => ({
+      [t('users.table.name')]: u.displayName,
+      [t('users.table.email')]: u.email,
+      [t('users.table.role')]: u.role,
+      [t('users.table.status')]: u.active !== false ? 'Actif' : 'Inactif'
+    }));
+    exportToExcel(data, 'Utilisateurs_KONTROL');
+  };
 
   React.useEffect(() => {
     if (!currentUserProfile || !currentUserProfile.companyId) return;
@@ -495,12 +621,42 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
           <h2 className="text-2xl font-extrabold text-kontrol-dark tracking-tight">{t('users.title')}</h2>
           <p className="text-[13px] text-kontrol-ink-muted mt-1">{t('users.subtitle')}</p>
         </div>
-                {canCreateUser && (
-                  <button onClick={() => setIsAdding(true)} className="btn-primary text-xs py-2 px-5 flex items-center gap-2 shadow-lg shadow-kontrol-blue/20">
-                    <UserPlus size={14} /> {t('users.add_member')}
-                  </button>
-                )}
-              </div>
+        <div className="flex items-center gap-2">
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleImportExcel} 
+            accept=".xlsx,.xls,.csv" 
+            className="hidden" 
+          />
+          {canCreateUser && (
+            <button 
+              onClick={() => fileInputRef.current?.click()} 
+              className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2 font-medium"
+              title="Importer des utilisateurs depuis un fichier Excel/CSV"
+            >
+              <Upload size={14} /> {t('common.import', 'Importer')}
+            </button>
+          )}
+          <button 
+            onClick={handleExportPDF} 
+            className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2 font-medium"
+          >
+            <FileText size={14} /> PDF
+          </button>
+          <button 
+            onClick={handleExportExcel} 
+            className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2 font-medium"
+          >
+            <Table size={14} /> Excel
+          </button>
+          {canCreateUser && (
+            <button onClick={() => setIsAdding(true)} className="btn-primary text-xs py-2 px-5 flex items-center gap-2 shadow-lg shadow-kontrol-blue/20">
+              <UserPlus size={14} /> {t('users.add_member')}
+            </button>
+          )}
+        </div>
+      </div>
 
               {/* Search & Stats */}
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">

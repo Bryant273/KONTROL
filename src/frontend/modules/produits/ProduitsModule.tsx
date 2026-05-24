@@ -3,6 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { Plus, Search, Package, AlertCircle, Loader2, X, Boxes, History, Trash2, Edit2, FileText, Table, Upload, Download, Calendar, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { exportToPDF, exportToExcel } from '../../lib/export';
 import * as XLSX from 'xlsx';
+import { toast } from 'sonner';
+import { ExcelImportPreviewModal, ColumnConfig } from '../../components/common/ExcelImportPreviewModal';
+import { downloadModuleTemplate, cleanImportedRows } from '../../lib/templates';
 import { Produit, UserProfile } from '../../types';
 import { cn, formatCurrency } from '../../lib/utils';
 import { logAction, handleFirestoreError, OperationType, auth } from '../../../api/firebase';
@@ -50,19 +53,21 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
     tva: 18
   });
 
-  const [isImporting, setIsImporting] = React.useState(false);
+  const [excelPreviewData, setExcelPreviewData] = React.useState<any[] | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
+
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !companyId) return;
+    if (!file || !companyId || !currentUserProfile) return;
 
-    setLoading(true);
-    if (!hasPermission(currentUserProfile?.role, 'PRODUCT_CREATE')) {
-      setMessage({ type: 'error', text: t('common.no_permission') });
-      setLoading(false);
+    if (!hasPermission(currentUserProfile.role, 'PRODUCT_CREATE')) {
+      toast.error(t('common.no_permission'));
       return;
     }
+
+    setLoading(true);
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
@@ -70,51 +75,92 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
         const wb = XLSX.read(bstr, { type: 'binary' });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
-        const data = XLSX.utils.sheet_to_json(ws) as any[];
+        const rawJsonData = XLSX.utils.sheet_to_json(ws) as any[];
 
-        let importedCount = 0;
+        // Filtrer automatiquement la ligne d'explications et d'exemples du modèle Excel
+        const data = cleanImportedRows('produits', rawJsonData);
+
+        const parsedRows: any[] = [];
+
         for (const item of data) {
-          if (item.designation && item.reference) {
-            const prodData: Produit = {
-              reference: String(item.reference || ''),
-              designation: String(item.designation || ''),
-              prixAchat: Number(item.prixAchat || 0),
-              prixVente: Number(item.prixVente || 0),
-              stock: Number(item.stock || 0),
-              alertStock: Number(item.alertStock || 5),
-              cump: Number(item.prixAchat || 0),
-              tva: Number(item.tva || 18),
-              ownerId: companyId,
-              createdAt: Date.now()
-            } as Produit;
-            await productService.createProduct(prodData, user, currentUserProfile);
-            importedCount++;
-          }
+          const headers = Object.keys(item);
+          const refKey = headers.find(h => h.toLowerCase().includes('ref') || h.toLowerCase().includes('code') || h.toLowerCase().includes('num'));
+          const descKey = headers.find(h => h.toLowerCase().includes('desc') || h.toLowerCase().includes('design') || h.toLowerCase().includes('nom') || h.toLowerCase().includes('libel'));
+          const buyingKey = headers.find(h => h.toLowerCase().includes('achat') || h.toLowerCase().includes('buy') || h.toLowerCase().includes('coût') || h.toLowerCase().includes('cout'));
+          const sellingKey = headers.find(h => h.toLowerCase().includes('vent') || h.toLowerCase().includes('sell') || h.toLowerCase().includes('prix'));
+          const stockKey = headers.find(h => h.toLowerCase().includes('stock') || h.toLowerCase().includes('quant') || h.toLowerCase().includes('qte') || h.toLowerCase().includes('qty'));
+          const alertKey = headers.find(h => h.toLowerCase().includes('alert') || h.toLowerCase().includes('min'));
+          const tvaKey = headers.find(h => h.toLowerCase().includes('tva') || h.toLowerCase().includes('tax'));
+
+          const reference = refKey ? String(item[refKey] || '').trim() : '';
+          const designation = descKey ? String(item[descKey] || '').trim() : '';
+
+          const rawPrixAchat = buyingKey ? item[buyingKey] : undefined;
+          const rawPrixVente = sellingKey ? item[sellingKey] : undefined;
+          const rawStock = stockKey ? item[stockKey] : undefined;
+
+          parsedRows.push({
+            reference,
+            designation,
+            prixAchat: rawPrixAchat !== undefined ? rawPrixAchat : 0,
+            prixVente: rawPrixVente !== undefined ? rawPrixVente : 0,
+            stock: rawStock !== undefined ? rawStock : 0,
+            alertStock: alertKey ? Number(item[alertKey] || 5) : 5,
+            tva: tvaKey ? Number(item[tvaKey] || 18) : 18
+          });
         }
 
-        if (currentUserProfile) {
-          await logAction(
-            companyId,
-            user.uid,
-            currentUserProfile.displayName,
-            "Produits: Importés",
-            `${importedCount} produits importés via Excel`
-          );
-        }
-        if (importedCount > 0) {
-          setMessage({ type: 'success', text: t('produits.import_success', { count: importedCount }) });
-          setTimeout(() => setMessage(null), 3000);
+        if (parsedRows.length > 0) {
+          setExcelPreviewData(parsedRows);
+          setIsPreviewOpen(true);
+        } else {
+          toast.info("Aucun article valide trouvé dans votre fichier Excel.");
         }
       } catch (error) {
-        handleFirestoreError(error, OperationType.WRITE, 'produits/import', user, false);
-        setMessage({ type: 'error', text: t('produits.import_error') });
-        setTimeout(() => setMessage(null), 3000);
+        console.error("Products Excel import error:", error);
+        toast.error("Erreur durant l'import de catalogue.");
       } finally {
         setLoading(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
     };
     reader.readAsBinaryString(file);
+  };
+
+  const handleConfirmImport = async (finalData: any[]) => {
+    try {
+      let count = 0;
+      for (const item of finalData) {
+        const prodData: Produit = {
+          reference: item.reference,
+          designation: item.designation,
+          prixAchat: item.prixAchat,
+          prixVente: item.prixVente,
+          stock: item.stock,
+          alertStock: item.alertStock,
+          cump: item.prixAchat,
+          tva: item.tva,
+          ownerId: companyId,
+          createdAt: Date.now()
+        } as Produit;
+        await productService.createProduct(prodData, user, currentUserProfile);
+        count++;
+      }
+
+      await logAction(
+        companyId,
+        user.uid,
+        currentUserProfile.displayName,
+        "Produits: Importés",
+        `${count} produits importés via assistant de prévisualisation (Excel)`
+      );
+
+      toast.success(`${count} produits importés avec succès !`);
+    } catch (err) {
+      console.error("Failed to commit final products import:", err);
+      toast.error("Échec technique lors de la validation finale de l'import.");
+      throw err;
+    }
   };
 
   const handleDownloadFiche = (p: Produit) => {
@@ -429,6 +475,13 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
           {hasPermission(currentUserProfile?.role, 'PRODUCT_CREATE') && (
             <>
               <button 
+                onClick={() => downloadModuleTemplate('produits')} 
+                className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2 text-kontrol-blue border-kontrol-blue/20 hover:bg-kontrol-blue/5"
+                title="Télécharger le modèle Excel de Produits"
+              >
+                <Download size={14} /> Modèle
+              </button>
+              <button 
                 onClick={() => fileInputRef.current?.click()}
                 className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2"
               >
@@ -692,6 +745,51 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
           </div>
         </div>
       </div>
+
+      {excelPreviewData && (
+        <ExcelImportPreviewModal
+          isOpen={isPreviewOpen}
+          onClose={() => {
+            setIsPreviewOpen(false);
+            setExcelPreviewData(null);
+          }}
+          onConfirm={handleConfirmImport}
+          rawData={excelPreviewData}
+          existingData={produits}
+          moduleKey="produits"
+          isDuplicate={(row, existing) => 
+            String(row.reference).toLowerCase().trim() === String(existing.reference).toLowerCase().trim()
+          }
+          validateRow={(row) => {
+            if (!row.reference || !String(row.reference).trim()) {
+              return "Référence requise (ex: PRO-001)";
+            }
+            if (!row.designation || !String(row.designation).trim()) {
+              return "Désignation requise";
+            }
+            if (row.prixAchat !== undefined && row.prixAchat !== '' && (isNaN(Number(row.prixAchat)) || Number(row.prixAchat) < 0)) {
+              return "Prix d'achat doit être un nombre positif";
+            }
+            if (row.prixVente !== undefined && row.prixVente !== '' && (isNaN(Number(row.prixVente)) || Number(row.prixVente) < 0)) {
+              return "Prix de vente doit être un nombre positif";
+            }
+            if (row.stock !== undefined && row.stock !== '' && (isNaN(Number(row.stock)) || Number(row.stock) < 0)) {
+              return "Le stock de départ doit être un nombre positif";
+            }
+            return null;
+          }}
+          title="Produits & Services"
+          columns={[
+            { key: 'reference', label: 'Référence' },
+            { key: 'designation', label: 'Désignation' },
+            { key: 'prixAchat', label: 'Prix Achat', render: (val) => formatCurrency(val.prixAchat) },
+            { key: 'prixVente', label: 'Prix Vente', render: (val) => formatCurrency(val.prixVente) },
+            { key: 'stock', label: 'Stock Initial' },
+            { key: 'alertStock', label: 'Seuil Alerte' },
+            { key: 'tva', label: 'TVA %', render: (val) => `${val.tva}%` }
+          ]}
+        />
+      )}
     </div>
   );
 }

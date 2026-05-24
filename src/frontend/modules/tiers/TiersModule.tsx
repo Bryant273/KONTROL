@@ -1,7 +1,11 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, MoreVertical, Mail, Phone, MapPin, Loader2, X, UserCircle, History, Trash2, Edit2, FileText, Table, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { Plus, Search, MoreVertical, Mail, Phone, MapPin, Loader2, X, UserCircle, History, Trash2, Edit2, FileText, Table, ArrowDownLeft, ArrowUpRight, Upload, Download } from 'lucide-react';
 import { exportToPDF, exportToExcel } from '../../lib/export';
+import * as XLSX from 'xlsx';
+import { toast } from 'sonner';
+import { ExcelImportPreviewModal, ColumnConfig } from '../../components/common/ExcelImportPreviewModal';
+import { downloadModuleTemplate, cleanImportedRows } from '../../lib/templates';
 import { Tiers, TiersType, UserProfile } from '../../types';
 import { cn } from '../../lib/utils';
 import { hasPermission } from '../../lib/permissions';
@@ -56,6 +60,125 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
     adresse: '',
     statut: 'ACTIF' as 'ACTIF' | 'INACTIF'
   });
+
+  const [excelPreviewData, setExcelPreviewData] = React.useState<any[] | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
+
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !companyId) return;
+
+    if (!hasPermission(currentUserProfile?.role, 'TIERS_CREATE')) {
+      toast.error(t('common.no_permission'));
+      return;
+    }
+
+    setLoading(true);
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const rawJsonData = XLSX.utils.sheet_to_json(ws) as any[];
+
+        // Filtrer automatiquement les explications et exemples
+        const data = cleanImportedRows('tiers', rawJsonData);
+
+        const parsedRows: any[] = [];
+
+        for (const item of data) {
+          const headers = Object.keys(item);
+          const nomKey = headers.find(h => h.toLowerCase().includes('nom') || h.toLowerCase().includes('name') || h.toLowerCase().includes('complet'));
+          const emailKey = headers.find(h => h.toLowerCase().includes('mail'));
+          const telKey = headers.find(h => h.toLowerCase().includes('tél') || h.toLowerCase().includes('tel') || h.toLowerCase().includes('phone') || h.toLowerCase().includes('mobile'));
+          const typeKey = headers.find(h => h.toLowerCase().includes('type') || h.toLowerCase().includes('caté') || h.toLowerCase().includes('role'));
+          const adresseKey = headers.find(h => h.toLowerCase().includes('adresse') || h.toLowerCase().includes('add') || h.toLowerCase().includes('local'));
+          const statutKey = headers.find(h => h.toLowerCase().includes('statut') || h.toLowerCase().includes('status') || h.toLowerCase().includes('état') || h.toLowerCase().includes('etat'));
+
+          const nomValue = nomKey ? String(item[nomKey] || '').trim() : '';
+          
+          let typeValue: TiersType = 'CLIENT';
+          if (typeKey) {
+            const rawType = String(item[typeKey] || '').toUpperCase();
+            if (rawType.includes('FOURNISSEUR') || rawType.includes('SUPPLIER') || rawType.includes('VENDOR') || rawType.includes('FOURN')) {
+              typeValue = 'FOURNISSEUR';
+            }
+          }
+
+          let statutValue: 'ACTIF' | 'INACTIF' = 'ACTIF';
+          if (statutKey) {
+            const rawStat = String(item[statutKey] || '').toUpperCase();
+            if (rawStat.includes('INACTIF') || rawStat.includes('INACTIVE')) {
+              statutValue = 'INACTIF';
+            }
+          }
+
+          parsedRows.push({
+            nom: nomValue,
+            email: emailKey ? String(item[emailKey] || '').trim() : '',
+            telephone: telKey ? String(item[telKey] || '').trim() : '',
+            type: typeValue,
+            adresse: adresseKey ? String(item[adresseKey] || '').trim() : '',
+            statut: statutValue
+          });
+        }
+
+        if (parsedRows.length > 0) {
+          setExcelPreviewData(parsedRows);
+          setIsPreviewOpen(true);
+        } else {
+          toast.info("Aucune ligne de contact n'a été trouvée dans votre Excel.");
+        }
+      } catch (error) {
+        console.error("Failed to read tiers excel:", error);
+        toast.error("Erreur de lecture du fichier Excel.");
+      } finally {
+        setLoading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handleConfirmImport = async (finalData: any[]) => {
+    try {
+      const path = 'tiers';
+      let count = 0;
+      for (const item of finalData) {
+        await addDoc(collection(db, path), {
+          nom: item.nom,
+          email: item.email,
+          telephone: item.telephone,
+          type: item.type,
+          adresse: item.adresse,
+          statut: item.statut,
+          ownerId: companyId,
+          createdAt: Date.now()
+        });
+        count++;
+      }
+
+      if (currentUserProfile) {
+        await logAction(
+          companyId,
+          user.uid,
+          currentUserProfile.displayName,
+          "Tiers importés via Excel",
+          `${count} contacts importés via assistant de prévisualisation`
+        );
+      }
+
+      toast.success(`${count} contacts importés avec succès !`);
+    } catch (err) {
+      console.error("Tiers final import error:", err);
+      toast.error("Échec de l'enregistrement des contacts.");
+      throw err;
+    }
+  };
 
   const handleAddTiers = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -267,6 +390,31 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
           )}
         </div>
         <div className="flex gap-2">
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleImportExcel} 
+            accept=".xlsx,.xls,.csv" 
+            className="hidden" 
+          />
+          {hasPermission(currentUserProfile?.role, 'TIERS_CREATE') && (
+            <>
+              <button 
+                onClick={() => downloadModuleTemplate('tiers')} 
+                className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2 text-kontrol-blue border-kontrol-blue/20 hover:bg-kontrol-blue/5"
+                title="Télécharger le modèle Excel de Tiers"
+              >
+                <Download size={14} /> Modèle
+              </button>
+              <button 
+                onClick={() => fileInputRef.current?.click()} 
+                className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2"
+                title="Importer des contacts depuis un fichier Excel/CSV"
+              >
+                <Upload size={14} /> {t('common.import', 'Importer')}
+              </button>
+            </>
+          )}
           <button onClick={handleExportPDF} className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2">
             <FileText size={14} /> PDF
           </button>
@@ -602,6 +750,44 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
           )}
         </div>
       </div>
+
+      {excelPreviewData && (
+        <ExcelImportPreviewModal
+          isOpen={isPreviewOpen}
+          onClose={() => {
+            setIsPreviewOpen(false);
+            setExcelPreviewData(null);
+          }}
+          onConfirm={handleConfirmImport}
+          rawData={excelPreviewData}
+          existingData={tiers}
+          moduleKey="tiers"
+          isDuplicate={(row, existing) => 
+            String(row.nom).toLowerCase().trim() === String(existing.nom).toLowerCase().trim() ||
+            (row.email && String(row.email).toLowerCase().trim() === String(existing.email).toLowerCase().trim())
+          }
+          validateRow={(row) => {
+            if (!row.nom || !String(row.nom).trim()) {
+              return "Nom complet requis (ex: SOCIETE IVOIRIENNE DISTRIBUTION)";
+            }
+            if (!row.type || (row.type !== 'CLIENT' && row.type !== 'FOURNISSEUR')) {
+              return "Type requis (CLIENT / FOURNISSEUR)";
+            }
+            if (row.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(row.email))) {
+              return "Format d'adresse email invalide (ex: contact@tiers.ci)";
+            }
+            return null;
+          }}
+          title="Tiers / Clients & Fournisseurs"
+          columns={[
+            { key: 'nom', label: 'Nom Complet' },
+            { key: 'email', label: 'Email' },
+            { key: 'telephone', label: 'Téléphone' },
+            { key: 'type', label: 'Type' },
+            { key: 'statut', label: 'Statut' }
+          ]}
+        />
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 export const exportToPDF = (title: string, headers: string[], data: any[][], filename: string, options?: any) => {
   const doc = new jsPDF();
@@ -118,26 +119,34 @@ export const exportToCSV = (data: any[], filename: string, options?: any) => {
 };
 
 export const exportToExcel = (data: any[], filename: string, options?: any) => {
-  // Semi-colon separation is ideal for French MS Excel compatibility
   if (!data || data.length === 0) return;
-  const headers = Object.keys(data[0]);
-  const csvRows = [
-    headers.join(';'),
-    ...data.map(row => 
-      headers.map(fieldName => {
-        const val = row[fieldName];
-        const str = val === null || val === undefined ? '' : String(val);
-        const escaped = str.replace(/"/g, '""');
-        return `"${escaped}"`;
-      }).join(';')
-    )
-  ];
-  const blob = new Blob(["\uFEFF" + csvRows.join("\r\n")], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.setAttribute("href", url);
-  link.setAttribute("download", `${filename}.xlsx`); // Give it excel extension
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  try {
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Data");
+    XLSX.writeFile(wb, `${filename}.xlsx`);
+  } catch (err) {
+    console.error("Failed to export to Excel:", err);
+    // Fallback to CSV if somehow binary write fails
+    const headers = Object.keys(data[0]);
+    const csvRows = [
+      headers.join(';'),
+      ...data.map(row => 
+        headers.map(fieldName => {
+          const val = row[fieldName];
+          const str = val === null || val === undefined ? '' : String(val);
+          const escaped = str.replace(/"/g, '""');
+          return `"${escaped}"`;
+        }).join(';')
+      )
+    ];
+    const blob = new Blob(["\uFEFF" + csvRows.join("\r\n")], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${filename}.xlsx`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 };

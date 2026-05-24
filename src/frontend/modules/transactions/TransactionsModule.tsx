@@ -24,6 +24,10 @@ import {
   Upload
 } from 'lucide-react';
 import { exportToPDF, exportToExcel } from '../../lib/export';
+import * as XLSX from 'xlsx';
+import { toast } from 'sonner';
+import { ExcelImportPreviewModal, ColumnConfig } from '../../components/common/ExcelImportPreviewModal';
+import { downloadModuleTemplate, cleanImportedRows } from '../../lib/templates';
 import { QRCodeSVG } from 'qrcode.react';
 import { Transaction, Tiers, Produit, UserProfile } from '../../types';
 import { cn, formatCurrency } from '../../lib/utils';
@@ -88,6 +92,176 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
       handleFirestoreError(error, OperationType.DELETE, `transactions/${selectedId}`, user, false);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const [excelPreviewData, setExcelPreviewData] = React.useState<any[] | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
+
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !companyId || !currentUserProfile) return;
+
+    if (!hasPermission(currentUserProfile.role, 'TRANSACTION_CREATE')) {
+      toast.error(t('common.no_permission'));
+      return;
+    }
+
+    setLoading(true);
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const rawJsonData = XLSX.utils.sheet_to_json(ws) as any[];
+
+        // Filtrer automatiquement les explications et exemples
+        const data = cleanImportedRows('transactions', rawJsonData);
+
+        const parsedRows: any[] = [];
+
+        for (const item of data) {
+          const headers = Object.keys(item);
+          
+          const refKey = headers.find(h => h.toLowerCase().includes('ref') || h.toLowerCase().includes('facture') || h.toLowerCase().includes('num'));
+          const dateKey = headers.find(h => h.toLowerCase().includes('date'));
+          const tiersKey = headers.find(h => h.toLowerCase().includes('tiers') || h.toLowerCase().includes('client') || h.toLowerCase().includes('fourn') || h.toLowerCase().includes('nom') || h.toLowerCase().includes('contact') || h.toLowerCase().includes('party'));
+          const typeKey = headers.find(h => h.toLowerCase().includes('type'));
+          const mtKey = headers.find(h => h.toLowerCase().includes('mont') || h.toLowerCase().includes('amou') || h.toLowerCase().includes('total') || h.toLowerCase().includes('valeur'));
+          const statusKey = headers.find(h => h.toLowerCase().includes('statut') || h.toLowerCase().includes('status') || h.toLowerCase().includes('état') || h.toLowerCase().includes('etat'));
+          const modeKey = headers.find(h => h.toLowerCase().includes('mode') || h.toLowerCase().includes('pai') || h.toLowerCase().includes('pay'));
+
+          const amountValRaw = mtKey ? item[mtKey] : '';
+          
+          const rawRef = refKey ? String(item[refKey] || '') : `TX-${Date.now().toString().slice(-6)}`;
+          
+          let typeVal: 'VENTE' | 'ACHAT' = 'VENTE';
+          if (typeKey) {
+            const rawType = String(item[typeKey]).toUpperCase();
+            if (rawType.includes('ACHAT') || rawType.includes('PURCHASE') || rawType.includes('DEP')) {
+              typeVal = 'ACHAT';
+            }
+          }
+
+          let statusVal: 'PAYE' | 'ATTENTE' | 'ANNULE' = 'PAYE';
+          if (statusKey) {
+            const rawStat = String(item[statusKey]).toUpperCase();
+            if (rawStat.includes('ATTENTE') || rawStat.includes('PENDING') || rawStat.includes('WAIT')) {
+              statusVal = 'ATTENTE';
+            } else if (rawStat.includes('ANNULE') || rawStat.includes('CANCEL')) {
+              statusVal = 'ANNULE';
+            }
+          }
+
+          let modeVal = modeKey ? String(item[modeKey] || '') : 'Espèces';
+          if (!modeVal) modeVal = 'Espèces';
+
+          let dateVal = Date.now();
+          let rawDateVal = dateKey ? String(item[dateKey] || '') : '';
+          if (rawDateVal) {
+            const parsedDate = Date.parse(rawDateVal);
+            if (!isNaN(parsedDate)) {
+              dateVal = parsedDate;
+            } else {
+              // Try Microsoft serial date check
+              if (!isNaN(Number(rawDateVal))) {
+                const serial = Number(rawDateVal);
+                const utc_days = Math.floor(serial - 25569);
+                dateVal = utc_days * 86400 * 1000;
+              }
+            }
+          }
+
+          const rawTiersNom = tiersKey ? String(item[tiersKey] || '') : 'Client Général';
+          let tiersIdVal = '';
+          const foundTiers = tiers.find(t => t.nom.toLowerCase() === rawTiersNom.toLowerCase());
+          if (foundTiers) {
+            tiersIdVal = foundTiers.id!;
+          }
+
+          parsedRows.push({
+            reference: rawRef,
+            date: dateVal,
+            rawDateText: rawDateVal,
+            tiersId: tiersIdVal,
+            tiersNom: rawTiersNom,
+            montant: isNaN(Number(amountValRaw)) ? amountValRaw : Number(amountValRaw || 0),
+            montantTotal: isNaN(Number(amountValRaw)) ? amountValRaw : Number(amountValRaw || 0),
+            statut: statusVal,
+            modePaiement: modeVal,
+            type: typeVal
+          });
+        }
+
+        if (parsedRows.length > 0) {
+          setExcelPreviewData(parsedRows);
+          setIsPreviewOpen(true);
+        } else {
+          toast.info("Aucune transaction valide n'a été détectée dans l'Excel.");
+        }
+      } catch (err) {
+        console.error("Transactions Excel import error:", err);
+        toast.error("Échec lors de l'import des transactions.");
+      } finally {
+        setLoading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handleConfirmImport = async (finalData: any[]) => {
+    try {
+      let count = 0;
+      for (const item of finalData) {
+        await transactionService.createTransaction({
+          id: '',
+          reference: item.reference,
+          date: item.date,
+          type: item.type,
+          tiersId: item.tiersId,
+          tiersNom: item.tiersNom,
+          montant: item.montant,
+          montantTotal: item.montantTotal,
+          statut: item.statut,
+          status: item.statut === 'PAYE' ? 'COMPLETED' : item.statut === 'ATTENTE' ? 'PENDING' : 'CANCELLED',
+          modePaiement: item.modePaiement,
+          paymentMethod: item.modePaiement,
+          description: 'Importation depuis Excel',
+          devise: 'XOF',
+          tauxChange: 1,
+          montantDevise: item.montant,
+          invoiceFileUrl: '',
+          ownerId: companyId,
+          articles: [{
+            produitId: 'GENERIC',
+            designation: 'Mouvement importé',
+            quantite: 1,
+            prixUnitaire: item.montant,
+            total: item.montant
+          }],
+          createdAt: Date.now()
+        }, user, currentUserProfile);
+        count++;
+      }
+
+      await logAction(
+        companyId,
+        user.uid,
+        currentUserProfile.displayName,
+        "Transactions importées via Excel",
+        `${count} transactions enregistrées via assistant de prévisualisation`
+      );
+
+      toast.success(`${count} transactions importées avec succès !`);
+    } catch (err) {
+      console.error("Failed to confirm transactions import:", err);
+      toast.error("Échec technique lors de la validation finale de l'import.");
+      throw err;
     }
   };
 
@@ -608,6 +782,31 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
           )}
         </div>
         <div className="flex gap-2">
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleImportExcel} 
+            accept=".xlsx,.xls,.csv" 
+            className="hidden" 
+          />
+          {hasPermission(currentUserProfile?.role, 'TRANSACTION_CREATE') && (
+            <>
+              <button 
+                onClick={() => downloadModuleTemplate('transactions')} 
+                className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2 text-kontrol-blue border-kontrol-blue/20 hover:bg-kontrol-blue/5"
+                title="Télécharger le modèle Excel de Transactions"
+              >
+                <Download size={14} /> Modèle
+              </button>
+              <button 
+                onClick={() => fileInputRef.current?.click()} 
+                className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2"
+                title="Importer des transactions depuis un fichier Excel/CSV"
+              >
+                <Upload size={14} /> {t('common.import', 'Importer')}
+              </button>
+            </>
+          )}
           <button 
             onClick={handleExportPDF}
             className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2"
@@ -1002,6 +1201,45 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
           </div>
         )}
       </AnimatePresence>
+
+      {excelPreviewData && (
+        <ExcelImportPreviewModal
+          isOpen={isPreviewOpen}
+          onClose={() => {
+            setIsPreviewOpen(false);
+            setExcelPreviewData(null);
+          }}
+          onConfirm={handleConfirmImport}
+          rawData={excelPreviewData}
+          existingData={transactions}
+          moduleKey="transactions"
+          isDuplicate={(row, existing) => 
+            String(row.reference).toLowerCase().trim() === String(existing.reference).toLowerCase().trim()
+          }
+          validateRow={(row) => {
+            if (!row.reference || !String(row.reference).trim()) {
+              return "Référence requise (ex: FAC-2026-0001)";
+            }
+            if (row.montantTotal === undefined || row.montantTotal === '' || isNaN(Number(row.montantTotal)) || Number(row.montantTotal) <= 0) {
+              return "Montant total doit être supérieur à 0";
+            }
+            if (row.rawDateText && isNaN(Date.parse(row.rawDateText)) && isNaN(Number(row.rawDateText))) {
+              return "Format de date invalide (attendu: AAAA-MM-JJ)";
+            }
+            return null;
+          }}
+          title="Factures & Transactions Vente/Achat"
+          columns={[
+            { key: 'reference', label: 'Référence' },
+            { key: 'tiersNom', label: 'Tiers / Contact' },
+            { key: 'type', label: 'Type' },
+            { key: 'montantTotal', label: 'Montant Total', render: (val) => formatCurrency(val.montantTotal) },
+            { key: 'statut', label: 'Statut' },
+            { key: 'modePaiement', label: 'Mode Paiement' },
+            { key: 'date', label: 'Date', render: (val) => new Date(val.date).toLocaleDateString() }
+          ]}
+        />
+      )}
     </div>
   );
 }
