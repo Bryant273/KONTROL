@@ -21,11 +21,14 @@ import {
   ArrowUpRight,
   Upload,
   Table,
-  FileText
+  FileText,
+  Download
 } from 'lucide-react';
 import { exportToPDF, exportToExcel } from '../../lib/export';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
+import { ExcelImportPreviewModal } from '../../components/common/ExcelImportPreviewModal';
+import { downloadModuleTemplate, cleanImportedRows } from '../../lib/templates';
 import { UserProfile, UserRole } from '../../types';
 import { cn } from '../../lib/utils';
 import { 
@@ -65,6 +68,8 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
   const [selectedUser, setSelectedUser] = React.useState<UserProfile | null>(null);
   const [idCopied, setIdCopied] = React.useState(false);
   const [currentPage, setCurrentPage] = React.useState(1);
+  const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
+  const [excelPreviewData, setExcelPreviewData] = React.useState<any[] | null>(null);
 
   const isSha256 = (str: string) => {
     return /^[0-9a-fA-F]{64}$/.test(str);
@@ -102,11 +107,11 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
         const wb = XLSX.read(bstr, { type: 'binary' });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
-        const data = XLSX.utils.sheet_to_json(ws) as any[];
+        const rawJsonData = XLSX.utils.sheet_to_json(ws) as any[];
 
-        let importedCount = 0;
-        const path = 'users';
-        const companyId = currentUserProfile.companyId || user.uid;
+        // Filtrer automatiquement les explications et exemples
+        const data = cleanImportedRows('users', rawJsonData);
+        const parsedRows: any[] = [];
 
         for (const item of data) {
           const headers = Object.keys(item);
@@ -118,58 +123,33 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
           const emailValue = emailKey ? String(item[emailKey] || '').trim().toLowerCase() : '';
           const nameValue = nameKey ? String(item[nameKey] || '').trim() : '';
 
-          if (emailValue && nameValue) {
-            const alreadyExists = users.some(u => u.email.toLowerCase() === emailValue);
-            if (!alreadyExists) {
-              const newUserRef = doc(collection(db, path));
-              const newUid = newUserRef.id;
-
-              let roleValue: UserRole = 'UTILISATEUR';
-              if (roleKey) {
-                const rawRole = String(item[roleKey]).toUpperCase();
-                if (rawRole.includes('ADMIN')) {
-                  roleValue = 'ADMINISTRATEUR_ENTREPRISE';
-                } else if (rawRole.includes('GEST') || rawRole.includes('MAN')) {
-                  roleValue = 'GESTIONNAIRE_ENTREPRISE';
-                } else if (rawRole.includes('COLL') || rawRole.includes('AGENT')) {
-                  roleValue = 'UTILISATEUR';
-                }
-              }
-
-              const passValue = passwordKey ? String(item[passwordKey]) : 'Kontrol123!';
-
-              const profile: UserProfile = {
-                uid: newUid,
-                email: emailValue,
-                displayName: nameValue,
-                role: roleValue,
-                companyId: companyId,
-                companyName: currentUserProfile.companyName || '',
-                companyLogo: currentUserProfile.companyLogo || '',
-                isProfileComplete: false,
-                active: true,
-                password: passValue,
-                createdAt: Date.now()
-              };
-
-              await setDoc(newUserRef, profile);
-              importedCount++;
+          let roleValue: UserRole = 'UTILISATEUR';
+          if (roleKey) {
+            const rawRole = String(item[roleKey]).toUpperCase();
+            if (rawRole.includes('ADMIN')) {
+              roleValue = 'ADMINISTRATEUR_ENTREPRISE';
+            } else if (rawRole.includes('GEST') || rawRole.includes('MAN')) {
+              roleValue = 'GESTIONNAIRE_ENTREPRISE';
+            } else if (rawRole.includes('COLL') || rawRole.includes('AGENT')) {
+              roleValue = 'UTILISATEUR';
             }
           }
+
+          const passValue = passwordKey ? String(item[passwordKey]) : 'Kontrol123!';
+
+          parsedRows.push({
+            displayName: nameValue,
+            email: emailValue,
+            role: roleValue,
+            password: passValue
+          });
         }
 
-        await logAction(
-          companyId,
-          user.uid,
-          currentUserProfile.displayName,
-          "Import utilisateurs via Excel",
-          `${importedCount} utilisateurs créés`
-        );
-
-        if (importedCount > 0) {
-          toast.success(`${importedCount} utilisateurs importés avec succès !`);
+        if (parsedRows.length > 0) {
+          setExcelPreviewData(parsedRows);
+          setIsPreviewOpen(true);
         } else {
-          toast.info("Aucun nouvel utilisateur n'a pu être importé. Vérifiez s'ils existent déjà.");
+          toast.info("Aucun utilisateur trouvé dans votre fichier Excel.");
         }
       } catch (err) {
         console.error("Users excel import error:", err);
@@ -180,6 +160,62 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
       }
     };
     reader.readAsBinaryString(file);
+  };
+
+  const handleConfirmImport = async (finalData: any[]) => {
+    if (!currentUserProfile) return;
+    setLoading(true);
+    try {
+      const path = 'users';
+      const companyId = currentUserProfile.companyId || user.uid;
+      let importedCount = 0;
+
+      for (const item of finalData) {
+        const alreadyExists = users.some(u => u.email.toLowerCase() === item.email.toLowerCase());
+        if (!alreadyExists) {
+          const newUserRef = doc(collection(db, path));
+          const newUid = newUserRef.id;
+
+          const profile: UserProfile = {
+            uid: newUid,
+            email: item.email.toLowerCase(),
+            displayName: item.displayName,
+            role: item.role,
+            companyId: companyId,
+            companyName: currentUserProfile.companyName || '',
+            companyLogo: currentUserProfile.companyLogo || '',
+            isProfileComplete: false,
+            active: true,
+            password: item.password || 'Kontrol123!',
+            createdAt: Date.now()
+          };
+
+          await setDoc(newUserRef, profile);
+          importedCount++;
+        }
+      }
+
+      await logAction(
+        companyId,
+        user.uid,
+        currentUserProfile.displayName,
+        "Import utilisateurs via Excel",
+        `${importedCount} utilisateurs créés`
+      );
+
+      if (importedCount > 0) {
+        toast.success(`${importedCount} utilisateurs importés avec succès !`);
+      } else {
+        toast.info("Aucun nouvel utilisateur n'a pu être importé. Vérifiez s'ils existent déjà.");
+      }
+    } catch (err) {
+      console.error("Failed to commit final users import:", err);
+      toast.error("Une erreur est survenue lors de l'enregistrement.");
+    } finally {
+      setLoading(false);
+      setIsPreviewOpen(false);
+      setExcelPreviewData(null);
+    }
   };
 
   const handleExportPDF = () => {
@@ -630,13 +666,22 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
             className="hidden" 
           />
           {canCreateUser && (
-            <button 
-              onClick={() => fileInputRef.current?.click()} 
-              className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2 font-medium"
-              title="Importer des utilisateurs depuis un fichier Excel/CSV"
-            >
-              <Upload size={14} /> {t('common.import', 'Importer')}
-            </button>
+            <>
+              <button 
+                onClick={() => downloadModuleTemplate('users')} 
+                className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2 text-kontrol-blue border-kontrol-blue/20 hover:bg-kontrol-blue/5 font-medium"
+                title="Télécharger le modèle Excel d'Utilisateurs"
+              >
+                <Download size={14} /> Modèle
+              </button>
+              <button 
+                onClick={() => fileInputRef.current?.click()} 
+                className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2 font-medium"
+                title="Importer des utilisateurs depuis un fichier Excel/CSV"
+              >
+                <Upload size={14} /> {t('common.import', 'Importer')}
+              </button>
+            </>
           )}
           <button 
             onClick={handleExportPDF} 
@@ -849,6 +894,45 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
           )}
         </div>
       </div>
+
+      {excelPreviewData && (
+        <ExcelImportPreviewModal
+          isOpen={isPreviewOpen}
+          onClose={() => {
+            setIsPreviewOpen(false);
+            setExcelPreviewData(null);
+          }}
+          onConfirm={handleConfirmImport}
+          rawData={excelPreviewData}
+          existingData={users}
+          moduleKey="users"
+          isDuplicate={(row, existing) => 
+            String(row.email).toLowerCase().trim() === String(existing.email).toLowerCase().trim()
+          }
+          validateRow={(row) => {
+            if (!row.displayName || !String(row.displayName).trim()) {
+              return "Nom complet requis";
+            }
+            if (!row.email || !String(row.email).trim()) {
+              return "Adresse email requise";
+            }
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(row.email))) {
+              return "Format d'adresse email invalide (ex: k.kouame@entreprise.ci)";
+            }
+            if (row.password && String(row.password).length < 6) {
+              return "Le mot de passe doit contenir au moins 6 caractères";
+            }
+            return null;
+          }}
+          title="Utilisateurs & Collaborateurs"
+          columns={[
+            { key: 'displayName', label: 'Nom Complet' },
+            { key: 'email', label: 'Email' },
+            { key: 'role', label: 'Rôle' },
+            { key: 'password', label: 'Mot de Passe' }
+          ]}
+        />
+      )}
     </div>
   );
 }
