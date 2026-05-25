@@ -6,7 +6,7 @@ import { exportToPDF, exportToExcel } from '../../lib/export';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import { ExcelImportPreviewModal } from '../../components/common/ExcelImportPreviewModal';
-import { downloadModuleTemplate, cleanImportedRows } from '../../lib/templates';
+import { downloadModuleTemplate, cleanImportedRows, parseExcelDate, isValidExcelDate } from '../../lib/templates';
 import { Wallet, Payment, UserProfile, Tiers, Transaction } from '../../types';
 import { cn, formatCurrency } from '../../lib/utils';
 import { hasPermission } from '../../lib/permissions';
@@ -117,8 +117,8 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
-        const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
+        const dataBuffer = evt.target?.result;
+        const wb = XLSX.read(dataBuffer, { type: 'array' });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
         const rawJsonData = XLSX.utils.sheet_to_json(ws) as any[];
@@ -150,21 +150,8 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
           let modeValue = modeKey ? String(item[modeKey] || '').trim() : 'Espèces';
           if (!modeValue) modeValue = 'Espèces';
 
-          let dateValue = Date.now();
           let rawDateVal = dateKey ? String(item[dateKey] || '') : '';
-          if (rawDateVal) {
-            const parsedDate = Date.parse(rawDateVal);
-            if (!isNaN(parsedDate)) {
-              dateValue = parsedDate;
-            } else {
-              // Try Microsoft serial date check
-              if (!isNaN(Number(rawDateVal))) {
-                const serial = Number(rawDateVal);
-                const utc_days = Math.floor(serial - 25569);
-                dateValue = utc_days * 86400 * 1000;
-              }
-            }
-          }
+          let dateValue = parseExcelDate(rawDateVal);
 
           let rawTiersNom = tiersKey ? String(item[tiersKey] || '') : '';
           let tiersIdVal = '';
@@ -202,7 +189,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
     };
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
   };
 
   const handleConfirmImport = async (finalData: any[]) => {
@@ -1032,8 +1019,8 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
             if (!row.type || (row.type !== 'ENCAISSEMENT' && row.type !== 'DECAISSEMENT')) {
               return "Type requis (ENCAISSEMENT / DECAISSEMENT)";
             }
-            if (row.rawDateText && isNaN(Date.parse(row.rawDateText)) && isNaN(Number(row.rawDateText))) {
-              return "Format de date invalide (attendu: AAAA-MM-JJ)";
+            if (row.rawDateText && !isValidExcelDate(row.rawDateText)) {
+              return "Format de date invalide (attendu: JJ/MM/AAAA ou AAAA-MM-JJ)";
             }
             return null;
           }}

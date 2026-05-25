@@ -18,7 +18,7 @@
     "subscriptions": "Subscription",
     "users": "Users",
     "user": "User",
-    "date": "Creation Date",
+    "date": "Date",
     "ref": "Reference",
     "type": "Type",
     "description": "Description",
@@ -978,7 +978,7 @@
       "user": "USER",
       "role": "ROLE",
       "status": "STATUS",
-      "date": "CREATION DATE",
+      "date": "DATE",
       "actions": "ACTIONS"
     },
     "new_user": "New user",

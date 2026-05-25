@@ -71,8 +71,8 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
-        const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
+        const dataBuffer = evt.target?.result;
+        const wb = XLSX.read(dataBuffer, { type: 'array' });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
         const rawJsonData = XLSX.utils.sheet_to_json(ws) as any[];
@@ -86,8 +86,21 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
           const headers = Object.keys(item);
           const refKey = headers.find(h => h.toLowerCase().includes('ref') || h.toLowerCase().includes('code') || h.toLowerCase().includes('num'));
           const descKey = headers.find(h => h.toLowerCase().includes('desc') || h.toLowerCase().includes('design') || h.toLowerCase().includes('nom') || h.toLowerCase().includes('libel'));
-          const buyingKey = headers.find(h => h.toLowerCase().includes('achat') || h.toLowerCase().includes('buy') || h.toLowerCase().includes('coût') || h.toLowerCase().includes('cout'));
-          const sellingKey = headers.find(h => h.toLowerCase().includes('vent') || h.toLowerCase().includes('sell') || h.toLowerCase().includes('prix'));
+          
+          // Disambiguate buying and selling price keys
+          const buyingKey = headers.find(h => {
+            const l = h.toLowerCase();
+            return (l.includes('achat') || l.includes('buy') || l.includes('coût') || l.includes('cout')) && !l.includes('vent');
+          }) || headers.find(h => h.toLowerCase().includes('achat') || h.toLowerCase().includes('buy'));
+
+          const sellingKey = headers.find(h => {
+            const l = h.toLowerCase();
+            return (l.includes('vente') || l.includes('vent') || l.includes('sell')) && !l.includes('achat');
+          }) || headers.find(h => {
+            const l = h.toLowerCase();
+            return l.includes('prix') && !l.includes('achat');
+          }) || headers.find(h => h.toLowerCase().includes('prix') || h.toLowerCase().includes('vente'));
+
           const stockKey = headers.find(h => h.toLowerCase().includes('stock') || h.toLowerCase().includes('quant') || h.toLowerCase().includes('qte') || h.toLowerCase().includes('qty'));
           const alertKey = headers.find(h => h.toLowerCase().includes('alert') || h.toLowerCase().includes('min'));
           const tvaKey = headers.find(h => h.toLowerCase().includes('tva') || h.toLowerCase().includes('tax'));
@@ -124,7 +137,7 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
     };
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
   };
 
   const handleConfirmImport = async (finalData: any[]) => {

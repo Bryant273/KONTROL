@@ -103,8 +103,8 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
-        const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
+        const dataBuffer = evt.target?.result;
+        const wb = XLSX.read(dataBuffer, { type: 'array' });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
         const rawJsonData = XLSX.utils.sheet_to_json(ws) as any[];
@@ -159,7 +159,7 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
     };
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
   };
 
   const handleConfirmImport = async (finalData: any[]) => {

@@ -18,7 +18,7 @@
     "subscriptions": "Abonnement",
     "users": "Utilisateurs",
     "user": "Utilisateur",
-    "date": "Date de création",
+    "date": "Date",
     "ref": "Référence",
     "type": "Type",
     "description": "Description",
@@ -972,7 +972,7 @@
       "user": "UTILISATEUR",
       "role": "ROLE",
       "status": "STATUT",
-      "date": "DATE DE CREATION",
+      "date": "DATE",
       "actions": "ACTIONS"
     },
     "new_user": "Nouvel utilisateur",

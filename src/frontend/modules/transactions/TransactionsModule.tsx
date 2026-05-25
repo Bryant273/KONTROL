@@ -27,7 +27,7 @@ import { exportToPDF, exportToExcel } from '../../lib/export';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import { ExcelImportPreviewModal, ColumnConfig } from '../../components/common/ExcelImportPreviewModal';
-import { downloadModuleTemplate, cleanImportedRows } from '../../lib/templates';
+import { downloadModuleTemplate, cleanImportedRows, parseExcelDate, isValidExcelDate } from '../../lib/templates';
 import { QRCodeSVG } from 'qrcode.react';
 import { Transaction, Tiers, Produit, UserProfile } from '../../types';
 import { cn, formatCurrency } from '../../lib/utils';
@@ -113,8 +113,8 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
-        const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
+        const dataBuffer = evt.target?.result;
+        const wb = XLSX.read(dataBuffer, { type: 'array' });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
         const rawJsonData = XLSX.utils.sheet_to_json(ws) as any[];
@@ -160,21 +160,8 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
           let modeVal = modeKey ? String(item[modeKey] || '') : 'Espèces';
           if (!modeVal) modeVal = 'Espèces';
 
-          let dateVal = Date.now();
           let rawDateVal = dateKey ? String(item[dateKey] || '') : '';
-          if (rawDateVal) {
-            const parsedDate = Date.parse(rawDateVal);
-            if (!isNaN(parsedDate)) {
-              dateVal = parsedDate;
-            } else {
-              // Try Microsoft serial date check
-              if (!isNaN(Number(rawDateVal))) {
-                const serial = Number(rawDateVal);
-                const utc_days = Math.floor(serial - 25569);
-                dateVal = utc_days * 86400 * 1000;
-              }
-            }
-          }
+          let dateVal = parseExcelDate(rawDateVal);
 
           const rawTiersNom = tiersKey ? String(item[tiersKey] || '') : 'Client Général';
           let tiersIdVal = '';
@@ -211,7 +198,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
     };
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
   };
 
   const handleConfirmImport = async (finalData: any[]) => {
@@ -1223,8 +1210,8 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
             if (row.montantTotal === undefined || row.montantTotal === '' || isNaN(Number(row.montantTotal)) || Number(row.montantTotal) <= 0) {
               return "Montant total doit être supérieur à 0";
             }
-            if (row.rawDateText && isNaN(Date.parse(row.rawDateText)) && isNaN(Number(row.rawDateText))) {
-              return "Format de date invalide (attendu: AAAA-MM-JJ)";
+            if (row.rawDateText && !isValidExcelDate(row.rawDateText)) {
+              return "Format de date invalide (attendu: JJ/MM/AAAA ou AAAA-MM-JJ)";
             }
             return null;
           }}

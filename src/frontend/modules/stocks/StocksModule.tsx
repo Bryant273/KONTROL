@@ -18,7 +18,7 @@ import { exportToPDF, exportToExcel } from '../../lib/export';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import { ExcelImportPreviewModal, ColumnConfig } from '../../components/common/ExcelImportPreviewModal';
-import { downloadModuleTemplate, cleanImportedRows } from '../../lib/templates';
+import { downloadModuleTemplate, cleanImportedRows, parseExcelDate, isValidExcelDate } from '../../lib/templates';
 import { StockMovement, Produit, UserProfile } from '../../types';
 import { cn, formatCurrency } from '../../lib/utils';
 import { sendNotification } from '../../../api/services/notificationService';
@@ -69,8 +69,8 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
-        const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
+        const dataBuffer = evt.target?.result;
+        const wb = XLSX.read(dataBuffer, { type: 'array' });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
         const rawJsonData = XLSX.utils.sheet_to_json(ws) as any[];
@@ -93,21 +93,8 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
             const pName = prodKey ? String(item[prodKey] || '').trim() : '';
             const rawQty = qtyKey ? item[qtyKey] : '';
 
-            let dateVal = Date.now();
             let rawDateVal = dateKey ? String(item[dateKey] || '') : '';
-            if (rawDateVal) {
-              const parsedDate = Date.parse(rawDateVal);
-              if (!isNaN(parsedDate)) {
-                dateVal = parsedDate;
-              } else {
-                // Try Microsoft serial date check
-                if (!isNaN(Number(rawDateVal))) {
-                  const serial = Number(rawDateVal);
-                  const utc_days = Math.floor(serial - 25569);
-                  dateVal = utc_days * 86400 * 1000;
-                }
-              }
-            }
+            let dateVal = parseExcelDate(rawDateVal);
 
             const typeVal = typeKey ? String(item[typeKey]).toUpperCase() : 'AJUSTEMENT';
             const priceVal = priceKey ? Number(item[priceKey] || 0) : 0;
@@ -154,7 +141,7 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
     };
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
   };
 
   const handleConfirmImport = async (finalData: any[]) => {
@@ -674,8 +661,8 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
               if (!row.type || (row.type !== 'ENTREE' && row.type !== 'SORTIE' && row.type !== 'AJUSTEMENT')) {
                 return "Type requis (ENTREE / SORTIE / AJUSTEMENT)";
               }
-              if (row.rawDateText && isNaN(Date.parse(row.rawDateText)) && isNaN(Number(row.rawDateText))) {
-                return "Format de date invalide (attendu: AAAA-MM-JJ)";
+              if (row.rawDateText && !isValidExcelDate(row.rawDateText)) {
+                return "Format de date invalide (attendu: JJ/MM/AAAA ou AAAA-MM-JJ)";
               }
             } else {
               if (!row.reference || !String(row.reference).trim()) {

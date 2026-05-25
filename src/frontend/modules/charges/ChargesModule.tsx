@@ -5,7 +5,7 @@ import { exportToPDF, exportToExcel } from '../../lib/export';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import { ExcelImportPreviewModal, ColumnConfig } from '../../components/common/ExcelImportPreviewModal';
-import { downloadModuleTemplate, cleanImportedRows } from '../../lib/templates';
+import { downloadModuleTemplate, cleanImportedRows, parseExcelDate, isValidExcelDate } from '../../lib/templates';
 import { Charge, UserProfile } from '../../types';
 import { cn, formatCurrency } from '../../lib/utils';
 import { hasPermission } from '../../lib/permissions';
@@ -76,8 +76,8 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
-        const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
+        const dataBuffer = evt.target?.result;
+        const wb = XLSX.read(dataBuffer, { type: 'array' });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
         const rawJsonData = XLSX.utils.sheet_to_json(ws) as any[];
@@ -116,21 +116,8 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
             modeValue = 'Espèces';
           }
 
-          let dateValue = Date.now();
           let rawDateVal = dateKey ? String(item[dateKey] || '') : '';
-          if (rawDateVal) {
-            const parsedDate = Date.parse(rawDateVal);
-            if (!isNaN(parsedDate)) {
-              dateValue = parsedDate;
-            } else {
-              // Try Microsoft serial date check
-              if (!isNaN(Number(rawDateVal))) {
-                const serial = Number(rawDateVal);
-                const utc_days = Math.floor(serial - 25569);
-                dateValue = utc_days * 86400 * 1000;
-              }
-            }
-          }
+          let dateValue = parseExcelDate(rawDateVal);
 
           parsedRows.push({
             description: descValue,
@@ -156,7 +143,7 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
     };
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
   };
 
   const handleConfirmImport = async (finalData: any[]) => {
@@ -880,8 +867,8 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
             if (row.montant === undefined || row.montant === '' || isNaN(Number(row.montant)) || Number(row.montant) <= 0) {
               return "Montant d'achat doit être un nombre positif supérieur à 0";
             }
-            if (row.rawDateText && isNaN(Date.parse(row.rawDateText)) && isNaN(Number(row.rawDateText))) {
-              return "Format de date invalide (attendu: AAAA-MM-JJ)";
+            if (row.rawDateText && !isValidExcelDate(row.rawDateText)) {
+              return "Format de date invalide (attendu: JJ/MM/AAAA ou AAAA-MM-JJ)";
             }
             return null;
           }}

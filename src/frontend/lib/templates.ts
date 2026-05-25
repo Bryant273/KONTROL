@@ -129,57 +129,122 @@ export const downloadModuleTemplate = (moduleKey: string) => {
 };
 
 /**
- * Filtre et supprime automatiquement les lignes d'explications/descriptions
+ * Filtre et supprime les lignes d'explications/descriptions
  * et les lignes d'exemples fournies dans les modèles Excel KONTROL.
+ * Évite de filtrer par erreur des lignes de données réelles par une logique d'exact-match.
  */
 export function cleanImportedRows(moduleKey: string, data: any[]): any[] {
   const model = MODULE_TEMPLATES[moduleKey];
   if (!model || !Array.isArray(data) || data.length === 0) return data;
 
-  // Récupérer les descriptions et les exemples exacts du modèle (en minuscules pour comparer)
-  const descriptions = new Set(model.columns.map(c => c.description.toLowerCase().trim()));
-  const examples = new Set(model.columns.map(c => c.example.toLowerCase().trim()));
-  const labels = new Set(model.columns.map(c => c.label.toLowerCase().trim()));
-
   return data.filter(row => {
     if (!row || typeof row !== 'object') return false;
 
     let matchDescCount = 0;
-    let matchExCount = 0;
-    let totalFields = 0;
+    let columnsPresent = 0;
 
-    const values = Object.values(row);
-    if (values.length === 0) return false;
+    for (const col of model.columns) {
+      // Les clés de l'objet produit par sheet_to_json correspondent aux en-têtes (labels) du modèle Excel KONTROL
+      const value = row[col.label];
+      if (value !== undefined && value !== null && value !== '') {
+        columnsPresent++;
+        const strVal = String(value).toLowerCase().trim();
+        const descVal = col.description.toLowerCase().trim();
 
-    for (const val of values) {
-      if (val !== undefined && val !== null) {
-        const strVal = String(val).toLowerCase().trim();
-        if (strVal) {
-          totalFields++;
-          // Vérification de correspondance avec les descriptions ou exemples du modèle
-          if (descriptions.has(strVal)) matchDescCount++;
-          if (examples.has(strVal)) matchExCount++;
+        if (strVal === descVal) {
+          matchDescCount++;
         }
       }
     }
 
-    if (totalFields === 0) return false;
+    if (columnsPresent === 0) return false;
 
-    // Si plus de 30% des cellules de la ligne correspondent aux descriptions ou exemples types du modèle,
-    // c'est à coup sûr une ligne explicative ou d'exemple à ignorer pour l'import final.
-    const isDescriptionRow = (matchDescCount / totalFields) >= 0.25;
-    const isExampleRow = (matchExCount / totalFields) >= 0.35;
+    // Si 60% ou plus des colonnes présentes correspondent exactement aux descriptions du modèle,
+    // c'est à coup sûr une ligne d'explications ou de descriptions à ignorer.
+    const isDescRow = matchDescCount / columnsPresent >= 0.6;
 
-    // Vérification supplémentaire pour les descriptions longues
-    const hasLongDescriptionCell = Object.values(row).some(v => 
-      typeof v === 'string' && Array.from(descriptions).some(desc => desc.length > 10 && v.toLowerCase().trim().includes(desc))
-    );
-
-    if (isDescriptionRow || isExampleRow || hasLongDescriptionCell) {
+    if (isDescRow) {
       return false;
     }
 
     return true;
   });
+}
+
+/**
+ * Parses dates robustly from Excel files, supporting French DD/MM/YYYY formats,
+ * standard date structures, and Excel Serial dates correctly.
+ */
+export function parseExcelDate(val: any): number {
+  if (val === undefined || val === null || val === '') {
+    return Date.now();
+  }
+
+  const strVal = String(val).trim();
+  if (!strVal) return Date.now();
+
+  // 1. Try parsing as normal positive number (Excel Serial Date format)
+  const numVal = Number(strVal);
+  if (!isNaN(numVal) && numVal > 30000 && numVal < 100000) {
+    const utc_days = Math.floor(numVal - 25569);
+    return utc_days * 86400 * 1000;
+  }
+
+  // 2. Try French format DD/MM/YYYY or DD-MM-YYYY (eg 25/05/2026 or 25-05-2026)
+  const frRegex = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/;
+  const match = strVal.match(frRegex);
+  if (match) {
+    const day = parseInt(match[1], 10);
+    const month = parseInt(match[2], 10) - 1; // 0-indexed in JS Date
+    const year = parseInt(match[3], 10);
+    const hours = match[4] ? parseInt(match[4], 10) : 0;
+    const minutes = match[5] ? parseInt(match[5], 10) : 0;
+    const seconds = match[6] ? parseInt(match[6], 10) : 0;
+    const dt = new Date(year, month, day, hours, minutes, seconds);
+    if (!isNaN(dt.getTime())) {
+      return dt.getTime();
+    }
+  }
+
+  // 3. Try standard Date parsing (YYYY-MM-DD, ISO, etc.)
+  const parsed = Date.parse(strVal);
+  if (!isNaN(parsed)) {
+    return parsed;
+  }
+
+  return Date.now();
+}
+
+/**
+ * Checks if a string or value is a valid parseable date (standard, French, or Excel serial).
+ */
+export function isValidExcelDate(val: any): boolean {
+  if (val === undefined || val === null || val === '') {
+    return false;
+  }
+
+  const strVal = String(val).trim();
+  if (!strVal) return false;
+
+  // 1. Excel Serial
+  const numVal = Number(strVal);
+  if (!isNaN(numVal) && numVal > 30000 && numVal < 100000) {
+    return true;
+  }
+
+  // 2. French format
+  const frRegex = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/;
+  if (frRegex.test(strVal)) {
+    const match = strVal.match(frRegex)!;
+    const day = parseInt(match[1], 10);
+    const month = parseInt(match[2], 10) - 1;
+    const year = parseInt(match[3], 10);
+    const dt = new Date(year, month, day);
+    return !isNaN(dt.getTime());
+  }
+
+  // 3. Standard
+  const parsed = Date.parse(strVal);
+  return !isNaN(parsed);
 }
 
