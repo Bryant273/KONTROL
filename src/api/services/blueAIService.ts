@@ -147,7 +147,8 @@ class BlueAIService {
     try {
       const neuralData = await apiClient.post('/api/ai/blue-brain', {
         prompt: message,
-        user_id: userId
+        user_id: userId,
+        companyId: companyId
       });
       
       const assistantContent = neuralData.response || "Désolé, le cerveau neuronal de KONTROL rencontre une latence temporaire.";

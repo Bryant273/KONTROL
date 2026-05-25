@@ -52,6 +52,7 @@ import {
 import { UserProfile, UserRole } from '../../types';
 import { cn } from '../../lib/utils';
 import { User as FirebaseUser } from 'firebase/auth';
+import { blueAIService } from '../../../api/services/blueAIService';
 
 interface Message {
   id: string;
@@ -103,11 +104,17 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
   const [showOptions, setShowOptions] = useState(false);
   const [viewMode, setViewMode] = useState<'CHAT' | 'MANAGE'>('CHAT');
   const [currentPage, setCurrentPage] = useState(1);
+  const [isAiTyping, setIsAiTyping] = useState(false);
   const itemsPerPage = 8;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const optionsRef = useRef<HTMLDivElement>(null);
 
-  // Close options menu when clicking outside
+  // Scroll typing indicator into view
+  useEffect(() => {
+    if (isAiTyping) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [isAiTyping]);
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (optionsRef.current && !optionsRef.current.contains(event.target as Node)) {
@@ -134,6 +141,18 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
     
     const unsub = onSnapshot(q, (snap) => {
       const users = snap.docs.map(d => ({ id: d.id, ...d.data() } as UserProfile));
+      // Inject virtual Blue AI user matching user company context for contact searching
+      users.push({
+        uid: 'blue-ai',
+        displayName: 'BLUE AI Assistant',
+        email: 'blue-ai@kontrol.ai',
+        role: 'Assistant Virtuel' as any,
+        avatar_url: '',
+        companyId: profile.companyId || 'SYSTEM',
+        status: 'ONLINE',
+        last_login: Date.now(),
+        createdAt: Date.now()
+      });
       setAllUsers(users);
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'users', user, false));
     return () => unsub();
@@ -159,6 +178,24 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
 
     const unsub = onSnapshot(q, (snap) => {
       const convs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Conversation));
+      
+      // Ensure Blue AI conversation is pinned at the start if not exist
+      const hasAiConv = convs.some(c => c.id === 'blue-ai-conv' || c.participants?.includes('blue-ai'));
+      if (!hasAiConv) {
+        const aiConv: Conversation = {
+          id: 'blue-ai-conv',
+          participants: [user.uid, 'blue-ai'],
+          type: 'DIRECT',
+          title: 'BLUE AI (Cerveau intelligent)',
+          lastMessage: 'Je suis BLUE AI, le cerveau neuronal fiducière de KONTROL. Posez-moi vos questions !',
+          lastMessageAt: Date.now(),
+          lastMessageSenderId: 'blue-ai',
+          lastMessageSenderName: 'BLUE AI',
+          updatedAt: Date.now()
+        };
+        convs.unshift(aiConv);
+      }
+      
       setConversations(convs);
       setLoading(false);
     }, (error) => {
@@ -190,7 +227,19 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
     }
 
     const unsub = onSnapshot(q, (snap) => {
-      const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Message));
+      const msgs = snap.docs.map(d => {
+        const data = d.data() as any;
+        return {
+          id: d.id,
+          conversationId: data.conversationId,
+          senderId: data.senderId || (data.role === 'user' ? user.uid : 'blue-ai'),
+          senderName: data.senderName || (data.senderId === user.uid || data.role === 'user' ? (profile?.displayName || 'Moi') : 'BLUE AI'),
+          content: data.content,
+          timestamp: data.timestamp || data.createdAt || Date.now(),
+          readBy: data.readBy || [user.uid],
+          type: data.type || 'text'
+        } as Message;
+      });
       setMessages(msgs);
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'messages', user, false));
 
@@ -237,28 +286,45 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
     const msgText = newMessage.trim();
     setNewMessage('');
 
-    try {
-      const msgData = {
-        conversationId: activeConversation.id,
-        senderId: user.uid,
-        senderName: profile.displayName || profile.email,
-        content: msgText,
-        timestamp: Date.now(),
-        type: 'text',
-        readBy: [user.uid]
-      };
+    if (activeConversation.id === 'blue-ai-conv' || activeConversation.participants?.includes('blue-ai')) {
+      setIsAiTyping(true);
+      try {
+        await blueAIService.processRequest(
+          user.uid,
+          profile.companyId || 'public',
+          msgText,
+          'CHAT' as any,
+          activeConversation.id
+        );
+      } catch (error) {
+        console.error("Blue AI Chat response error:", error);
+      } finally {
+        setIsAiTyping(false);
+      }
+    } else {
+      try {
+        const msgData = {
+          conversationId: activeConversation.id,
+          senderId: user.uid,
+          senderName: profile.displayName || profile.email,
+          content: msgText,
+          timestamp: Date.now(),
+          type: 'text',
+          readBy: [user.uid]
+        };
 
-      await addDoc(collection(db, 'messages'), msgData);
-      
-      await updateDoc(doc(db, 'conversations', activeConversation.id), {
-        lastMessage: msgText,
-        lastMessageAt: Date.now(),
-        lastMessageSenderId: user.uid,
-        lastMessageSenderName: profile.displayName || profile.email,
-        updatedAt: Date.now()
-      });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'chat/send', user, false);
+        await addDoc(collection(db, 'messages'), msgData);
+        
+        await updateDoc(doc(db, 'conversations', activeConversation.id), {
+          lastMessage: msgText,
+          lastMessageAt: Date.now(),
+          lastMessageSenderId: user.uid,
+          lastMessageSenderName: profile.displayName || profile.email,
+          updatedAt: Date.now()
+        });
+      } catch (error) {
+        handleFirestoreError(error, OperationType.WRITE, 'chat/send', user, false);
+      }
     }
   };
 
@@ -267,6 +333,16 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
   const getOtherParticipant = (participants: string[]) => {
     if (!participants || !Array.isArray(participants)) return undefined;
     const otherId = participants.find(p => p !== user.uid);
+    if (otherId === 'blue-ai') {
+      return {
+        uid: 'blue-ai',
+        displayName: 'BLUE AI Assistant',
+        email: 'blue-ai@kontrol.ai',
+        role: 'Assistant Virtuel',
+        avatar_url: '',
+        companyId: profile?.companyId || 'SYSTEM'
+      } as any;
+    }
     return allUsers.find(u => u.uid === otherId);
   };
 
@@ -1079,6 +1155,15 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
                   </div>
                 );
               })}
+              {isAiTyping && (
+                <div className="flex flex-col items-start gap-1">
+                  <span className="text-[10px] font-bold text-kontrol-ink-muted ml-2 uppercase tracking-widest font-mono">BLUE AI</span>
+                  <div className="max-w-[70%] p-3 rounded-2xl text-[13px] shadow-sm bg-white text-kontrol-dark border border-kontrol-border rounded-tl-none flex items-center gap-2 animate-pulse">
+                    <Loader2 size={14} className="animate-spin text-kontrol-blue" />
+                    <span className="text-kontrol-blue font-semibold">Analyse fiducière SQLite active...</span>
+                  </div>
+                </div>
+              )}
               <div ref={messagesEndRef} />
             </div>
 

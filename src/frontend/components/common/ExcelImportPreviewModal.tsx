@@ -163,13 +163,38 @@ export function ExcelImportPreviewModal({
               Aperçu & Filtrage de l'importation Excel
             </h3>
           </div>
-          <button 
-            onClick={onClose} 
-            disabled={importing}
-            className="w-9 h-9 rounded-full hover:bg-kontrol-bg flex items-center justify-center text-kontrol-ink-muted hover:text-kontrol-dark transition-all"
-          >
-            <X size={18} />
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleImportSubmit}
+              disabled={importing || selectedIndices.size === 0}
+              id="header-import-validate-btn"
+              className={cn(
+                "text-xs px-5 py-2 font-bold rounded-xl shadow-md transition-all flex items-center gap-2",
+                selectedIndices.size > 0 
+                  ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/10 hover:shadow-emerald-600/20 active:scale-95 cursor-pointer" 
+                  : "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
+              )}
+            >
+              {importing ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" />
+                  <span>Enregistrement...</span>
+                </>
+              ) : (
+                <>
+                  <Check size={14} />
+                  <span>Valider l'importation ({selectedIndices.size} lignes)</span>
+                </>
+              )}
+            </button>
+            <button 
+              onClick={onClose} 
+              disabled={importing}
+              className="w-9 h-9 rounded-full hover:bg-kontrol-bg flex items-center justify-center text-kontrol-ink-muted hover:text-kontrol-dark transition-all"
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         {/* Templates and Statistics Bar */}

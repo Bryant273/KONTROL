@@ -137,37 +137,37 @@ export function cleanImportedRows(moduleKey: string, data: any[]): any[] {
   const model = MODULE_TEMPLATES[moduleKey];
   if (!model || !Array.isArray(data) || data.length === 0) return data;
 
+  const lowercaseDescriptions = model.columns.map(c => c.description.toLowerCase().trim());
+
   return data.filter(row => {
     if (!row || typeof row !== 'object') return false;
 
-    let matchDescCount = 0;
-    let columnsPresent = 0;
+    // Récupérer toutes les valeurs de cellules de la ligne
+    const values = Object.values(row)
+      .map(v => String(v || '').trim())
+      .filter(Boolean);
 
-    for (const col of model.columns) {
-      // Les clés de l'objet produit par sheet_to_json correspondent aux en-têtes (labels) du modèle Excel KONTROL
-      const value = row[col.label];
-      if (value !== undefined && value !== null && value !== '') {
-        columnsPresent++;
-        const strVal = String(value).toLowerCase().trim();
-        const descVal = col.description.toLowerCase().trim();
+    if (values.length === 0) return false;
 
-        if (strVal === descVal) {
-          matchDescCount++;
-        }
+    // Une ligne est une ligne de description/explication si plusieurs de ses cellules correspondent aux descriptions
+    let descMatches = 0;
+    for (const val of values) {
+      const lowerVal = val.toLowerCase();
+      // On cherche si la valeur de la cellule correspond exactement ou est extrêmement proche d'une description du modèle
+      const isDesc = lowercaseDescriptions.some(desc => lowerVal === desc || (desc.includes(lowerVal) && lowerVal.length > 12));
+      if (isDesc) {
+        descMatches++;
       }
     }
 
-    if (columnsPresent === 0) return false;
+    // Si on détecte au moins 2 correspondances de descriptions, c'est une ligne d'explications/instruction à sauter
+    const isDescriptionRow = descMatches >= Math.min(2, model.columns.length);
 
-    // Si 60% ou plus des colonnes présentes correspondent exactement aux descriptions du modèle,
-    // c'est à coup sûr une ligne d'explications ou de descriptions à ignorer.
-    const isDescRow = matchDescCount / columnsPresent >= 0.6;
-
-    if (isDescRow) {
-      return false;
+    if (isDescriptionRow) {
+      return false; // On l'ignore
     }
 
-    return true;
+    return true; // On garde tout le reste (y compris les lignes d'exemples valides pour tester !)
   });
 }
 

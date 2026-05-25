@@ -292,7 +292,8 @@ async function startServer() {
 
   const AiBrainSchema = z.object({
     prompt: z.string().min(1).max(5000),
-    user_id: z.string().min(1).max(128)
+    user_id: z.string().min(1).max(128),
+    companyId: z.string().max(128).optional()
   });
 
   const AiAnalyzeSchema = z.object({
@@ -526,8 +527,8 @@ async function startServer() {
   const aiExpert = {
     blueBrain: async (req: any, res: any) => {
       try {
-        const { prompt, user_id } = AiBrainSchema.parse(req.body);
-        const result = await neuralBrain.infer(prompt, user_id);
+        const { prompt, user_id, companyId } = AiBrainSchema.parse(req.body);
+        const result = await neuralBrain.infer(prompt, user_id, companyId);
         res.json({
           engine: "PYTHON_NEURAL_ENSEMBLE",
           models: ["Qwen", "Gemini", "DeepSeek"],
