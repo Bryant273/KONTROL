@@ -16,7 +16,9 @@ import {
   Trash2,
   AlertTriangle,
   MapPin,
-  Globe
+  Globe,
+  ChevronLeft,
+  KeyRound
 } from 'lucide-react';
 import { UserProfile } from '../../types';
 import { 
@@ -34,12 +36,15 @@ import { cn } from '../../lib/utils';
 import { deleteCompanyAccount } from '../../../api/services/dataResetService';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { countries } from '../../lib/countries';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface ProfileModuleProps {
   profile: UserProfile | null;
 }
 
 export function ProfileModule({ profile }: ProfileModuleProps) {
+  const [activeSection, setActiveSection] = React.useState<'MENU' | 'PROFILE' | 'COMPANY' | 'SECURITY' | 'DANGER'>('MENU');
+  
   const [loading, setLoading] = React.useState(false);
   const [success, setSuccess] = React.useState(false);
   const [passLoading, setPassLoading] = React.useState(false);
@@ -97,13 +102,6 @@ export function ProfileModule({ profile }: ProfileModuleProps) {
     setLoading(true);
     setSuccess(false);
     try {
-      // If email changed, we need to update it in Auth too
-      if (formData.email !== profile.email) {
-        // This usually requires re-auth, but for simplicity in this demo 
-        // we'll just update the profile doc. In a real app, we'd use updateEmail(auth.currentUser, formData.email)
-        // after re-authenticating.
-      }
-      
       await updateUserProfile(profile.uid, formData);
       setSuccess(true);
       
@@ -142,11 +140,9 @@ export function ProfileModule({ profile }: ProfileModuleProps) {
     setPassSuccess(false);
 
     try {
-      // Re-authenticate user
       const credential = EmailAuthProvider.credential(auth.currentUser.email!, passData.currentPassword);
       await reauthenticateWithCredential(auth.currentUser, credential);
       
-      // Update password
       await updatePassword(auth.currentUser, passData.newPassword);
       
       setPassSuccess(true);
@@ -190,325 +186,648 @@ export function ProfileModule({ profile }: ProfileModuleProps) {
   if (!profile) return null;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <header>
-        <h2 className="text-2xl font-extrabold text-kontrol-dark tracking-tight">Mon Profil</h2>
-        <p className="text-[13px] text-kontrol-ink-muted mt-1">Gérez vos informations personnelles et celles de votre entreprise</p>
-      </header>
+    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      
+      <AnimatePresence mode="wait">
+        
+        {/* VIEW 1: CENTRAL COMMAND bento navigation list */}
+        {activeSection === 'MENU' && (
+          <motion.div
+            key="menu-view"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            transition={{ duration: 0.25 }}
+            className="space-y-6"
+          >
+            <header className="flex flex-col gap-1">
+              <h2 className="text-2xl font-extrabold text-kontrol-dark tracking-tight">Paramètres Globaux</h2>
+              <p className="text-[13px] text-kontrol-ink-muted">
+                Configurez l’organisation de votre espace ERP, synchronisez vos options de sécurité et mettez à jour l’identité de votre marque.
+              </p>
+            </header>
 
-      <div className="grid md:grid-cols-3 gap-8">
-        {/* Sidebar Info */}
-        <div className="space-y-6">
-          <div className="card overflow-hidden">
-            <div className="h-24 bg-gradient-to-br from-kontrol-blue to-kontrol-dark relative">
-              <div className="absolute -bottom-10 left-1/2 -translate-x-1/2">
-                <div className="w-20 h-20 rounded-2xl bg-white p-1 shadow-xl border border-kontrol-border overflow-hidden">
-                  <div className="w-full h-full rounded-xl bg-kontrol-bg flex items-center justify-center overflow-hidden">
+            {/* Premium Header Greeting Panel */}
+            <div className="bg-gradient-to-br from-[#0e1f32] to-[#162a3f] text-white rounded-3xl p-6 relative overflow-hidden shadow-lg border border-[#1d3a5a]/20">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-[#185FA5]/10 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none" />
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 relative z-10">
+                <div className="flex items-center gap-4.5">
+                  <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center backdrop-blur-md border border-white/10 shrink-0">
+                    {profile.companyLogo ? (
+                      <img src={profile.companyLogo} alt="Logo" className="w-12 h-12 object-contain" />
+                    ) : (
+                      <User size={30} className="text-[#a0c5ea]" />
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-extrabold tracking-tight text-white">{profile.displayName}</h3>
+                    <p className="text-xs text-slate-300 font-mono mt-0.5">{profile.email}</p>
+                    
+                    <div className="flex flex-wrap gap-2 mt-2.5">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-[#185FA5]/30 border border-[#185FA5]/40 text-[#a0c5ea] text-[10px] font-extrabold uppercase tracking-widest">
+                        <Shield size={10} className="mr-1" /> {profile.role}
+                      </span>
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-extrabold uppercase tracking-widest">
+                        Vérifié KONTROL ERP
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="shrink-0 flex items-center gap-3">
+                  <button 
+                    onClick={() => logout()}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20 text-rose-300 rounded-xl text-xs font-bold transition-all shadow-md group"
+                  >
+                    <LogOut size={14} className="group-hover:translate-x-0.5 transition-transform" /> Déconnexion
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Bento interactive grid of buttons */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              
+              {/* Card Button 1: Profil Personnel */}
+              <button
+                type="button"
+                onClick={() => setActiveSection('PROFILE')}
+                className="text-left bg-white border border-kontrol-border hover:border-kontrol-blue rounded-3xl p-6 transition-all hover:shadow-md group flex flex-col justify-between h-48 focus:ring-2 focus:ring-kontrol-blue/20 outline-none"
+              >
+                <div className="flex items-start justify-between w-full mb-3">
+                  <div className="w-12 h-12 rounded-2xl bg-kontrol-blue/5 flex items-center justify-center text-kontrol-blue border border-kontrol-blue/10">
+                    <User size={22} />
+                  </div>
+                  <div className="p-1 px-2.5 bg-kontrol-bg rounded-lg text-[9px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">
+                    CONFIGURER
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-[14px] font-extrabold text-kontrol-dark group-hover:text-kontrol-blue transition-colors">Profil Personnel</h4>
+                  <p className="text-[11.5px] text-kontrol-ink-muted mt-1 leading-relaxed">
+                    Éditez vos coordonnées d'identité, votre adresse e-mail d'exploitation et visualisez vos habilitations.
+                  </p>
+                </div>
+              </button>
+
+              {/* Card Button 2: Profil de l'Entreprise */}
+              <button
+                type="button"
+                onClick={() => setActiveSection('COMPANY')}
+                className="text-left bg-white border border-kontrol-border hover:border-kontrol-orange rounded-3xl p-6 transition-all hover:shadow-md group flex flex-col justify-between h-48 focus:ring-2 focus:ring-kontrol-orange/20 outline-none"
+              >
+                <div className="flex items-start justify-between w-full mb-3">
+                  <div className="w-12 h-12 rounded-2xl bg-kontrol-orange/5 flex items-center justify-center text-kontrol-orange border border-kontrol-orange/10">
+                    <Building2 size={22} />
+                  </div>
+                  <div className="p-1 px-2.5 bg-[#FFF7ED] rounded-lg text-[9px] font-extrabold text-kontrol-orange uppercase tracking-widest border border-orange-100">
+                    SOCIÉTÉ
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-[14px] font-extrabold text-kontrol-dark group-hover:text-kontrol-orange transition-colors">Identité de l'Entreprise</h4>
+                  <p className="text-[11.5px] text-kontrol-ink-muted mt-1 leading-relaxed">
+                    Mettez à jour votre raison sociale, adresses de facturation fiscale, pays de domiciliation et logo de société.
+                  </p>
+                </div>
+              </button>
+
+              {/* Card Button 3: Sécurité & Accès */}
+              <button
+                type="button"
+                onClick={() => setActiveSection('SECURITY')}
+                className="text-left bg-white border border-kontrol-border hover:border-[#185FA5] rounded-3xl p-6 transition-all hover:shadow-md group flex flex-col justify-between h-48 focus:ring-2 focus:ring-[#185FA5]/25 outline-none"
+              >
+                <div className="flex items-start justify-between w-full mb-3">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-50/50 flex items-center justify-center text-[#185FA5] border border-blue-100">
+                    <Lock size={20} />
+                  </div>
+                  <div className="p-1 px-2.5 bg-[#185FA5]/5 rounded-lg text-[9px] font-extrabold text-[#185FA5] uppercase tracking-widest">
+                    ACCÈS
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-[14px] font-extrabold text-kontrol-dark group-hover:text-[#185FA5] transition-colors">Sécurité & Mots de passe</h4>
+                  <p className="text-[11.5px] text-kontrol-ink-muted mt-1 leading-relaxed">
+                    Renforcez l’intégrité opérationnelle de votre console d'administration en sécurisant vos mots de passe.
+                  </p>
+                </div>
+              </button>
+
+              {/* Card Button 4: Zone de Danger / Administration */}
+              <button
+                type="button"
+                onClick={() => setActiveSection('DANGER')}
+                className={cn(
+                  "text-left bg-white border border-kontrol-border rounded-3xl p-6 transition-all hover:shadow-md group flex flex-col justify-between h-48 focus:ring-2 outline-none",
+                  profile.role === 'ADMINISTRATEUR_ENTREPRISE' ? "hover:border-rose-500 focus:ring-rose-500/20" : "opacity-75 cursor-not-allowed hover:border-gray-300"
+                )}
+              >
+                <div className="flex items-start justify-between w-full mb-3">
+                  <div className={cn(
+                    "w-12 h-12 rounded-2xl flex items-center justify-center border",
+                    profile.role === 'ADMINISTRATEUR_ENTREPRISE' 
+                      ? "bg-rose-50 text-rose-500 border-rose-100" 
+                      : "bg-gray-50 text-gray-400 border-gray-100"
+                  )}>
+                    <AlertTriangle size={20} />
+                  </div>
+                  <span className={cn(
+                    "p-1 px-2.5 rounded-lg text-[9px] font-extrabold uppercase tracking-widest border",
+                    profile.role === 'ADMINISTRATEUR_ENTREPRISE' 
+                      ? "bg-rose-50 text-rose-600 border-rose-100" 
+                      : "bg-gray-50 text-gray-400 border-gray-100"
+                  )}>
+                    {profile.role === 'ADMINISTRATEUR_ENTREPRISE' ? 'DANGER' : 'VERROUILLÉ'}
+                  </span>
+                </div>
+                <div>
+                  <h4 className="text-[14px] font-extrabold text-kontrol-dark group-hover:text-rose-600 transition-colors">Compte & Options Administrateur</h4>
+                  <p className="text-[11.5px] text-kontrol-ink-muted mt-1 leading-relaxed">
+                    {profile.role === 'ADMINISTRATEUR_ENTREPRISE' 
+                      ? "Options de suppression définitive, réinitialisation de l'instance ERP de votre firme." 
+                      : "Option visible uniquement pour le propriétaire de l'organisation KONTROL."}
+                  </p>
+                </div>
+              </button>
+
+            </div>
+          </motion.div>
+        )}
+
+        {/* VIEW 2: PROFILE PAGE COMPLETE */}
+        {activeSection === 'PROFILE' && (
+          <motion.div
+            key="profile-view"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.25 }}
+            className="space-y-6"
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-kontrol-border">
+              <button
+                type="button"
+                onClick={() => setActiveSection('MENU')}
+                className="inline-flex items-center gap-1 text-[11px] font-extrabold text-kontrol-ink-muted hover:text-kontrol-blue uppercase tracking-widest transition-colors"
+              >
+                <ChevronLeft size={16} /> Retour aux paramètres
+              </button>
+              <span className="text-[10px] bg-kontrol-bg px-3 py-1 font-extrabold tracking-widest text-[#185FA5] rounded-full border border-kontrol-border">
+                SECTION 1 / 4
+              </span>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-8">
+              {/* Sidebar recap card */}
+              <div className="space-y-4">
+                <div className="card overflow-hidden text-center p-6 bg-gradient-to-b from-kontrol-bg/50 to-white">
+                  <div className="w-20 h-20 rounded-3xl bg-[#185FA5]/5 border border-dashed border-[#185FA5]/25 flex items-center justify-center mx-auto mb-4">
+                    <User size={34} className="text-[#185FA5]" />
+                  </div>
+                  <h3 className="text-base font-extrabold text-kontrol-dark">{profile.displayName}</h3>
+                  <p className="text-[11.5px] font-medium text-kontrol-ink-muted mt-0.5">{profile.email}</p>
+                  
+                  <div className="mt-4 pt-4 border-t border-kontrol-border/60 flex items-center justify-between text-left">
+                    <div>
+                      <p className="text-[9px] text-kontrol-ink-muted font-bold uppercase tracking-wider">Habilitation</p>
+                      <p className="text-[11px] font-extrabold text-kontrol-blue lowercase mt-0.5">{profile.role.toLowerCase()}</p>
+                    </div>
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-100" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Information Form */}
+              <div className="md:col-span-2">
+                <form onSubmit={handleSubmit} className="card p-6 sm:p-8 bg-white border border-kontrol-border space-y-6">
+                  <div>
+                    <h3 className="text-sm font-extrabold text-kontrol-dark uppercase tracking-wider mb-1">Informations de Profil Personnel</h3>
+                    <p className="text-[12px] text-kontrol-ink-muted">Modifiez vos désignations d'affichage utilisateur ainsi que vos accès e-mail</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Nom complet d'affichage</label>
+                      <div className="relative">
+                        <input 
+                          type="text"
+                          required
+                          className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px] font-medium"
+                          value={formData.displayName}
+                          onChange={(e) => setFormData(prev => ({ ...prev, displayName: e.target.value }))}
+                        />
+                        <User size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Adresse Email / Identifiant unique</label>
+                      <div className="relative">
+                        <input 
+                          type="email"
+                          required
+                          className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px] font-medium"
+                          value={formData.email}
+                          onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                        />
+                        <Mail size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-kontrol-border flex items-center justify-between">
+                    {success && (
+                      <div className="flex items-center gap-2 text-emerald-600 font-bold text-[13px] animate-in fade-in duration-300">
+                        <CheckCircle2 size={16} /> Profil mis à jour localement !
+                      </div>
+                    )}
+                    <div className="flex-1" />
+                    <button 
+                      type="submit"
+                      disabled={loading}
+                      className="px-6 py-2.5 bg-kontrol-dark text-white font-extrabold text-xs uppercase tracking-widest rounded-xl hover:bg-black transition-all shadow-lg flex items-center gap-2 disabled:opacity-50"
+                    >
+                      {loading ? <Loader2 className="animate-spin" size={14} /> : <><Save size={14} /> Sauvegarder</>}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* VIEW 3: COMPANY PROFILE PAGE COMPLETE */}
+        {activeSection === 'COMPANY' && (
+          <motion.div
+            key="company-view"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.25 }}
+            className="space-y-6"
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-kontrol-border">
+              <button
+                type="button"
+                onClick={() => setActiveSection('MENU')}
+                className="inline-flex items-center gap-1 text-[11px] font-extrabold text-kontrol-ink-muted hover:text-kontrol-blue uppercase tracking-widest transition-colors"
+              >
+                <ChevronLeft size={16} /> Retour aux paramètres
+              </button>
+              <span className="text-[10px] bg-kontrol-bg px-3 py-1 font-extrabold tracking-widest text-kontrol-orange rounded-full border border-kontrol-border">
+                SECTION 2 / 4
+              </span>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-8">
+              {/* Sidebar with logo setup status */}
+              <div className="space-y-4">
+                <div className="card overflow-hidden p-6 bg-gradient-to-b from-kontrol-bg/50 to-white text-center">
+                  <div className="w-24 h-24 rounded-3xl bg-white p-2 shadow-sm border border-kontrol-border overflow-hidden mx-auto mb-4 flex items-center justify-center">
                     {formData.companyLogo ? (
                       <img src={formData.companyLogo} alt="Logo" className="w-full h-full object-contain" />
                     ) : (
-                      <Building2 size={32} className="text-kontrol-ink-muted" />
+                      <Building2 size={36} className="text-kontrol-ink-muted" />
                     )}
                   </div>
+                  <h3 className="text-base font-extrabold text-kontrol-dark">{formData.companyName || profile.companyName}</h3>
+                  <p className="text-[11px] font-medium text-kontrol-ink-muted mt-0.5">{formData.address || "Aucune adresse configurée"}</p>
                 </div>
               </div>
-            </div>
-            <div className="pt-12 pb-6 px-6 text-center">
-              <h3 className="text-lg font-extrabold text-kontrol-dark leading-tight">{profile.displayName}</h3>
-              <p className="text-[12px] text-kontrol-ink-muted mt-1">{profile.email}</p>
-              
-              <div className="mt-4 inline-flex items-center px-2.5 py-1 rounded-full bg-kontrol-blue/10 text-kontrol-blue text-[10px] font-bold uppercase tracking-widest">
-                <Shield size={10} className="mr-1.5" /> {profile.role}
-              </div>
-            </div>
-          </div>
 
-          <div className="card p-4 space-y-3">
-            <h4 className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest px-2">Statut du compte</h4>
-            <div className="flex items-center justify-between p-2 rounded-lg bg-emerald-50 text-emerald-700">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 size={14} />
-                <span className="text-[12px] font-bold">Vérifié</span>
-              </div>
-              <span className="text-[10px] uppercase font-extrabold">Actif</span>
-            </div>
-            <button 
-              onClick={() => logout()}
-              className="w-full flex items-center justify-center gap-2 p-2.5 text-rose-600 hover:bg-rose-50 rounded-lg text-[13px] font-bold transition-colors"
-            >
-              <LogOut size={16} /> Déconnexion
-            </button>
-          </div>
-        </div>
+              {/* Corporate Identity Form */}
+              <div className="md:col-span-2">
+                <form onSubmit={handleSubmit} className="card p-6 sm:p-8 bg-white border border-kontrol-border space-y-6">
+                  <div>
+                    <h3 className="text-sm font-extrabold text-kontrol-dark uppercase tracking-wider mb-1">Coordonnées de l'Entreprise</h3>
+                    <p className="text-[12px] text-kontrol-ink-muted">Modifiez la raison sociale de votre entreprise, l'adresse du siège et votre logo</p>
+                  </div>
 
-        {/* Main Form */}
-        <div className="md:col-span-2">
-          <form onSubmit={handleSubmit} className="card p-8 space-y-8">
-            <div className="space-y-6">
-              <h4 className="text-[13px] font-extrabold text-kontrol-dark border-b border-kontrol-border pb-2 flex items-center gap-2">
-                <User size={16} className="text-kontrol-blue" /> Informations Personnelles
-              </h4>
-              
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Nom complet</label>
-                  <div className="relative">
-                    <input 
-                      type="text"
-                      className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px]"
-                      value={formData.displayName}
-                      onChange={(e) => setFormData(prev => ({ ...prev, displayName: e.target.value }))}
-                    />
-                    <User size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Email / Identifiant</label>
-                  <div className="relative">
-                    <input 
-                      type="email"
-                      className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px]"
-                      value={formData.email}
-                      onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    />
-                    <Mail size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              <h4 className="text-[13px] font-extrabold text-kontrol-dark border-b border-kontrol-border pb-2 flex items-center gap-2">
-                <Building2 size={16} className="text-kontrol-orange" /> Informations Entreprise
-              </h4>
-              
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Nom de l'entreprise</label>
-                  <div className="relative">
-                    <input 
-                      type="text"
-                      className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px]"
-                      value={formData.companyName}
-                      onChange={(e) => setFormData(prev => ({ ...prev, companyName: e.target.value }))}
-                    />
-                    <Building2 size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
-                  </div>
-                </div>
-
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Pays</label>
-                    <div className="relative">
-                      <select 
-                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px] appearance-none"
-                        value={formData.country}
-                        onChange={(e) => setFormData(prev => ({ ...prev, country: e.target.value, city: '' }))}
-                      >
-                        <option value="">Sélectionner un pays</option>
-                        {countries.map(c => (
-                          <option key={c.name} value={c.name}>{c.name}</option>
-                        ))}
-                      </select>
-                      <Globe size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Ville</label>
-                    <div className="relative">
-                      <select 
-                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px] appearance-none disabled:opacity-50"
-                        value={formData.city}
-                        disabled={!formData.country}
-                        onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
-                      >
-                        <option value="">Sélectionner une ville</option>
-                        {countries.find(c => c.name === formData.country)?.cities?.map(city => (
-                          <option key={city} value={city}>{city}</option>
-                        ))}
-                      </select>
-                      <MapPin size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Adresse complète</label>
-                  <div className="relative">
-                    <input 
-                      type="text"
-                      className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px]"
-                      value={formData.address}
-                      placeholder="N° de rue, Quartier, etc."
-                      onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                    />
-                    <MapPin size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Logo de l'entreprise</label>
-                  <div className="flex items-center gap-4 p-4 bg-kontrol-bg/50 rounded-xl border border-dashed border-kontrol-border">
-                    <div className="w-16 h-16 rounded-xl bg-white border border-kontrol-border flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
-                      {formData.companyLogo ? (
-                        <img src={formData.companyLogo} alt="Logo" className="w-full h-full object-contain" />
-                      ) : (
-                        <Camera size={24} className="text-kontrol-ink-muted" />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <label className="cursor-pointer">
-                        <span className="inline-block px-4 py-2 bg-white border border-kontrol-border rounded-lg text-[12px] font-bold text-kontrol-dark hover:bg-kontrol-bg transition-colors shadow-sm">
-                          Changer le logo
-                        </span>
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Raison Sociale de l'entreprise</label>
+                      <div className="relative">
                         <input 
-                          type="file"
-                          accept="image/png, image/jpeg, image/jpg, image/svg+xml"
-                          className="hidden"
-                          onChange={handleFileChange}
+                          type="text"
+                          required
+                          className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px] font-medium"
+                          value={formData.companyName}
+                          onChange={(e) => setFormData(prev => ({ ...prev, companyName: e.target.value }))}
                         />
-                      </label>
-                      <p className="text-[10px] text-kontrol-ink-muted mt-1">Format PNG, JPG ou SVG recommandé</p>
+                        <Building2 size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
+                      </div>
+                    </div>
+
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Pays de domiciliation</label>
+                        <div className="relative">
+                          <select 
+                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px] font-medium appearance-none"
+                            value={formData.country}
+                            onChange={(e) => setFormData(prev => ({ ...prev, country: e.target.value, city: '' }))}
+                          >
+                            <option value="">Sélectionner un pays</option>
+                            {countries.map(c => (
+                              <option key={c.name} value={c.name}>{c.name}</option>
+                            ))}
+                          </select>
+                          <Globe size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Ville / Hub Économique</label>
+                        <div className="relative">
+                          <select 
+                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px] font-medium appearance-none disabled:opacity-50"
+                            value={formData.city}
+                            disabled={!formData.country}
+                            onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                          >
+                            <option value="">Sélectionner une ville</option>
+                            {countries.find(c => c.name === formData.country)?.cities?.map(city => (
+                              <option key={city} value={city}>{city}</option>
+                            ))}
+                          </select>
+                          <MapPin size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Adresse Postale & Fiscale Complète</label>
+                      <div className="relative">
+                        <input 
+                          type="text"
+                          className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px] font-medium"
+                          value={formData.address}
+                          placeholder="Ex: N° 52, Avenue des Champs-Élysées"
+                          onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                        />
+                        <MapPin size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Emblème / Logo Institutionnel</label>
+                      <div className="flex items-center gap-4 p-4 bg-kontrol-bg/40 rounded-2xl border border-dashed border-kontrol-border">
+                        <div className="w-14 h-14 rounded-xl bg-white border border-kontrol-border flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
+                          {formData.companyLogo ? (
+                            <img src={formData.companyLogo} alt="Logo" className="w-full h-full object-contain" />
+                          ) : (
+                            <Camera size={20} className="text-kontrol-ink-muted" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <label className="cursor-pointer">
+                            <span className="inline-block px-3.5 py-1.5 bg-white border border-kontrol-border rounded-xl text-[11px] font-extrabold text-kontrol-dark hover:bg-kontrol-bg transition-colors shadow-2xs">
+                              Choisir une image
+                            </span>
+                            <input 
+                              type="file"
+                              accept="image/png, image/jpeg, image/jpg, image/svg+xml"
+                              className="hidden"
+                              onChange={handleFileChange}
+                            />
+                          </label>
+                          <p className="text-[10px] text-kontrol-ink-muted mt-1 leading-normal">PNG, JPG ou SVG. Recommandé : 512x512px.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-kontrol-border flex items-center justify-between">
+                    {success && (
+                      <div className="flex items-center gap-2 text-emerald-600 font-bold text-[13px] animate-in fade-in duration-300">
+                        <CheckCircle2 size={16} /> Informations sauvegardées !
+                      </div>
+                    )}
+                    <div className="flex-1" />
+                    <button 
+                      type="submit"
+                      disabled={loading}
+                      className="px-6 py-2.5 bg-kontrol-dark text-white font-extrabold text-xs uppercase tracking-widest rounded-xl hover:bg-black transition-all shadow-lg flex items-center gap-2 disabled:opacity-50"
+                    >
+                      {loading ? <Loader2 className="animate-spin" size={14} /> : <><Save size={14} /> Mettre à jour l'entreprise</>}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* VIEW 4: SECURITY MANAGEMENT COMPLETE */}
+        {activeSection === 'SECURITY' && (
+          <motion.div
+            key="security-view"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.25 }}
+            className="space-y-6"
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-kontrol-border">
+              <button
+                type="button"
+                onClick={() => setActiveSection('MENU')}
+                className="inline-flex items-center gap-1 text-[11px] font-extrabold text-kontrol-ink-muted hover:text-kontrol-blue uppercase tracking-widest transition-colors"
+              >
+                <ChevronLeft size={16} /> Retour aux paramètres
+              </button>
+              <span className="text-[10px] bg-kontrol-bg px-3 py-1 font-extrabold tracking-widest text-[#185FA5] rounded-full border border-kontrol-border">
+                SECTION 3 / 4
+              </span>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-8">
+              {/* Security diagnostics */}
+              <div className="space-y-4">
+                <div className="card p-6 bg-blue-50/10 border border-blue-100/50 space-y-4">
+                  <div className="flex items-center gap-2 font-extrabold text-xs text-[#185FA5] uppercase tracking-wider">
+                    <KeyRound size={16} /> Diagnostic d'accès
+                  </div>
+                  
+                  <div className="space-y-3 pt-1">
+                    <div className="p-3 bg-white/80 rounded-xl border border-kontrol-border">
+                      <p className="text-[9px] text-kontrol-ink-muted font-bold uppercase tracking-wider">Méthode de connexion</p>
+                      <p className="text-[12px] font-extrabold text-kontrol-dark mt-0.5">Mot de Passe Unique</p>
+                    </div>
+
+                    <div className="p-3 bg-white/80 rounded-xl border border-kontrol-border">
+                      <p className="text-[9px] text-kontrol-ink-muted font-bold uppercase tracking-wider">Chiffrement Certifié</p>
+                      <p className="text-[11.5px] font-bold text-emerald-600 flex items-center gap-1 mt-0.5">
+                        <CheckCircle2 size={12} /> Standard AES-256 bits
+                      </p>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div className="pt-6 flex items-center justify-between">
-              {success && (
-                <div className="flex items-center gap-2 text-emerald-600 font-bold text-[13px] animate-in fade-in duration-300">
-                  <CheckCircle2 size={16} /> Profil mis à jour !
-                </div>
-              )}
-              <div className="flex-1" />
-              <button 
-                type="submit"
-                disabled={loading}
-                className="px-8 py-3 bg-kontrol-dark text-white font-extrabold rounded-xl hover:bg-black transition-all shadow-lg flex items-center gap-2 disabled:opacity-50"
+              {/* Password updating form */}
+              <div className="md:col-span-2">
+                <form onSubmit={handleUpdatePassword} className="card p-6 sm:p-8 bg-white border border-kontrol-border space-y-6">
+                  <div>
+                    <h3 className="text-sm font-extrabold text-kontrol-dark uppercase tracking-wider mb-1">Sécurité & Changement de mot de passe</h3>
+                    <p className="text-[12px] text-kontrol-ink-muted">Modifiez vos options d'accès critiques de manière sécurisée</p>
+                  </div>
+
+                  {passError && (
+                    <div className="p-3 bg-rose-50 border border-rose-100 text-rose-600 text-[12px] rounded-lg font-medium flex items-center gap-2">
+                      <AlertCircle size={14} /> {passError}
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Mot de passe actuel</label>
+                      <div className="relative">
+                        <input 
+                          type={showPass ? "text" : "password"}
+                          required
+                          className="w-full pl-10 pr-10 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px] font-medium"
+                          value={passData.currentPassword}
+                          onChange={(e) => setPassData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                        />
+                        <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
+                        <button 
+                          type="button"
+                          onClick={() => setShowPass(!showPass)}
+                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted hover:text-kontrol-dark"
+                        >
+                          {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Nouveau mot de passe</label>
+                        <div className="relative">
+                          <input 
+                            type="password"
+                            required
+                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px]"
+                            value={passData.newPassword}
+                            onChange={(e) => setPassData(prev => ({ ...prev, newPassword: e.target.value }))}
+                          />
+                          <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Confirmer le mot de passe</label>
+                        <div className="relative">
+                          <input 
+                            type="password"
+                            required
+                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px]"
+                            value={passData.confirmPassword}
+                            onChange={(e) => setPassData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                          />
+                          <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-kontrol-border flex items-center justify-between">
+                    {passSuccess && (
+                      <div className="flex items-center gap-2 text-emerald-600 font-bold text-[13px] animate-in fade-in duration-300">
+                        <CheckCircle2 size={16} /> Mot de passe mis à jour !
+                      </div>
+                    )}
+                    <div className="flex-1" />
+                    <button 
+                      type="submit"
+                      disabled={passLoading}
+                      className="px-6 py-2.5 bg-[#185FA5] text-white font-extrabold text-xs uppercase tracking-widest rounded-xl hover:bg-[#185FA5]/95 transition-all shadow-lg flex items-center gap-2 disabled:opacity-50 animate-pulse"
+                    >
+                      {passLoading ? <Loader2 className="animate-spin" size={14} /> : <><Lock size={14} /> Mettre à jour</>}
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+            </div>
+          </motion.div>
+        )}
+
+        {/* VIEW 5: DANGER ZONE & CRITICAL ADMINISTRATIVE ACTIONS */}
+        {activeSection === 'DANGER' && (
+          <motion.div
+            key="danger-view"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.25 }}
+            className="space-y-6"
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-kontrol-border">
+              <button
+                type="button"
+                onClick={() => setActiveSection('MENU')}
+                className="inline-flex items-center gap-1 text-[11px] font-extrabold text-kontrol-ink-muted hover:text-rose-600 uppercase tracking-widest transition-colors"
               >
-                {loading ? <Loader2 className="animate-spin" size={18} /> : <><Save size={18} /> Enregistrer les modifications</>}
+                <ChevronLeft size={16} /> Retour aux paramètres
               </button>
+              <span className="text-[10px] bg-rose-50 px-3 py-1 font-extrabold tracking-widest text-rose-600 rounded-full border border-rose-100">
+                SECTION 4 / 4
+              </span>
             </div>
-          </form>
 
-          {/* Password Section */}
-          <form onSubmit={handleUpdatePassword} className="card p-8 space-y-8 mt-8">
-            <div className="space-y-6">
-              <h4 className="text-[13px] font-extrabold text-kontrol-dark border-b border-kontrol-border pb-2 flex items-center gap-2">
-                <Lock size={16} className="text-kontrol-blue" /> Sécurité & Mot de passe
-              </h4>
-
-              {passError && (
-                <div className="p-3 bg-rose-50 border border-rose-100 text-rose-600 text-[12px] rounded-lg font-medium flex items-center gap-2">
-                  <AlertCircle size={14} /> {passError}
+            <div className="card max-w-2xl mx-auto p-6 sm:p-8 border-rose-100 bg-rose-50/20 rounded-3xl space-y-6">
+              
+              <div className="flex items-start gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center shrink-0">
+                  <AlertTriangle size={24} />
                 </div>
-              )}
+                <div>
+                  <h3 className="text-sm font-extrabold text-rose-700 uppercase tracking-wider mb-1">Actions d'Administration Irréversibles</h3>
+                  <p className="text-[12px] text-rose-600 leading-relaxed font-medium">
+                    Vous allez accéder aux privilèges destructeurs. Les modifications appliquées dans cette section s'imposent à l'ensemble des utilisateurs enregistrés sur votre instance d'entreprise KONTROL.
+                  </p>
+                </div>
+              </div>
 
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Mot de passe actuel</label>
-                  <div className="relative">
-                    <input 
-                      type={showPass ? "text" : "password"}
-                      required
-                      className="w-full pl-10 pr-10 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px]"
-                      value={passData.currentPassword}
-                      onChange={(e) => setPassData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                    />
-                    <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
+              {profile.role === 'ADMINISTRATEUR_ENTREPRISE' ? (
+                <div className="p-5 bg-white border border-rose-100 rounded-2xl space-y-4">
+                  <p className="text-[12.5px] text-kontrol-dark font-medium leading-relaxed">
+                    La clôture de votre compte d'organisation KONTROL détruira de façon irréversible toutes les écritures de ventes (factures, de devis), les données opérationnelles des produits, de devises, d'employés et de trésorerie associés à l'identité <span className="font-extrabold text-rose-600">{profile.companyName}</span>.
+                  </p>
+
+                  <div className="pt-2">
                     <button 
                       type="button"
-                      onClick={() => setShowPass(!showPass)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted hover:text-kontrol-dark"
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="px-6 py-3 bg-rose-650 hover:bg-rose-700 bg-rose-600 text-white font-extrabold text-xs uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center gap-2"
                     >
-                      {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
+                      <Trash2 size={14} /> Détruire mon compte entreprise définitivement
                     </button>
                   </div>
                 </div>
-
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Nouveau mot de passe</label>
-                    <div className="relative">
-                      <input 
-                        type="password"
-                        required
-                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px]"
-                        value={passData.newPassword}
-                        onChange={(e) => setPassData(prev => ({ ...prev, newPassword: e.target.value }))}
-                      />
-                      <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Confirmer le nouveau mot de passe</label>
-                    <div className="relative">
-                      <input 
-                        type="password"
-                        required
-                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px]"
-                        value={passData.confirmPassword}
-                        onChange={(e) => setPassData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                      />
-                      <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-6 flex items-center justify-between">
-              {passSuccess && (
-                <div className="flex items-center gap-2 text-emerald-600 font-bold text-[13px] animate-in fade-in duration-300">
-                  <CheckCircle2 size={16} /> Mot de passe mis à jour !
+              ) : (
+                <div className="p-4 bg-gray-50 border border-gray-150 rounded-2xl text-[12px] text-gray-500 font-medium leading-relaxed">
+                  Votre habilitation actuelle (<span className="font-bold">{profile.role}</span>) est insuffisante pour administrer la suppression ou clôture de l'organisation. Veuillez vous rapprocher d'un <span className="font-bold">ADMINISTRATEUR_ENTREPRISE</span> habilité.
                 </div>
               )}
-              <div className="flex-1" />
-              <button 
-                type="submit"
-                disabled={passLoading}
-                className="px-8 py-3 bg-kontrol-blue text-white font-extrabold rounded-xl hover:bg-kontrol-blue/90 transition-all shadow-lg flex items-center gap-2 disabled:opacity-50"
-              >
-                {passLoading ? <Loader2 className="animate-spin" size={18} /> : <><Lock size={18} /> Mettre à jour le mot de passe</>}
-              </button>
-            </div>
-          </form>
 
-          {/* Danger Zone for Company Owners */}
-          {profile.role === 'ADMINISTRATEUR_ENTREPRISE' && (
-            <div className="card p-8 space-y-6 mt-8 border-rose-100 bg-rose-50/30">
-              <div className="space-y-2">
-                <h4 className="text-[13px] font-extrabold text-rose-600 flex items-center gap-2">
-                  <AlertTriangle size={16} /> Zone de Danger
-                </h4>
-                <p className="text-[12px] text-rose-500 font-medium">
-                  La suppression de votre compte entreprise est irréversible. Toutes vos données (transactions, produits, clients, utilisateurs) seront définitivement supprimées.
-                </p>
-              </div>
-
-              <div className="pt-2">
-                <button 
-                  type="button"
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="px-6 py-2.5 bg-rose-600 text-white font-extrabold rounded-xl hover:bg-rose-700 transition-all shadow-md flex items-center gap-2"
-                >
-                  <Trash2 size={16} /> Supprimer définitivement mon compte entreprise
-                </button>
-              </div>
             </div>
-          )}
-        </div>
-      </div>
+          </motion.div>
+        )}
+
+      </AnimatePresence>
 
       <ConfirmModal
         isOpen={showDeleteConfirm}
         onClose={() => !deleteLoading && setShowDeleteConfirm(false)}
         onConfirm={handleDeleteAccount}
-        title="Supprimer mon compte entreprise ?"
-        message="Cette action est irréversible. Toutes les données de votre entreprise seront supprimées et vous ne pourrez plus vous connecter. Êtes-vous certain de vouloir continuer ?"
-        confirmLabel="Oui, supprimer tout"
-        cancelLabel="Annuler"
+        title="Détruire le compte d'entreprise ?"
+        message="Cette action est irréversible et immédiate. Toutes les écritures de ventes, fiches de paies et analyses financières de votre entreprise seront définitivement supprimées. Êtes-vous absolument sûr de vouloir détruire cette instance ?"
+        confirmLabel="Détruire définitivement"
+        cancelLabel="Annuler & Retour"
         variant="danger"
         loading={deleteLoading}
       />
