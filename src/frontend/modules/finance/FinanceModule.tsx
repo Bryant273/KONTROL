@@ -11,6 +11,7 @@ import { Wallet, Payment, UserProfile, Tiers, Transaction } from '../../types';
 import { cn, formatCurrency } from '../../lib/utils';
 import { hasPermission } from '../../lib/permissions';
 import { apiClient } from '../../../api/lib/api-client';
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { 
   db, 
   collection, 
@@ -334,6 +335,39 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
     return acc + (p.type === 'ENCAISSEMENT' ? p.montant : -p.montant);
   }, 0);
 
+  const spendingTrendData = React.useMemo(() => {
+    const monthsData: { name: string; Dépenses: number; monthVal: number; yearVal: number }[] = [];
+    const now = new Date();
+    
+    // Generate last 6 months in chronological order (oldest first)
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const label = d.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' });
+      monthsData.push({
+        name: label,
+        Dépenses: 0,
+        monthVal: d.getMonth(),
+        yearVal: d.getFullYear()
+      });
+    }
+
+    // Accumulate cash outflows (payments with type 'DECAISSEMENT')
+    payments.forEach(p => {
+      if (p.type === 'DECAISSEMENT') {
+        const pDate = new Date(p.date);
+        const pMonth = pDate.getMonth();
+        const pYear = pDate.getFullYear();
+        
+        const match = monthsData.find(m => m.monthVal === pMonth && m.yearVal === pYear);
+        if (match) {
+          match.Dépenses += p.montant;
+        }
+      }
+    });
+
+    return monthsData.map(({ name, Dépenses }) => ({ name: name.charAt(0).toUpperCase() + name.slice(1), Dépenses }));
+  }, [payments]);
+
   const startTs = new Date(startDate).setHours(0, 0, 0, 0);
   const endTs = new Date(endDate).setHours(23, 59, 59, 999);
 
@@ -648,6 +682,58 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
             <ArrowDownCircle size={14} />
             <span>{t('finance.outflow_total')}</span>
           </div>
+        </div>
+      </div>
+
+      {/* Real-time Spending Trend Chart */}
+      <div className="card p-5 bg-white border border-kontrol-border space-y-4">
+        <div className="flex items-center justify-between pb-1">
+          <div>
+            <h3 className="text-[12px] font-extrabold text-kontrol-dark uppercase tracking-widest">{t('finance.spending_trend_title') || "Évolution des Décaissements / Dépenses (6 derniers mois)"}</h3>
+            <p className="text-[11px] text-kontrol-ink-muted mt-0.5">{t('finance.spending_trend_subtitle') || "Flux de sortie de trésorerie consolidés par mois"}</p>
+          </div>
+          <div className="flex items-center gap-1.5 bg-rose-50 border border-rose-100/50 rounded-full px-2.5 py-0.5 shadow-2xs">
+            <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-ping" />
+            <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider">{t('finance.realtime') || "Temps Réel"}</span>
+          </div>
+        </div>
+
+        <div className="h-64 sm:h-72 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={spendingTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="colorDecaissement" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.25}/>
+                  <stop offset="95%" stopColor="#ef4444" stopOpacity={0.0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+              <XAxis 
+                dataKey="name" 
+                tickLine={false} 
+                axisLine={false} 
+                tick={{ fontSize: 10, fill: '#64748B', fontWeight: 600 }} 
+              />
+              <YAxis 
+                tickLine={false} 
+                axisLine={false} 
+                tick={{ fontSize: 10, fill: '#64748B', fontWeight: 600 }}
+                tickFormatter={(val) => `${val >= 1000000 ? (val / 1000000).toFixed(1) + 'M' : val >= 1000 ? (val / 1000).toFixed(0) + 'k' : val}`}
+              />
+              <Tooltip 
+                contentStyle={{ background: '#0F172A', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '11px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
+                formatter={(value: any) => [formatCurrency(Number(value)), 'Décaissements']}
+              />
+              <Area 
+                type="monotone" 
+                dataKey="Dépenses" 
+                stroke="#ef4444" 
+                strokeWidth={2} 
+                fillOpacity={1} 
+                fill="url(#colorDecaissement)" 
+              />
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
       </div>
 

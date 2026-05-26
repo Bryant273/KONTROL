@@ -13,6 +13,7 @@ import { hasPermission } from '../../lib/permissions';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { CompanySelector } from '../../components/common/CompanySelector';
 import { productService } from '../../../api/services/productService';
+import { motion } from 'motion/react';
 import { User as FirebaseUser } from 'firebase/auth';
 import { where, orderBy } from 'firebase/firestore';
 
@@ -42,6 +43,7 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [currentPage, setCurrentPage] = React.useState(1);
   const itemsPerPage = 10;
+  const [selectedCategory, setSelectedCategory] = React.useState<'ALL' | 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK'>('ALL');
 
   const [currentProduit, setCurrentProduit] = React.useState({
     reference: '',
@@ -319,7 +321,17 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
     const matchesSearch = p.designation.toLowerCase().includes(searchTerm.toLowerCase()) || 
                          p.reference.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesDate = !filterDate || new Date(p.createdAt).toISOString().split('T')[0] === filterDate;
-    return matchesSearch && matchesDate;
+    
+    let matchesCategory = true;
+    if (selectedCategory === 'IN_STOCK') {
+      matchesCategory = p.stock > (p.alertStock || 5);
+    } else if (selectedCategory === 'LOW_STOCK') {
+      matchesCategory = p.stock > 0 && p.stock <= (p.alertStock || 5);
+    } else if (selectedCategory === 'OUT_OF_STOCK') {
+      matchesCategory = p.stock <= 0;
+    }
+    
+    return matchesSearch && matchesDate && matchesCategory;
   });
 
   const totalPages = Math.ceil(filteredProduits.length / itemsPerPage);
@@ -536,7 +548,7 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-white border border-kontrol-border rounded-lg p-2.5 flex flex-wrap items-center gap-2">
+      <div className="bg-white border border-kontrol-border rounded-lg p-2.5 flex flex-wrap items-center gap-3">
         <div className="flex-1 min-w-[200px] flex items-center gap-2 bg-kontrol-bg border border-kontrol-border rounded-lg px-3 py-1.5 focus-within:border-kontrol-blue transition-all">
           <Search size={14} className="text-kontrol-ink-muted" />
           <input 
@@ -550,6 +562,62 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
             }}
           />
         </div>
+
+        {/* Categories Tabs */}
+        <div className="flex flex-wrap items-center gap-1 bg-kontrol-bg p-1 rounded-xl border border-kontrol-border">
+          <button
+            type="button"
+            onClick={() => { setSelectedCategory('ALL'); setCurrentPage(1); }}
+            className={cn(
+              "px-3 py-1 text-[12px] font-bold rounded-lg transition-all",
+              selectedCategory === 'ALL' 
+                ? "bg-white text-kontrol-dark shadow-xs border border-kontrol-border" 
+                : "text-kontrol-ink-muted hover:text-kontrol-dark"
+            )}
+          >
+            Tous
+          </button>
+          <button
+            type="button"
+            onClick={() => { setSelectedCategory('IN_STOCK'); setCurrentPage(1); }}
+            className={cn(
+              "px-3 py-1 text-[12px] font-bold rounded-lg transition-all flex items-center gap-1.5",
+              selectedCategory === 'IN_STOCK' 
+                ? "bg-white text-emerald-600 shadow-xs border border-emerald-100" 
+                : "text-kontrol-ink-muted hover:text-emerald-600"
+            )}
+          >
+            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+            {t('produits.status_in') || "En Stock"}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setSelectedCategory('LOW_STOCK'); setCurrentPage(1); }}
+            className={cn(
+              "px-3 py-1 text-[12px] font-bold rounded-lg transition-all flex items-center gap-1.5",
+              selectedCategory === 'LOW_STOCK' 
+                ? "bg-white text-orange-600 shadow-xs border border-orange-100" 
+                : "text-kontrol-ink-muted hover:text-orange-505"
+            )}
+          >
+            <span className="w-1.5 h-1.5 bg-orange-500 rounded-full" />
+            {t('produits.status_low') || "Stock Faible"}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setSelectedCategory('OUT_OF_STOCK'); setCurrentPage(1); }}
+            className={cn(
+              "px-3 py-1 text-[12px] font-bold rounded-lg transition-all flex items-center gap-1.5",
+              selectedCategory === 'OUT_OF_STOCK' 
+                ? "bg-white text-rose-600 shadow-xs border border-rose-100" 
+                : "text-kontrol-ink-muted hover:text-rose-505"
+            )}
+          >
+            <span className="w-1.5 h-1.5 bg-rose-500 rounded-full" />
+            {t('produits.status_out') || "Rupture"}
+          </button>
+        </div>
+
         <div className="flex items-center gap-2 bg-kontrol-bg border border-kontrol-border rounded-lg px-3 py-1.5">
           <Calendar size={14} className="text-kontrol-ink-muted" />
           <input 
@@ -592,13 +660,17 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
                     </td>
                   </tr>
                 ) : (
-                  paginatedProduits.map((p) => {
+                  paginatedProduits.map((p, index) => {
                     const [scls, slbl] = p.stock <= 0 ? ["bg-rose-50 text-rose-600", t('produits.status_out')] : 
                                        p.stock <= (p.alertStock || 5) ? ["bg-orange-50 text-orange-600", t('produits.status_low')] : 
                                        ["bg-emerald-50 text-emerald-600", t('produits.status_in')];
                     return (
-                      <tr 
+                      <motion.tr 
                         key={p.id} 
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.2, delay: Math.min(index * 0.03, 0.3) }}
                         className={cn(
                           "hover:bg-kontrol-blue/5 cursor-pointer transition-colors even:bg-kontrol-bg/30",
                           selectedId === p.id && "bg-kontrol-blue/10"
@@ -615,13 +687,13 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
                         <td className="px-4 py-3 text-center font-bold">{p.stock} u.</td>
                         <td className="px-4 py-3">
                           <span className={cn(
-                            "inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-bold uppercase tracking-wider",
+                            "inline-flex items-center px-1.5 py-0.5 rounded-full text-[10.5px] font-bold uppercase tracking-wider",
                             scls
                           )}>
                             {slbl}
                           </span>
                         </td>
-                      </tr>
+                      </motion.tr>
                     );
                   })
                 )}

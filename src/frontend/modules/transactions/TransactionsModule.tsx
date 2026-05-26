@@ -73,6 +73,8 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [isAdding, setIsAdding] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [searchFilterType, setSearchFilterType] = React.useState<'ALL' | 'REFERENCE' | 'CUSTOMER'>('ALL');
+  const [articleToDeleteIdx, setArticleToDeleteIdx] = React.useState<number | null>(null);
   const [message, setMessage] = React.useState<{ type: 'error' | 'success', text: string } | null>(null);
   const [currentPage, setCurrentPage] = React.useState(1);
   const itemsPerPage = 10;
@@ -426,8 +428,18 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
   const selectedTrans = transactions.find(t => t.id === selectedId);
 
   const filteredTransactions = transactions.filter(t => {
-    const matchesSearch = t.reference.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         t.tiersNom.toLowerCase().includes(searchTerm.toLowerCase());
+    let matchesSearch = true;
+    if (searchTerm.trim() !== '') {
+      const term = searchTerm.toLowerCase();
+      if (searchFilterType === 'REFERENCE') {
+        matchesSearch = t.reference.toLowerCase().includes(term);
+      } else if (searchFilterType === 'CUSTOMER') {
+        matchesSearch = t.tiersNom.toLowerCase().includes(term);
+      } else {
+        matchesSearch = t.reference.toLowerCase().includes(term) || 
+                        t.tiersNom.toLowerCase().includes(term);
+      }
+    }
     const matchesType = filterType === 'ALL' || t.type === filterType;
     const matchesStatut = filterStatut === 'ALL' || t.statut === filterStatut;
     
@@ -696,7 +708,12 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
                             </td>
                             <td className="px-4 py-2 text-right font-bold">{formatCurrency(art.total)}</td>
                             <td className="px-4 py-2 text-center">
-                              <button onClick={() => removeArticle(idx)} className="text-rose-500 hover:text-rose-700">
+                              <button 
+                                type="button"
+                                onClick={() => setArticleToDeleteIdx(idx)} 
+                                className="text-rose-500 hover:text-rose-700 transition"
+                                title={t('common.delete') || "Supprimer"}
+                              >
                                 <Trash2 size={14} />
                               </button>
                             </td>
@@ -749,6 +766,21 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
         onConfirm={handleDeleteTransaction}
         title={t('transactions.delete_transaction')}
         message={t('transactions.delete_transaction_confirm', { ref: selectedTrans?.reference })}
+        confirmLabel={t('common.delete')}
+        variant="danger"
+      />
+
+      <ConfirmModal
+        isOpen={articleToDeleteIdx !== null}
+        onClose={() => setArticleToDeleteIdx(null)}
+        onConfirm={() => {
+          if (articleToDeleteIdx !== null) {
+            removeArticle(articleToDeleteIdx);
+            setArticleToDeleteIdx(null);
+          }
+        }}
+        title={t('transactions.delete_article') || "Retirer l'article"}
+        message={t('transactions.delete_article_confirm', { name: articleToDeleteIdx !== null ? newTrans.articles[articleToDeleteIdx]?.designation : '' }) || "Êtes-vous sûr de vouloir retirer cet article de la facture ?"}
         confirmLabel={t('common.delete')}
         variant="danger"
       />
@@ -829,6 +861,19 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
             }}
           />
         </div>
+        <select 
+          className="bg-white border border-kontrol-border rounded-lg px-3 py-1.5 text-[13px] font-medium text-kontrol-ink-soft outline-none focus:border-kontrol-blue transition-colors"
+          value={searchFilterType}
+          onChange={(e) => {
+            setSearchFilterType(e.target.value as any);
+            setCurrentPage(1);
+          }}
+          title="Filtre recherche"
+        >
+          <option value="ALL">🔍 Tout rechercher</option>
+          <option value="REFERENCE">🧾 Référence uniquement</option>
+          <option value="CUSTOMER">👤 Client uniquement</option>
+        </select>
         <select 
           className="bg-white border border-kontrol-border rounded-lg px-3 py-1.5 text-[13px] font-medium text-kontrol-ink-soft outline-none focus:border-kontrol-blue transition-colors"
           value={filterType}
