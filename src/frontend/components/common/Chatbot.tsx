@@ -4,10 +4,15 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
 import { blueAIService, BlueMessage, BlueFunction } from '../../../api/services/blueAIService';
 import { auth, signInAnonymously, handleFirestoreError, OperationType } from '../../../api/firebase';
+import { UserProfile } from '../../types';
 import Markdown from 'react-markdown';
 import { useTranslation } from 'react-i18next';
 
-export function Chatbot() {
+export interface ChatbotProps {
+  profile?: UserProfile | null;
+}
+
+export function Chatbot({ profile }: ChatbotProps = {}) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -90,7 +95,7 @@ export function Chatbot() {
     }
 
     const uid = user.uid;
-    const companyId = localStorage.getItem('currentCompanyId') || (user.email ? user.uid : 'public');
+    const companyId = profile?.companyId || localStorage.getItem('currentCompanyId') || (user.email ? user.uid : 'public');
 
     // Optimistic update
     const userMessage: BlueMessage = {

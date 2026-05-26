@@ -432,7 +432,7 @@ export default function App() {
         </div>
       )}
 
-      <Chatbot />
+      <Chatbot profile={profile} />
       <Toaster position="top-right" expand={false} richColors />
     </div>
   );

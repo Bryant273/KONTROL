@@ -17,7 +17,11 @@ import {
   Table,
   ChevronLeft,
   ChevronRight,
-  Plus
+  Plus,
+  Send,
+  Sparkles,
+  Brain,
+  Loader2
 } from 'lucide-react';
 import { 
   collection, 
@@ -41,6 +45,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { exportToPDF, exportToExcel } from '../../lib/export';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { sendNotification } from '../../../api/services/notificationService';
+import { blueAIService } from '../../../api/services/blueAIService';
 
 interface TicketsModuleProps {
   user: any;
@@ -62,6 +67,164 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
   const itemsPerPage = 10;
 
   const isKontrolAdmin = ['ADMINISTRATEUR_ERP', 'GESTIONNAIRE_ERP', 'ADMINISTRATEUR_KONTROL', 'GESTIONNAIRE_KONTROL', 'ADMIN', 'SUPER_ADMIN'].includes(currentUserProfile?.role || '');
+
+  const [replyText, setReplyText] = React.useState('');
+  const [isAiDrafting, setIsAiDrafting] = React.useState(false);
+  const [isSubmittingReply, setIsSubmittingReply] = React.useState(false);
+  const [aiAnalysis, setAiAnalysis] = React.useState<any>(null);
+  const [isAnalyzing, setIsAnalyzing] = React.useState(false);
+
+  const performCognitiveAnalysis = async (ticket: Ticket) => {
+    setIsAnalyzing(true);
+    setAiAnalysis(null);
+    try {
+      const prompt = `[ANALYSE_COGNITIVE_TICKET] Analyse le sentiment, l'urgence et suggère la meilleure action pour ce ticket de support juridique ou d'exploitation. 
+Sujet: "${ticket.subject}"
+Message original de l'expéditeur: "${ticket.message}"
+
+Réponds uniquement sous forme d'un objet JSON brut conforme à ce schéma exact :
+{
+  "sentiment": "Frustré" | "Neutre" | "Satisfait" | "Incertain",
+  "score": 0.1,
+  "gravite": "Faible" | "Moyenne" | "Critique",
+  "resume": "Bref résumé du problème en 1 phrase",
+  "recommandation": "Directives de résolution professionnelle"
+}
+Ne retourne aucune autre phrase, ni balises markdown \`\`\`json \`\`\``;
+
+      const res = await fetch('/api/ai/blue-brain', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          user_id: user.uid,
+          companyId: currentUserProfile?.companyId || 'public'
+        })
+      });
+      const data = await res.json();
+      if (data && data.response) {
+        const cleanJson = data.response.replace(/```json/g, '').replace(/```/g, '').trim();
+        const parsed = JSON.parse(cleanJson);
+        setAiAnalysis(parsed);
+      }
+    } catch (error) {
+      console.error("Failed to perform cognitive analysis:", error);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const generateAiDraft = async () => {
+    if (!selectedTicket) return;
+    setIsAiDrafting(true);
+    try {
+      const prompt = `[PROPOSITION_REPONSE_EXPERT_SUPPORT] En tant que conseiller fiducière de l'écosystème KONTROL, formule une proposition de réponse de support client complète, polie, professionnelle et extrêmement utile pour ce ticket :
+      Expéditeur: ${selectedTicket.name} (${selectedTicket.email})
+      Sujet du ticket: "${selectedTicket.subject}"
+      Message de départ: "${selectedTicket.message}"
+      
+      Analyse cognitive préliminaire: ${aiAnalysis ? JSON.stringify(aiAnalysis) : 'N/A'}
+      
+      Formule une réponse rédigée en français directement utilisable. Écris-la directement, sans fioritures d'introduction ("Voici votre brouillon..."). Structure le message proprement avec formules de politesse cordiales.`;
+
+      const res = await fetch('/api/ai/blue-brain', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          user_id: user.uid,
+          companyId: currentUserProfile?.companyId || 'public'
+        })
+      });
+      const data = await res.json();
+      if (data && data.response) {
+        setReplyText(data.response);
+      }
+    } catch (err) {
+      console.error("Failed to draft response with AI:", err);
+    } finally {
+      setIsAiDrafting(false);
+    }
+  };
+
+  const handlePostReply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTicket || !replyText.trim()) return;
+
+    setIsSubmittingReply(true);
+    try {
+      const currentReplies = selectedTicket.replies || [];
+      const newReply = {
+        id: Date.now().toString(),
+        senderName: currentUserProfile?.displayName || user.displayName || t('common.roles.user'),
+        senderId: user.uid,
+        email: user.email,
+        message: replyText.trim(),
+        createdAt: new Date().toISOString(),
+        role: currentUserProfile?.role || 'UTILISATEUR',
+        isAiGenerated: false
+      };
+      const updatedReplies = [...currentReplies, newReply];
+
+      await updateDoc(doc(db, 'tickets', selectedTicket.id), {
+        replies: updatedReplies,
+        status: isKontrolAdmin ? 'OPEN' : 'PENDING',
+        updatedAt: new Date().toISOString()
+      });
+
+      setSelectedTicket(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          replies: updatedReplies,
+          status: isKontrolAdmin ? 'OPEN' : 'PENDING'
+        };
+      });
+
+      if (isKontrolAdmin) {
+        if (selectedTicket.userId) {
+          await sendNotification({
+            companyId: selectedTicket.companyId || '',
+            userId: selectedTicket.userId,
+            title: t('tickets.notif.update_title') || "Réponse à votre ticket",
+            message: `${currentUserProfile?.displayName || 'Le support'} a ajouté un nouveau commentaire sur votre ticket: "${selectedTicket.subject}"`,
+            type: 'info'
+          });
+        }
+      } else {
+        await sendNotification({
+          companyId: 'SYSTEM',
+          title: "Nouveau commentaire client",
+          message: `${currentUserProfile?.displayName || user.email} a répondu au ticket: "${selectedTicket.subject}"`,
+          type: 'info',
+          link: '/admin?tab=tickets'
+        });
+      }
+
+      setReplyText('');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `tickets/${selectedTicket.id}/replies`, user, false);
+    } finally {
+      setIsSubmittingReply(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (selectedTicket) {
+      performCognitiveAnalysis(selectedTicket);
+    } else {
+      setAiAnalysis(null);
+    }
+  }, [selectedTicket?.id]);
+
+  React.useEffect(() => {
+    if (selectedTicket) {
+      const latest = tickets.find(t => t.id === selectedTicket.id);
+      if (latest) {
+        setSelectedTicket(latest);
+      }
+    }
+  }, [tickets]);
 
   const getStatusLabel = (status: Ticket['status']) => {
     switch (status) {
@@ -471,45 +634,209 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-4 pt-8 border-t border-kontrol-border">
-                    <div className="flex-1 min-w-[200px]">
-                      <h4 className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider mb-3">{t('tickets.labels.quick_actions')}</h4>
-                      <div className="flex gap-3">
+                  {/* Real-time Cognitive Sentiment Analyzer Section */}
+                  {isAnalyzing ? (
+                    <div className="mb-8 p-5 bg-blue-50/30 rounded-3xl border border-blue-100 flex items-center gap-3 animate-pulse">
+                      <Loader2 size={18} className="animate-spin text-kontrol-blue" />
+                      <span className="text-[12px] font-extrabold text-kontrol-blue uppercase tracking-widest font-mono">
+                        BLUE AI — Analyse du ton cérébral en cours...
+                      </span>
+                    </div>
+                  ) : aiAnalysis ? (
+                    <div className="mb-8 p-6 bg-gradient-to-br from-[#0e1f32]/5 to-[#1a2535]/10 rounded-3xl border border-[#1d3a5a]/20">
+                      <div className="flex items-center gap-2.5 mb-3">
+                        <Brain size={18} className="text-kontrol-blue animate-pulse" />
+                        <h4 className="text-[11px] font-extrabold text-[#185FA5] uppercase tracking-widest font-mono">
+                          BLUE AI — Analyse cognitive du ticket
+                        </h4>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                        <div className="p-3 bg-white/60 rounded-2xl border border-kontrol-border/50">
+                          <p className="text-[9px] text-kontrol-ink-muted uppercase font-bold tracking-wider">Humeur Client</p>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <span className="text-base">
+                              {aiAnalysis.sentiment === 'Frustré' ? '😠' : aiAnalysis.sentiment === 'Satisfait' ? '😊' : aiAnalysis.sentiment === 'Neutre' ? '😐' : '🤔'}
+                            </span>
+                            <p className="text-[13px] font-extrabold text-kontrol-dark">{aiAnalysis.sentiment || 'Détecté'} <span className="text-[10px] text-kontrol-ink-muted">({Math.round((aiAnalysis.score || 0.9) * 100)}%)</span></p>
+                          </div>
+                        </div>
+                        <div className="p-3 bg-white/60 rounded-2xl border border-kontrol-border/50">
+                          <p className="text-[9px] text-kontrol-ink-muted uppercase font-bold tracking-wider">Niveau de Gravité</p>
+                          <span className={cn(
+                            "inline-block px-2 mt-1.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-widest",
+                            aiAnalysis.gravite === 'Critique' ? 'bg-red-50 text-red-600 border border-red-100' :
+                            aiAnalysis.gravite === 'Moyenne' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
+                            'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                          )}>
+                            {aiAnalysis.gravite || 'Moyenne'}
+                          </span>
+                        </div>
+                        <div className="p-3 bg-white/60 rounded-2xl border border-kontrol-border/50">
+                          <p className="text-[9px] text-kontrol-ink-muted uppercase font-bold tracking-wider">Diagnostic court</p>
+                          <p className="text-[11px] font-bold text-kontrol-dark mt-1 truncate">{aiAnalysis.resume || 'En attente...'}</p>
+                        </div>
+                      </div>
+
+                      <div className="p-4 bg-[#185FA5]/5 rounded-2xl border border-[#185FA5]/10">
+                        <p className="text-[10px] text-[#185FA5] font-extrabold uppercase tracking-widest mb-1.5">Recommandation Expert</p>
+                        <p className="text-[12px] text-kontrol-dark leading-relaxed font-medium">
+                          {aiAnalysis.recommandation || 'S/O'}
+                        </p>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {/* Timeline section: Existing comments & Discussion thread */}
+                  <div className="mb-8 pt-6 border-t border-kontrol-border">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">
+                        Fil de Discussion ({selectedTicket.replies?.length || 0} commentaires)
+                      </h4>
+                    </div>
+
+                    <div className="space-y-4 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
+                      {(!selectedTicket.replies || selectedTicket.replies.length === 0) ? (
+                        <p className="text-[12px] text-kontrol-ink-muted italic py-2">
+                          Aucun commentaire publié pour le moment. Rédigez le premier commentaire ou générez une réponse intelligente ci-dessous.
+                        </p>
+                      ) : (
+                        selectedTicket.replies.map((rep: any) => {
+                          const isRepAdmin = ['ADMINISTRATEUR_ERP', 'GESTIONNAIRE_ERP', 'ADMINISTRATEUR_KONTROL', 'GESTIONNAIRE_KONTROL', 'ADMIN', 'SUPER_ADMIN'].includes(rep.role || '');
+                          return (
+                            <div 
+                              key={rep.id} 
+                              className={cn(
+                                "p-4 rounded-2xl border text-[13px] relative shadow-sm max-w-[85%] transition-all",
+                                isRepAdmin 
+                                  ? "bg-[#0e1f32]/5 border-[#1d3a5a]/10 ml-auto rounded-tr-none" 
+                                  : "bg-white border-kontrol-border rounded-tl-none"
+                              )}
+                            >
+                              <div className="flex items-center justify-between gap-4 mb-2">
+                                <div className="flex items-center gap-1.5 font-bold">
+                                  <span className={cn(
+                                    "text-[11px]",
+                                    isRepAdmin ? "text-kontrol-blue" : "text-kontrol-dark"
+                                  )}>
+                                    {rep.senderName}
+                                  </span>
+                                  <span className={cn(
+                                    "px-1.5 py-0.5 rounded text-[8px] uppercase tracking-widest font-extrabold border",
+                                    isRepAdmin 
+                                      ? "bg-[#0e1f32] text-white border-[#1d3a5a]" 
+                                      : "bg-kontrol-bg text-kontrol-ink-muted border-kontrol-border"
+                                  )}>
+                                    {isRepAdmin ? 'SUPPORT' : 'CLIENT'}
+                                  </span>
+                                </div>
+                                <span className="text-[10px] text-kontrol-ink-muted">
+                                  {new Date(rep.createdAt).toLocaleString([], { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}
+                                </span>
+                              </div>
+                              <p className="text-[13px] text-kontrol-dark leading-relaxed whitespace-pre-wrap">
+                                {rep.message}
+                              </p>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Smart Reply Text Editor Block */}
+                  <form onSubmit={handlePostReply} className="pt-6 border-t border-kontrol-border space-y-4 font-sans">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">
+                        Rédiger une réponse fiducière
+                      </h4>
+                      
+                      <button
+                        type="button"
+                        disabled={isAiDrafting}
+                        onClick={generateAiDraft}
+                        className="py-1.5 px-4 bg-[#0e1f32] border border-[#1d3a5a] text-xs font-extrabold text-[#7eadda] rounded-xl hover:bg-[#1a2535] transition-all flex items-center gap-2 shadow-lg shadow-blue-900/20"
+                      >
+                        {isAiDrafting ? (
+                          <>
+                            <Loader2 size={13} className="animate-spin text-[#7eadda]" />
+                            Rédaction BLUE active...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles size={13} className="text-[#378ADD]" />
+                            Brouillon intelligent BLUE AI💡
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="relative">
+                      <textarea
+                        rows={4}
+                        required
+                        placeholder="Rédigez votre réponse ici ou cliquez sur BROUILLON INTELLIGENT pour formuler instantanément une réponse cognitive..."
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        className="w-full p-4 bg-kontrol-bg rounded-2xl text-[13.5px] border-none focus:ring-2 focus:ring-kontrol-blue/20 outline-none transition-all resize-none font-medium text-kontrol-dark"
+                      />
+                    </div>
+
+                    <div className="flex flex-wrap gap-3 justify-between items-center">
+                      <div className="flex gap-2">
                         {selectedTicket.status !== 'OPEN' && (
                           <button
+                            type="button"
                             onClick={() => handleUpdateStatus(selectedTicket.id, 'OPEN')}
-                            className="px-6 py-3 bg-amber-50 text-amber-600 text-[13px] font-extrabold rounded-2xl hover:bg-amber-100 transition-all flex items-center gap-2"
+                            className="px-4 py-2.5 bg-amber-50 text-amber-600 text-[11px] font-extrabold rounded-xl hover:bg-amber-100 transition-all flex items-center gap-1.5"
                           >
-                            <Clock size={16} /> {t('tickets.labels.mark_open')}
+                            <Clock size={14} /> Marquer ouvert
                           </button>
                         )}
                         {selectedTicket.status !== 'CLOSED' && (
                           <button
+                            type="button"
                             onClick={() => handleUpdateStatus(selectedTicket.id, 'CLOSED')}
-                            className="px-6 py-3 bg-emerald-50 text-emerald-600 text-[13px] font-extrabold rounded-2xl hover:bg-emerald-100 transition-all flex items-center gap-2"
+                            className="px-4 py-2.5 bg-emerald-50 text-emerald-600 text-[11px] font-extrabold rounded-xl hover:bg-emerald-100 transition-all flex items-center gap-1.5"
                           >
-                            <CheckCircle2 size={16} /> {t('tickets.labels.close')}
+                            <CheckCircle2 size={14} /> Clôturer
                           </button>
                         )}
                         {selectedTicket.status === 'CLOSED' && (
                           <button
+                            type="button"
                             onClick={() => handleUpdateStatus(selectedTicket.id, 'NEW')}
-                            className="px-6 py-3 bg-blue-50 text-blue-600 text-[13px] font-extrabold rounded-2xl hover:bg-blue-100 transition-all flex items-center gap-2"
+                            className="px-4 py-2.5 bg-blue-50 text-blue-600 text-[11px] font-extrabold rounded-xl hover:bg-blue-100 transition-all flex items-center gap-1.5"
                           >
-                            <AlertCircle size={16} /> {t('tickets.labels.reopen')}
+                            <AlertCircle size={14} /> Réouvrir
                           </button>
                         )}
                       </div>
+
+                      <div className="flex gap-2">
+                        <a
+                          href={`mailto:${selectedTicket.email}?subject=Re: ${selectedTicket.subject}`}
+                          className="px-4 py-2.5 border border-kontrol-border text-kontrol-ink-muted text-[11px] font-extrabold rounded-xl hover:bg-kontrol-bg transition-all flex items-center gap-1.5"
+                        >
+                          <Mail size={14} /> Répondre par Email externe
+                        </a>
+                        
+                        <button
+                          type="submit"
+                          disabled={isSubmittingReply || !replyText.trim()}
+                          className="btn-primary px-6 py-2.5 flex items-center gap-2 text-[12px] shadow-lg shadow-kontrol-blue/20"
+                        >
+                          {isSubmittingReply ? (
+                            <Loader2 size={14} className="animate-spin text-white" />
+                          ) : (
+                            <>
+                              Publier <Send size={12} />
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-end">
-                      <a
-                        href={`mailto:${selectedTicket.email}?subject=Re: ${selectedTicket.subject}`}
-                        className="btn-primary px-8 py-3 flex items-center gap-2 shadow-lg shadow-kontrol-blue/20"
-                      >
-                        <Mail size={18} /> {t('tickets.labels.reply_email')}
-                      </a>
-                    </div>
-                  </div>
+                  </form>
                 </div>
               </motion.div>
             ) : (
