@@ -99,7 +99,13 @@ service cloud.firestore {
       allow list: if isSignedIn() && (isKontrolAdmin() || resource.data.companyId == getUserField('companyId', ''));
       allow create: if isSignedIn() && request.auth.uid == userId; 
       allow update: if isEmailVerified() && (
-        (request.auth.uid == userId && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'phone', 'companyName', 'currency', 'language'])) ||
+        (request.auth.uid == userId && 
+         incoming().diff(existing()).affectedKeys().hasOnly([
+           'displayName', 'photoURL', 'phone', 'companyName', 'companyAbbreviation', 'companyLogo', 'logoUrl', 
+           'country', 'city', 'address', 'currency', 'language', 'isProfileComplete', 'companyId', 'role', 'password', 'updatedAt', 'lastLogin'
+         ]) && 
+         (!(incoming().get('role', '') in ['ADMINISTRATEUR_ERP', 'ADMINISTRATEUR_KONTROL', 'ADMIN', 'GESTIONNAIRE_ERP', 'GESTIONNAIRE_KONTROL']) || isKontrolAdmin())
+        ) ||
         isKontrolAdmin()
       );
     }
@@ -107,8 +113,8 @@ service cloud.firestore {
     match /companies/{companyId} {
       allow get: if isEmailVerified() && (belongsToCompany(companyId) || isKontrolAdmin());
       allow list: if isKontrolAdmin(); 
-      allow create: if isKontrolAdmin();
-      allow update: if isKontrolAdmin() || isCompanyAdmin(companyId);
+      allow create: if isKontrolAdmin() || isCompanyAdmin(companyId) || belongsToCompany(companyId);
+      allow update: if isKontrolAdmin() || isCompanyAdmin(companyId) || isCompanyManager(companyId) || belongsToCompany(companyId);
       allow delete: if isKontrolAdmin();
     }
 
@@ -131,7 +137,7 @@ service cloud.firestore {
     match /payments/{paymentId} {
       allow get: if isEmailVerified() && (belongsToCompany(existing().ownerId) || isKontrolAdmin());
       allow list: if isEmailVerified() && (resource.data.ownerId == getUserField('companyId', '') || isKontrolAdmin());
-      allow create: if isEmailVerified() && isCompanyManager(incoming().ownerId) && incoming().createdAt == request.time;
+      allow create: if isEmailVerified() && isCompanyManager(incoming().ownerId) && (incoming().createdAt is number || incoming().createdAt == request.time);
       allow update: if isEmailVerified() && (isKontrolAdmin() || isCompanyManager(existing().ownerId)) && 
                     incoming().ownerId == existing().ownerId;
     }
