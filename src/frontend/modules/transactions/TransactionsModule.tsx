@@ -30,7 +30,7 @@ import { ExcelImportPreviewModal, ColumnConfig } from '../../components/common/E
 import { downloadModuleTemplate, cleanImportedRows, parseExcelDate, isValidExcelDate } from '../../lib/templates';
 import { QRCodeSVG } from 'qrcode.react';
 import { Transaction, Tiers, Produit, UserProfile } from '../../types';
-import { cn, formatCurrency } from '../../lib/utils';
+import { cn, formatCurrency, generateInvoiceReference } from '../../lib/utils';
 import { hasPermission } from '../../lib/permissions';
 import { logAction, handleFirestoreError, OperationType, serverTimestamp } from '../../../api/firebase';
 import { generateInvoicePDF, generateReceiptPDF } from '../../lib/invoice';
@@ -333,15 +333,17 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
       }
 
       const montantTotal = newTrans.articles.reduce((acc, art) => acc + art.total, 0);
+      const reference = generateInvoiceReference(currentUserProfile?.companyName || 'KE', transactions, Date.now());
       const transData: Transaction = {
         ...newTrans,
-        reference: `TR-${Date.now().toString().slice(-6)}`,
+        reference,
         date: Date.now(),
         montantTotal,
         statut: 'PAYE',
         tauxChange: newTrans.devise === 'XOF' ? 1 : newTrans.tauxChange,
         montantDevise: newTrans.devise === 'XOF' ? montantTotal : (montantTotal / newTrans.tauxChange),
         ownerId: companyId,
+        companyId: companyId,
         createdAt: serverTimestamp()
       } as any;
 

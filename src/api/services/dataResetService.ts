@@ -60,8 +60,50 @@ export async function resetDatabase() {
 }
 
 export async function deleteCompanyAccount(companyId: string) {
+  if (!companyId) return;
   console.log(`Deleting company account: ${companyId}`);
-  // Implementation would involve deleting all documents associated with this companyId
+  
+  const collectionsWithCompanyId = [
+    { name: 'users', field: 'companyId' },
+    { name: 'companies', field: 'id' },
+    { name: 'transactions', field: 'ownerId' },
+    { name: 'produits', field: 'ownerId' },
+    { name: 'tiers', field: 'ownerId' },
+    { name: 'charges', field: 'ownerId' },
+    { name: 'payments', field: 'ownerId' },
+    { name: 'wallets', field: 'companyId' },
+    { name: 'stock_movements', field: 'ownerId' },
+    { name: 'actions', field: 'companyId' },
+    { name: 'notifications', field: 'companyId' },
+    { name: 'tickets', field: 'companyId' },
+    { name: 'treasury_certificates', field: 'companyId' },
+    { name: 'payment_requests', field: 'companyId' }
+  ];
+
+  try {
+    for (const col of collectionsWithCompanyId) {
+      const q = query(collection(db, col.name), where(col.field, '==', companyId));
+      const snapshot = await getDocs(q);
+      
+      if (snapshot.empty) continue;
+      
+      const batch = writeBatch(db);
+      snapshot.docs.forEach((document) => {
+        // Protect super admin users from cascade deletion
+        if (col.name === 'users') {
+          const email = document.data().email?.toLowerCase();
+          if (email === 'innov.korp@gmail.com' || email === 'acherie812@gmail.com') {
+            return;
+          }
+        }
+        batch.delete(document.ref);
+      });
+      await batch.commit();
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `cascade_delete_${companyId}`, auth.currentUser, false);
+    throw error;
+  }
 }
 
 export async function resetAllDatabases() {

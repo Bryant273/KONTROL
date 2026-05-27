@@ -24,8 +24,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { exportToPDF, exportToExcel } from '../../lib/export';
-import { Transaction, UserProfile } from '../../types';
-import { cn, formatCurrency } from '../../lib/utils';
+import { Transaction, UserProfile, Company } from '../../types';
+import { cn, formatCurrency, generateInvoiceReference } from '../../lib/utils';
 import { 
   db, 
   collection, 
@@ -48,6 +48,7 @@ import { Tiers, Produit } from '../../types';
 export function ControlTowerTransactionsView() {
   const { t } = useTranslation();
   const [transactions, setTransactions] = React.useState<Transaction[]>([]);
+  const [companies, setCompanies] = React.useState<Company[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [filterType, setFilterType] = React.useState<'ALL' | 'VENTE' | 'ACHAT'>('ALL');
@@ -80,12 +81,17 @@ export function ControlTowerTransactionsView() {
       setLoading(false);
     });
 
+    const unsubCompanies = onSnapshot(collection(db, 'companies'), (snapshot) => {
+      setCompanies(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Company[]);
+    });
+
     // Fetch Tiers and Products for the modal
     const unsubTiers = tiersService.subscribeToAll(setTiers, auth.currentUser!);
     const unsubProds = productService.subscribeToAll(setProduits, auth.currentUser!);
 
     return () => {
       unsubscribe();
+      unsubCompanies();
       unsubTiers();
       unsubProds();
     };
@@ -101,13 +107,16 @@ export function ControlTowerTransactionsView() {
     try {
       setLoading(true);
       const montantTotal = newTrans.articles.reduce((acc, art) => acc + art.total, 0);
+      const selectedCoName = companies.find(c => c.id === selectedCompanyId)?.name || 'KE';
+      const reference = generateInvoiceReference(selectedCoName, transactions, Date.now());
       const transData: any = {
         ...newTrans,
-        reference: `TR-${Date.now().toString().slice(-6)}`,
+        reference,
         date: Date.now(),
         montantTotal,
         statut: 'PAYE',
         ownerId: selectedCompanyId,
+        companyId: selectedCompanyId,
         createdAt: Date.now()
       };
 

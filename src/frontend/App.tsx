@@ -375,14 +375,14 @@ export default function App() {
               {activeTab === 'tickets' && (isKontrolAdmin ? <ControlTower activeSubTab="tickets" user={user} profile={profile} /> : <TicketsModule user={user} currentUserProfile={profile} />)}
               {activeTab === 'chat' && user && <KChatModule user={user} profile={profile} />}
               {activeTab === 'entreprises' && (isKontrolAdmin ? <ControlTower activeSubTab="entreprises" user={user} profile={profile} /> : <CompaniesModule />)}
-              {activeTab === 'company_profile' && <CompanyProfileModule currentUserProfile={profile} />}
+              {activeTab === 'company_profile' && <ProfileModule profile={profile} initialSection="COMPANY" />}
               {activeTab === 'system' && (isKontrolAdmin ? <ControlTower activeSubTab="system" user={user} profile={profile} /> : <SystemModule currentUserProfile={profile} />)}
               {activeTab === 'versions' && (isKontrolAdmin ? <ControlTower activeSubTab="versions" user={user} profile={profile} /> : null)}
               {activeTab === 'updates' && (isKontrolAdmin ? <ControlTower activeSubTab="updates" user={user} profile={profile} /> : null)}
               {activeTab === 'actions' && (isKontrolAdmin ? <ControlTower activeSubTab="actions" user={user} profile={profile} /> : <ActionsModule user={user} currentUserProfile={profile} />)}
               {activeTab === 'abonnements' && <SubscriptionsModule profile={profile} />}
               {activeTab === 'notifications' && <NotificationsCenterModule profile={profile} onNavigate={handleTabChange} />}
-              {activeTab === 'profil' && <ProfileModule profile={profile} />}
+              {activeTab === 'profil' && <ProfileModule profile={profile} initialSection="MENU" />}
             </>
           )}
         </div>

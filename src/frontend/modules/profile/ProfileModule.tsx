@@ -18,10 +18,16 @@ import {
   MapPin,
   Globe,
   ChevronLeft,
-  KeyRound
+  KeyRound,
+  Phone,
+  Briefcase
 } from 'lucide-react';
-import { UserProfile } from '../../types';
+import { UserProfile, Company } from '../../types';
 import { 
+  db,
+  doc,
+  getDoc,
+  updateDoc,
   updateUserProfile, 
   logout, 
   auth, 
@@ -37,14 +43,17 @@ import { deleteCompanyAccount } from '../../../api/services/dataResetService';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { countries } from '../../lib/countries';
 import { motion, AnimatePresence } from 'motion/react';
+import { hasPermission } from '../../lib/permissions';
 
 interface ProfileModuleProps {
   profile: UserProfile | null;
+  initialSection?: 'MENU' | 'PROFILE' | 'COMPANY' | 'SECURITY' | 'DANGER';
 }
 
-export function ProfileModule({ profile }: ProfileModuleProps) {
+export function ProfileModule({ profile, initialSection = 'MENU' }: ProfileModuleProps) {
   const [activeSection, setActiveSection] = React.useState<'MENU' | 'PROFILE' | 'COMPANY' | 'SECURITY' | 'DANGER'>('MENU');
   
+  // States for general view and forms
   const [loading, setLoading] = React.useState(false);
   const [success, setSuccess] = React.useState(false);
   const [passLoading, setPassLoading] = React.useState(false);
@@ -54,55 +63,127 @@ export function ProfileModule({ profile }: ProfileModuleProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [deleteLoading, setDeleteLoading] = React.useState(false);
   
-  const [formData, setFormData] = React.useState({
+  // Personal profile form state
+  const [personalData, setPersonalData] = React.useState({
     displayName: profile?.displayName || '',
-    email: profile?.email || '',
-    companyName: profile?.companyName || '',
-    companyLogo: profile?.companyLogo || '',
-    country: profile?.country || '',
-    city: profile?.city || '',
-    address: profile?.address || ''
+    email: profile?.email || ''
   });
 
+  // Company profile states (loaded directly from firestore companies collection)
+  const [company, setCompany] = React.useState<Company | null>(null);
+  const [companyLoading, setCompanyLoading] = React.useState(true);
+  const [companySaving, setCompanySaving] = React.useState(false);
+  const [companySuccess, setCompanySuccess] = React.useState(false);
+  const [companyError, setCompanyError] = React.useState('');
+
+  const [companyFields, setCompanyFields] = React.useState({
+    name: '',
+    email: '',
+    phone: '',
+    sector: '',
+    address: '',
+    logo: '',
+    country: '',
+    city: ''
+  });
+
+  // Security credentials state
   const [passData, setPassData] = React.useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
 
+  // Keep section active matching tab state
+  React.useEffect(() => {
+    setActiveSection(initialSection);
+  }, [initialSection]);
+
+  // Sync personal info state
   React.useEffect(() => {
     if (profile) {
-      setFormData({
+      setPersonalData({
         displayName: profile.displayName || '',
-        email: profile.email || '',
-        companyName: profile.companyName || '',
-        companyLogo: profile.companyLogo || '',
-        country: profile.country || '',
-        city: profile.city || '',
-        address: profile.address || ''
+        email: profile.email || ''
       });
     }
   }, [profile]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Fetch real company information from Firestore "companies" collection
+  React.useEffect(() => {
+    const fetchCompanyData = async () => {
+      if (!profile?.companyId) {
+        setCompanyLoading(false);
+        return;
+      }
+      
+      try {
+        setCompanyLoading(true);
+        const companyDoc = await getDoc(doc(db, 'companies', profile.companyId));
+        if (companyDoc.exists()) {
+          const originalCompany = { id: companyDoc.id, ...companyDoc.data() } as Company;
+          setCompany(originalCompany);
+          
+          // Populate fields
+          setCompanyFields({
+            name: originalCompany.name || '',
+            email: originalCompany.email || '',
+            phone: originalCompany.phone || '',
+            sector: originalCompany.sector || '',
+            address: originalCompany.address || '',
+            logo: originalCompany.logo || '',
+            country: profile.country || '',
+            city: profile.city || ''
+          });
+        } else {
+          // Fallback
+          setCompanyFields({
+            name: profile.companyName || '',
+            email: profile.email || '',
+            phone: '',
+            sector: '',
+            address: profile.address || '',
+            logo: profile.companyLogo || '',
+            country: profile.country || '',
+            city: profile.city || ''
+          });
+        }
+      } catch (err) {
+        console.error("Error loading company profile:", err);
+      } finally {
+        setCompanyLoading(false);
+      }
+    };
+
+    fetchCompanyData();
+  }, [profile?.companyId, profile]);
+
+  const canUpdateCompany = hasPermission(profile?.role, 'COMPANY_UPDATE');
+
+  // Handle Logo Upload base64 encoding
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, companyLogo: reader.result as string }));
+        setCompanyFields(prev => ({ ...prev, logo: reader.result as string }));
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Submit personal profile updates to Firestore (users collection)
+  const handlePersonalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile || !auth.currentUser) return;
 
     setLoading(true);
     setSuccess(false);
     try {
-      await updateUserProfile(profile.uid, formData);
+      await updateUserProfile(profile.uid, {
+        displayName: personalData.displayName,
+        email: personalData.email
+      });
       setSuccess(true);
       
       await logAction(
@@ -110,7 +191,7 @@ export function ProfileModule({ profile }: ProfileModuleProps) {
         profile.uid,
         profile.displayName,
         "Mise à jour profil",
-        "Les informations du profil ont été mises à jour"
+        "Les informations personnelles du profil ont été mises à jour"
       ).catch(err => handleFirestoreError(err, OperationType.WRITE, 'actions', auth.currentUser, false));
 
       setTimeout(() => setSuccess(false), 3000);
@@ -121,6 +202,63 @@ export function ProfileModule({ profile }: ProfileModuleProps) {
     }
   };
 
+  // Submit corporate updates to Firestore (companies collection AND sync back to users)
+  const handleCompanySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profile || !profile.companyId) return;
+    if (!canUpdateCompany) {
+      setCompanyError("Habilitations insuffisantes pour modifier les informations d'entreprise.");
+      return;
+    }
+
+    setCompanySaving(true);
+    setCompanySuccess(false);
+    setCompanyError('');
+
+    try {
+      // 1. Update standard company document
+      await updateDoc(doc(db, 'companies', profile.companyId), {
+        name: companyFields.name,
+        email: companyFields.email,
+        phone: companyFields.phone || '',
+        address: companyFields.address || '',
+        sector: companyFields.sector || '',
+        logo: companyFields.logo || '',
+        updatedAt: Date.now()
+      });
+
+      // 2. Sync to current user profile details
+      if (auth.currentUser) {
+        await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+          companyName: companyFields.name,
+          companyLogo: companyFields.logo,
+          country: companyFields.country,
+          city: companyFields.city,
+          address: companyFields.address
+        });
+      }
+
+      setCompanySuccess(true);
+      
+      await logAction(
+        profile.companyId,
+        profile.uid,
+        profile.displayName,
+        "Mise à jour entreprise",
+        `Les informations de l'entreprise ${companyFields.name} ont été synchronisées`
+      ).catch(err => handleFirestoreError(err, OperationType.WRITE, 'actions', auth.currentUser, false));
+
+      setTimeout(() => setCompanySuccess(false), 3000);
+    } catch (err: any) {
+      console.error(err);
+      handleFirestoreError(err, OperationType.WRITE, 'companies', auth.currentUser, false);
+      setCompanyError("Échec de l'enregistrement des données de l'entreprise.");
+    } finally {
+      setCompanySaving(false);
+    }
+  };
+
+  // Change security password
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile || !auth.currentUser) return;
@@ -169,6 +307,7 @@ export function ProfileModule({ profile }: ProfileModuleProps) {
     }
   };
 
+  // Erase complete company administrative account
   const handleDeleteAccount = async () => {
     if (!profile) return;
     setDeleteLoading(true);
@@ -213,7 +352,9 @@ export function ProfileModule({ profile }: ProfileModuleProps) {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 relative z-10">
                 <div className="flex items-center gap-4.5">
                   <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center backdrop-blur-md border border-white/10 shrink-0">
-                    {profile.companyLogo ? (
+                    {companyFields.logo ? (
+                      <img src={companyFields.logo} alt="Logo" className="w-12 h-12 object-contain" />
+                    ) : profile.companyLogo ? (
                       <img src={profile.companyLogo} alt="Logo" className="w-12 h-12 object-contain" />
                     ) : (
                       <User size={30} className="text-[#a0c5ea]" />
@@ -252,7 +393,7 @@ export function ProfileModule({ profile }: ProfileModuleProps) {
               <button
                 type="button"
                 onClick={() => setActiveSection('PROFILE')}
-                className="text-left bg-white border border-kontrol-border hover:border-kontrol-blue rounded-3xl p-6 transition-all hover:shadow-md group flex flex-col justify-between h-48 focus:ring-2 focus:ring-kontrol-blue/20 outline-none"
+                className="text-left bg-white border border-kontrol-border hover:border-text-kontrol-blue hover:shadow-md hover:border-kontrol-blue rounded-3xl p-6 transition-all group flex flex-col justify-between h-48 focus:ring-2 focus:ring-kontrol-blue/20 outline-none"
               >
                 <div className="flex items-start justify-between w-full mb-3">
                   <div className="w-12 h-12 rounded-2xl bg-kontrol-blue/5 flex items-center justify-center text-kontrol-blue border border-kontrol-blue/10">
@@ -274,7 +415,7 @@ export function ProfileModule({ profile }: ProfileModuleProps) {
               <button
                 type="button"
                 onClick={() => setActiveSection('COMPANY')}
-                className="text-left bg-white border border-kontrol-border hover:border-kontrol-orange rounded-3xl p-6 transition-all hover:shadow-md group flex flex-col justify-between h-48 focus:ring-2 focus:ring-kontrol-orange/20 outline-none"
+                className="text-left bg-white border border-kontrol-border hover:border-text-kontrol-orange hover:shadow-md hover:border-kontrol-orange rounded-3xl p-6 transition-all group flex flex-col justify-between h-48 focus:ring-2 focus:ring-kontrol-orange/20 outline-none"
               >
                 <div className="flex items-start justify-between w-full mb-3">
                   <div className="w-12 h-12 rounded-2xl bg-kontrol-orange/5 flex items-center justify-center text-kontrol-orange border border-kontrol-orange/10">
@@ -296,7 +437,7 @@ export function ProfileModule({ profile }: ProfileModuleProps) {
               <button
                 type="button"
                 onClick={() => setActiveSection('SECURITY')}
-                className="text-left bg-white border border-kontrol-border hover:border-[#185FA5] rounded-3xl p-6 transition-all hover:shadow-md group flex flex-col justify-between h-48 focus:ring-2 focus:ring-[#185FA5]/25 outline-none"
+                className="text-left bg-white border border-kontrol-border hover:border-text-kontrol-blue hover:shadow-md hover:border-[#185FA5] rounded-3xl p-6 transition-all group flex flex-col justify-between h-48 focus:ring-2 focus:ring-[#185FA5]/25 outline-none"
               >
                 <div className="flex items-start justify-between w-full mb-3">
                   <div className="w-12 h-12 rounded-2xl bg-blue-50/50 flex items-center justify-center text-[#185FA5] border border-blue-100">
@@ -385,13 +526,13 @@ export function ProfileModule({ profile }: ProfileModuleProps) {
                   <div className="w-20 h-20 rounded-3xl bg-[#185FA5]/5 border border-dashed border-[#185FA5]/25 flex items-center justify-center mx-auto mb-4">
                     <User size={34} className="text-[#185FA5]" />
                   </div>
-                  <h3 className="text-base font-extrabold text-kontrol-dark">{profile.displayName}</h3>
-                  <p className="text-[11.5px] font-medium text-kontrol-ink-muted mt-0.5">{profile.email}</p>
+                  <h3 className="text-base font-extrabold text-kontrol-dark">{personalData.displayName}</h3>
+                  <p className="text-[11.5px] font-medium text-kontrol-ink-muted mt-0.5">{personalData.email}</p>
                   
                   <div className="mt-4 pt-4 border-t border-kontrol-border/60 flex items-center justify-between text-left">
                     <div>
                       <p className="text-[9px] text-kontrol-ink-muted font-bold uppercase tracking-wider">Habilitation</p>
-                      <p className="text-[11px] font-extrabold text-kontrol-blue lowercase mt-0.5">{profile.role.toLowerCase()}</p>
+                      <p className="text-[11px] font-extrabold text-kontrol-blue lowercase mt-0.5">{profile.role?.toLowerCase()?.replace(/_/g, ' ')}</p>
                     </div>
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-100" />
                   </div>
@@ -400,7 +541,7 @@ export function ProfileModule({ profile }: ProfileModuleProps) {
 
               {/* Information Form */}
               <div className="md:col-span-2">
-                <form onSubmit={handleSubmit} className="card p-6 sm:p-8 bg-white border border-kontrol-border space-y-6">
+                <form onSubmit={handlePersonalSubmit} className="card p-6 sm:p-8 bg-white border border-kontrol-border space-y-6">
                   <div>
                     <h3 className="text-sm font-extrabold text-kontrol-dark uppercase tracking-wider mb-1">Informations de Profil Personnel</h3>
                     <p className="text-[12px] text-kontrol-ink-muted">Modifiez vos désignations d'affichage utilisateur ainsi que vos accès e-mail</p>
@@ -414,8 +555,8 @@ export function ProfileModule({ profile }: ProfileModuleProps) {
                           type="text"
                           required
                           className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px] font-medium"
-                          value={formData.displayName}
-                          onChange={(e) => setFormData(prev => ({ ...prev, displayName: e.target.value }))}
+                          value={personalData.displayName}
+                          onChange={(e) => setPersonalData(prev => ({ ...prev, displayName: e.target.value }))}
                         />
                         <User size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
                       </div>
@@ -428,8 +569,8 @@ export function ProfileModule({ profile }: ProfileModuleProps) {
                           type="email"
                           required
                           className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px] font-medium"
-                          value={formData.email}
-                          onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                          value={personalData.email}
+                          onChange={(e) => setPersonalData(prev => ({ ...prev, email: e.target.value }))}
                         />
                         <Mail size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
                       </div>
@@ -457,7 +598,7 @@ export function ProfileModule({ profile }: ProfileModuleProps) {
           </motion.div>
         )}
 
-        {/* VIEW 3: COMPANY PROFILE PAGE COMPLETE */}
+        {/* VIEW 3: COMPANY PROFILE PAGE COMPLETE (Direct sync with companies collection) */}
         {activeSection === 'COMPANY' && (
           <motion.div
             key="company-view"
@@ -475,7 +616,7 @@ export function ProfileModule({ profile }: ProfileModuleProps) {
               >
                 <ChevronLeft size={16} /> Retour aux paramètres
               </button>
-              <span className="text-[10px] bg-kontrol-bg px-3 py-1 font-extrabold tracking-widest text-kontrol-orange rounded-full border border-kontrol-border">
+              <span className="text-[10px] bg-kontrol-bg px-3 py-1 font-extrabold tracking-widest text-[#F97316] rounded-full border border-kontrol-border">
                 SECTION 2 / 4
               </span>
             </div>
@@ -485,135 +626,231 @@ export function ProfileModule({ profile }: ProfileModuleProps) {
               <div className="space-y-4">
                 <div className="card overflow-hidden p-6 bg-gradient-to-b from-kontrol-bg/50 to-white text-center">
                   <div className="w-24 h-24 rounded-3xl bg-white p-2 shadow-sm border border-kontrol-border overflow-hidden mx-auto mb-4 flex items-center justify-center">
-                    {formData.companyLogo ? (
-                      <img src={formData.companyLogo} alt="Logo" className="w-full h-full object-contain" />
+                    {companyFields.logo ? (
+                      <img src={companyFields.logo} alt="Logo" className="w-full h-full object-contain" />
                     ) : (
                       <Building2 size={36} className="text-kontrol-ink-muted" />
                     )}
                   </div>
-                  <h3 className="text-base font-extrabold text-kontrol-dark">{formData.companyName || profile.companyName}</h3>
-                  <p className="text-[11px] font-medium text-kontrol-ink-muted mt-0.5">{formData.address || "Aucune adresse configurée"}</p>
+                  <h3 className="text-base font-extrabold text-kontrol-dark">{companyFields.name || "Ma Firme"}</h3>
+                  <p className="text-[11px] font-medium text-kontrol-ink-muted mt-0.5">{companyFields.address || "Aucune adresse configurée"}</p>
+                
+                  {company && (
+                    <div className="mt-5 pt-4 border-t border-kontrol-border/60 space-y-2 text-left">
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-kontrol-ink-muted font-bold">Abonnement :</span>
+                        <span className="px-1.5 py-0.5 bg-kontrol-blue/10 text-kontrol-blue text-[9px] font-extrabold rounded uppercase tracking-wider">{company.subscriptionTier}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-kontrol-ink-muted font-bold">Statut :</span>
+                        <span className={cn(
+                          "px-1.5 py-0.5 text-[9px] font-extrabold rounded uppercase tracking-wider",
+                          company.status === 'ACTIVE' ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-amber-50 text-amber-600 border border-amber-100"
+                        )}>{company.status}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Corporate Identity Form */}
               <div className="md:col-span-2">
-                <form onSubmit={handleSubmit} className="card p-6 sm:p-8 bg-white border border-kontrol-border space-y-6">
-                  <div>
-                    <h3 className="text-sm font-extrabold text-kontrol-dark uppercase tracking-wider mb-1">Coordonnées de l'Entreprise</h3>
-                    <p className="text-[12px] text-kontrol-ink-muted">Modifiez la raison sociale de votre entreprise, l'adresse du siège et votre logo</p>
+                {companyLoading ? (
+                  <div className="card p-12 flex justify-center items-center bg-white border border-kontrol-border">
+                    <Loader2 className="w-8 h-8 text-kontrol-orange animate-spin" />
                   </div>
-
-                  <div className="space-y-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Raison Sociale de l'entreprise</label>
-                      <div className="relative">
-                        <input 
-                          type="text"
-                          required
-                          className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px] font-medium"
-                          value={formData.companyName}
-                          onChange={(e) => setFormData(prev => ({ ...prev, companyName: e.target.value }))}
-                        />
-                        <Building2 size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
-                      </div>
+                ) : (
+                  <form onSubmit={handleCompanySubmit} className="card p-6 sm:p-8 bg-white border border-kontrol-border space-y-6">
+                    <div>
+                      <h3 className="text-sm font-extrabold text-kontrol-dark uppercase tracking-wider mb-1">Coordonnées de l'Entreprise</h3>
+                      <p className="text-[12px] text-kontrol-ink-muted">Modifiez la raison sociale de votre entreprise, l'adresse du siège et votre logo</p>
                     </div>
 
-                    <div className="grid sm:grid-cols-2 gap-4">
+                    {companyError && (
+                      <div className="p-3 bg-rose-50 border border-rose-100 text-rose-600 text-[12px] rounded-lg font-medium flex items-center gap-2">
+                        <AlertCircle size={14} /> {companyError}
+                      </div>
+                    )}
+
+                    <div className="space-y-4">
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Pays de domiciliation</label>
+                        <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Raison Sociale de l'entreprise</label>
                         <div className="relative">
-                          <select 
-                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px] font-medium appearance-none"
-                            value={formData.country}
-                            onChange={(e) => setFormData(prev => ({ ...prev, country: e.target.value, city: '' }))}
-                          >
-                            <option value="">Sélectionner un pays</option>
-                            {countries.map(c => (
-                              <option key={c.name} value={c.name}>{c.name}</option>
-                            ))}
-                          </select>
-                          <Globe size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
+                          <input 
+                            type="text"
+                            required
+                            disabled={!canUpdateCompany}
+                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-orange/20 focus:border-kontrol-orange transition-all text-[13px] font-medium disabled:opacity-55"
+                            value={companyFields.name}
+                            onChange={(e) => setCompanyFields(prev => ({ ...prev, name: e.target.value }))}
+                          />
+                          <Building2 size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
+                        </div>
+                      </div>
+
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Email Professionnel</label>
+                          <div className="relative">
+                            <input 
+                              type="email"
+                              required
+                              disabled={!canUpdateCompany}
+                              className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-orange/20 focus:border-kontrol-orange transition-all text-[13px] font-medium disabled:opacity-55"
+                              value={companyFields.email}
+                              onChange={(e) => setCompanyFields(prev => ({ ...prev, email: e.target.value }))}
+                            />
+                            <Mail size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Téléphone de l'Etablissement</label>
+                          <div className="relative">
+                            <input 
+                              type="tel"
+                              disabled={!canUpdateCompany}
+                              className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-orange/20 focus:border-kontrol-orange transition-all text-[13px] font-medium disabled:opacity-55"
+                              value={companyFields.phone}
+                              onChange={(e) => setCompanyFields(prev => ({ ...prev, phone: e.target.value }))}
+                              placeholder="+33 1 23 45 67 89"
+                            />
+                            <Phone size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Pays de Domiciliation</label>
+                          <div className="relative">
+                            <select 
+                              disabled={!canUpdateCompany}
+                              className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-orange/20 focus:border-kontrol-orange transition-all text-[13px] font-medium appearance-none disabled:opacity-55"
+                              value={companyFields.country}
+                              onChange={(e) => setCompanyFields(prev => ({ ...prev, country: e.target.value, city: '' }))}
+                            >
+                              <option value="">Sélectionner un pays</option>
+                              {countries.map(c => (
+                                <option key={c.name} value={c.name}>{c.name}</option>
+                              ))}
+                            </select>
+                            <Globe size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Ville / Secteur Local</label>
+                          <div className="relative">
+                            <select 
+                              disabled={!canUpdateCompany || !companyFields.country}
+                              className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-orange/20 focus:border-kontrol-orange transition-all text-[13px] font-medium appearance-none disabled:opacity-55"
+                              value={companyFields.city}
+                              onChange={(e) => setCompanyFields(prev => ({ ...prev, city: e.target.value }))}
+                            >
+                              <option value="">Sélectionner une ville</option>
+                              {countries.find(c => c.name === companyFields.country)?.cities?.map(city => (
+                                <option key={city} value={city}>{city}</option>
+                              ))}
+                            </select>
+                            <MapPin size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5 sm:col-span-2">
+                          <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Secteur d'Activité Standard</label>
+                          <div className="relative">
+                            <input 
+                              type="text"
+                              disabled={!canUpdateCompany}
+                              className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-orange/20 focus:border-kontrol-orange transition-all text-[13px] font-medium disabled:opacity-55"
+                              value={companyFields.sector}
+                              onChange={(e) => setCompanyFields(prev => ({ ...prev, sector: e.target.value }))}
+                              placeholder="Commerce, Technologie, Finance, etc."
+                            />
+                            <Briefcase size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
+                          </div>
                         </div>
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Ville / Hub Économique</label>
+                        <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Adresse Postale & Fiscale Complète</label>
                         <div className="relative">
-                          <select 
-                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px] font-medium appearance-none disabled:opacity-50"
-                            value={formData.city}
-                            disabled={!formData.country}
-                            onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
-                          >
-                            <option value="">Sélectionner une ville</option>
-                            {countries.find(c => c.name === formData.country)?.cities?.map(city => (
-                              <option key={city} value={city}>{city}</option>
-                            ))}
-                          </select>
+                          <input 
+                            type="text"
+                            disabled={!canUpdateCompany}
+                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-orange/20 focus:border-kontrol-orange transition-all text-[13px] font-medium disabled:opacity-55"
+                            value={companyFields.address}
+                            placeholder="N° 52, Avenue des Champs-Élysées"
+                            onChange={(e) => setCompanyFields(prev => ({ ...prev, address: e.target.value }))}
+                          />
                           <MapPin size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
                         </div>
                       </div>
-                    </div>
 
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Adresse Postale & Fiscale Complète</label>
-                      <div className="relative">
-                        <input 
-                          type="text"
-                          className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[13px] font-medium"
-                          value={formData.address}
-                          placeholder="Ex: N° 52, Avenue des Champs-Élysées"
-                          onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                        />
-                        <MapPin size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Emblème / Logo Institutionnel</label>
-                      <div className="flex items-center gap-4 p-4 bg-kontrol-bg/40 rounded-2xl border border-dashed border-kontrol-border">
-                        <div className="w-14 h-14 rounded-xl bg-white border border-kontrol-border flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
-                          {formData.companyLogo ? (
-                            <img src={formData.companyLogo} alt="Logo" className="w-full h-full object-contain" />
-                          ) : (
-                            <Camera size={20} className="text-kontrol-ink-muted" />
-                          )}
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Emblème / Logo Institutionnel</label>
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 p-4 bg-kontrol-bg/40 rounded-2xl border border-dashed border-kontrol-border">
+                          <div className="w-14 h-14 rounded-xl bg-white border border-kontrol-border flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
+                            {companyFields.logo ? (
+                              <img src={companyFields.logo} alt="Logo" className="w-full h-full object-contain" />
+                            ) : (
+                              <Camera size={20} className="text-kontrol-ink-muted" />
+                            )}
+                          </div>
+                          <div className="flex-1 space-y-2">
+                            {canUpdateCompany && (
+                              <label className="cursor-pointer">
+                                <span className="inline-block px-3.5 py-1.5 bg-white border border-kontrol-border rounded-xl text-[11px] font-extrabold text-[#F97316] hover:bg-[#FFF7ED] transition-colors shadow-2xs">
+                                  Choisir une image
+                                </span>
+                                <input 
+                                  type="file"
+                                  accept="image/png, image/jpeg, image/jpg, image/svg+xml"
+                                  className="hidden"
+                                  onChange={handleLogoUpload}
+                                />
+                              </label>
+                            )}
+                            <p className="text-[10px] text-kontrol-ink-muted leading-normal">PNG, JPG ou SVG. Recommandé : 512x512px.</p>
+                          </div>
                         </div>
-                        <div className="flex-1">
-                          <label className="cursor-pointer">
-                            <span className="inline-block px-3.5 py-1.5 bg-white border border-kontrol-border rounded-xl text-[11px] font-extrabold text-kontrol-dark hover:bg-kontrol-bg transition-colors shadow-2xs">
-                              Choisir une image
-                            </span>
+
+                        {canUpdateCompany && (
+                          <div className="mt-2 text-xs">
                             <input 
-                              type="file"
-                              accept="image/png, image/jpeg, image/jpg, image/svg+xml"
-                              className="hidden"
-                              onChange={handleFileChange}
+                              type="text" 
+                              placeholder="Ou entrez une URL de logo personnalisée..."
+                              className="w-full px-3 py-2 bg-white border border-kontrol-border rounded-xl text-xs outline-none focus:ring-2 focus:ring-[#F97316]/20 transition-all"
+                              value={companyFields.logo || ''}
+                              onChange={(e) => setCompanyFields(prev => ({ ...prev, logo: e.target.value }))}
                             />
-                          </label>
-                          <p className="text-[10px] text-kontrol-ink-muted mt-1 leading-normal">PNG, JPG ou SVG. Recommandé : 512x512px.</p>
-                        </div>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </div>
 
-                  <div className="pt-4 border-t border-kontrol-border flex items-center justify-between">
-                    {success && (
-                      <div className="flex items-center gap-2 text-emerald-600 font-bold text-[13px] animate-in fade-in duration-300">
-                        <CheckCircle2 size={16} /> Informations sauvegardées !
-                      </div>
-                    )}
-                    <div className="flex-1" />
-                    <button 
-                      type="submit"
-                      disabled={loading}
-                      className="px-6 py-2.5 bg-kontrol-dark text-white font-extrabold text-xs uppercase tracking-widest rounded-xl hover:bg-black transition-all shadow-lg flex items-center gap-2 disabled:opacity-50"
-                    >
-                      {loading ? <Loader2 className="animate-spin" size={14} /> : <><Save size={14} /> Mettre à jour l'entreprise</>}
-                    </button>
-                  </div>
-                </form>
+                    <div className="pt-4 border-t border-kontrol-border flex items-center justify-between">
+                      {companySuccess && (
+                        <div className="flex items-center gap-2 text-emerald-600 font-bold text-[13px] animate-in fade-in duration-300">
+                          <CheckCircle2 size={16} /> Établissement enregistré avec succès !
+                        </div>
+                      )}
+                      <div className="flex-1" />
+                      {canUpdateCompany && (
+                        <button 
+                          type="submit"
+                          disabled={companySaving}
+                          className="px-6 py-2.5 bg-kontrol-dark text-white font-extrabold text-xs uppercase tracking-widest rounded-xl hover:bg-black transition-all shadow-lg flex items-center gap-2 disabled:opacity-50"
+                        >
+                          {companySaving ? <Loader2 className="animate-spin" size={14} /> : <><Save size={14} /> Enregistrer l'Identité</>}
+                        </button>
+                      )}
+                    </div>
+                  </form>
+                )}
               </div>
             </div>
           </motion.div>
@@ -743,7 +980,7 @@ export function ProfileModule({ profile }: ProfileModuleProps) {
                     <button 
                       type="submit"
                       disabled={passLoading}
-                      className="px-6 py-2.5 bg-[#185FA5] text-white font-extrabold text-xs uppercase tracking-widest rounded-xl hover:bg-[#185FA5]/95 transition-all shadow-lg flex items-center gap-2 disabled:opacity-50 animate-pulse"
+                      className="px-6 py-2.5 bg-[#185FA5] text-white font-extrabold text-xs uppercase tracking-widest rounded-xl hover:bg-[#185FA5]/95 transition-all shadow-lg flex items-center gap-2 disabled:opacity-50"
                     >
                       {passLoading ? <Loader2 className="animate-spin" size={14} /> : <><Lock size={14} /> Mettre à jour</>}
                     </button>
@@ -802,7 +1039,7 @@ export function ProfileModule({ profile }: ProfileModuleProps) {
                     <button 
                       type="button"
                       onClick={() => setShowDeleteConfirm(true)}
-                      className="px-6 py-3 bg-rose-650 hover:bg-rose-700 bg-rose-600 text-white font-extrabold text-xs uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center gap-2"
+                      className="px-6 py-3 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center gap-2"
                     >
                       <Trash2 size={14} /> Détruire mon compte entreprise définitivement
                     </button>
