@@ -107,8 +107,10 @@ export function ControlTowerTransactionsView() {
     try {
       setLoading(true);
       const montantTotal = newTrans.articles.reduce((acc, art) => acc + art.total, 0);
-      const selectedCoName = companies.find(c => c.id === selectedCompanyId)?.name || 'KE';
-      const reference = generateInvoiceReference(selectedCoName, transactions, Date.now());
+      const selectedCo = companies.find(c => c.id === selectedCompanyId);
+      const selectedCoName = selectedCo?.name || 'KE';
+      const selectedCoAbbrev = selectedCo?.abbreviation;
+      const reference = generateInvoiceReference(selectedCoName, transactions, Date.now(), selectedCoAbbrev);
       const transData: any = {
         ...newTrans,
         reference,

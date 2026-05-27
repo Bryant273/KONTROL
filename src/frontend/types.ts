@@ -18,6 +18,7 @@ export interface UserProfile {
   role: UserRole;
   companyId: string;
   companyName?: string;
+  companyAbbreviation?: string;
   companyLogo?: string;
   logoUrl?: string;
   isProfileComplete: boolean;
@@ -41,6 +42,7 @@ export interface UserProfile {
 export interface Company {
   id: string;
   name: string;
+  abbreviation?: string;
   logo?: string;
   email: string;
   phone?: string;

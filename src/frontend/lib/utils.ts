@@ -24,17 +24,27 @@ export function formatDate(date: number | string | Date): string {
   }).format(new Date(date));
 }
 
-export function generateInvoiceReference(companyName: string, existingTransactions: { date: number }[], transactionDate: number): string {
-  // Normalize and clean company abbreviation
-  const cleanName = (companyName || 'KE').normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  const alphaOnly = cleanName.replace(/[^a-zA-Z0-9\s]/g, '').trim().toUpperCase();
-  const words = alphaOnly.split(/\s+/);
+export function generateInvoiceReference(
+  companyName: string, 
+  existingTransactions: { date: number }[], 
+  transactionDate: number,
+  companyAbbreviation?: string
+): string {
   let abbrev = 'KTR';
-  
-  if (words.length >= 2) {
-    abbrev = words.map(w => w[0]).join('').slice(0, 4);
-  } else if (alphaOnly) {
-    abbrev = alphaOnly.slice(0, 4);
+
+  if (companyAbbreviation && companyAbbreviation.trim().length > 0) {
+    abbrev = companyAbbreviation.trim().replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  } else {
+    // Normalize and clean company abbreviation automatically
+    const cleanName = (companyName || 'KE').normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const alphaOnly = cleanName.replace(/[^a-zA-Z0-9\s]/g, '').trim().toUpperCase();
+    const words = alphaOnly.split(/\s+/);
+    
+    if (words.length >= 2) {
+      abbrev = words.map(w => w[0]).join('').slice(0, 4);
+    } else if (alphaOnly) {
+      abbrev = alphaOnly.slice(0, 4);
+    }
   }
   
   if (!abbrev) abbrev = 'KTR';

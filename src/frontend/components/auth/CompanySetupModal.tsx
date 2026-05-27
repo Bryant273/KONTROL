@@ -49,6 +49,7 @@ interface CompanySetupModalProps {
 
 export function CompanySetupModal({ profile, onClose, onComplete }: CompanySetupModalProps) {
   const [companyName, setCompanyName] = React.useState(profile.companyName || '');
+  const [companyAbbreviation, setCompanyAbbreviation] = React.useState(profile.companyAbbreviation || '');
   const [phone, setPhone] = React.useState(profile.phone || '');
   const [country, setCountry] = React.useState(profile.country || '');
   const [city, setCity] = React.useState(profile.city || '');
@@ -96,6 +97,7 @@ export function CompanySetupModal({ profile, onClose, onComplete }: CompanySetup
     try {
       const updates = {
         companyName,
+        companyAbbreviation,
         companyLogo: logo,
         phone,
         country,
@@ -194,17 +196,31 @@ export function CompanySetupModal({ profile, onClose, onComplete }: CompanySetup
             </motion.div>
 
             <div className="space-y-3">
-              <div className="space-y-1">
-                <label className="text-[9px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Nom de l'entreprise *</label>
-                <div className="relative group">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2 space-y-1">
+                  <label className="text-[9px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Nom de l'entreprise *</label>
+                  <div className="relative group">
+                    <input 
+                      type="text"
+                      placeholder="Ma Société SARL"
+                      className="w-full pl-8 pr-4 py-2 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[12px] font-medium"
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                    />
+                    <Building2 size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted group-focus-within:text-kontrol-blue transition-colors" />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Sigle / Abbrev *</label>
                   <input 
                     type="text"
-                    placeholder="Ma Société SARL"
-                    className="w-full pl-8 pr-4 py-2 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[12px] font-medium"
-                    value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
+                    placeholder="Ex: SOG"
+                    maxLength={6}
+                    required
+                    className="w-full px-2 py-2 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue transition-all text-[12px] font-medium uppercase text-center"
+                    value={companyAbbreviation}
+                    onChange={(e) => setCompanyAbbreviation(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
                   />
-                  <Building2 size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted group-focus-within:text-kontrol-blue transition-colors" />
                 </div>
               </div>
 
@@ -312,7 +328,7 @@ export function CompanySetupModal({ profile, onClose, onComplete }: CompanySetup
         <div className="p-4 border-t border-kontrol-border bg-kontrol-bg/10 space-y-2 shrink-0">
           <button 
             onClick={handleSubmit}
-            disabled={loading || !companyName}
+            disabled={loading || !companyName || !companyAbbreviation}
             className="w-full py-2 bg-kontrol-orange text-white text-[12px] font-extrabold rounded-lg hover:bg-kontrol-orange-hover transition-all shadow-lg shadow-orange-200 flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98]"
           >
             {loading ? <Loader2 className="animate-spin" size={14} /> : <><Rocket size={14} /> Créer mon espace</>}

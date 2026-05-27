@@ -333,7 +333,12 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
       }
 
       const montantTotal = newTrans.articles.reduce((acc, art) => acc + art.total, 0);
-      const reference = generateInvoiceReference(currentUserProfile?.companyName || 'KE', transactions, Date.now());
+      const reference = generateInvoiceReference(
+        currentUserProfile?.companyName || 'KE', 
+        transactions, 
+        Date.now(), 
+        currentUserProfile?.companyAbbreviation
+      );
       const transData: Transaction = {
         ...newTrans,
         reference,

@@ -77,6 +77,7 @@ export function CompanyProfileModule({ currentUserProfile }: CompanyProfileModul
     try {
       await updateDoc(doc(db, 'companies', company.id), {
         name: company.name,
+        abbreviation: company.abbreviation || '',
         email: company.email,
         phone: company.phone || '',
         address: company.address || '',
@@ -85,10 +86,11 @@ export function CompanyProfileModule({ currentUserProfile }: CompanyProfileModul
         updatedAt: Date.now()
       });
 
-      // Also update company name in user profile if it changed
-      if (company.name !== currentUserProfile?.companyName && auth.currentUser) {
+      // Also update company name and abbreviation in user profile if it changed
+      if (auth.currentUser) {
         await updateDoc(doc(db, 'users', auth.currentUser.uid), {
           companyName: company.name,
+          companyAbbreviation: company.abbreviation || '',
           companyLogo: company.logo
         });
       }
@@ -190,18 +192,37 @@ export function CompanyProfileModule({ currentUserProfile }: CompanyProfileModul
           <div className="md:col-span-2 space-y-6">
             <div className="card p-8">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="sm:col-span-2 space-y-2">
-                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest">Nom de l'entreprise</label>
-                  <div className="relative">
-                    <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" size={16} />
-                    <input 
-                      type="text"
-                      className="w-full pl-12 pr-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-2xl outline-none focus:border-kontrol-blue transition-all font-medium text-kontrol-dark disabled:opacity-50"
-                      value={company.name}
-                      onChange={(e) => setCompany({ ...company, name: e.target.value })}
-                      disabled={!canUpdate}
-                      required
-                    />
+                <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="sm:col-span-2 space-y-2">
+                    <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest">Nom de l'entreprise</label>
+                    <div className="relative">
+                      <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" size={16} />
+                      <input 
+                        type="text"
+                        className="w-full pl-12 pr-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-2xl outline-none focus:border-kontrol-blue transition-all font-medium text-kontrol-dark disabled:opacity-50"
+                        value={company.name}
+                        onChange={(e) => setCompany({ ...company, name: e.target.value })}
+                        disabled={!canUpdate}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest">Sigle / Abréviation</label>
+                    <div className="relative">
+                      <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" size={16} />
+                      <input 
+                        type="text"
+                        placeholder="Ex: SOG / KTR"
+                        maxLength={6}
+                        className="w-full pl-12 pr-4 py-3 bg-kontrol-bg border border-kontrol-border rounded-2xl outline-none focus:border-kontrol-blue transition-all font-medium text-kontrol-dark disabled:opacity-50 uppercase"
+                        value={company.abbreviation || ''}
+                        onChange={(e) => setCompany({ ...company, abbreviation: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') })}
+                        disabled={!canUpdate}
+                        required
+                      />
+                    </div>
                   </div>
                 </div>
 

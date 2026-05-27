@@ -78,6 +78,7 @@ export function ProfileModule({ profile, initialSection = 'MENU' }: ProfileModul
 
   const [companyFields, setCompanyFields] = React.useState({
     name: '',
+    abbreviation: '',
     email: '',
     phone: '',
     sector: '',
@@ -127,6 +128,7 @@ export function ProfileModule({ profile, initialSection = 'MENU' }: ProfileModul
           // Populate fields
           setCompanyFields({
             name: originalCompany.name || '',
+            abbreviation: originalCompany.abbreviation || '',
             email: originalCompany.email || '',
             phone: originalCompany.phone || '',
             sector: originalCompany.sector || '',
@@ -139,6 +141,7 @@ export function ProfileModule({ profile, initialSection = 'MENU' }: ProfileModul
           // Fallback
           setCompanyFields({
             name: profile.companyName || '',
+            abbreviation: profile.companyAbbreviation || '',
             email: profile.email || '',
             phone: '',
             sector: '',
@@ -219,6 +222,7 @@ export function ProfileModule({ profile, initialSection = 'MENU' }: ProfileModul
       // 1. Update standard company document
       await updateDoc(doc(db, 'companies', profile.companyId), {
         name: companyFields.name,
+        abbreviation: companyFields.abbreviation,
         email: companyFields.email,
         phone: companyFields.phone || '',
         address: companyFields.address || '',
@@ -231,6 +235,7 @@ export function ProfileModule({ profile, initialSection = 'MENU' }: ProfileModul
       if (auth.currentUser) {
         await updateDoc(doc(db, 'users', auth.currentUser.uid), {
           companyName: companyFields.name,
+          companyAbbreviation: companyFields.abbreviation,
           companyLogo: companyFields.logo,
           country: companyFields.country,
           city: companyFields.city,
@@ -673,18 +678,37 @@ export function ProfileModule({ profile, initialSection = 'MENU' }: ProfileModul
                     )}
 
                     <div className="space-y-4">
-                      <div className="space-y-1.5">
-                        <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Raison Sociale de l'entreprise</label>
-                        <div className="relative">
-                          <input 
-                            type="text"
-                            required
-                            disabled={!canUpdateCompany}
-                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-orange/20 focus:border-kontrol-orange transition-all text-[13px] font-medium disabled:opacity-55"
-                            value={companyFields.name}
-                            onChange={(e) => setCompanyFields(prev => ({ ...prev, name: e.target.value }))}
-                          />
-                          <Building2 size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
+                      <div className="grid sm:grid-cols-3 gap-4">
+                        <div className="sm:col-span-2 space-y-1.5">
+                          <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Raison Sociale de l'entreprise</label>
+                          <div className="relative">
+                            <input 
+                              type="text"
+                              required
+                              disabled={!canUpdateCompany}
+                              className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-orange/20 focus:border-kontrol-orange transition-all text-[13px] font-medium disabled:opacity-55"
+                              value={companyFields.name}
+                              onChange={(e) => setCompanyFields(prev => ({ ...prev, name: e.target.value }))}
+                            />
+                            <Building2 size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Sigle / Abréviation (Facturation)</label>
+                          <div className="relative">
+                            <input 
+                              type="text"
+                              required
+                              placeholder="Ex: SOG / KTR"
+                              maxLength={6}
+                              disabled={!canUpdateCompany}
+                              className="w-full pl-10 pr-4 py-2.5 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:ring-2 focus:ring-kontrol-orange/20 focus:border-kontrol-orange transition-all text-[13px] font-medium disabled:opacity-55 uppercase"
+                              value={companyFields.abbreviation}
+                              onChange={(e) => setCompanyFields(prev => ({ ...prev, abbreviation: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') }))}
+                            />
+                            <Briefcase size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted" />
+                          </div>
                         </div>
                       </div>
 
