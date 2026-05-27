@@ -174,6 +174,39 @@ export default function App() {
     };
   }, [user]);
 
+  // Real-time company details synchronization (logo, name, abbreviation)
+  useEffect(() => {
+    if (!profile?.companyId) return;
+
+    const unsubscribeCompany = onSnapshot(doc(db, 'companies', profile.companyId), (snapshot) => {
+      if (snapshot.exists()) {
+        const companyData = snapshot.data();
+        setProfile(prev => {
+          if (!prev) return null;
+          if (
+            prev.companyLogo !== companyData.logo || 
+            prev.companyName !== companyData.name ||
+            prev.companyAbbreviation !== companyData.abbreviation
+          ) {
+            return {
+              ...prev,
+              companyLogo: companyData.logo || '',
+              companyName: companyData.name || prev.companyName || '',
+              companyAbbreviation: companyData.abbreviation || prev.companyAbbreviation || ''
+            };
+          }
+          return prev;
+        });
+      }
+    }, (error) => {
+      if (error.code !== 'permission-denied') {
+        console.warn("Company sync blocked by security or network:", error);
+      }
+    });
+
+    return () => unsubscribeCompany();
+  }, [profile?.companyId]);
+
   // Subscription Logic
   useEffect(() => {
     if (!profile) return;
