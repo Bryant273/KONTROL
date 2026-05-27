@@ -36,6 +36,8 @@ export class BlueNeuralBrain {
     let chargesList: any[] = [];
     let tiersList: any[] = [];
 
+    const isCustomCompany = companyId && companyId !== 'public' && companyId !== 'demo' && companyId !== 'innov_korp' && companyId !== 'innov-korp';
+
     try {
       if (userId && userId !== 'system') {
         userProfile = this.db.prepare("SELECT * FROM users WHERE uid = ?").get(userId);
@@ -46,47 +48,52 @@ export class BlueNeuralBrain {
 
     try {
       const cId = userProfile?.companyId || companyId || 'public';
-      company = this.db.prepare("SELECT * FROM companies WHERE id = ?").get(cId);
-      if (!company) {
-        // Fallback: get first company
-        company = this.db.prepare("SELECT * FROM companies LIMIT 1").get();
+      if (!isCustomCompany) {
+        company = this.db.prepare("SELECT * FROM companies WHERE id = ?").get(cId);
+        if (!company) {
+          // Fallback: get first company
+          company = this.db.prepare("SELECT * FROM companies LIMIT 1").get();
+        }
       }
     } catch (err) {
       console.warn("Failed to get company context:", err);
     }
 
-    try {
-      // Get last 15 transactions
-      transactionsList = this.db.prepare(`
-        SELECT t.*, tr.nom as tiers_nom 
-        FROM transactions t 
-        LEFT JOIN tiers tr ON t.tiers_id = tr.id 
-        ORDER BY t.createdAt DESC 
-        LIMIT 15
-      `).all();
-    } catch (err) {
-      console.warn("Failed to get transactionsList context:", err);
-    }
+    // Only query SQLite databases if NOT a custom company (avoid leak of preseed demo data to users)
+    if (!isCustomCompany) {
+      try {
+        // Get last 15 transactions
+        transactionsList = this.db.prepare(`
+          SELECT t.*, tr.nom as tiers_nom 
+          FROM transactions t 
+          LEFT JOIN tiers tr ON t.tiers_id = tr.id 
+          ORDER BY t.createdAt DESC 
+          LIMIT 15
+        `).all();
+      } catch (err) {
+        console.warn("Failed to get transactionsList context:", err);
+      }
 
-    try {
-      // Get products (stock alerts listed first)
-      productsList = this.db.prepare("SELECT * FROM produits ORDER BY stock ASC LIMIT 15").all();
-    } catch (err) {
-      console.warn("Failed to get productsList context:", err);
-    }
+      try {
+        // Get products (stock alerts listed first)
+        productsList = this.db.prepare("SELECT * FROM produits ORDER BY stock ASC LIMIT 15").all();
+      } catch (err) {
+        console.warn("Failed to get productsList context:", err);
+      }
 
-    try {
-      // Get charges (unpaid and upcoming)
-      chargesList = this.db.prepare("SELECT * FROM charges ORDER BY due_date ASC LIMIT 15").all();
-    } catch (err) {
-      console.warn("Failed to get chargesList context:", err);
-    }
+      try {
+        // Get charges (unpaid and upcoming)
+        chargesList = this.db.prepare("SELECT * FROM charges ORDER BY due_date ASC LIMIT 15").all();
+      } catch (err) {
+        console.warn("Failed to get chargesList context:", err);
+      }
 
-    try {
-      // Get suppliers / clients
-      tiersList = this.db.prepare("SELECT * FROM tiers ORDER BY nom ASC LIMIT 15").all();
-    } catch (err) {
-      console.warn("Failed to get tiersList context:", err);
+      try {
+        // Get suppliers / clients
+        tiersList = this.db.prepare("SELECT * FROM tiers ORDER BY nom ASC LIMIT 15").all();
+      } catch (err) {
+        console.warn("Failed to get tiersList context:", err);
+      }
     }
 
     // Pre-calculate extremely rich and detailed metrics from SQLite
@@ -101,75 +108,77 @@ export class BlueNeuralBrain {
     let clientCount = 0;
     let providerCount = 0;
 
-    try {
-      const stats = this.db.prepare(`
-        SELECT 
-          COUNT(*) as cnt,
-          SUM(CASE WHEN type IN ('INCOME', 'ENCAISSEMENT', 'VENTE') THEN amount ELSE 0 END) as rev,
-          SUM(CASE WHEN type IN ('EXPENSE', 'DECAISSEMENT', 'ACHAT', 'DEPENSE') THEN ABS(amount) ELSE 0 END) as exp
-        FROM transactions
-      `).get() as any;
-      if (stats) {
-        transactionsCount = stats.cnt || 0;
-        revenueSum = stats.rev || 0;
-        expenseSum = stats.exp || 0;
+    if (!isCustomCompany) {
+      try {
+        const stats = this.db.prepare(`
+          SELECT 
+            COUNT(*) as cnt,
+            SUM(CASE WHEN type IN ('INCOME', 'ENCAISSEMENT', 'VENTE') THEN amount ELSE 0 END) as rev,
+            SUM(CASE WHEN type IN ('EXPENSE', 'DECAISSEMENT', 'ACHAT', 'DEPENSE') THEN ABS(amount) ELSE 0 END) as exp
+          FROM transactions
+        `).get() as any;
+        if (stats) {
+          transactionsCount = stats.cnt || 0;
+          revenueSum = stats.rev || 0;
+          expenseSum = stats.exp || 0;
+        }
+      } catch (e) {
+        console.warn("Error computing financial stats:", e);
       }
-    } catch (e) {
-      console.warn("Error computing financial stats:", e);
-    }
 
-    try {
-      const stats = this.db.prepare(`
-        SELECT 
-          COUNT(*) as cnt,
-          SUM(CASE WHEN status IN ('A_PAYER', 'PENDING', 'NON_PAYÉ', 'Nouveau') THEN montant ELSE 0 END) as unpaid,
-          SUM(CASE WHEN status IN ('PAYÉ', 'SUCCESS', 'PAYE') THEN montant ELSE 0 END) as paid
-        FROM charges
-      `).get() as any;
-      if (stats) {
-        unpaidChargesSum = stats.unpaid || 0;
-        paidChargesSum = stats.paid || 0;
+      try {
+        const stats = this.db.prepare(`
+          SELECT 
+            COUNT(*) as cnt,
+            SUM(CASE WHEN status IN ('A_PAYER', 'PENDING', 'NON_PAYÉ', 'Nouveau') THEN montant ELSE 0 END) as unpaid,
+            SUM(CASE WHEN status IN ('PAYÉ', 'SUCCESS', 'PAYE') THEN montant ELSE 0 END) as paid
+          FROM charges
+        `).get() as any;
+        if (stats) {
+          unpaidChargesSum = stats.unpaid || 0;
+          paidChargesSum = stats.paid || 0;
+        }
+      } catch (e) {
+        console.warn("Error computing charges stats:", e);
       }
-    } catch (e) {
-      console.warn("Error computing charges stats:", e);
-    }
 
-    try {
-      const stats = this.db.prepare(`
-        SELECT 
-          COUNT(*) as cnt,
-          SUM(CASE WHEN stock <= min_threshold OR status IN ('RUPTURE', 'RUPTURE_PROCHE') THEN 1 ELSE 0 END) as alerts
-        FROM produits
-      `).get() as any;
-      if (stats) {
-        totalProductsCount = stats.cnt || 0;
-        stockAlertsCount = stats.alerts || 0;
+      try {
+        const stats = this.db.prepare(`
+          SELECT 
+            COUNT(*) as cnt,
+            SUM(CASE WHEN stock <= min_threshold OR status IN ('RUPTURE', 'RUPTURE_PROCHE') THEN 1 ELSE 0 END) as alerts
+          FROM produits
+        `).get() as any;
+        if (stats) {
+          totalProductsCount = stats.cnt || 0;
+          stockAlertsCount = stats.alerts || 0;
+        }
+      } catch (e) {
+        console.warn("Error computing products stats:", e);
       }
-    } catch (e) {
-      console.warn("Error computing products stats:", e);
-    }
 
-    try {
-      const stats = this.db.prepare(`
-        SELECT 
-          COUNT(*) as cnt,
-          SUM(CASE WHEN type = 'CLIENT' THEN 1 ELSE 0 END) as clients,
-          SUM(CASE WHEN type = 'FOURNISSEUR' THEN 1 ELSE 0 END) as suppliers
-        FROM tiers
-      `).get() as any;
-      if (stats) {
-        activeTiersCount = stats.cnt || 0;
-        clientCount = stats.clients || 0;
-        providerCount = stats.suppliers || 0;
+      try {
+        const stats = this.db.prepare(`
+          SELECT 
+            COUNT(*) as cnt,
+            SUM(CASE WHEN type = 'CLIENT' THEN 1 ELSE 0 END) as clients,
+            SUM(CASE WHEN type = 'FOURNISSEUR' THEN 1 ELSE 0 END) as suppliers
+          FROM tiers
+        `).get() as any;
+        if (stats) {
+          activeTiersCount = stats.cnt || 0;
+          clientCount = stats.clients || 0;
+          providerCount = stats.suppliers || 0;
+        }
+      } catch (e) {
+        console.warn("Error computing tiers stats:", e);
       }
-    } catch (e) {
-      console.warn("Error computing tiers stats:", e);
     }
 
     // Build responsive text representations
     const userRoleText = userProfile ? `${userProfile.displayName} (${userProfile.email}, Rôle: ${userProfile.role})` : "Utilisateur de la plateforme KONTROL";
-    const companyText = company ? `${company.name} (Secteur/Industrie: ${company.industry || 'Inconnu'}, Plan: ${company.plan})` : "InnovKorp Ecosystem";
-    const mrrText = company?.mrr ? `${company.mrr} F CFA` : "0 F CFA";
+    const companyText = isCustomCompany ? "Votre entreprise (Compte Client Personnalisé)" : (company ? `${company.name} (Secteur/Industrie: ${company.industry || 'Inconnu'}, Plan: ${company.plan})` : "InnovKorp Ecosystem");
+    const mrrText = isCustomCompany ? "0 F CFA" : (company?.mrr ? `${company.mrr} F CFA` : "0 F CFA");
 
     const transactionsCtx = transactionsList.length > 0 
       ? transactionsList.map(t => `- [${new Date(t.createdAt).toLocaleDateString()}] ${t.type}: ${t.amount} F CFA (${t.category}) | Partenaire: ${t.tiers_nom || 'Inconnu'} | Desc: ${t.description || 'Sans description'}`).join('\n')
@@ -191,7 +200,45 @@ export class BlueNeuralBrain {
     const promptLower = prompt.toLowerCase();
     let heuristicResponse = "";
 
-    if (promptLower.includes("finan") || promptLower.includes("tresor") || promptLower.includes("trésor") || promptLower.includes("revenu") || promptLower.includes("depense") || promptLower.includes("argent") || promptLower.includes("solde") || promptLower.includes("comptabil") || promptLower.includes("vendez") || promptLower.includes("chiffre d'affaire")) {
+    if (isCustomCompany) {
+      if (promptLower.includes("finan") || promptLower.includes("tresor") || promptLower.includes("trésor") || promptLower.includes("revenu") || promptLower.includes("depense") || promptLower.includes("argent") || promptLower.includes("solde") || promptLower.includes("comptabil") || promptLower.includes("vendez") || promptLower.includes("chiffre d'affaire")) {
+        heuristicResponse = `### 📊 Synthèse d'Audit Financier - BLUE AI
+
+Bienvenue sur la plateforme **KONTROL** ! Pour débuter l'analyse de votre trésorerie, vous devez d'abord renseigner vos premières écritures comptables ou syncrhoniser un compte.
+
+#### 📈 RENTABILITÉ GLOBALE :
+- **Chiffre d'Affaires Brut (Revenus cumulés)** : **0 F CFA**
+- **Dépenses Opérationnelles & Achats** : **0 F CFA**
+- **Position de Trésorerie Nette** : **0 F CFA** 🟢 (Stable)
+
+#### 🧾 ÉTAPE RECOMMANDÉE :
+1. Rendez-vous dans le module d'accueil ou l'onglet **Trésorerie**.
+2. Cliquez sur **+ Nouveau Flux** ou enregistrez une transaction de vente (Entrée) ou d'achat (Sortie) pour alimenter vos graphiques.
+3. L'intelligence artificielle BLUE AI commencera automatiquement à auditer vos flux dès que la première transaction sera enregistrée !`;
+      } else if (promptLower.includes("produit") || promptLower.includes("stock") || promptLower.includes("inventair") || promptLower.includes("ruptur") || promptLower.includes("quantit") || promptLower.includes("article")) {
+        heuristicResponse = `### 📦 Niveau des Stocks & Audit de l'Inventaire - BLUE AI
+
+Votre catalogue de produits est actuellement vide.
+
+#### 🚨 COMMENT ACTIVER LE PILOTAGE DES STOCKS :
+- Accédez à l'onglet **Produits & Services**.
+- Cliquez sur **+ Ajouter un Produit**.
+- Définissez un **seuil critique** (ex : 5 unités). Lorsque votre stock passera sous ce seuil, KONTROL placera automatiquement l'article en alerte de réapprovisionnement de premier niveau.`;
+      } else {
+        heuristicResponse = `### 🛸 Bienvenue chez KONTROL - BLUE AI
+
+Bonjour ! Je suis **BLUE AI**, votre conseiller financier et stratégique automatisé.
+
+Puisque vous venez de créer votre compte, votre base de données est encore vierge. C'est l'occasion idéale pour structurer votre gestion !
+
+#### 💡 ACTIONS DE DÉMARRAGE RECOMMANDÉES :
+1. **Créer vos Tiers** : Ajoutez vos clients réguliers et fournisseurs stratégiques dans le module **Partenaires & Tiers**.
+2. **Référencer vos Produits** : Entrez vos articles dans l'onglet **Produits** avec leurs prix et seuils d'alerte de stock.
+3. **Saisir la Trésorerie** : Enregistrez vos premières entrées ou sorties de caisse pour voir vos indicateurs s'équilibrer.
+
+*Je suis à vos côtés à chaque étape pour répondre à vos questions sur la comptabilité d'entreprise, les flux de trésorerie ou le calcul de vos marges !*`;
+      }
+    } else if (promptLower.includes("finan") || promptLower.includes("tresor") || promptLower.includes("trésor") || promptLower.includes("revenu") || promptLower.includes("depense") || promptLower.includes("argent") || promptLower.includes("solde") || promptLower.includes("comptabil") || promptLower.includes("vendez") || promptLower.includes("chiffre d'affaire")) {
       const netTrésor = revenueSum - expenseSum;
       const margin = revenueSum > 0 ? ((netTrésor / revenueSum) * 100).toFixed(1) : "0";
       
@@ -347,7 +394,15 @@ Je viens de passer au crible l'ensemble des modules comptables et opérationnels
 *Note : Pour personnaliser davantage vos conseils stratégiques, n'hésitez pas à poser une question spécifique sur vos transactions, vos stocks ou vos charges !*`;
     }
 
-    const systemInstruction = `Tu es BLUE AI, le cerveau neuronal hautement intelligent de la plateforme KONTROL. Tu es un expert fiducière, de gestion financière, d'audit comptable et de stratégie opérationnelle pour INNOV'KORP.
+    const systemInstruction = isCustomCompany ? `Tu es BLUE AI, le cerveau neuronal hautement intelligent de la plateforme KONTROL. Tu es un expert fiduciaire, de gestion financière, d'audit comptable et de stratégie opérationnelle pour les TPME en Afrique de l'Ouest.
+
+Le compte actuel est un COMPTE CLIENT PERSONNALISÉ nouvellement configuré pour l'utilisateur: ${userRoleText}. 
+Par conséquent, la base de données est vide et attend leurs propres enregistrements.
+
+Directives d'Interaction :
+- Ne mentionne pas de chiffres pré-générés ou fictifs de "Innov'Korp" (qui est la démo).
+- Réponds avec précision, bienveillance et rigueur. Guide l'utilisateur sur la façon de commencer à utiliser KONTROL pour structurer son entreprise (créer des produits, ajouter des flux de trésorerie de vente/achat, enregistrer des partenaires/tiers, planifier des charges de fonctionnement).
+- Réponds à toutes ses questions d'ordre conceptuel, technique, financier ou stratégique (calcul de marges, taxes, trésorerie, investissement) en utilisant un ton impeccable de conseiller d'affaires élite.` : `Tu es BLUE AI, le cerveau neuronal hautement intelligent de la plateforme KONTROL. Tu es un expert fiducière, de gestion financière, d'audit comptable et de stratégie opérationnelle pour INNOV'KORP.
 
 Voici les données contextuelles réelles de l'application issues de la base SQLite pour te permettre d'auditer et d'adapter tes réponses de manière ultra-contextuelle. Réponds de façon polie, claire, hautement actionnable et fiducière :
 
