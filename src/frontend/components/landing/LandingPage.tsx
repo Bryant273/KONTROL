@@ -24,6 +24,7 @@ import { Logo } from '../common/Logo';
 import { cn } from '../../lib/utils';
 import { Chatbot } from '../common/Chatbot';
 import { LegalTerms } from './LegalTerms';
+import { FeatureExplorer } from './FeatureExplorer';
 import { SupportForm } from '../common/SupportForm';
 import { AnimatePresence } from 'motion/react';
 import { useTranslation, Trans } from 'react-i18next';
@@ -36,6 +37,7 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
   const { t } = useTranslation();
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [legalView, setLegalView] = useState<'mentions' | 'confidentialite' | null>(null);
+  const [activeFeature, setActiveFeature] = useState<'stock' | 'transactions' | 'crm' | 'analytics' | 'security' | 'blue_ai' | null>(null);
   const [currency, setCurrency] = useState<{ code: string; symbol: string; rate: number; label: string }>({
     code: 'XOF',
     symbol: 'F CFA',
@@ -72,6 +74,15 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
 
   const basePrice = 10000; // 10,000 XOF per month
   const displayPrice = Math.round(basePrice * currency.rate);
+
+  if (activeFeature) {
+    return (
+      <FeatureExplorer 
+        featureId={activeFeature} 
+        onClose={() => setActiveFeature(null)} 
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white text-kontrol-dark font-sans selection:bg-kontrol-blue/20">
@@ -130,82 +141,165 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
         </div>
 
         {/* Mockup Preview */}
-        <div className="mt-20 relative animate-in fade-in zoom-in duration-1000 delay-500">
-          <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent z-10" />
-          <div className="bg-kontrol-dark rounded-[32px] p-3 shadow-2xl border border-white/10 overflow-hidden">
-            <div className="bg-white rounded-[20px] aspect-video overflow-hidden shadow-inner flex">
+        <div className="mt-20 relative animate-in fade-in zoom-in duration-1000 delay-500 select-none">
+          <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent z-10 pointer-events-none" />
+          <div className="bg-kontrol-dark rounded-[32px] p-3.5 shadow-2xl border border-white/10 overflow-hidden">
+            <div className="bg-white rounded-[22px] overflow-hidden shadow-inner flex flex-col md:flex-row aspect-video text-left">
               {/* Sidebar Mockup */}
-              <div className="w-16 border-r border-kontrol-border bg-kontrol-bg flex flex-col items-center py-6 gap-6">
-                <div className="w-8 h-8 rounded-lg bg-kontrol-blue/10 flex items-center justify-center text-kontrol-blue">
+              <div className="w-full md:w-20 border-r border-kontrol-border bg-white flex md:flex-col items-center py-4 md:py-6 justify-between md:justify-start gap-4 md:gap-8 shrink-0 px-4 md:px-0">
+                <div className="w-10 h-10 rounded-xl bg-kontrol-blue/5 border border-kontrol-blue/10 flex items-center justify-center text-kontrol-blue shrink-0">
                   <Logo size="sm" className="border-none shadow-none" />
                 </div>
-                <div className="flex flex-col gap-4">
-                  {[Layout, Box, ArrowLeftRight, Users, BarChart3].map((Icon, i) => (
-                    <div key={i} className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-colors cursor-pointer", i === 0 ? "bg-kontrol-blue text-white" : "text-kontrol-ink-muted hover:bg-kontrol-border")}>
-                      <Icon size={18} />
+                <div className="flex md:flex-col gap-2 md:gap-4">
+                  {[
+                    { icon: Layout, active: true },
+                    { icon: Box, active: false },
+                    { icon: ArrowLeftRight, active: false },
+                    { icon: Users, active: false },
+                    { icon: BarChart3, active: false },
+                  ].map((item, i) => (
+                    <div key={i} className={cn(
+                      "w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer border",
+                      item.active 
+                        ? "bg-kontrol-blue border-kontrol-blue text-white shadow-md shadow-blue-500/20" 
+                        : "text-kontrol-ink-soft border-transparent hover:bg-kontrol-bg hover:border-kontrol-border"
+                    )}>
+                      <item.icon size={18} />
                     </div>
                   ))}
+                </div>
+                <div className="hidden md:flex mt-auto w-10 h-10 rounded-full bg-kontrol-bg items-center justify-center text-[10px] font-black border border-kontrol-border text-kontrol-ink-muted">
+                  KO
                 </div>
               </div>
 
               {/* Main Content Mockup */}
-              <div className="flex-1 flex flex-col">
-                <div className="h-12 border-b border-kontrol-border bg-white flex items-center justify-between px-6">
-                  <div className="h-6 bg-kontrol-bg rounded-md w-32" />
+              <div className="flex-1 flex flex-col bg-kontrol-bg/40 overflow-hidden min-h-0">
+                {/* Header Mockup */}
+                <div className="h-16 border-b border-kontrol-border bg-white flex items-center justify-between px-6 shrink-0">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-kontrol-bg" />
-                    <div className="h-4 bg-kontrol-bg rounded w-20" />
+                    <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" />
+                    <div>
+                      <p className="text-[11px] font-black tracking-wider text-kontrol-dark uppercase flex items-center gap-1">
+                        test test test test <span className="text-[9.5px] text-kontrol-blue font-bold tracking-normal uppercase bg-kontrol-blue/5 px-2 py-0.5 rounded-md border border-kontrol-blue/15">test</span>
+                      </p>
+                      <p className="text-[9.5px] text-kontrol-ink-muted font-bold uppercase tracking-wider">Administrateur, contrôle, test</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right hidden sm:block">
+                      <p className="text-[11px] font-extrabold text-kontrol-dark">Administrateur KONTROL</p>
+                      <p className="text-[9px] font-bold text-kontrol-ink-soft">•••••••••@••••••••.•••</p>
+                    </div>
+                    <div className="w-9 h-9 rounded-xl bg-kontrol-dark text-white flex items-center justify-center font-black text-xs border border-white/10 shadow-lg">
+                      IK
+                    </div>
                   </div>
                 </div>
-                <div className="flex-1 p-6 bg-kontrol-bg/30">
-                  <div className="grid grid-cols-3 gap-4 mb-6">
-                    <div className="h-24 bg-white rounded-2xl border border-kontrol-border p-4 shadow-sm relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-12 h-12 bg-kontrol-blue/5 rounded-full -mr-6 -mt-6" />
-                      <div className="h-3 bg-kontrol-bg rounded w-1/2 mb-2" />
-                      <div className="h-6 bg-kontrol-blue/20 rounded w-3/4" />
+
+                {/* Sub Content Area Layout */}
+                <div className="flex-1 p-5 space-y-5 overflow-y-auto scrollbar-none min-h-0 text-[12px]">
+                  {/* Top metrics bar */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="bg-white border border-kontrol-border rounded-2xl p-4 shadow-sm relative overflow-hidden flex flex-col justify-between h-24">
+                      <span className="absolute top-0 right-0 w-16 h-16 bg-kontrol-blue/5 rounded-full -mr-8 -mt-8" />
+                      <div>
+                        <p className="text-[9.5px] font-black text-kontrol-ink-muted uppercase tracking-wider">Trésorerie Disponible</p>
+                        <p className="text-lg font-black text-kontrol-dark mt-1">12 450 000 F CFA</p>
+                      </div>
+                      <div className="flex items-center gap-1 text-[10px] text-emerald-600 font-bold">
+                        <span className="bg-emerald-50 border border-emerald-100 rounded-md px-1.5 py-0.5">+14.2%</span>
+                        <span>par rapport à avril</span>
+                      </div>
                     </div>
-                    <div className="h-24 bg-white rounded-2xl border border-kontrol-border p-4 shadow-sm relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-12 h-12 bg-kontrol-orange/5 rounded-full -mr-6 -mt-6" />
-                      <div className="h-3 bg-kontrol-bg rounded w-1/2 mb-2" />
-                      <div className="h-6 bg-kontrol-orange/20 rounded w-3/4" />
+
+                    <div className="bg-white border border-kontrol-border rounded-2xl p-4 shadow-sm relative overflow-hidden flex flex-col justify-between h-24">
+                      <span className="absolute top-0 right-0 w-16 h-16 bg-kontrol-orange/5 rounded-full -mr-8 -mt-8" />
+                      <div>
+                        <p className="text-[9.5px] font-black text-kontrol-ink-muted uppercase tracking-wider">Suivi d'Inventaire</p>
+                        <p className="text-lg font-black text-kontrol-dark mt-1">94% Optimum</p>
+                      </div>
+                      <div className="flex items-center gap-1 text-[10px] text-kontrol-blue font-bold">
+                        <span className="bg-kontrol-blue/5 border border-kontrol-blue/15 rounded-md px-1.5 py-0.5">324 Articles</span>
+                        <span>0 rupture en suspens</span>
+                      </div>
                     </div>
-                    <div className="h-24 bg-white rounded-2xl border border-kontrol-border p-4 shadow-sm relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-12 h-12 bg-emerald-500/5 rounded-full -mr-6 -mt-6" />
-                      <div className="h-3 bg-kontrol-bg rounded w-1/2 mb-2" />
-                      <div className="h-6 bg-emerald-500/20 rounded w-3/4" />
+
+                    <div className="bg-white border border-kontrol-border rounded-2xl p-4 shadow-sm relative overflow-hidden flex flex-col justify-between h-24">
+                      <span className="absolute top-0 right-0 w-16 h-16 bg-purple-500/5 rounded-full -mr-8 -mt-8" />
+                      <div>
+                        <p className="text-[9.5px] font-black text-kontrol-ink-muted uppercase tracking-wider">Sécurité Shield</p>
+                        <p className="text-lg font-black text-kontrol-dark mt-1">Niveau maximal</p>
+                      </div>
+                      <div className="flex items-center gap-1 text-[10px] text-indigo-600 font-bold">
+                        <span className="bg-indigo-50 border border-indigo-100 rounded-md px-1.5 py-0.5">AES-256</span>
+                        <span>Audit système crypté ok</span>
+                      </div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-12 gap-4">
-                    <div className="col-span-8 h-48 bg-white rounded-2xl border border-kontrol-border shadow-sm p-4">
-                      <div className="flex justify-between items-center mb-4">
-                        <div className="h-4 bg-kontrol-bg rounded w-1/4" />
-                        <div className="flex gap-1">
-                          <div className="w-2 h-2 rounded-full bg-kontrol-blue" />
-                          <div className="w-2 h-2 rounded-full bg-kontrol-orange" />
+
+                  {/* Main Grid: Graph + Ledger List */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                    {/* Graph panel */}
+                    <div className="lg:col-span-8 bg-white border border-kontrol-border shadow-sm rounded-2xl p-4 flex flex-col justify-between h-56">
+                      <div className="flex justify-between items-center shrink-0">
+                        <div>
+                          <p className="font-black text-kontrol-dark">Évolution des Flux Réels 2026</p>
+                          <p className="text-[10px] text-kontrol-ink-soft font-semibold">Analyse consolidée par mois (F CFA)</p>
+                        </div>
+                        <div className="flex gap-3">
+                          <div className="flex items-center gap-1.5 text-[10px] font-bold text-kontrol-ink-soft">
+                            <span className="w-2.5 h-2.5 bg-kontrol-blue rounded-full" />
+                            <span>Ventes</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[10px] font-bold text-kontrol-ink-soft">
+                            <span className="w-2.5 h-2.5 bg-kontrol-orange rounded-full" />
+                            <span>Charges</span>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-end gap-2 h-32">
-                        {[40, 70, 45, 90, 65, 80, 55].map((h, i) => (
-                          <div key={i} className={cn("flex-1 rounded-t-md", i % 2 === 0 ? "bg-kontrol-blue/30" : "bg-kontrol-orange/30")} style={{ height: `${h}%` }} />
+                      <div className="flex items-end gap-3 h-32 pt-4">
+                        {[
+                          { sales: 40, cost: 20, label: 'Jan' },
+                          { sales: 65, cost: 25, label: 'Fév' },
+                          { sales: 50, cost: 15, label: 'Mar' },
+                          { sales: 85, cost: 35, label: 'Avr' },
+                          { sales: 100, cost: 30, label: 'Mai' },
+                        ].map((m, i) => (
+                          <div key={i} className="flex-1 flex flex-col justify-end h-full">
+                            <div className="flex items-end gap-1.5 h-[85%]">
+                              <div className="flex-1 bg-gradient-to-t from-kontrol-blue to-blue-400 rounded-t-md cursor-pointer hover:opacity-90 transition-opacity" style={{ height: `${m.sales}%` }} title={`Ventes: ${m.sales * 100000}`} />
+                              <div className="flex-1 bg-gradient-to-t from-kontrol-orange to-amber-400 rounded-t-md cursor-pointer hover:opacity-90 transition-opacity" style={{ height: `${m.cost}%` }} title={`Charges: ${m.cost * 100000}`} />
+                            </div>
+                            <span className="text-[10px] font-bold text-kontrol-ink-muted text-center mt-2 block">{m.label}</span>
+                          </div>
                         ))}
                       </div>
                     </div>
-                    <div className="col-span-4 h-48 bg-white rounded-2xl border border-kontrol-border shadow-sm p-4">
-                      <div className="h-4 bg-kontrol-bg rounded w-1/2 mb-4" />
-                      <div className="space-y-3">
-                        {[
-                          { color: 'bg-kontrol-blue/20' },
-                          { color: 'bg-kontrol-orange/20' },
-                          { color: 'bg-emerald-500/20' }
-                        ].map((item, i) => (
-                          <div key={i} className="flex gap-2">
-                            <div className={cn("w-8 h-8 rounded", item.color)} />
-                            <div className="flex-1 space-y-1">
-                              <div className="h-2 bg-kontrol-bg rounded w-full" />
-                              <div className="h-2 bg-kontrol-bg rounded w-1/2" />
-                            </div>
-                          </div>
-                        ))}
+
+                    {/* Blue AI Log panel */}
+                    <div className="lg:col-span-4 bg-white border border-kontrol-border shadow-sm rounded-2xl p-4 flex flex-col justify-between h-56">
+                      <div className="flex justify-between items-center bg-teal-50 border border-teal-100 p-2 rounded-xl">
+                        <div className="flex items-center gap-1.5 text-teal-800">
+                          <Sparkles size={14} />
+                          <span className="text-[10px] font-black uppercase tracking-wider">Blue AI Intelligence</span>
+                        </div>
+                        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping" />
+                      </div>
+
+                      <div className="flex-1 my-3 bg-kontrol-bg border border-kontrol-border rounded-xl p-3 flex flex-col justify-between text-[11px] leading-relaxed font-semibold text-kontrol-dark">
+                        <div className="space-y-1">
+                          <p className="text-[9px] font-black text-kontrol-ink-muted uppercase">Analyse Trésorerie Automatique</p>
+                          <p className="text-kontrol-ink-soft font-medium italic">« Votre ratio de liquidité est extrêmement robuste. Vos factures échues de la SARL Diallo ont été réglées à 100%. Marge nette estimée à 72%. »</p>
+                        </div>
+                        <div className="text-[9.5px] font-black text-kontrol-blue flex items-center gap-1 mt-2">
+                          <CheckCircle2 size={12} className="text-emerald-500" />
+                          RECOMMANDATIONS DE SÉCURITÉ OK
+                        </div>
+                      </div>
+
+                      <div className="text-[9px] font-bold text-kontrol-ink-muted uppercase text-center tracking-widest">
+                        PILOTÉ SANS INTERRUPTION PAR BLUE AI
                       </div>
                     </div>
                   </div>
@@ -226,19 +320,29 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
-              { icon: Box, title: t('landing.features.items.stock_title'), desc: t('landing.features.items.stock_desc') },
-              { icon: ArrowLeftRight, title: t('landing.features.items.transactions_title'), desc: t('landing.features.items.transactions_desc') },
-              { icon: Users, title: t('landing.features.items.crm_title'), desc: t('landing.features.items.crm_desc') },
-              { icon: BarChart3, title: t('landing.features.items.analytics_title'), desc: t('landing.features.items.analytics_desc') },
-              { icon: Shield, title: t('landing.features.items.security_title'), desc: t('landing.features.items.security_desc') },
-              { icon: Sparkles, title: t('landing.features.items.blue_ai_title'), desc: t('landing.features.items.blue_ai_desc') },
-            ].map((f, i) => (
-              <div key={i} className="bg-white p-6 rounded-[24px] border border-kontrol-border hover:shadow-xl transition-all group cursor-pointer">
-                <div className="w-10 h-10 bg-kontrol-bg rounded-xl flex items-center justify-center mb-4 group-hover:bg-kontrol-blue group-hover:text-white transition-colors">
-                  <f.icon size={20} />
+              { id: 'stock', icon: Box, title: t('landing.features.items.stock_title'), desc: t('landing.features.items.stock_desc'), action: 'Tester le stock' },
+              { id: 'transactions', icon: ArrowLeftRight, title: t('landing.features.items.transactions_title'), desc: t('landing.features.items.transactions_desc'), action: 'Simuler des flux' },
+              { id: 'crm', icon: Users, title: t('landing.features.items.crm_title'), desc: t('landing.features.items.crm_desc'), action: 'Explorer des tiers' },
+              { id: 'analytics', icon: BarChart3, title: t('landing.features.items.analytics_title'), desc: t('landing.features.items.analytics_desc'), action: 'Calculer les KPI' },
+              { id: 'security', icon: Shield, title: t('landing.features.items.security_title'), desc: t('landing.features.items.security_desc'), action: 'Lancer un audit' },
+              { id: 'blue_ai', icon: Sparkles, title: t('landing.features.items.blue_ai_title'), desc: t('landing.features.items.blue_ai_desc'), action: 'Parler à l\'IA' },
+            ].map((f) => (
+              <div 
+                key={f.id} 
+                onClick={() => setActiveFeature(f.id as any)}
+                className="bg-white p-6 rounded-[24px] border border-kontrol-border hover:shadow-xl hover:border-kontrol-blue/50 transition-all group cursor-pointer relative flex flex-col justify-between"
+              >
+                <div>
+                  <div className="w-10 h-10 bg-kontrol-bg rounded-xl flex items-center justify-center mb-4 group-hover:bg-kontrol-blue group-hover:text-white transition-colors">
+                    <f.icon size={20} />
+                  </div>
+                  <h3 className="text-lg font-bold mb-2 group-hover:text-kontrol-blue transition-colors">{f.title}</h3>
+                  <p className="text-[13px] text-kontrol-ink-soft leading-relaxed mb-6">{f.desc}</p>
                 </div>
-                <h3 className="text-lg font-bold mb-2">{f.title}</h3>
-                <p className="text-[13px] text-kontrol-ink-soft leading-relaxed">{f.desc}</p>
+                <div className="flex items-center gap-1.5 text-xs font-bold text-kontrol-blue group-hover:translate-x-1 transition-transform mt-auto text-left select-none">
+                  <span>{f.action}</span>
+                  <ArrowRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
               </div>
             ))}
           </div>

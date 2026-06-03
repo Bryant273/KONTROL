@@ -599,14 +599,14 @@ NODE_ENV=production
 # Port d'écoute du serveur d'application (Impérativement 3000 pour Ingress Layer)
 PORT=3000
 
-# Clé de Signature d'Intelligence Sémantique Blue AI (Gemini Core Cloud Key Dummy Placeholder)
-GEMINI_API_KEY=AIzaSyYourSecretKeyPlaceHolder_KONTROL_KEY
+# Clé de Signature d'Intelligence Sémantique Blue AI (Saisie via Variables d'Environnement de Production)
+GEMINI_API_KEY=
 
 # Identifiant de Base de Données Firestore Cloud Projet
-FIREBASE_PROJECT_ID=kontrol-erp-prod-9921
+FIREBASE_PROJECT_ID=
 
-# Paramètre de Sécurité pour Webhooks Wave Mobile Money (Proxy FinTech Key)
-WAVE_BUSINESS_API_KEY=wvs_prod_secret_8219001hskaXpZqpL_9921
+# Paramètre de Sécurité pour Webhooks Wave Mobile Money
+WAVE_BUSINESS_API_KEY=
 ```
 
 ---

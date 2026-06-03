@@ -12,8 +12,10 @@
     "chat": "K-Chat",
     "support": "Technical Support",
     "blue_ai": "Blue AI",
+    "kpis_business": "KPIs & Client Strategy",
     "notifications": "Notifications",
     "company_profile": "Company Profile",
+    "company_hub": "Company & Team",
     "profile": "My Profile",
     "subscriptions": "Subscription",
     "users": "Users",
@@ -878,7 +880,10 @@
       "party": "Party",
       "method": "Method",
       "amount": "Amount"
-    }
+    },
+    "spending_trend_title": "Outflow & Spending Trend (Last 6 Months)",
+    "spending_trend_subtitle": "Consolidated cash outflows per month",
+    "realtime": "Real-time"
   },
   "transactions": {
     "title": "Transactions",

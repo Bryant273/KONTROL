@@ -10,18 +10,21 @@ interface LogoProps {
 }
 
 export function Logo({ className, size = 32, companyLogo }: LogoProps) {
-  const pixelSize = typeof size === 'number' ? size : 
-                   size === 'sm' ? 24 :
-                   size === 'md' ? 40 :
-                   size === 'lg' ? 64 : 32;
+  const [imgError, setImgError] = React.useState(false);
   
-  if (companyLogo) {
+  const pixelSize = typeof size === 'number' ? size : 
+                   size === 'sm' ? 32 :
+                   size === 'md' ? 48 :
+                   size === 'lg' ? 72 : 36;
+  
+  if (companyLogo && !imgError) {
     return (
-      <div className={cn("flex items-center gap-3", className)}>
+      <div className={cn("flex items-center shrink-0", className)}>
         <img 
           src={companyLogo} 
           alt="Company Logo" 
-          className="rounded-xl object-contain bg-white border border-kontrol-border shadow-sm"
+          onError={() => setImgError(true)}
+          className="rounded-lg object-contain bg-white border border-white/20 shadow-sm p-0.5"
           style={{ width: pixelSize, height: pixelSize }}
           referrerPolicy="no-referrer"
         />

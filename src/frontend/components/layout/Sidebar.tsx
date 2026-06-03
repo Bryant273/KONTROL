@@ -9,6 +9,7 @@ import { User, db, doc, onSnapshot } from '../../../api/firebase';
 import { UserProfile } from '../../types';
 import { Logo } from '../common/Logo';
 import { ERP_NAV_SECTIONS, COMPANY_NAV_SECTIONS } from '../../constants/navigation';
+import { Tooltip } from '../common/Tooltip';
 
 interface SidebarProps {
   activeTab: string;
@@ -24,13 +25,13 @@ export function Sidebar({ activeTab, setActiveTab, user, profile, onLogout, isOp
   const { t } = useTranslation();
   const isKontrolAdmin = profile?.role === 'ADMINISTRATEUR_ERP' || profile?.role === 'GESTIONNAIRE_ERP' || profile?.role === 'ADMIN' || profile?.role === 'ADMINISTRATEUR_KONTROL' || profile?.role === 'GESTIONNAIRE_KONTROL';
   
-  const [currentVersion, setCurrentVersion] = React.useState<string>('V4.3.0');
+  const [currentVersion, setCurrentVersion] = React.useState<string>('V1.0.0');
 
   React.useEffect(() => {
     if (!user || user.isAnonymous) return;
     const unsub = onSnapshot(doc(db, 'system', 'config'), (snap) => {
       if (snap.exists()) {
-        setCurrentVersion((snap.data().currentVersion || 'V4.3.0').replace(/-PRO/gi, ''));
+        setCurrentVersion((snap.data().currentVersion || 'V1.0.0').replace(/-PRO/gi, ''));
       }
     }, (error) => {
       if (error.code !== 'permission-denied') {
@@ -89,11 +90,17 @@ export function Sidebar({ activeTab, setActiveTab, user, profile, onLogout, isOp
         <div className="h-14 flex items-center justify-between px-4 border-b border-white/10 shrink-0">
           <div className="flex items-center gap-2 overflow-hidden">
             <Logo companyLogo={profile?.companyLogo} size="sm" className="bg-transparent border-white/10" />
-            {profile?.companyName && profile.companyName !== 'KONTROL' && (
-              <span className="text-lg font-extrabold text-white tracking-tighter truncate">
-                {profile.companyName.replace(' ERP', '')}
-              </span>
-            )}
+            {(() => {
+              const name = (profile?.companyName || 'KONTROL').replace(' ERP', '').trim();
+              return (
+                <span 
+                  className="text-[17px] font-black uppercase tracking-tight bg-gradient-to-r from-teal-300 via-kontrol-blue to-kontrol-orange bg-clip-text text-transparent drop-shadow-[0_2px_10px_rgba(80,176,224,0.5)] truncate max-w-[155px] select-none hover:brightness-110 active:brightness-125 transition-all"
+                  title={name}
+                >
+                  {name}
+                </span>
+              );
+            })()}
           </div>
           <button 
             className="lg:hidden text-white/50 hover:text-white p-1.5 rounded-md hover:bg-white/10 transition-colors"
@@ -105,44 +112,66 @@ export function Sidebar({ activeTab, setActiveTab, user, profile, onLogout, isOp
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-none">
-          {navSections.map((section) => (
-            <div key={section.titleKey} className="mb-1">
-              <button
-                onClick={() => toggleSection(section.titleKey)}
-                className="w-full flex items-center justify-between px-2.5 py-2 text-[10.5px] font-bold text-white/40 uppercase tracking-widest hover:text-white/70 hover:bg-white/5 rounded-lg transition-all"
-              >
-                <span className="flex items-center gap-2">
-                  <section.icon size={14} />
-                  {t(section.titleKey)}
-                </span>
-                <ChevronDown 
-                  size={10} 
-                  className={cn("transition-transform duration-200", openSections.includes(section.titleKey) ? "rotate-0" : "-rotate-90")} 
-                />
-              </button>
-              
-              <div className={cn(
-                "overflow-hidden transition-all duration-300",
-                openSections.includes(section.titleKey) ? "max-h-[400px] opacity-100" : "max-h-0 opacity-0"
-              )}>
-                {section.items.map((item) => (
+          {navSections.map((section) => {
+            const isDirectItem = section.titleKey === 'sections.control_tower' || section.titleKey === 'sections.dashboard';
+            if (isDirectItem) {
+              return section.items.map((item) => (
+                <Tooltip key={item.id} content={t(`sidebar.tooltip.${item.id}`, `Aller vers : ${t(item.labelKey)}`)} position="right">
                   <button
-                    key={item.id}
-                    onClick={() => setActiveTab(item.id, t(section.titleKey), t(item.labelKey))}
+                    onClick={() => setActiveTab(item.id, '', t(item.labelKey))}
                     className={cn(
-                      "w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] rounded-lg transition-all mb-0.5 text-left",
+                      "w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] rounded-lg transition-all mb-2 text-left font-bold text-white/70",
                       activeTab === item.id 
-                        ? "bg-kontrol-blue/20 text-kontrol-blue font-medium" 
+                        ? "bg-kontrol-blue/20 text-kontrol-blue font-semibold" 
                         : "text-white/55 hover:bg-white/10 hover:text-white/90"
                     )}
                   >
-                    <item.icon size={14} className="shrink-0" />
+                    <item.icon size={15} className="shrink-0" />
                     {t(item.labelKey)}
                   </button>
-                ))}
+                </Tooltip>
+              ));
+            }
+            return (
+              <div key={section.titleKey} className="mb-1">
+                <button
+                  onClick={() => toggleSection(section.titleKey)}
+                  className="w-full flex items-center justify-between px-2.5 py-2 text-[10.5px] font-bold text-white/40 uppercase tracking-widest hover:text-white/70 hover:bg-white/5 rounded-lg transition-all"
+                >
+                  <span className="flex items-center gap-2">
+                    <section.icon size={14} />
+                    {t(section.titleKey)}
+                  </span>
+                  <ChevronDown 
+                    size={10} 
+                    className={cn("transition-transform duration-200", openSections.includes(section.titleKey) ? "rotate-0" : "-rotate-90")} 
+                  />
+                </button>
+                
+                <div className={cn(
+                  "overflow-hidden transition-all duration-300",
+                  openSections.includes(section.titleKey) ? "max-h-[400px] opacity-100" : "max-h-0 opacity-0"
+                )}>
+                  {section.items.map((item) => (
+                    <Tooltip key={item.id} content={t(`sidebar.tooltip.${item.id}`, `Aller vers : ${t(item.labelKey)}`)} position="right">
+                      <button
+                        onClick={() => setActiveTab(item.id, t(section.titleKey), t(item.labelKey))}
+                        className={cn(
+                          "w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] rounded-lg transition-all mb-0.5 text-left",
+                          activeTab === item.id 
+                            ? "bg-kontrol-blue/20 text-kontrol-blue font-medium" 
+                            : "text-white/55 hover:bg-white/10 hover:text-white/90"
+                        )}
+                      >
+                        <item.icon size={14} className="shrink-0" />
+                        {t(item.labelKey)}
+                      </button>
+                    </Tooltip>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </nav>
 
         {/* ERP Admin System Health */}

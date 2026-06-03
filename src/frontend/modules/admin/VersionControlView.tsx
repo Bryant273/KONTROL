@@ -61,7 +61,7 @@ export function VersionControlView() {
   const { t } = useTranslation();
   const [versions, setVersions] = useState<AppVersion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [currentVersion, setCurrentVersion] = useState<string>('V4.3.0');
+  const [currentVersion, setCurrentVersion] = useState<string>('V1.0.0');
   const [isSwitching, setIsSwitching] = useState(false);
   const [isAddingVersion, setIsAddingVersion] = useState(false);
   const [newVersionData, setNewVersionData] = useState({
@@ -75,7 +75,7 @@ export function VersionControlView() {
     // Listen to system config for current version
     const unsubConfig = onSnapshot(doc(db, 'system', 'config'), (snap) => {
       if (snap.exists()) {
-        setCurrentVersion((snap.data().currentVersion || 'V4.3.0').replace(/-PRO/gi, ''));
+        setCurrentVersion((snap.data().currentVersion || 'V1.0.0').replace(/-PRO/gi, ''));
       }
     }, (error) => {
       if (error.code !== 'permission-denied') {
@@ -90,27 +90,17 @@ export function VersionControlView() {
         // Initialize with default versions if empty
         const initialVersions: Omit<AppVersion, 'id'>[] = [
           {
-            version: 'V4.3.0',
-            status: 'ACTIVE',
-            releaseDate: Date.now() - 1000 * 60 * 60 * 24 * 5,
-            description: t('admin.versions.defaults.v3_desc'),
-            features: t('admin.versions.defaults.v3_features', { returnObjects: true }) as string[],
-            author: 'Innov\'Korp Team'
-          },
-          {
-            version: 'V2.5.0',
-            status: 'ARCHIVED',
-            releaseDate: Date.now() - 1000 * 60 * 60 * 24 * 30,
-            description: t('admin.versions.defaults.v2_desc'),
-            features: t('admin.versions.defaults.v2_features', { returnObjects: true }) as string[],
-            author: 'Innov\'Korp Team'
-          },
-          {
             version: 'V1.0.0',
-            status: 'ARCHIVED',
-            releaseDate: Date.now() - 1000 * 60 * 60 * 24 * 120,
-            description: t('admin.versions.defaults.v1_desc'),
-            features: t('admin.versions.defaults.v1_features', { returnObjects: true }) as string[],
+            status: 'ACTIVE',
+            releaseDate: Date.now(),
+            description: "Version initiale de lancement de la plateforme de gestion centralisée KONTROL.",
+            features: [
+              "Module de Comptabilité & Reporting de Trésorerie en temps réel",
+              "Module de Gestion Répertoire Tiers (Contacts, Relations clients et fournisseurs)",
+              "Cerveau Cognitif Intégré (Blue AI Brain) pour analyses comptables automatisées",
+              "Module de Gestion de Stocks et Produits",
+              "Assistance IA intégrée par Innov'Korp"
+            ],
             author: 'Innov\'Korp Team'
           }
         ];

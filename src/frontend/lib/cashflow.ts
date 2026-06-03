@@ -113,7 +113,7 @@ export const generateCashFlowPDF = (
     doc.setFontSize(8);
     doc.setTextColor(150);
     doc.text(
-      `Document généré par KONTROL ERP le ${new Date().toLocaleString('fr-FR')} - Page ${i} sur ${pageCount}`,
+      `Document généré par KONTROL le ${new Date().toLocaleString('fr-FR')} - Page ${i} sur ${pageCount}`,
       pageWidth / 2,
       doc.internal.pageSize.height - 10,
       { align: 'center' }

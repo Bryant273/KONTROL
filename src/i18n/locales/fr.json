@@ -12,8 +12,10 @@
     "chat": "K-Chat",
     "support": "Support Technique",
     "blue_ai": "Blue AI",
+    "kpis_business": "KPIs & Stratégie Client",
     "notifications": "Notifications",
     "company_profile": "Profil Entreprise",
+    "company_hub": "Entreprise & Équipe",
     "profile": "Mon profil",
     "subscriptions": "Abonnement",
     "users": "Utilisateurs",
@@ -872,7 +874,10 @@
       "party": "Tiers",
       "method": "Mode",
       "amount": "Montant"
-    }
+    },
+    "spending_trend_title": "Évolution des Décaissements / Dépenses (6 derniers mois)",
+    "spending_trend_subtitle": "Flux de sortie de trésorerie de l'entité consolidés par mois",
+    "realtime": "Temps Réel"
   },
   "transactions": {
     "title": "Ventes & Achats",

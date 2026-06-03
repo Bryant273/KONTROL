@@ -35,7 +35,6 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
   const [produits, setProduits] = React.useState<Produit[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
-  const [filterDate, setFilterDate] = React.useState<string>(new Date().toISOString().split('T')[0]);
   const [isAdding, setIsAdding] = React.useState(false);
   const [isEditing, setIsEditing] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
@@ -190,7 +189,7 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
       [t('produits.form.alert_stock'), `${p.alertStock || 5} u.`],
       [t('produits.details.stock_value'), formatCurrency(p.stock * p.prixVente)],
       [t('produits.details.gross_margin'), formatCurrency(p.prixVente - p.prixAchat)],
-      [t('produits.details.created_at'), new Date(p.createdAt).toLocaleDateString()]
+      [t('produits.details.created_at'), p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '—']
     ];
     exportToPDF(`${t('produits.details.title')} - ${p.designation}`, headers, data, `Fiche_${p.reference}`, currentUserProfile?.companyLogo || currentUserProfile?.logoUrl);
   };
@@ -320,8 +319,6 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
   const filteredProduits = produits.filter(p => {
     const matchesSearch = p.designation.toLowerCase().includes(searchTerm.toLowerCase()) || 
                          p.reference.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesDate = !filterDate || new Date(p.createdAt).toISOString().split('T')[0] === filterDate;
-    
     let matchesCategory = true;
     if (selectedCategory === 'IN_STOCK') {
       matchesCategory = p.stock > (p.alertStock || 5);
@@ -331,7 +328,7 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
       matchesCategory = p.stock <= 0;
     }
     
-    return matchesSearch && matchesDate && matchesCategory;
+    return matchesSearch && matchesCategory;
   });
 
   const totalPages = Math.ceil(filteredProduits.length / itemsPerPage);
@@ -616,19 +613,6 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
             <span className="w-1.5 h-1.5 bg-rose-500 rounded-full" />
             {t('produits.status_out') || "Rupture"}
           </button>
-        </div>
-
-        <div className="flex items-center gap-2 bg-kontrol-bg border border-kontrol-border rounded-lg px-3 py-1.5">
-          <Calendar size={14} className="text-kontrol-ink-muted" />
-          <input 
-            type="date"
-            className="bg-transparent border-none outline-none text-[13px] font-medium text-kontrol-ink-soft"
-            value={filterDate}
-            onChange={(e) => {
-              setFilterDate(e.target.value);
-              setCurrentPage(1);
-            }}
-          />
         </div>
       </div>
 

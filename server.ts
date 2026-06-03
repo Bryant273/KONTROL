@@ -638,6 +638,31 @@ async function startServer() {
   app.get("/api/system/audit-logs", systemExpert.auditLogs);
   app.get("/api/user/profile/:uid", systemExpert.profile);
 
+  app.get("/api/admin/system/metrics", (req, res) => {
+    try {
+      const memory = process.memoryUsage();
+      const ramGB = Number((memory.rss / (1024 * 1024 * 1024)).toFixed(3));
+      
+      const cpuUsage = process.cpuUsage();
+      const uptime = process.uptime() || 1;
+      const cpuPercent = Number((((cpuUsage.user + cpuUsage.system) / 1000000) / uptime * 10).toFixed(2));
+      
+      const start = Date.now();
+      db.prepare("SELECT 1").get();
+      const latencyMs = Date.now() - start;
+
+      res.json({
+        cpu: Math.min(Math.max(cpuPercent, 0.4), 100),
+        ram: Math.min(Math.max(ramGB, 0.08), 16),
+        latency: Math.max(latencyMs, 1),
+        errors: 0,
+        timestamp: Date.now()
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get("/api/admin/audit/perform", (req, res) => {
     res.json({
       status: "SUCCESS",

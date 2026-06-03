@@ -102,13 +102,13 @@ export function UpdatesView() {
   const [deploymentVersion, setDeploymentVersion] = useState('');
   const [deploymentAuthor, setDeploymentAuthor] = useState('KONTROL Core Engine');
   const [isDeploying, setIsDeploying] = useState(false);
-  const [currentSystemVersion, setCurrentSystemVersion] = useState('V4.3.0');
+  const [currentSystemVersion, setCurrentSystemVersion] = useState('V1.0.0');
 
   // Realtime system config listener
   useEffect(() => {
     const unsubConfig = onSnapshot(doc(db, 'system', 'config'), (snap) => {
       if (snap.exists()) {
-        const activeVersion = (snap.data().currentVersion || 'V4.3.0').replace(/-PRO/gi, '');
+        const activeVersion = (snap.data().currentVersion || 'V1.0.0').replace(/-PRO/gi, '');
         setCurrentSystemVersion(activeVersion);
         
         // Suggest incremented default version name

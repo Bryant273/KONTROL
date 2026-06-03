@@ -452,7 +452,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
         doc.setTextColor(255, 255, 255);
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(26);
-        doc.text('KONTROL ERP', pageWidth / 2, 32, { align: 'center' });
+        doc.text('KONTROL', pageWidth / 2, 32, { align: 'center' });
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(156, 163, 175); // light gray
@@ -487,7 +487,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
         doc.setTextColor(30, 41, 59);
         const text1 = 'A fait l\'objet d\'un audit prévisionnel automatisé en date de ce jour, basé sur l\'analyse';
         const text2 = 'systématique de ses flux réels de trésorerie, de ses actifs circulants et des encaissements';
-        const text3 = 'enregistrés en continu sur sa plateforme de gestion KONTROL ERP.';
+        const text3 = 'enregistrés en continu sur sa plateforme de gestion KONTROL.';
         doc.text(text1, 22, y);
         y += 6;
         doc.text(text2, 22, y);
@@ -524,7 +524,7 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
         doc.setTextColor(100);
         doc.setFont('helvetica', 'italic');
         doc.setFontSize(9);
-        doc.text('Ce titre constitue une attestation d\'éligibilité certifiée émise par KONTROL ERP.', 30, y);
+        doc.text('Ce titre constitue une attestation d\'éligibilité certifiée émise par KONTROL.', 30, y);
         y += 5;
         doc.text('Elle permet d\'accélérer les démarches d\'octroi de découverts interbancaires ou de cautionnements.', 30, y);
 

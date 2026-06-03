@@ -9,7 +9,7 @@ export const exportToPDF = (title: string, headers: string[], data: any[][], fil
   // Decide what to do with options
   let companyInfo = { name: 'KONTROL' };
   let clientInfo = null;
-  let footer = 'Merci de votre confiance. Document généré par KONTROL ERP.';
+  let footer = 'Merci de votre confiance. Document généré par KONTROL.';
   
   if (typeof options === 'object' && options !== null) {
     if (options.companyInfo) companyInfo = { ...companyInfo, ...options.companyInfo };

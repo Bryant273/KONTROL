@@ -15,92 +15,104 @@ export function LegalTerms({ type, onClose }: LegalTermsProps) {
   const [showSupport, setShowSupport] = useState(false);
   const content = {
     mentions: {
-      title: "Mentions Légales & Conditions",
-      subtitle: "Cadre contractuel et identification de l'éditeur KONTROL",
+      title: "Mentions Légales & Conditions Générales",
+      subtitle: "Cadre contractuel, identification de l'éditeur KONTROL et conditions d'exploitation",
       icon: Scale,
       sections: [
         {
           title: "1. Identification de l'Éditeur",
           icon: Building2,
-          content: `Le site KONTROL.app et l'application afférente sont édités par l'entreprise INNOV'KORP, Société à Responsabilité Limitée au capital de 1 000 000 FCFA.
+          content: `Le site KONTROL.app, l'application KONTROL et l'ensemble de leurs déclinaisons sont édités et exploités à titre exclusif par la société INNOV'KORP.
           
-          • Siège Social : Abidjan, Cocody Riviera, Côte d'Ivoire.
-          • Immatriculation : RCCM CI-ABJ-03-202X-B12-XXXXX.
-          • Directeur de la publication : Équipe de Direction INNOV'KORP.
-          • Contact Direction : direction@innovkorp.com`
+          • Directeurs de la Publication : Le Comité de Direction Générale d'INNOV'KORP.
+          • Contact Direction : Innov.korp@gmail.com.
+          • Numéro de téléphone de contact : +225 01 50 97 91 23.`
         },
         {
-          title: "2. Hébergement et Infrastructure",
+          title: "2. Chiffrement & Sécurité des Données",
           icon: Database,
-          content: `L'infrastructure technique de KONTROL est propulsée par Google Cloud Platform (GCP).
+          content: `Les bases d'hébergement logiques de KONTROL garantissent un cloisonnement cryptographique de premier ordre pour votre sérénité professionnelle.
           
-          • Prestataire : Google Cloud EMEA Limited.
-          • Localisation : Région Europe (Benelux/France) pour une latence optimisée et une conformité RGPD.
-          • Disponibilité : Architecture redondante offrant un taux de disponibilité cible de 99.9%.`
+          • Chiffrement à 100% : Toutes les connexions, fiches produits, transactions comptables et journaux de caisse subissent un cryptage fort (en transit avec TLS 1.3 et au repos via AES-256 bits).
+          • Stockage Hautement Sécurisé : Les données résident dans des partitions hautement résilientes possédant un contrôle d'accès strict (multi-tenant isolation), isolant à 100% chaque espace d'entreprise.`
         },
         {
-          title: "3. Propriété Intellectuelle & Algorithmes",
+          title: "3. Propriété Intellectuelle, Algorithmes et Protection des Systèmes",
           icon: Gavel,
-          content: `L'intégralité de l'écosystème KONTROL (Code source, algorithmes propriétaires Blue AI, designs UI/UX, logos, charte graphique) est protégée par les lois nationales et internationales sur le droit d'auteur.
+          content: `L'intégralité de la plateforme KONTROL, ce qui inclut sans limitation le code source, l'interfaçage graphique (UI/UX), les chartes visuelles, les bases de données SQL/NoSQL, ainsi que les modèles et connectifs exclusifs développés par le moteur d'intelligence artificielle "Blue AI", sont protégés par le droit international de la propriété intellectuelle et les traités sur les droits d'auteur.
           
-          L'utilisation de KONTROL ne confère aucun droit de propriété sur les technologies sous-jacentes. Toute extraction de données, reverse-engineering ou reproduction, même partielle, est constitutive d'une contrefaçon sanctionnée par le Code de la Propriété Intellectuelle.`
+          Toute copie, extraction, décompilation, ingénierie inverse (reverse-engineering), aspiration automatisée de données (scraping), distribution publique ou reproduction partielle ou totale des technologies constitutives de KONTROL est strictement interdite sans le consentement écrit, explicite et préalable de la direction d'INNOV'KORP. Toute infraction constatée fera l'objet de poursuites judiciaires directes devant les juridictions civiles et répressives compétentes.`
         },
         {
-          title: "4. Conditions de Service (SLA)",
+          title: "4. Conditions d'Accès, Force Majeure et Responsabilités",
           icon: Shield,
-          content: `KONTROL s'engage à fournir un accès continu au service. Toutefois, nous nous réservons le droit d'interrompre l'accès pour des opérations de maintenance technique.
+          content: `KONTROL met en œuvre tous les moyens diligents à sa disposition pour garantir une expérience logicielle continue. Toutefois, notre responsabilité ne saurait être recherchée ni engagée dans les circonstances suivantes :
           
-          En cas d'incident majeur indépendant de notre volonté (force majeure, panne réseau globale), INNOV'KORP mettra en œuvre tous les moyens raisonnables pour rétablir le service dans les plus brefs délais.`
+          • Interruption momentanée de service pour mise à niveau technique ou correctifs majeurs de sécurité (annoncés par courriel avec un préavis d'au moins 24 heures).
+          • Ralentissements, perturbations ou déconnexions découlant d'une défaillance des infrastructures réseau de télécommunication locales ou internationales de l'utilisateur final.
+          • Événements qualifiés de force majeure ou cas fortuits, tels que définis par les codes de droit civil applicables (paralysie générale du réseau électrique, interruptions des serveurs d'authentification tiers, ou sinistres physiques).
+          • Utilisation non conforme de l'application, détournement d'authentifiants ou pertes financières liées à des négligences internes de gestion de l'entreprise cliente.`
         },
         {
-          title: "5. Droit Applicable & Litiges",
+          title: "5. Droit Applicable, Juridiction et Résolution des Litiges",
           icon: Scale,
-          content: `Les présentes conditions sont régies par le droit ivoirien. En cas de contestation sur l'interprétation ou l'exécution de ces termes, et après une tentative de résolution à l'amiable, les tribunaux d'Abidjan seront seuls compétents.`
+          content: `Les présentes mentions légales, les conditions générales d'utilisation et d'exploitation du service KONTROL sont intégralement et exclusivement régies par le droit de la République de Côte d'Ivoire.
+          
+          En cas de contestation, de litige ou d'interprétation complexe portant sur l'exécution des présentes clauses, les parties s'engagent fermement à entamer une procédure de résolution à l'amiable sous 30 jours, impliquant l'échange officiel de courriers recommandés.
+          
+          À défaut d'un accord mutuel à l'issue de cette période de médiation, compétence exclusive et souveraine est attribuée au Tribunal de Commerce d'Abidjan Côte d'Ivoire.`
         }
       ]
     },
     confidentialite: {
-      title: "Politique de Confidentialité",
-      subtitle: "Garantir la souveraineté et la sécurité de vos données métier",
+      title: "Charte de Confidentialité & RGPD",
+      subtitle: "Notre engagement inaliénable pour la protection absolue de vos données d'entreprise",
       icon: Lock,
       sections: [
         {
-          title: "1. Nature des Données Collectées",
+          title: "1. Nature Détaillée des Données Collectées",
           icon: FileText,
-          content: `Dans le cadre de l'utilisation de nos services, nous collectons :
+          content: `Dans le cadre de l'exécution de nos engagements contractuels et pour vous fournir une expérience optimale sur KONTROL, nous collectons les types d'informations suivants :
           
-          • Données d'identité : Nom, prénom, fonction, email, numéro de téléphone.
-          • Données Entreprise : Logo, registre de commerce, adresse fiscale.
-          • Données Métier : Factures, dépenses, inventaires, notes de frais.
-          • Données Techniques : Adresses IP, logs de connexion pour l'audit de sécurité et la prévention des fraudes.`
+          • Données d'identité de l'utilisateur : Nom complet, prénom, adresse e-mail professionnelle, numéro de téléphone, rôle administratif et historique de connexion.
+          • Données structurelles de l'entreprise : Dénomination sociale, logo de marque, immatriculation fiscale (NCC, RCCM), adresse fiscale et coordonnées de facturation de la structure.
+          • Données opérationnelles et comptables : Journaux de ventes, écritures comptables réelles, transactions bancaires simulées ou réelles, stocks en rayon, fiches fournisseurs et informations clients.
+          • Télémétrie de connexion : Adresses IP d'accès au service, profils d'appareils de connexion, jetons d'accès chiffrés et journaux de sécurité internes pour la traçabilité continue des écritures.`
         },
         {
-          title: "2. Blue AI et Souveraineté des Données",
+          title: "2. Moteur Blue AI, Isolation Totale et Non-Partage pour Entraînement",
           icon: ShieldCheck,
-          content: `Notre Intelligence Artificielle Blue AI analyse vos données pour générer des insights financiers (MRR, tendances de dépenses, etc.). 
+          content: `Notre module d'Intelligence Artificielle cognitif, dénommé "Blue AI", a été conçu sous un paradigme d'isolation totale et de souveraineté absolue.
           
-          ÉTHIQUE IA : Vos données sont traitées de manière isolée au sein de votre instance. Elles ne sont JAMAIS utilisées pour entraîner des modèles globaux qui pourraient bénéficier à vos concurrents. Vos secrets commerciaux restent strictement privés.`
+          • Éthique IA & Non-utilisation stratégique : Vos écritures comptables, vos chiffres d'affaires et vos inventaires sont strictement confinés à votre espace d'entreprise. Contrairement aux services grand public d'IA, INNOV'KORP garantit formellement que vos données métier ne sont JAMAIS utilisées, transmises ou analysées pour entraîner des modèles globaux ou être partagées avec d'autres clients ou concurrents stratégiques.
+          • Traitement en Sandbox Isolée : Les requêtes soumises au moteur "Blue AI" sont traitées via des API cloud server-side chiffrées sans mémorisation permanente de contexte orphelin.`
         },
         {
-          title: "3. Durée de Conservation",
+          title: "3. Durée de Conservation et Effacement Cryptographique (Cryptoshredding)",
           icon: Info,
-          content: `Nous conservons vos données tant que votre compte est actif. 
+          content: `Nous conservons vos données d'exploitation de manière sécurisée tant que votre abonnement ou votre compte utilisateur KONTROL demeure actif.
           
-          En cas de résiliation, vos données métier sont conservées pendant une période de 90 jours pour permettre une éventuelle réactivation ou exportation, avant d'être définitivement supprimées de nos serveurs de production, sauf obligation légale de conservation comptable.`
+          En cas de résiliation définitive ou de clôture spontanée de votre compte d'affaires :
+          • Toutes vos fiches et données d'exploitation sont protégées et isolées pour une période tampon de 90 jours civils, vous permettant de procéder à des exportations d'urgence (formats tableur ou PDF).
+          • Passé ce délai légal de 90 jours, INNOV'KORP procède au hachage et à la destruction définitive (cryptoshredding) de toutes vos informations d'exploitation de nos serveurs de production physiques et cloud, sous réserve des seules obligations réglementaires de conservation fiscale des pièces justificatives de vente.`
         },
         {
-          title: "4. Sécurité et Sous-traitants",
+          title: "4. Sécurité de Niveau Bancaire et Gestion des Tiers",
           icon: Shield,
-          content: `Nous appliquons des standards de sécurité de niveau bancaire :
+          content: `Nous déployons des mesures techniques et organisationnelles renforcées, comparables aux exigences des institutions de crédit :
           
-          • Chiffrement : AES-256 au repos et TLS 1.3 en transit.
-          • Sous-traitants : Google (Stockage), Wave (Paiements). Ces partenaires respectent les normes PCI-DSS et RGPD.
-          • Accès : Aucun employé d'INNOV'KORP n'accède à vos données métier sans votre autorisation explicite via un ticket support.`
+          • Chiffrement de bout en bout : Toutes les communications transitant entre votre navigateur et nos clusters Google Cloud utilisent le protocole TLS 1.3 avec hachage fort. Les données au repos sont chiffrées en AES-256 bits.
+          • Isolation Tenant Logicielle : Les contrôles d'accès au niveau des bases de données Firestore excluent physiquement toute possibilité pour un utilisateur externe ou malveillant d'écouter ou de falsifier vos tables d'écriture.
+          • Intermédiaires certifiés : Tous nos sous-traitants technologiques (Wave pour les transferts monétaires, Google pour la logistique cloud) adhèrent à des normes et législations de premier plan comme PCI-DSS et le règlement général sur la protection des données.`
         },
         {
-          title: "5. Vos Droits (RGPD / Loi Ivoirienne)",
+          title: "5. Droits d'Accès, de Rectification et de Suppression Légale (ARTCI / RGPD)",
           icon: Scale,
-          content: `Vous disposez d'un droit d'accès, de rectification, de portabilité et de suppression. Pour toute demande liée à vos données privées, contactez : privacy@innovkorp.com.`
+          content: `Conformément aux directives de la loi ivoirienne sur la protection des données personnelles (régulé par l'ARTCI) et aux principes du RGPD, vous disposez d'un contrôle absolu sur votre patrimoine informationnel :
+          
+          • Droit de rectification et consultation : Vous pouvez visualiser et corriger directement en ligne la totalité de vos écritures, stocks et tiers de confiance.
+          • Droits d'extraction : Vous disposez à tout instant d'un droit de portabilité pour télécharger une copie brute et lisible de vos tables de données.
+          • Procédure de demande d'obli : Pour toute requête relative à vos droits individuels de suppression globale de vos identités sur nos systèmes, vous pouvez formuler une mise en demeure officielle à : Innov.korp@gmail.com. Nous traitons et validons votre demande sous un délai maximal garanti de 48 heures ouvrées.`
         }
       ]
     }
@@ -198,8 +210,8 @@ export function LegalTerms({ type, onClose }: LegalTermsProps) {
             <div className="absolute top-0 right-0 w-64 h-64 bg-kontrol-blue/20 blur-[100px] -translate-y-1/2 translate-x-1/2" />
             <div className="relative z-10 flex flex-col md:flex-row items-center gap-8 md:justify-between text-center md:text-left">
               <div className="space-y-3">
-                <h3 className="text-2xl font-black tracking-tighter">Une question juridique ?</h3>
-                <p className="text-kontrol-ink-muted text-sm font-medium opacity-80">Notre département légal et conformité est à votre disposition pour toute demande de clarification.</p>
+                <h3 className="text-2xl font-black tracking-tighter">Une question ?</h3>
+                <p className="text-kontrol-ink-muted text-sm font-medium opacity-80">Notre équipe de conseillers d'intégration est à votre disposition pour toute demande de clarification.</p>
               </div>
               <button 
                 onClick={() => setShowSupport(true)}

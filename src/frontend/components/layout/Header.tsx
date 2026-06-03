@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, Bell, ChevronDown, UserCircle, Shield, LogOut, Globe } from 'lucide-react';
+import { Menu, Bell, ChevronDown, UserCircle, Shield, LogOut, Globe, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { User, db, doc, updateDoc, handleFirestoreError, OperationType } from '../../../api/firebase';
 import { cn } from '../../lib/utils';
@@ -16,12 +16,16 @@ interface HeaderProps {
   onTabChange: (tab: string, section: string, label: string) => void;
   toggleSidebar: () => void;
   isSidebarOpen: boolean;
+  onStartGuide?: () => void;
+  activeTab?: string;
 }
 
-export function Header({ section, page, user, profile, onLogout, onTabChange, toggleSidebar, isSidebarOpen }: HeaderProps) {
+export function Header({ section, page, user, profile, onLogout, onTabChange, toggleSidebar, isSidebarOpen, onStartGuide, activeTab }: HeaderProps) {
   const { i18n, t } = useTranslation();
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
+  
+  const isFirstTime = activeTab ? !localStorage.getItem(`kontrol_guide_${activeTab}_seen`) : false;
 
   const changeLanguage = async (lng: string) => {
     try {
@@ -77,8 +81,12 @@ export function Header({ section, page, user, profile, onLogout, onTabChange, to
           <span className="text-lg font-extrabold tracking-tighter text-kontrol-dark uppercase">KONTROL</span>
         </div>
         <div className="flex items-center gap-1.5 overflow-hidden">
-          <span className="text-[10px] text-kontrol-ink-muted uppercase font-extrabold tracking-[0.15em] whitespace-nowrap">{section}</span>
-          <span className="text-kontrol-border font-light text-xs">/</span>
+          {section && section.trim() !== "" && section !== page && (
+            <>
+              <span className="text-[10px] text-kontrol-ink-muted uppercase font-extrabold tracking-[0.15em] whitespace-nowrap">{section}</span>
+              <span className="text-kontrol-border font-light text-xs">/</span>
+            </>
+          )}
           <span className="text-[13px] font-extrabold text-kontrol-dark truncate">{page}</span>
         </div>
       </div>
@@ -115,6 +123,31 @@ export function Header({ section, page, user, profile, onLogout, onTabChange, to
         <div className="hidden sm:block text-[11.5px] text-kontrol-ink-muted px-2.5 py-1.5 bg-kontrol-bg border border-kontrol-border rounded-md whitespace-nowrap">
           {new Date().toLocaleDateString(i18n.language === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
         </div>
+
+        {onStartGuide && (
+          <div className="relative">
+            {isFirstTime && (
+              <span className="absolute -inset-0.5 rounded-lg bg-gradient-to-r from-kontrol-blue to-kontrol-orange opacity-75 blur-xs animate-pulse" />
+            )}
+            <button 
+              type="button"
+              onClick={onStartGuide}
+              className={cn(
+                "relative flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r hover:from-kontrol-blue/10 hover:to-kontrol-orange/10 border rounded-lg text-[11px] font-extrabold uppercase tracking-widest text-kontrol-dark hover:text-kontrol-blue transition-all group shadow-sm cursor-pointer select-none active:scale-95",
+                isFirstTime 
+                  ? "from-kontrol-blue/15 to-kontrol-orange/15 border-kontrol-orange/50 text-kontrol-blue font-black animate-[pulse_2.5s_infinite]" 
+                  : "from-kontrol-blue/5 to-kontrol-orange/5 border-kontrol-border text-kontrol-dark hover:text-kontrol-blue"
+              )}
+              title="Lancer le guide interactif de cette page"
+            >
+              <Sparkles size={13} className={cn("text-kontrol-orange group-hover:scale-110 transition-transform", isFirstTime && "animate-spin-slow")} />
+              <span className="hidden sm:inline">Guide Page</span>
+              {isFirstTime && (
+                <span className="absolute top-0 right-0 -mr-1 -mt-1 w-2.5 h-2.5 bg-kontrol-orange border border-white rounded-full animate-ping" />
+              )}
+            </button>
+          </div>
+        )}
 
         <NotificationCenter profile={profile} onNavigate={onTabChange} />
 

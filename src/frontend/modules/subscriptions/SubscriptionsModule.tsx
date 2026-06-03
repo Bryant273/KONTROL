@@ -325,7 +325,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
       `Facture_KONTROL_${invoice.date.replace(/ /g, '_')}`,
       {
         companyInfo: {
-          name: 'KONTROL ERP',
+          name: 'KONTROL',
           email: 'support@kontrol.app'
         },
         clientInfo: {
@@ -837,7 +837,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                 <div className="flex justify-between items-start">
                   <div className="space-y-0.5">
                     <p className="text-[9px] font-extrabold text-kontrol-blue uppercase tracking-widest">{t('subscriptions.modal.invoice_details.issuer')}</p>
-                    <p className="text-[11px] font-black text-kontrol-dark uppercase">KONTROL ERP</p>
+                    <p className="text-[11px] font-black text-kontrol-dark uppercase">KONTROL</p>
                     <p className="text-[8px] text-kontrol-ink-muted font-medium">support@kontrol.app</p>
                   </div>
                   <div className="text-right space-y-0.5">

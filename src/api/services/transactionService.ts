@@ -27,18 +27,20 @@ export class TransactionService extends BaseFirestoreService<Transaction> {
 
       // 2. Update product stock and create stock movements
       for (const article of transaction.articles) {
-        const productRef = doc(db, 'produits', article.produitId);
-        
-        // Update stock
-        const stockChange = transaction.type === 'VENTE' ? -article.quantite : article.quantite;
-        batch.update(productRef, {
-          stock: increment(stockChange)
-        });
+        if (article.produitId && article.produitId !== 'GENERIC') {
+          const productRef = doc(db, 'produits', article.produitId);
+          
+          // Update stock
+          const stockChange = transaction.type === 'VENTE' ? -article.quantite : article.quantite;
+          batch.update(productRef, {
+            stock: increment(stockChange)
+          });
+        }
 
         // Create stock movement
         const movementRef = doc(collection(db, 'stock_movements'));
         batch.set(movementRef, {
-          produitId: article.produitId,
+          produitId: article.produitId || 'GENERIC',
           designation: article.designation,
           type: transaction.type === 'VENTE' ? 'SORTIE' : 'ENTREE',
           quantite: article.quantite,
@@ -73,21 +75,23 @@ export class TransactionService extends BaseFirestoreService<Transaction> {
       // 4. Trigger stock alerts if needed (after commit for accuracy)
       if (transaction.type === 'VENTE') {
         for (const article of transaction.articles) {
-          try {
-            const productSnap = await getDoc(doc(db, 'produits', article.produitId));
-            if (productSnap.exists()) {
-              const productData = productSnap.data() as Produit;
-              await checkAndNotifyLowStock(
-                article.produitId,
-                productData.designation || productData.name || "Inconnu",
-                productData.stock,
-                productData.alertStock,
-                transaction.ownerId || productData.companyId || "",
-                user.uid
-              );
+          if (article.produitId && article.produitId !== 'GENERIC') {
+            try {
+              const productSnap = await getDoc(doc(db, 'produits', article.produitId));
+              if (productSnap.exists()) {
+                const productData = productSnap.data() as Produit;
+                await checkAndNotifyLowStock(
+                  article.produitId,
+                  productData.designation || productData.name || "Inconnu",
+                  productData.stock,
+                  productData.alertStock,
+                  transaction.ownerId || productData.companyId || "",
+                  user.uid
+                );
+              }
+            } catch (e) {
+              console.error("Low stock alert trigger failed:", e);
             }
-          } catch (e) {
-            console.error("Low stock alert trigger failed:", e);
           }
         }
       }

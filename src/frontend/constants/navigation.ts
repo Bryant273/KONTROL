@@ -39,7 +39,7 @@ export const ERP_NAV_SECTIONS: NavSection[] = [
     titleKey: 'sections.control_tower',
     icon: LayoutDashboard,
     items: [
-      { id: 'dashboard', labelKey: 'common.overview', icon: PieChart },
+      { id: 'dashboard', labelKey: 'common.dashboard', icon: LayoutDashboard },
     ]
   },
   {
@@ -58,8 +58,7 @@ export const ERP_NAV_SECTIONS: NavSection[] = [
       { id: 'revenue', labelKey: 'common.overview', icon: TrendingUp },
       { id: 'subscriptions', labelKey: 'common.subscriptions', icon: CreditCard },
       { id: 'admin_tiers', labelKey: 'common.tiers', icon: Users },
-      { id: 'accounting', labelKey: 'common.finance', icon: Receipt },
-      { id: 'admin_transactions', labelKey: 'common.transactions', icon: ArrowLeftRight },
+      { id: 'admin_transactions', labelKey: 'common.kpis_business', icon: ArrowLeftRight },
     ]
   },
   {
@@ -130,10 +129,9 @@ export const COMPANY_NAV_SECTIONS: NavSection[] = [
     items: [
       { id: 'ai', labelKey: 'common.blue_ai', icon: Brain },
       { id: 'notifications', labelKey: 'common.notifications', icon: Bell },
-      { id: 'company_profile', labelKey: 'common.company_profile', icon: Building2 },
+      { id: 'company_hub', labelKey: 'common.company_hub', icon: Building2 },
       { id: 'profil', labelKey: 'common.profile', icon: UserCircle },
       { id: 'abonnements', labelKey: 'common.subscriptions', icon: CreditCard },
-      { id: 'utilisateurs', labelKey: 'common.users', icon: Users },
       { id: 'actions', labelKey: 'common.actions', icon: History },
     ]
   }

@@ -107,6 +107,195 @@
         "email": { "type": "string" },
         "type": { "type": "string", "enum": ["CLIENT", "FOURNISSEUR"] }
       }
+    },
+    "Produit": {
+      "title": "Produit et Stock",
+      "description": "Informations détaillées sur un produit ou service en stock",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "designation": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "prixVente": { "type": "number" },
+        "purchasePrice": { "type": "number" },
+        "prixAchat": { "type": "number" },
+        "stock": { "type": "number" },
+        "category": { "type": "string" },
+        "companyId": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "tva": { "type": "number" },
+        "alertStock": { "type": "number" },
+        "cump": { "type": "number" },
+        "reference": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "stock"]
+    },
+    "Charge": {
+      "title": "Charge et Dépense",
+      "description": "Enregistrement d'une dépense d'exploitation ou charge fixe",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "companyId": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "description": { "type": "string" },
+        "montant": { "type": "number" },
+        "category": { "type": "string" },
+        "categorie": { "type": "string" },
+        "date": { "type": "number" },
+        "modePaiement": { "type": "string" },
+        "justificatifUrl": { "type": "string" },
+        "devise": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "isSystemGenerated": { "type": "boolean" }
+      },
+      "required": ["id", "description", "montant"]
+    },
+    "StockMovement": {
+      "title": "Mouvement de Stock",
+      "description": "Mouvement d'entrée ou de sortie d'inventaire d'un produit",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string" },
+        "produitId": { "type": "string" },
+        "type": { "type": "string", "enum": ["IN", "OUT", "ENTREE", "SORTIE"] },
+        "quantity": { "type": "number" },
+        "quantite": { "type": "number" },
+        "reason": { "type": "string" },
+        "date": { "type": "number" },
+        "companyId": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "designation": { "type": "string" },
+        "prixUnitaire": { "type": "number" },
+        "source": { "type": "string" }
+      },
+      "required": ["id", "type", "date", "companyId"]
+    },
+    "Ticket": {
+      "title": "Ticket de Support",
+      "description": "Demande de support client ou utilisateur de la plateforme",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "companyId": { "type": "string" },
+        "subject": { "type": "string" },
+        "message": { "type": "string" },
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "status": { "type": "string", "enum": ["NEW", "PENDING", "RESOLVED", "OPEN", "CLOSED"] },
+        "createdAt": { "type": "number" },
+        "replies": { "type": "array" }
+      },
+      "required": ["id", "subject", "message", "email", "status"]
+    },
+    "Action": {
+      "title": "Journal d'Audit",
+      "description": "Enregistrement d'une action pour l'audit et la traçabilité des opérations",
+      "type": "object",
+      "properties": {
+        "companyId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "action": { "type": "string" },
+        "details": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["userId", "action", "timestamp"]
+    },
+    "Wallet": {
+      "title": "Portefeuille Financier",
+      "description": "Description d'une caisse, compte bancaire ou mobile money de l'entreprise",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "companyId": { "type": "string" },
+        "name": { "type": "string" },
+        "balance": { "type": "number" },
+        "type": { "type": "string", "enum": ["CASH", "BANK", "MOBILE_MONEY"] },
+        "createdAt": { "type": "number" },
+        "walletId": { "type": "string" }
+      },
+      "required": ["id", "companyId", "name", "balance", "type"]
+    },
+    "Conversation": {
+      "title": "Conversation IA",
+      "description": "Enregistrement d'une session de clavardage d'intelligence sémantique",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "participants": { "type": "array" },
+        "title": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["id", "userId", "participants"]
+    },
+    "Message": {
+      "title": "Message de Conversation IA",
+      "description": "Détail d'un message textuel envoyé dans le cadre d'un clavardage IA",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "conversationId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "assistant", "system"] },
+        "content": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["id", "conversationId", "role", "content"]
+    },
+    "AppVersion": {
+      "title": "Version de l'application",
+      "description": "Version courante et historique des builds du logiciel ERP",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "version": { "type": "string" },
+        "releaseNotes": { "type": "string" },
+        "createdAt": { "type": "number" }
+      }
+    },
+    "SystemMetric": {
+      "title": "Métrique Système",
+      "description": "Enregistrement de télémétrie de performance ou vitesse système",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "latencyMs": { "type": "number" },
+        "type": { "type": "string" },
+        "timestamp": { "type": "number" }
+      }
+    },
+    "SystemStat": {
+      "title": "Statistique Système Globale",
+      "description": "Données globales d'activité agrégées pour le panneau de contrôle Kontrol",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "totalUsersCount": { "type": "number" },
+        "totalCompaniesCount": { "type": "number" },
+        "activeSubscriptions": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      }
+    },
+    "TreasuryCertificate": {
+      "title": "Certificat de Trésorerie",
+      "description": "Attestation ou certificat généré pour les états financiers des entreprises",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "companyId": { "type": "string" },
+        "title": { "type": "string" },
+        "pdfUrl": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "companyId"]
     }
   },
   "firestore": {
@@ -127,12 +316,12 @@
       "description": "Transactions financières"
     },
     "produits/{produitId}": {
-      "schema": "object",
+      "schema": "Produit",
       "description": "Produits et stocks"
     },
     "actions/{actionId}": {
-      "schema": "object",
-      "description": "Audit logs"
+      "schema": "Action",
+      "description": "Audit logs d'activité"
     },
     "payments/{paymentId}": {
       "schema": "Payment",
@@ -147,16 +336,40 @@
       "description": "Carnet d'adresses tiers"
     },
     "charges/{chargeId}": {
-      "schema": "object",
-      "description": "Charges et dépenses"
+      "schema": "Charge",
+      "description": "Charges et dépenses d'exploitation"
     },
     "tickets/{ticketId}": {
-      "schema": "object",
+      "schema": "Ticket",
       "description": "Support tickets"
     },
     "app_versions/{versionId}": {
-      "schema": "object",
+      "schema": "AppVersion",
       "description": "Versions de l'application"
+    },
+    "system_metrics/{metricId}": {
+      "schema": "SystemMetric",
+      "description": "Métriques de performance système"
+    },
+    "system_stats/{statId}": {
+      "schema": "SystemStat",
+      "description": "Statistiques système globales"
+    },
+    "stock_movements/{movementId}": {
+      "schema": "StockMovement",
+      "description": "Suivi des entrées et sorties de marchandises"
+    },
+    "conversations/{conversationId}": {
+      "schema": "Conversation",
+      "description": "Conversations sémantiques stockées avec Blue AI"
+    },
+    "messages/{messageId}": {
+      "schema": "Message",
+      "description": "Messages sémantiques individuels stockés"
+    },
+    "treasury_certificates/{certId}": {
+      "schema": "TreasuryCertificate",
+      "description": "Certificats officiels de validation de trésorerie"
     }
   }
 }

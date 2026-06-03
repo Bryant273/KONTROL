@@ -97,7 +97,7 @@ export class BaseFirestoreService<T extends { id?: string }> {
   }
 
   subscribeByOwner(ownerId: string, callback: (data: T[]) => void, user?: any, extraConstraints: any[] = []) {
-    const q = query(this.collectionRef, where('companyId', '==', ownerId), orderBy('createdAt', 'desc'), ...extraConstraints);
+    const q = query(this.collectionRef, where('ownerId', '==', ownerId), ...extraConstraints);
     return onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T));
       callback(data);

@@ -1,8 +1,9 @@
 import React from 'react';
-import {  AlertTriangle, BrainCircuit, TrendingUp, TrendingDown, Users, Package, Loader2, PieChart, Wallet, ArrowUpRight, ArrowDownRight, Sparkles, X, FileText, ShieldCheck, MessageCircle, Activity, Zap, Settings, Building2, ArrowRight } from 'lucide-react';
+import {  AlertTriangle, BrainCircuit, TrendingUp, TrendingDown, Users, Package, Loader2, PieChart, Wallet, ArrowUpRight, ArrowDownRight, Sparkles, X, FileText, ShieldCheck, MessageCircle, Activity, Zap, Settings, Building2, ArrowRight, ChevronRight, Trophy } from 'lucide-react';
 import { exportToPDF } from '../../lib/export';
 import Markdown from 'react-markdown';
 import { useTranslation } from 'react-i18next';
+import { FirstTimeSetupChecklist } from '../common/FirstTimeSetupChecklist';
 import { sendNotification } from '../../../api/services/notificationService';
 import { apiClient } from '../../../api/lib/api-client';
 import { 
@@ -42,9 +43,10 @@ interface DashboardProps {
   user: FirebaseUser;
   currentUserProfile: UserProfile | null;
   onNavigate?: (tab: string, section: string, label: string) => void;
+  onStartGuide?: () => void;
 }
 
-export function Dashboard({ user, currentUserProfile, onNavigate }: DashboardProps) {
+export function Dashboard({ user, currentUserProfile, onNavigate, onStartGuide }: DashboardProps) {
   const { t, i18n } = useTranslation();
   const isKontrolAdmin = currentUserProfile?.role === 'ADMINISTRATEUR_ERP' || currentUserProfile?.role === 'GESTIONNAIRE_ERP' || currentUserProfile?.role === 'ADMINISTRATEUR_KONTROL' || currentUserProfile?.role === 'GESTIONNAIRE_KONTROL' || currentUserProfile?.role === 'ADMIN';
   const companyId = currentUserProfile?.companyId || user.uid;
@@ -83,6 +85,7 @@ export function Dashboard({ user, currentUserProfile, onNavigate }: DashboardPro
   const [codeAnalysis, setCodeAnalysis] = React.useState('');
   const [isAnalyzing, setIsAnalyzing] = React.useState(false);
   const [isAnalyzingCode, setIsAnalyzingCode] = React.useState(false);
+  const [isChecklistOpen, setIsChecklistOpen] = React.useState(false);
   // Reactive subscription alert and trial tracker computed directly from the live profile
   const subscriptionAlertMemo = React.useMemo(() => {
     if (!currentUserProfile || isKontrolAdmin) return null;
@@ -497,6 +500,19 @@ export function Dashboard({ user, currentUserProfile, onNavigate }: DashboardPro
       performanceData 
     };
   }, [stats]);
+
+  const setupPercent = React.useMemo(() => {
+    if (isKontrolAdmin) return 0;
+    const steps = [
+      Boolean(currentUserProfile?.companyName && currentUserProfile?.companyLogo),
+      stats.produits > 0,
+      stats.clients > 0 || stats.fournisseurs > 0,
+      stats.ca > 0 || (stats.depenses + stats.achats) > 0,
+      localStorage.getItem('kontrol_guide_dashboard_seen') === 'true'
+    ];
+    const completedCount = steps.filter(Boolean).length;
+    return Math.round((completedCount / steps.length) * 100);
+  }, [currentUserProfile, stats, isKontrolAdmin]);
 
   const getKPICommentary = (current: number, previous: number, type: 'positive' | 'negative' | 'neutral' = 'positive') => {
     if (previous === 0) {
@@ -974,6 +990,47 @@ export function Dashboard({ user, currentUserProfile, onNavigate }: DashboardPro
           <p className="kpi-lbl">{t('dashboard.stats.stock_value')}</p>
           <h3 className="kpi-val">{formatCurrency(stats.stockValue)}</h3>
         </div>
+
+        {!isKontrolAdmin && (
+          <div className="kpi bg-gradient-to-br from-white via-slate-50 to-slate-100 border border-dashed border-kontrol-dark/15 flex flex-col justify-between gap-3 p-3.5 shadow-xs transition-colors hover:border-kontrol-blue/50">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase tracking-widest text-kontrol-blue font-sans">
+                Aide & Parcours
+              </span>
+              <Sparkles size={13} className="text-kontrol-orange animate-pulse" />
+            </div>
+
+            <div className="flex flex-col gap-2 shrink-0">
+              {/* Button 1: Start interactive page Tour */}
+              <button
+                type="button"
+                onClick={onStartGuide}
+                className={cn(
+                  "flex items-center justify-between px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-widest rounded-lg transition-all select-none cursor-pointer border shadow-sm",
+                  "bg-gradient-to-r from-kontrol-blue to-blue-600 hover:from-blue-500 hover:to-blue-700 text-white shadow-kontrol-blue/5 border-transparent active:scale-95"
+                )}
+                title="Lancer le guide interactif complet de ce module"
+              >
+                <span>Visite Guidée</span>
+                <ChevronRight size={10} className="stroke-[3]" />
+              </button>
+
+              {/* Button 2: Onboarding Setup Checklist */}
+              <button
+                type="button"
+                onClick={() => setIsChecklistOpen(true)}
+                className={cn(
+                  "flex items-center justify-between px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-widest rounded-lg transition-all select-none cursor-pointer border shadow-sm",
+                  "bg-white border-kontrol-border text-kontrol-dark hover:bg-slate-100 hover:text-kontrol-blue active:scale-95"
+                )}
+                title="Consulter le parcours de configuration d'entreprise"
+              >
+                <span>Configuration ({setupPercent}%)</span>
+                <Trophy size={10.5} className="text-kontrol-orange shrink-0 ml-1.5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
 
@@ -1242,7 +1299,7 @@ export function Dashboard({ user, currentUserProfile, onNavigate }: DashboardPro
             <div className="p-6 border-b border-kontrol-border flex items-center justify-between bg-kontrol-dark">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-emerald-600 rounded-xl text-white shadow-md">
-                  <ShieldCheck size={20} />
+                   <ShieldCheck size={20} />
                 </div>
                 <div>
                   <h3 className="text-lg font-extrabold text-white">Blue AI Code Analyzer</h3>
@@ -1286,6 +1343,15 @@ export function Dashboard({ user, currentUserProfile, onNavigate }: DashboardPro
           </div>
         </div>
       )}
+
+      {/* First Time Setup Onboarding Checklist Modal */}
+      <FirstTimeSetupChecklist 
+        currentUserProfile={currentUserProfile} 
+        stats={stats} 
+        onNavigate={onNavigate} 
+        isOpen={isChecklistOpen}
+        onClose={() => setIsChecklistOpen(false)}
+      />
     </div>
   );
 }

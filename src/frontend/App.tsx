@@ -29,6 +29,7 @@ import { UsersModule } from './modules/users/UsersModule';
 import { TicketsModule } from './modules/tickets/TicketsModule';
 import { CompaniesModule } from './modules/companies/CompaniesModule';
 import { CompanyProfileModule } from './modules/companies/CompanyProfileModule';
+import { CompanyHubModule } from './modules/companies/CompanyHubModule';
 import { ProfileModule } from './modules/profile/ProfileModule';
 import { ActionsModule } from './modules/actions/ActionsModule';
 import { SubscriptionsModule } from './modules/subscriptions/SubscriptionsModule';
@@ -36,6 +37,7 @@ import { CompanySetupModal } from './components/auth/CompanySetupModal';
 import { LandingPage } from './components/landing/LandingPage';
 import { AuthPage } from './components/auth/AuthPage';
 import { Chatbot } from './components/common/Chatbot';
+import { AppGuideAssistant } from './components/common/AppGuideAssistant';
 import { LoadingScreen } from './components/common/LoadingScreen';
 import { cn, formatCurrency } from './lib/utils';
 import { UserProfile } from './types';
@@ -58,6 +60,7 @@ export default function App() {
   const [activeLabel, setActiveLabel] = useState(() => localStorage.getItem('activeLabel') || 'Tableau de bord');
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => window.innerWidth >= 1024);
   const [showSetup, setShowSetup] = useState(false);
+  const [forceGuide, setForceGuide] = useState(false);
 
   // Handle window resize for sidebar
   useEffect(() => {
@@ -343,6 +346,8 @@ export default function App() {
         onTabChange={handleTabChange}
         toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         isSidebarOpen={isSidebarOpen}
+        onStartGuide={() => setForceGuide(true)}
+        activeTab={activeTab}
       />
 
       <main className={cn(
@@ -390,7 +395,7 @@ export default function App() {
             </div>
           ) : (
             <>
-              {activeTab === 'dashboard' && (isKontrolAdmin ? <ControlTower user={user} profile={profile} /> : <Dashboard user={user} currentUserProfile={profile} onNavigate={handleTabChange} />)}
+              {activeTab === 'dashboard' && (isKontrolAdmin ? <ControlTower user={user} profile={profile} /> : <Dashboard user={user} currentUserProfile={profile} onNavigate={handleTabChange} onStartGuide={() => setForceGuide(true)} />)}
               {activeTab === 'subscriptions' && (isKontrolAdmin ? <ControlTower activeSubTab="subscriptions" user={user} profile={profile} /> : <SubscriptionsModule profile={profile} />)}
               {activeTab === 'revenue' && (isKontrolAdmin ? <ControlTower activeSubTab="revenue" user={user} profile={profile} /> : null)}
               {activeTab === 'accounting' && (isKontrolAdmin ? <ControlTower activeSubTab="accounting" user={user} profile={profile} /> : null)}
@@ -403,12 +408,13 @@ export default function App() {
               {activeTab === 'stocks' && <StocksModule user={user} currentUserProfile={profile} />}
               {activeTab === 'finance' && <FinanceModule user={user} currentUserProfile={profile} />}
               {activeTab === 'ai' && (isKontrolAdmin ? <ControlTower activeSubTab="ai" user={user} profile={profile} /> : <BlueAIModule user={user} currentUserProfile={profile} />)}
-              {activeTab === 'utilisateurs' && (isKontrolAdmin ? <ControlTower activeSubTab="utilisateurs" user={user} profile={profile} /> : <UsersModule user={user} currentUserProfile={profile} />)}
+              {activeTab === 'utilisateurs' && (isKontrolAdmin ? <ControlTower activeSubTab="utilisateurs" user={user} profile={profile} /> : <CompanyHubModule user={user} profile={profile} />)}
               {activeTab === 'gestionnaires' && <ControlTower activeSubTab="gestionnaires" user={user} profile={profile} />}
               {activeTab === 'tickets' && (isKontrolAdmin ? <ControlTower activeSubTab="tickets" user={user} profile={profile} /> : <TicketsModule user={user} currentUserProfile={profile} />)}
               {activeTab === 'chat' && user && <KChatModule user={user} profile={profile} />}
               {activeTab === 'entreprises' && (isKontrolAdmin ? <ControlTower activeSubTab="entreprises" user={user} profile={profile} /> : <CompaniesModule />)}
-              {activeTab === 'company_profile' && <ProfileModule profile={profile} initialSection="COMPANY" />}
+              {activeTab === 'company_profile' && <CompanyHubModule user={user} profile={profile} />}
+              {activeTab === 'company_hub' && <CompanyHubModule user={user} profile={profile} />}
               {activeTab === 'system' && (isKontrolAdmin ? <ControlTower activeSubTab="system" user={user} profile={profile} /> : <SystemModule currentUserProfile={profile} />)}
               {activeTab === 'versions' && (isKontrolAdmin ? <ControlTower activeSubTab="versions" user={user} profile={profile} /> : null)}
               {activeTab === 'updates' && (isKontrolAdmin ? <ControlTower activeSubTab="updates" user={user} profile={profile} /> : null)}
@@ -465,6 +471,7 @@ export default function App() {
         </div>
       )}
 
+      <AppGuideAssistant activeTab={activeTab} forceOpen={forceGuide} onCloseForce={() => setForceGuide(false)} />
       <Chatbot profile={profile} />
       <Toaster position="top-right" expand={false} richColors />
     </div>

@@ -43,7 +43,7 @@ export function LoadingScreen() {
             transition={{ delay: 0.4 }}
           >
             <h2 className="text-2xl font-extrabold text-kontrol-dark tracking-tighter uppercase">
-              KONTROL <span className="text-kontrol-blue tracking-widest font-black ml-1">SYSTEM</span>
+              KONTROL
             </h2>
             <div className="flex items-center justify-center gap-2 mt-2">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />

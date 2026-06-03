@@ -374,7 +374,7 @@ export function ProfileModule({ profile, initialSection = 'MENU' }: ProfileModul
                         <Shield size={10} className="mr-1" /> {profile.role}
                       </span>
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-extrabold uppercase tracking-widest">
-                        Vérifié KONTROL ERP
+                        Vérifié KONTROL
                       </span>
                     </div>
                   </div>
