@@ -72,7 +72,7 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
     }
   }, []);
 
-  const basePrice = 10000; // 10,000 XOF per month
+  const basePrice = 15000; // 15,000 XOF per month
   const displayPrice = Math.round(basePrice * currency.rate);
 
   if (activeFeature) {

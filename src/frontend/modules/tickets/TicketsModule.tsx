@@ -280,25 +280,41 @@ Ne retourne aucune autre phrase, ni balises markdown \`\`\`json \`\`\``;
   };
 
   const handleExportPDF = () => {
-    const headers = [t('tickets.labels.date'), t('tickets.labels.client'), t('tickets.labels.email'), t('produits.form.designation'), t('common.status.active')];
-    const data = filteredTickets.map(t => [
+    const headers = isKontrolAdmin 
+      ? [t('tickets.labels.date'), t('tickets.labels.client'), t('tickets.labels.email'), t('produits.form.designation') || 'Sujet', t('common.status.active')]
+      : [t('tickets.labels.date'), t('produits.form.designation') || 'Sujet', t('tickets.labels.message') || 'Message', 'Réponses', t('common.status.active')];
+
+    const data = filteredTickets.map(t => isKontrolAdmin ? [
       new Date(t.createdAt).toLocaleDateString(),
       t.name,
       t.email,
       t.subject,
-      t.status
+      getStatusLabel(t.status)
+    ] : [
+      new Date(t.createdAt).toLocaleDateString(),
+      t.subject,
+      t.message,
+      t.replies ? t.replies.length.toString() : '0',
+      getStatusLabel(t.status)
     ]);
+
     exportToPDF(t('tickets.export.title'), headers, data, t('tickets.export.filename'), currentUserProfile?.companyLogo || currentUserProfile?.logoUrl);
   };
 
   const handleExportExcel = () => {
-    const data = filteredTickets.map(t => ({
+    const data = filteredTickets.map(t => isKontrolAdmin ? {
       Date: new Date(t.createdAt).toLocaleDateString(),
       Client: t.name,
       Email: t.email,
       Sujet: t.subject,
-      Statut: t.status
-    }));
+      Statut: getStatusLabel(t.status)
+    } : {
+      Date: new Date(t.createdAt).toLocaleDateString(),
+      Sujet: t.subject,
+      Message: t.message,
+      ['Réponses']: t.replies ? t.replies.length : 0,
+      Statut: getStatusLabel(t.status)
+    });
     exportToExcel(data, 'Tickets_KONTROL');
   };
 

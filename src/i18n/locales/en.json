@@ -170,7 +170,7 @@
       "unique_offer": "Unique Offer",
       "per_month": "/month",
       "all_included": "All included, forever.",
-      "equivalent": "Equivalent to 10,000 F CFA",
+      "equivalent": "Equivalent to 15,000 F CFA",
       "bullets": [
         "Unlimited users",
         "Unlimited transactions",
@@ -880,10 +880,7 @@
       "party": "Party",
       "method": "Method",
       "amount": "Amount"
-    },
-    "spending_trend_title": "Outflow & Spending Trend (Last 6 Months)",
-    "spending_trend_subtitle": "Consolidated cash outflows per month",
-    "realtime": "Real-time"
+    }
   },
   "transactions": {
     "title": "Transactions",

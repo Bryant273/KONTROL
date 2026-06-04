@@ -170,7 +170,7 @@
       "unique_offer": "Offre Unique",
       "per_month": "/mois",
       "all_included": "Tout inclus, pour toujours.",
-      "equivalent": "Équivalent à 10 000 F CFA",
+      "equivalent": "Équivalent à 15 000 F CFA",
       "bullets": [
         "Utilisateurs illimités",
         "Transactions illimitées",
@@ -874,10 +874,7 @@
       "party": "Tiers",
       "method": "Mode",
       "amount": "Montant"
-    },
-    "spending_trend_title": "Évolution des Décaissements / Dépenses (6 derniers mois)",
-    "spending_trend_subtitle": "Flux de sortie de trésorerie de l'entité consolidés par mois",
-    "realtime": "Temps Réel"
+    }
   },
   "transactions": {
     "title": "Ventes & Achats",

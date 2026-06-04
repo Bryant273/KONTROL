@@ -90,8 +90,30 @@ export function Dashboard({ user, currentUserProfile, onNavigate, onStartGuide }
   const subscriptionAlertMemo = React.useMemo(() => {
     if (!currentUserProfile || isKontrolAdmin) return null;
     
-    // If they are under trial/demo
-    if (currentUserProfile.isDemo) {
+    // Check if the account is officially subscribed (status is ACTIVE and isDemo/trial is inactive)
+    const isSubscribed = currentUserProfile.subscriptionStatus === 'ACTIVE' && !currentUserProfile.isDemo;
+
+    if (isSubscribed) {
+      if (currentUserProfile.subscriptionEndDate) {
+        const endDate = currentUserProfile.subscriptionEndDate;
+        const now = Date.now();
+        const daysLeft = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
+        
+        // Dynamically displays ONLY if subscription is close to expiry (e.g. 10 days or fewer)
+        if (daysLeft <= 10) {
+          return {
+            isDemo: false,
+            daysLeft: Math.max(0, daysLeft),
+            expiryDate: new Date(endDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }),
+            endDate
+          };
+        }
+      }
+      return null; // Trial banner and subscription warning disappear completely for non-expiring subscriptions
+    }
+
+    // Default to Trial / Demo logic if they are still on a Trial
+    if (currentUserProfile.isDemo || currentUserProfile.subscriptionStatus === 'TRIAL') {
       const endDate = currentUserProfile.subscriptionEndDate || 0;
       const now = Date.now();
       const daysLeft = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
@@ -101,21 +123,6 @@ export function Dashboard({ user, currentUserProfile, onNavigate, onStartGuide }
         expiryDate: endDate ? new Date(endDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : 'N/A',
         endDate
       };
-    }
-
-    // Standard check
-    if (currentUserProfile.subscriptionEndDate) {
-      const endDate = currentUserProfile.subscriptionEndDate;
-      const now = Date.now();
-      const daysLeft = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
-      if (daysLeft <= 7) {
-        return {
-          isDemo: false,
-          daysLeft: Math.max(0, daysLeft),
-          expiryDate: new Date(endDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }),
-          endDate
-        };
-      }
     }
     
     return null;

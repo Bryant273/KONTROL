@@ -305,7 +305,6 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
       try {
         const msgData = {
           conversationId: activeConversation.id,
-          participants: activeConversation.participants || [user.uid],
           senderId: user.uid,
           senderName: profile.displayName || profile.email,
           content: msgText,

@@ -3,6 +3,41 @@ import autoTable from 'jspdf-autotable';
 import { Transaction, UserProfile } from '../types';
 import { formatCurrency } from './utils';
 
+const drawKontrolLogo = (doc: jsPDF, x: number, y: number, size: number) => {
+  const ctrX = x + size / 2;
+  const ctrY = y + size / 2;
+  
+  // Outer sky blue ring
+  doc.setDrawColor(125, 211, 252); // #7DD3FC
+  doc.setLineWidth(size * 0.1);
+  doc.circle(ctrX, ctrY, size * 0.40, 'S');
+  
+  // Orange ring representing top/right swirl path
+  doc.setDrawColor(249, 115, 22); // #F97316
+  doc.setLineWidth(size * 0.1);
+  doc.circle(ctrX, ctrY, size * 0.32, 'S');
+  
+  // Blue Arrow in the center
+  const scale = size / 100;
+  doc.setFillColor(59, 130, 246); // #3B82F6
+  
+  // Arrow Head triangle (P1: 50,20; P2: 75,55; P3: 25,55)
+  const ax1 = x + 50 * scale;
+  const ay1 = y + 20 * scale;
+  const ax2 = x + 75 * scale;
+  const ay2 = y + 55 * scale;
+  const ax3 = x + 25 * scale;
+  const ay3 = y + 55 * scale;
+  doc.triangle(ax1, ay1, ax2, ay2, ax3, ay3, 'F');
+  
+  // Arrow Base stem rectangle (rx: 40, ry: 55, w: 20, h: 25)
+  const rWidth = 20 * scale;
+  const rHeight = 25 * scale;
+  const rx = x + 40 * scale;
+  const ry = y + 55 * scale;
+  doc.rect(rx, ry, rWidth, rHeight, 'F');
+};
+
 export const generateCashFlowPDF = (
   transactions: Transaction[], 
   dateRange: { start: string, end: string },
@@ -42,14 +77,17 @@ export const generateCashFlowPDF = (
   doc.setFillColor(15, 23, 42);
   doc.rect(0, 0, pageWidth, 40, 'F');
   
+  // Draw vector KONTROL Logo
+  drawKontrolLogo(doc, 15, 11, 18);
+
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(22);
   doc.setFont('helvetica', 'bold');
-  doc.text(profile?.companyName || 'KONTROL', 15, 25);
+  doc.text(profile?.companyName || 'KONTROL', 38, 23);
   
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text('RAPPORT DE FLUX DE TRÉSORERIE', 15, 32);
+  doc.text('RAPPORT DE FLUX DE TRÉSORERIE', 38, 31);
 
   // Metadata
   doc.setTextColor(51, 51, 51);

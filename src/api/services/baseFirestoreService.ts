@@ -60,8 +60,8 @@ export class BaseFirestoreService<T extends { id?: string }> {
       });
       return docRef.id;
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, this.collectionName, user || auth.currentUser, false);
-      return '';
+      handleFirestoreError(error, OperationType.CREATE, this.collectionName, user || auth.currentUser, true);
+      throw error;
     }
   }
 
@@ -73,7 +73,8 @@ export class BaseFirestoreService<T extends { id?: string }> {
         updatedAt: Date.now()
       });
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `${this.collectionName}/${id}`, user || auth.currentUser, false);
+      handleFirestoreError(error, OperationType.UPDATE, `${this.collectionName}/${id}`, user || auth.currentUser, true);
+      throw error;
     }
   }
 
@@ -82,7 +83,8 @@ export class BaseFirestoreService<T extends { id?: string }> {
       const docRef = doc(db, this.collectionName, id);
       await deleteDoc(docRef);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `${this.collectionName}/${id}`, user || auth.currentUser, false);
+      handleFirestoreError(error, OperationType.DELETE, `${this.collectionName}/${id}`, user || auth.currentUser, true);
+      throw error;
     }
   }
 
@@ -97,7 +99,7 @@ export class BaseFirestoreService<T extends { id?: string }> {
   }
 
   subscribeByOwner(ownerId: string, callback: (data: T[]) => void, user?: any, extraConstraints: any[] = []) {
-    const q = query(this.collectionRef, where('ownerId', '==', ownerId), ...extraConstraints);
+    const q = query(this.collectionRef, where('companyId', '==', ownerId), orderBy('createdAt', 'desc'), ...extraConstraints);
     return onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T));
       callback(data);

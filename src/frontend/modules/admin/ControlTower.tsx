@@ -255,7 +255,7 @@ export function ControlTower({ activeSubTab = 'dashboard', user, profile, onTabC
       setCompanies(companyAdmins);
       
       const activeSubCompanies = companyAdmins.filter(c => c.subscriptionStatus === 'ACTIVE').length;
-      const mrr = activeSubCompanies * 10000;
+      const mrr = activeSubCompanies * 15000;
 
       setStats(prev => ({
         ...prev,
@@ -753,7 +753,7 @@ function VisionView({ stats, companies, recentActions, treasuryBalance, systemSt
                     <p className="text-[10px] text-kontrol-ink-muted uppercase tracking-widest">{t('admin.charts.plan_standard')}</p>
                   </div>
                 </div>
-                <p className="text-[13px] font-extrabold text-kontrol-dark">{formatCurrency(company.revenue || 10000)}</p>
+                <p className="text-[13px] font-extrabold text-kontrol-dark">{formatCurrency(company.revenue || 15000)}</p>
               </div>
             )) : (
               <p className="text-[11px] text-kontrol-ink-muted italic">{t('admin.charts.no_data')}</p>

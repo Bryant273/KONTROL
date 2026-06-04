@@ -40,7 +40,7 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
   const [charges, setCharges] = React.useState<Charge[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
-  const [filterDate, setFilterDate] = React.useState<string>('');
+  const [filterDate, setFilterDate] = React.useState<string>(new Date().toISOString().split('T')[0]);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
 
   const [isAdding, setIsAdding] = React.useState(false);

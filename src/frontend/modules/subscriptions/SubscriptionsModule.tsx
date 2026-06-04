@@ -147,7 +147,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
   };
 
   const currency = profile?.currency || 'XOF';
-  const price = currency === 'XOF' ? 10000 : (currency === 'EUR' ? 15 : 16);
+  const price = currency === 'XOF' ? 15000 : (currency === 'EUR' ? 23 : (currency === 'USD' ? 25 : Math.round(15000 * 0.0015)));
 
   const handleWaveConfirmation = async (e?: React.BaseSyntheticEvent) => {
     if (e && e.preventDefault && typeof e.preventDefault === 'function' && (e.target as any).tagName !== 'A') {
@@ -341,7 +341,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
   const plan = {
     id: 'standard',
     name: 'Standard',
-    price: 10000,
+    price: price,
     period: 'mois',
     features: [
       'Utilisateurs illimités', 
@@ -723,7 +723,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                       </div>
                       
                       <a 
-                        href={`https://pay.wave.com/m/M_ci_jlScZ6K4EoKg/c/ci/?amount=${price}`} 
+                        href={`https://pay.wave.com/m/M_ci_jlScZ6K4EoKg/c/ci/?amount=15000`} 
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="w-full py-4 bg-[#1dc8ee] text-white rounded-2xl font-extrabold text-sm hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-xl shadow-[#1dc8ee]/20"
