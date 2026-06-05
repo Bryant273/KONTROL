@@ -65,3 +65,120 @@
     @apply bg-white border border-kontrol-border text-kontrol-ink font-medium py-2 px-4 rounded-lg hover:bg-kontrol-bg transition-colors;
   }
 }
+
+@media print {
+  /* Hide all interactive, non-printable interface elements */
+  aside,
+  header,
+  nav,
+  button,
+  input,
+  select,
+  textarea,
+  .no-print,
+  .print-hidden,
+  [role="button"],
+  [role="tooltip"],
+  .toast,
+  .sonner,
+  .lucide,
+  .confirm-modal,
+  .modal-backdrop,
+  .notification-center,
+  .chat-panel {
+    display: none !important;
+  }
+
+  /* Reset main layouts and shell wrappers for printing */
+  html, body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+    font-family: "Inter", sans-serif !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Style cards and table containers for pristine white flat design */
+  .card, .bg-white {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    width: 100% !important;
+    margin-bottom: 2rem !important;
+    padding: 0 !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin-top: 1rem !important;
+    page-break-inside: auto;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    page-break-after: auto !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  tfoot {
+    display: table-footer-group !important;
+  }
+
+  th, td {
+    border: 1px solid #cbd5e1 !important; /* Slate-300 colored borders */
+    padding: 8px 12px !important;
+    text-align: left !important;
+    color: #000000 !important;
+  }
+
+  th {
+    background-color: #f1f5f9 !important; /* Light slate grey header block */
+    font-weight: 700 !important;
+  }
+
+  /* Form and grid layout flattening */
+  .grid, .flex {
+    display: block !important;
+  }
+
+  .grid > *, .flex > * {
+    margin-bottom: 1rem !important;
+    width: 100% !important;
+  }
+
+  /* Prevent page cutoff */
+  span, p, h1, h2, h3, h4, h5, h6 {
+    color: #000000 !important;
+    orphans: 3;
+    widows: 3;
+  }
+
+  /* Explicit print title banner */
+  .print-only-title {
+    display: block !important;
+    font-size: 20pt !important;
+    font-weight: 800 !important;
+    margin-bottom: 1.5rem !important;
+  }
+}
+

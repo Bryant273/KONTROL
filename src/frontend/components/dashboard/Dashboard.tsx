@@ -691,7 +691,7 @@ export function Dashboard({ user, currentUserProfile, onNavigate, onStartGuide }
               </div>
             </div>
             <div className="p-6 h-80">
-              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                 <AreaChart data={globalStats.revenueData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                   <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#9ca3af', fontWeight: 'bold' }} />
@@ -1067,7 +1067,7 @@ export function Dashboard({ user, currentUserProfile, onNavigate, onStartGuide }
           </div>
           
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <AreaChart data={monthlyData}>
                 <defs>
                   <linearGradient id="colorCa" x1="0" y1="0" x2="0" y2="1">

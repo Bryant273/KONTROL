@@ -718,7 +718,7 @@ function VisionView({ stats, companies, recentActions, treasuryBalance, systemSt
           </div>
 
           <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <AreaChart data={filteredChartData}>
                 <defs>
                   <linearGradient id="colorMrr" x1="0" y1="0" x2="0" y2="1">
@@ -1909,7 +1909,7 @@ export function IntelligenceAIView({ stats, systemStats }: any) {
                 <span className="text-[10px] font-bold text-emerald-500 bg-emerald-50 border border-emerald-100 px-3 py-0.5 rounded-full">Integrite Fast Gateway</span>
               </h4>
               <div className="h-64 pt-4">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minHeight={0}>
                   <AreaChart data={callsData}>
                     <defs>
                       <linearGradient id="coolBlue" x1="0" y1="0" x2="0" y2="1">
@@ -2163,7 +2163,7 @@ function SystemTelemetryView({ stats, metrics }: any) {
             </div>
           </div>
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <AreaChart data={metrics.map((m: any, i: number) => ({ cycle: i, cpu: m.cpu, latency: m.latency }))}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                 <XAxis dataKey="cycle" hide />
@@ -3636,7 +3636,7 @@ export function FinancialAnalyticsView({ stats, systemStats }: any) {
           <span className="text-[10px] font-bold text-emerald-500 bg-emerald-50 border border-emerald-100 px-3 py-0.5 rounded-full">Evolution saine</span>
         </h4>
         <div className="h-64 pt-4">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minHeight={0}>
             <AreaChart data={dynamicMrrHistorical}>
               <defs>
                 <linearGradient id="revenueBlue" x1="0" y1="0" x2="0" y2="1">

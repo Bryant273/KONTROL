@@ -100,7 +100,7 @@ export default function App() {
     const authTimeout = setTimeout(() => {
       console.warn("Auth check timed out. Forcing UI load.");
       setLoading(false);
-    }, 6000);
+    }, 20000);
 
     const unsubscribe = onAuthStateChanged(auth, (authUser) => {
       clearTimeout(authTimeout);

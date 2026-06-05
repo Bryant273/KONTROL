@@ -141,26 +141,49 @@ export const exportToPDF = (title: string, headers: string[], data: any[][], fil
 
 export const exportToCSV = (data: any[], filename: string, options?: any) => {
   if (!data || data.length === 0) return;
+  
+  // Security baseline check (optional authorization guard can be provided via options)
+  if (options?.authorized === false) {
+    console.error("Unauthorized export attempt.");
+    return;
+  }
+
   const headers = Object.keys(data[0]);
+  
+  // Sanitize values to prevent CSV / Formula Injection (=, +, -, @)
+  const sanitizeValue = (val: any): string => {
+    if (val === null || val === undefined) return '';
+    let str = String(val);
+    
+    // Safety check for Formula Injection characters: =, +, -, @
+    if (str.startsWith('=') || str.startsWith('+') || str.startsWith('-') || str.startsWith('@')) {
+      str = `'${str}`; // Escape formula execution
+    }
+    
+    return str.replace(/"/g, '""');
+  };
+
   const csvRows = [
     headers.join(','),
     ...data.map(row => 
-      headers.map(fieldName => {
-        const val = row[fieldName];
-        const str = val === null || val === undefined ? '' : String(val);
-        const escaped = str.replace(/"/g, '""');
-        return `"${escaped}"`;
-      }).join(',')
+      headers.map(fieldName => `"${sanitizeValue(row[fieldName])}"`).join(',')
     )
   ];
+  
   const blob = new Blob(["\uFEFF" + csvRows.join("\r\n")], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
+  
   const link = document.createElement("a");
   link.setAttribute("href", url);
-  link.setAttribute("download", `${filename}.csv`);
+  link.setAttribute("download", `${filename.replace(/[^a-zA-Z0-9_\-]/g, '_')}.csv`);
+  link.setAttribute("rel", "noopener noreferrer");
+  
   document.body.appendChild(link);
   link.click();
+  
+  // Secure cleanup to prevent memory leaks
   document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 100);
 };
 
 export const exportToExcel = (data: any[], filename: string, options?: any) => {

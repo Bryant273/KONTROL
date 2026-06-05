@@ -23,7 +23,7 @@ import {
   QrCode,
   Upload
 } from 'lucide-react';
-import { exportToPDF, exportToExcel } from '../../lib/export';
+import { exportToPDF, exportToExcel, exportToCSV } from '../../lib/export';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import { ExcelImportPreviewModal, ColumnConfig } from '../../components/common/ExcelImportPreviewModal';
@@ -479,6 +479,23 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
     exportToPDF(`${t('transactions.title')} - KONTROL`, headers, data, 'Transactions_KONTROL', currentUserProfile?.companyLogo || currentUserProfile?.logoUrl);
   };
 
+  const handleExportCSV = () => {
+    // Secure download trigger guard: Verify user session
+    if (!currentUserProfile) {
+      toast.error(t('common.error', 'Session invalide pour l\'export'));
+      return;
+    }
+    const data = filteredTransactions.map(tx => ({
+      [t('common.ref')]: tx.reference,
+      [t('common.date')]: new Date(tx.date).toLocaleDateString(),
+      [t('finance.table.party')]: tx.tiersNom,
+      [t('common.type')]: tx.type,
+      [t('finance.table.amount')]: tx.montantTotal,
+      [t('common.status_label')]: tx.statut
+    }));
+    exportToCSV(data, 'Transactions_KONTROL', { authorized: true });
+  };
+
   const handleExportExcel = () => {
     const data = filteredTransactions.map(tx => ({
       [t('common.ref')]: tx.reference,
@@ -838,6 +855,13 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
             className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2"
           >
             <FileText size={14} /> PDF
+          </button>
+          <button 
+            onClick={handleExportCSV}
+            className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2"
+            title="Exporter au format CSV sécurisé"
+          >
+            <FileText size={14} className="text-emerald-600" /> CSV
           </button>
           <button 
             onClick={handleExportExcel}

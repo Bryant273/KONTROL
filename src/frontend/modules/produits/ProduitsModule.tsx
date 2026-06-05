@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Search, Package, AlertCircle, Loader2, X, Boxes, History, Trash2, Edit2, FileText, Table, Upload, Download, Calendar, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
-import { exportToPDF, exportToExcel } from '../../lib/export';
+import { exportToPDF, exportToExcel, exportToCSV } from '../../lib/export';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import { ExcelImportPreviewModal, ColumnConfig } from '../../components/common/ExcelImportPreviewModal';
@@ -353,6 +353,23 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
     exportToPDF(`${t('produits.title')} - KONTROL`, headers, data, 'Produits_KONTROL', currentUserProfile?.companyLogo || currentUserProfile?.logoUrl);
   };
 
+  const handleExportCSV = () => {
+    // Secure download trigger guard: Verify user session
+    if (!currentUserProfile) {
+      toast.error(t('common.error', 'Session invalide pour l\'export'));
+      return;
+    }
+    const data = filteredProduits.map(p => ({
+      [t('produits.table.reference')]: p.reference,
+      [t('produits.table.designation')]: p.designation,
+      [t('produits.form.buy_price')]: p.prixAchat,
+      [t('produits.form.sell_price')]: p.prixVente,
+      [t('produits.table.stock')]: p.stock,
+      [t('produits.details.stock_value')]: p.stock * p.prixVente
+    }));
+    exportToCSV(data, 'Produits_KONTROL', { authorized: true });
+  };
+
   const handleExportExcel = () => {
     const data = filteredProduits.map(p => ({
       [t('produits.table.reference')]: p.reference,
@@ -526,6 +543,13 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
             className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2"
           >
             <FileText size={14} /> PDF
+          </button>
+          <button 
+            onClick={handleExportCSV}
+            className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2"
+            title="Exporter au format CSV sécurisé"
+          >
+            <FileText size={14} className="text-emerald-600" /> CSV
           </button>
           <button 
             onClick={handleExportExcel}

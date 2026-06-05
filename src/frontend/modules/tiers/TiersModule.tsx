@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Search, MoreVertical, Mail, Phone, MapPin, Loader2, X, UserCircle, History, Trash2, Edit2, FileText, Table, ArrowDownLeft, ArrowUpRight, Upload, Download } from 'lucide-react';
-import { exportToPDF, exportToExcel } from '../../lib/export';
+import { exportToPDF, exportToExcel, exportToCSV } from '../../lib/export';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import { ExcelImportPreviewModal, ColumnConfig } from '../../components/common/ExcelImportPreviewModal';
@@ -352,6 +352,22 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
     exportToPDF(`${t('tiers.title')} - KONTROL`, headers, data, 'Tiers_KONTROL', currentUserProfile?.companyLogo || currentUserProfile?.logoUrl);
   };
 
+  const handleExportCSV = () => {
+    // Secure download trigger guard: Verify user session
+    if (!currentUserProfile) {
+      toast.error(t('common.error', 'Session invalide pour l\'export'));
+      return;
+    }
+    const data = filteredTiers.map(tier => ({
+      [t('tiers.table.name')]: tier.nom,
+      [t('tiers.table.type')]: tier.type,
+      [t('tiers.form.email')]: tier.email || '',
+      [t('tiers.form.phone')]: tier.telephone || '',
+      [t('tiers.table.status')]: tier.statut
+    }));
+    exportToCSV(data, 'Tiers_KONTROL', { authorized: true });
+  };
+
   const handleExportExcel = () => {
     const data = filteredTiers.map(tier => ({
       [t('tiers.table.name')]: tier.nom,
@@ -417,6 +433,9 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
           )}
           <button onClick={handleExportPDF} className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2">
             <FileText size={14} /> PDF
+          </button>
+          <button onClick={handleExportCSV} className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2" title="Exporter au format CSV sécurisé">
+            <FileText size={14} className="text-emerald-600" /> CSV
           </button>
           <button onClick={handleExportExcel} className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2">
             <Table size={14} /> Excel
