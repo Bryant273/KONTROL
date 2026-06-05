@@ -16,7 +16,10 @@ import {
   signInAnonymously
 } from 'firebase/auth';
 import { 
-  getFirestore, 
+  getFirestore,
+  initializeFirestore, 
+  persistentLocalCache,
+  persistentMultipleTabManager,
   collection, 
   doc, 
   addDoc, 
@@ -51,24 +54,14 @@ import { hashPassword } from './lib/crypto';
 import { checkAndNotifyLowStock } from './services/notificationService';
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager()
+  }),
+  experimentalForceLongPolling: true,
+}, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
-
-// Connection Test
-async function testConnection() {
-  try {
-    await getDocFromServer(doc(db, 'system', 'connection_test'));
-    console.log("Firestore connection successful");
-  } catch (error: any) {
-    if (error.message?.includes('the client is offline') || error.code === 'unavailable') {
-      console.warn("Firestore is operating in offline/cached mode. This is normal under sandbox or limited connectivity conditions.");
-    } else {
-      console.warn("Firestore connection response note:", error.message || error);
-    }
-  }
-}
-testConnection().catch(err => console.log("Firestore testConnection background check:", err));
 
 // Export Firestore functions
 export type { User };
