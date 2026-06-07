@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -35,16 +37,32 @@ func (c *CacheStore) Get(key string) (string, bool) {
 
 var globalCache = &CacheStore{items: make(map[string]string)}
 
+// GenerateSecureToken creates a crytographically secure random 256-bit base64-encoded token.
+func GenerateSecureToken() (string, error) {
+	b := make([]byte, 32)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+	return base64.URLEncoding.EncodeToString(b), nil
+}
+
 func handleAuth(w http.ResponseWriter, r *http.Request) {
-	// Simple simulated auth token service
-	token := fmt.Sprintf("KONTROL_%d", time.Now().UnixNano())
+	// Crytographically secure crypt/rand token generation
+	token, err := GenerateSecureToken()
+	if err != nil {
+		http.Error(w, "Failed to generate security context: secure entropy failure", http.StatusInternalServerError)
+		return
+	}
+
 	resp := TokenResponse{
-		Token:     token,
-		ExpiresAt: time.Now().Add(24 * time.Hour).Unix(),
-		Status:    "AUTHORIZED_BY_GO_KERNEL",
+		Token:     fmt.Sprintf("KONTROL_SECURE_%s", token),
+		ExpiresAt: time.Now().Add(12 * time.Hour).Unix(),
+		Status:    "AUTHORIZED_BY_SECURE_GO_KERNEL",
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	json.NewEncoder(w).Encode(resp)
 }
 
