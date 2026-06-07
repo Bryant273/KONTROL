@@ -884,7 +884,10 @@
       "party": "Party",
       "method": "Method",
       "amount": "Amount"
-    }
+    },
+    "outflow_evolution_title": "Evolution of Outflows",
+    "outflow_evolution_subtitle": "Consolidated monthly cash outflows",
+    "realtime": "Real-time Update"
   },
   "transactions": {
     "title": "Transactions",
@@ -997,7 +1000,7 @@
     "active_count": "Active users",
     "roles": {
       "admin_enterprise": "Company Admin",
-      "manager_enterprise": "Company Manager",
+      "manager_enterprise": "Gestión de Empresas",
       "admin_kontrol": "KONTROL Admin",
       "manager_kontrol": "KONTROL Support",
       "user": "User"

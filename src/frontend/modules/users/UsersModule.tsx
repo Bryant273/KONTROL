@@ -454,16 +454,9 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
               </div>
               <div className="space-y-1.5">
                 <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">{t('users.form.role')} *</label>
-                <select 
-                  className="w-full px-3 py-2 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:border-kontrol-blue"
-                  value={newUser.role}
-                  onChange={(e) => setNewUser({...newUser, role: e.target.value as UserRole})}
-                >
-                  <option value="GESTIONNAIRE_ENTREPRISE">{t('users.roles.manager_enterprise')}</option>
-                  <option value="ADMINISTRATEUR_ENTREPRISE">{t('users.roles.admin_enterprise')}</option>
-                  <option value="GESTIONNAIRE_KONTROL">{t('users.roles.manager_kontrol')}</option>
-                  <option value="ADMINISTRATEUR_KONTROL">{t('users.roles.admin_kontrol')}</option>
-                </select>
+                <div className="w-full px-4 py-2.5 bg-slate-50 border border-kontrol-border rounded-lg font-bold text-kontrol-blue text-sm">
+                  Gestión de Empresas
+                </div>
               </div>
               <div className="pt-4">
                 <button type="submit" className="w-full btn-primary py-3 font-bold flex items-center justify-center gap-2">
@@ -506,7 +499,7 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
                       "bg-kontrol-blue/20 text-white border-white/20"
                     )}>
                       {selectedUser.role === 'ADMINISTRATEUR_ENTREPRISE' ? t('users.roles.admin_enterprise') : 
-                       selectedUser.role === 'GESTIONNAIRE_ENTREPRISE' ? t('users.roles.manager_enterprise') :
+                       selectedUser.role === 'GESTIONNAIRE_ENTREPRISE' ? "Gestión de Empresas" :
                        (selectedUser.role === 'ADMINISTRATEUR_ERP' || selectedUser.role === 'ADMINISTRATEUR_KONTROL') ? t('users.roles.admin_kontrol') :
                        (selectedUser.role === 'GESTIONNAIRE_ERP' || selectedUser.role === 'GESTIONNAIRE_KONTROL') ? t('users.roles.manager_kontrol') :
                        selectedUser.role.replace('_', ' ')}
@@ -810,7 +803,7 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
                           {(u.role === 'ADMINISTRATEUR_ERP' || u.role === 'ADMINISTRATEUR_KONTROL') ? t('users.roles.admin_kontrol') :
                            (u.role === 'GESTIONNAIRE_ERP' || u.role === 'GESTIONNAIRE_KONTROL') ? t('users.roles.manager_kontrol') :
                            u.role === 'ADMINISTRATEUR_ENTREPRISE' ? t('users.roles.admin_enterprise') : 
-                           u.role === 'GESTIONNAIRE_ENTREPRISE' ? t('users.roles.manager_enterprise') :
+                           u.role === 'GESTIONNAIRE_ENTREPRISE' ? "Gestión de Empresas" :
                            t('users.roles.user')}
                         </span>
                       </div>

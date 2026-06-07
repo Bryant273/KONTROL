@@ -878,7 +878,10 @@
       "party": "Tiers",
       "method": "Mode",
       "amount": "Montant"
-    }
+    },
+    "outflow_evolution_title": "Évolution des Décaissements",
+    "outflow_evolution_subtitle": "Flux de sortie de fonds mensuels consolidés",
+    "realtime": "Mise à jour en Temps Réel"
   },
   "transactions": {
     "title": "Ventes & Achats",
@@ -991,7 +994,7 @@
     "active_count": "Utilisateurs actifs",
     "roles": {
       "admin_enterprise": "Admin Entreprise",
-      "manager_enterprise": "Gestionnaire Entreprise",
+      "manager_enterprise": "Gestión de Empresas",
       "admin_kontrol": "Administrateur KONTROL",
       "manager_kontrol": "Support KONTROL",
       "user": "Utilisateur"

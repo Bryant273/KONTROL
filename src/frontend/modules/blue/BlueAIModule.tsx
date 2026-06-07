@@ -57,6 +57,7 @@ export function BlueAIModule({ user, currentUserProfile }: BlueAIModuleProps) {
   const [isHistoryLoading, setIsHistoryLoading] = useState(true);
   const [currentConvId, setCurrentConvId] = useState<string | undefined>();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [cognitiveIndexes, setCognitiveIndexes] = useState<any[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -70,6 +71,21 @@ export function BlueAIModule({ user, currentUserProfile }: BlueAIModuleProps) {
   useEffect(() => {
     loadHistory();
   }, [user.uid]);
+
+  const loadCognitiveIndexes = async () => {
+    try {
+      const idxs = await blueAIService.getIndexes();
+      if (Array.isArray(idxs)) {
+        setCognitiveIndexes(idxs);
+      }
+    } catch (e) {
+      console.warn("Could not query dynamic brain indexes:", e);
+    }
+  };
+
+  useEffect(() => {
+    loadCognitiveIndexes();
+  }, [currentConvId, messages.length]);
 
   const loadHistory = async () => {
     try {

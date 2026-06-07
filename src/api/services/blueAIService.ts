@@ -232,6 +232,16 @@ class BlueAIService {
       return "Erreur lors de l'analyse du code.";
     }
   }
+
+  async getIndexes() {
+    try {
+      const data = await apiClient.get('/api/ai/indexes');
+      return data;
+    } catch (error) {
+      console.warn("Could not load cognitive indexes:", error);
+      return [];
+    }
+  }
 }
 
 export const blueAIService = new BlueAIService();

@@ -726,8 +726,8 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
       <div className="card p-5 bg-white border border-kontrol-border space-y-4">
         <div className="flex items-center justify-between pb-1">
           <div>
-            <h3 className="text-[12px] font-extrabold text-kontrol-dark uppercase tracking-widest">{t('finance.spending_trend_title') || "Évolution des Décaissements / Dépenses (6 derniers mois)"}</h3>
-            <p className="text-[11px] text-kontrol-ink-muted mt-0.5">{t('finance.spending_trend_subtitle') || "Flux de sortie de trésorerie consolidés par mois"}</p>
+            <h3 className="text-[12px] font-extrabold text-kontrol-dark uppercase tracking-widest">{t('finance.outflow_evolution_title') || "Évolution des Décaissements (6 derniers mois)"}</h3>
+            <p className="text-[11px] text-kontrol-ink-muted mt-0.5">{t('finance.outflow_evolution_subtitle') || "Flux de sortie de fonds mensuels consolidés"}</p>
           </div>
           <div className="flex items-center gap-1.5 bg-rose-50 border border-rose-100/50 rounded-full px-2.5 py-0.5 shadow-2xs">
             <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-ping" />

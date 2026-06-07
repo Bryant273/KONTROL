@@ -561,6 +561,13 @@ async function startServer() {
     },
     getHistory: (req: any, res: any) => {
       res.json(db.prepare("SELECT * FROM ai_neural_history ORDER BY createdAt DESC").all());
+    },
+    getIndexes: (req: any, res: any) => {
+      try {
+        res.json(db.prepare("SELECT * FROM blue_system_cognitive_indexes").all());
+      } catch (err: any) {
+        res.json([]);
+      }
     }
   };
 
@@ -635,6 +642,7 @@ async function startServer() {
   app.post("/api/ai/blue-brain", aiExpert.blueBrain);
   app.post("/api/ai/analyze", aiExpert.analyze);
   app.get("/api/ai/history", aiExpert.getHistory);
+  app.get("/api/ai/indexes", aiExpert.getIndexes);
   app.get("/api/system/audit-logs", systemExpert.auditLogs);
   app.get("/api/user/profile/:uid", systemExpert.profile);
 
