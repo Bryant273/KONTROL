@@ -741,5 +741,81 @@ KONTROL ERP atteint un niveau d'excellence technique digne des meilleurs progici
 2.  **Mise en Cache Redis pour les Données de Contrôle de Stock** : Afin d'éviter les coûts d'accès à Firestore sur les transactions de stocks hautement volumineuses pendant les heures de pointe commerciales.
 
 ---
+
+## 16. 💻 RECOMMANDATIONS FINTECH & GUIDE DE DÉMARRAGE EN LOCAL
+
+### 16.1 Analyse et Avis Technique sur l'API de Paiement GeniusPay CI (geniuspay.ci/docs/api)
+
+L'évaluation de la plateforme **GeniusPay CI** en tant que passerelle de paiement pour **KONTROL ERP** révèle des opportunités d'intégration majeures pour l'expansion des services de paiement en Côte d'Ivoire et dans la sous-région UEMOA :
+
+#### 🛡️ Les points forts de GeniusPay CI :
+1. **Agrégation de canaux étendue** : Contrairement à Wave Business (qui se limite à l'utilisation du wallet Wave), GeniusPay unifie en une seule API REST les principaux opérateurs d'Afrique de l'Ouest : **Orange Money**, **MTN Mobile Money**, **Moov Money (Flooz)**, **Wave**, ainsi que les règlements par **cartes bancaires (Visa/Mastercard)**. Cela supprime le besoin de maintenir des intégrations séparées et lourdes pour chaque opérateur mobile.
+2. **Standard de communication REST & JSON moderne** : L'API repose sur des standards industriels structurés. Les requêtes se font par des tokens d'authentification Bearer, avec des structures de requêtes/réponses simples et de bas niveau pour minimiser la latence thermique :
+   * Initialisation simple de paiement par `/api/v1/payments/initialize`
+   * Livraison asynchrone sécurisée des statuts par **webhooks cryptographiquement signés (SHA-256 HMAC)**, évitant ainsi les vulnérabilités de requêtes frauduleuses.
+3. **Sélection dynamique des opérateurs** : Le widget de redirection de paiement permet à l'utilisateur de saisir son numéro de téléphone Ivoirien, de détecter l'opérateur associé de manière transparente, et d'initier la cinématique OTP (One-Time Password) correspondante.
+
+#### ⚖️ Comparatif & Recommandation d'Ingénierie pour KONTROL :
+* **Cas de l'Abonnement standard ERP (Wave)** : Pour les abonnements et licences KONTROL, le canal direct **Wave à 1%** reste le plus économique et doit être conservé comme option principale par défaut pour minimiser les frais d'intermédiation.
+* **Cas des Transactions Clients (Facturation multi-canaux)** : Pour les micro-entreprises et clients de nos PME clientes, proposer uniquement Wave peut limiter la conversion des factures car Orange Money et MTN Money sont encore hégémoniques sur le marché ivoirien. 
+* **Recommandation Harmonisée** : Nous conseillons d'intégrer **GeniusPay CI** comme **moteur de paiement multi-canaux optionnel** pour les factures des clients. KONTROL ERP propose alors une solution hybride de classe mondiale : Wave à faible frais pour l'abonnement récurrent, et le hub de paiement unifié GeniusPay pour la facturation courante sur le terrain.
+
+---
+
+### 16.2 Manuel Opérationnel de Démarrage Rapide en Local
+
+Pour déployer et démarrer une instance de développement ou d'assurance qualité locale de **KONTROL ERP** sur votre station de travail, veuillez scrupuleusement suivre la procédure suivante :
+
+#### 📋 1. Prérequis Système
+* **Node.js** : Version 20.x ou supérieure (Recommandé : LTS)
+* **npm** : Version 10.x ou supérieure
+* Un projet ou émulateur **Google Cloud Firestore & Firebase Auth** configuré (utilisez le blueprint inclus `firebase-blueprint.json` pour bootstraper instantanément vos collections et index).
+
+#### 🔧 2. Configuration des variables d'environnement (`.env`)
+Créez un fichier `.env` à la racine du projet à partir du modèle fourni `.env.example` et remplissez vos identifiants réels :
+```env
+# Mode système local
+NODE_ENV=development
+PORT=3000
+
+# Clé secrète de cognition LLM Blue AI
+GEMINI_API_KEY=votre_cle_api_gemini_reelle
+
+# Identifiants Firebase pour le branchement
+FIREBASE_PROJECT_ID=votre-projet-firebase
+```
+
+#### 🚀 3. Installation et Démarrage du Serveur en Mode Développement
+Exécutez séquentiellement les commandes suivantes dans votre terminal de développement :
+
+1. **Installation des dépendances d'assemblage** :
+   ```bash
+   npm install
+   ```
+2. **Lancement du serveur Express + compilateur Vite HMR à chaud** :
+   ```bash
+   npm run dev
+   ```
+   * *Comportement sous-jacent* : Le processus démarre l'application en mode hybride à l'adresse `http://localhost:3000`. Les API Express sous `/api/*` prennent possession du cycle de traitement immédiatement, tandis que le middleware Vite sert les pages React et injecte à chaud les fichiers modifiés.
+
+#### 🏗️ 4. Construction et Exécution de l'Image de Production (Local Docker Build)
+Pour simuler les performances optimales d'un environnement de production Cloud Run localement :
+
+1. **Compilation des assets et livraison du serveur CommonJS** :
+   ```bash
+   npm run build
+   ```
+   * *Résultat* : Compiles le code frontend optimisé dans `/dist` et assemble le fichier serveur monolithique haute efficacité `/dist/server.cjs` via l'outil `esbuild`.
+2. **Construction de l'image de conteneur durcie** :
+   ```bash
+   docker build -t kontrol-erp:local .
+   ```
+3. **Lancement du conteneur isolé** :
+   ```bash
+   docker run -d -p 3000:3000 --env-file .env name kontrol-instance kontrol-erp:local
+   ```
+   L'application est désormais opérationnelle, scellée, et hautement optimisée à l'adresse localisée `http://localhost:3000`.
+
+---
 #### DOCUMENT COMMUNIQUE DE SECURITÉ ET D'ORIENTATION SYSTÈME APPLICATION — COV-SYSTEM 2026
 *Propriété exclusive d'Innov'Korp Corporation. Toute diffusion ou reproduction non autorisée de ce manuel technique d'ingénierie et de cybersécurité expose l'auteur à des sanctions pénales conformément aux lois internationales de protection du copyright et de la propriété intellectuelle.*

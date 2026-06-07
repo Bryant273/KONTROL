@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -31,7 +32,43 @@ type HealthResponse struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-var startTime = time.Now()
+type CacheItem struct {
+	Value     string
+	ExpiresAt time.Time
+}
+
+type SafeCache struct {
+	mu    sync.RWMutex
+	items map[string]CacheItem
+}
+
+func (c *SafeCache) Set(key, val string, ttl time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.items[key] = CacheItem{
+		Value:     val,
+		ExpiresAt: time.Now().Add(ttl),
+	}
+}
+
+func (c *SafeCache) Get(key string) (string, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	item, ok := c.items[key]
+	if !ok {
+		return "", false
+	}
+	if time.Now().After(item.ExpiresAt) {
+		return "", false
+	}
+	return item.Value, true
+}
+
+var (
+	startTime      = time.Now()
+	kernelTTL      = 15 * time.Minute
+	inMemoryCache  = &SafeCache{items: make(map[string]CacheItem)}
+)
 
 func main() {
 	http.HandleFunc("/api/v1/auth/login", handleLogin)
@@ -85,13 +122,11 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
-var inMemoryCache = make(map[string]string)
-
 func handleCacheSet(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Query().Get("key")
 	val := r.URL.Query().Get("val")
 	if key != "" && val != "" {
-		inMemoryCache[key] = val
+		inMemoryCache.Set(key, val, kernelTTL)
 		fmt.Fprintf(w, "OK")
 		return
 	}
@@ -100,7 +135,7 @@ func handleCacheSet(w http.ResponseWriter, r *http.Request) {
 
 func handleCacheGet(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Query().Get("key")
-	if val, ok := inMemoryCache[key]; ok {
+	if val, ok := inMemoryCache.Get(key); ok {
 		fmt.Fprintf(w, val)
 		return
 	}

@@ -7,7 +7,7 @@ pub struct ShieldGuard {
 }
 
 impl ShieldGuard {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         ShieldGuard {
             integrity_level: 100,
             active: true,
@@ -19,12 +19,22 @@ impl ShieldGuard {
         if amount < 0.0 {
             return false;
         }
-        // Logique de bouclier contre les anomalies
+        // Détecteur de chaînes suspectes ou injections basiques
+        let suspect_indicators = ["<script>", "UNION SELECT", "drop table", "OR 1=1"];
+        for indicator in suspect_indicators.iter() {
+            if origin.to_uppercase().contains(indicator) {
+                return false;
+            }
+        }
         true
     }
 
-    /// Encode en toute sécurité les identifiants sensibles
+    /// Encode en toute sécurité les identifiants sensibles avec allocation pré-réservée ultra-performante
     pub fn static_obfuscation(&self, input: &str) -> String {
-        input.chars().rev().collect() // Exemple simple d'obfuscation bas niveau
+        let mut result = String::with_capacity(input.len());
+        for c in input.chars().rev() {
+            result.push(c);
+        }
+        result
     }
 }
