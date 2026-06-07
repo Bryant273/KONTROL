@@ -357,6 +357,29 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
     return matchesSearch && matchesType;
   });
 
+  React.useEffect(() => {
+    if (selectedId && tiers.length > 0) {
+      const match = tiers.find(t => t.id === selectedId);
+      if (match) {
+        // Clear conflicting filters and reset search
+        setFilterType('ALL');
+        setSearchTerm('');
+      }
+    }
+  }, [selectedId, tiers]);
+
+  React.useEffect(() => {
+    if (selectedId && filteredTiers.length > 0) {
+      const index = filteredTiers.findIndex(t => t.id === selectedId);
+      if (index !== -1) {
+        const targetPage = Math.floor(index / itemsPerPage) + 1;
+        if (currentPage !== targetPage) {
+          setCurrentPage(targetPage);
+        }
+      }
+    }
+  }, [selectedId, filteredTiers]);
+
   const totalPages = Math.ceil(filteredTiers.length / itemsPerPage);
   const paginatedTiers = filteredTiers.slice(
     (currentPage - 1) * itemsPerPage,

@@ -483,6 +483,47 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
     return matchesSearch && matchesType && matchesStatut && matchesDate;
   });
 
+  React.useEffect(() => {
+    if (selectedId && transactions.length > 0) {
+      const match = transactions.find(t => t.id === selectedId);
+      if (match) {
+        // Clear conflicting filters and reset the page
+        setFilterType('ALL');
+        setFilterStatut('ALL');
+        setSearchTerm('');
+
+        // Expand dateRange if necessary to encompass the selected item
+        const itemDateStr = new Date(match.date).toISOString().split('T')[0];
+        setDateRange(prev => {
+          let newStart = prev.start;
+          let newEnd = prev.end;
+          if (itemDateStr < prev.start) {
+            newStart = itemDateStr;
+          }
+          if (itemDateStr > prev.end) {
+            newEnd = itemDateStr;
+          }
+          if (newStart !== prev.start || newEnd !== prev.end) {
+            return { start: newStart, end: newEnd };
+          }
+          return prev;
+        });
+      }
+    }
+  }, [selectedId, transactions]);
+
+  React.useEffect(() => {
+    if (selectedId && filteredTransactions.length > 0) {
+      const index = filteredTransactions.findIndex(t => t.id === selectedId);
+      if (index !== -1) {
+        const targetPage = Math.floor(index / itemsPerPage) + 1;
+        if (currentPage !== targetPage) {
+          setCurrentPage(targetPage);
+        }
+      }
+    }
+  }, [selectedId, filteredTransactions]);
+
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
   const paginatedTransactions = filteredTransactions.slice(
     (currentPage - 1) * itemsPerPage,

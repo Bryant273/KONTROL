@@ -338,6 +338,29 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
     return matchesSearch && matchesDate;
   });
 
+  React.useEffect(() => {
+    if (selectedId && charges.length > 0) {
+      const match = charges.find(c => c.id === selectedId);
+      if (match) {
+        // Clear date filter (making it match all) and search
+        setFilterDate('');
+        setSearchTerm('');
+      }
+    }
+  }, [selectedId, charges]);
+
+  React.useEffect(() => {
+    if (selectedId && filteredCharges.length > 0) {
+      const index = filteredCharges.findIndex(c => c.id === selectedId);
+      if (index !== -1) {
+        const targetPage = Math.floor(index / itemsPerPage) + 1;
+        if (currentPage !== targetPage) {
+          setCurrentPage(targetPage);
+        }
+      }
+    }
+  }, [selectedId, filteredCharges]);
+
   const totalPages = Math.ceil(filteredCharges.length / itemsPerPage);
   const paginatedCharges = filteredCharges.slice(
     (currentPage - 1) * itemsPerPage,

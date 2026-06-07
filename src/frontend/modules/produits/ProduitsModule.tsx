@@ -357,6 +357,33 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
     return matchesSearch && matchesDate && matchesCategory;
   });
 
+  React.useEffect(() => {
+    if (selectedId && produits.length > 0) {
+      const match = produits.find(p => p.id === selectedId);
+      if (match) {
+        // Clear date filter (making it match all)
+        setFilterDate('');
+        // Clear category filter
+        setSelectedCategory('ALL');
+        // Clear search
+        setSearchTerm('');
+      }
+    }
+  }, [selectedId, produits]);
+
+  React.useEffect(() => {
+    if (selectedId && filteredProduits.length > 0) {
+      const index = filteredProduits.findIndex(p => p.id === selectedId);
+      if (index !== -1) {
+        // itemsPerPage is 10
+        const targetPage = Math.floor(index / 10) + 1;
+        if (currentPage !== targetPage) {
+          setCurrentPage(targetPage);
+        }
+      }
+    }
+  }, [selectedId, filteredProduits]);
+
   const totalPages = Math.ceil(filteredProduits.length / itemsPerPage);
   const paginatedProduits = filteredProduits.slice(
     (currentPage - 1) * itemsPerPage,
