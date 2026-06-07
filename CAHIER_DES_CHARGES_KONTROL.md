@@ -153,8 +153,8 @@ Pour sécuriser l'exploitation commerciale des entreprises partenaires et interd
 * **Interdiction de Vente à Découvert** : Lors de l'enregistrement d'une vente (transaction `VENTE`), l'ERP vérifie instantanément pour chaque produit ajouté si la quantité disponible en stock est supérieure ou égale à la quantité demandée (`prod.stock >= art.quantite`).
 * **Retour Utilisateur Explicite** : Si les stocks sont insuffisants, le système bloque immédiatement la transaction, remonte un message d'erreur d'une grande clarté à l'écran (ex. `Stock insuffisant : [Désignation] ([Dispo] disponibles)`), et empêche l'écriture dans la base de données.
 
-### 7.2. Double Bouclier de Sécurité : Rust & Go
-La plateforme KONTROL renforce son intégrité et sa protection système en s'appuyant sur deux composants autonomes hautement sécurisés :
+### 7.2. Bouclier de Sécurité Multi-Langages : Rust, Go & Java
+La plateforme KONTROL renforce son intégrité et sa protection système en s'appuyant sur trois composants autonomes hautement de niveau entreprise :
 1. **Bouclier Interne Rust (Rust Shield - `/backend/rust-shield`)** :
    * Fournit une barrière mémoire imperméable contre les dépassements de mémoire tampon (buffer overflows) et les injections d'entrées malveillantes via des validations de payload strictes sous Linux.
    * Valide algorithmiquement la cohérence des transactions financières au plus bas niveau matériel et produit des signatures d'audit immuables (`TransactionGuard::generate_audit_proof`).
@@ -162,6 +162,9 @@ La plateforme KONTROL renforce son intégrité et sa protection système en s'ap
 2. **Noyau de Pilotage Go (Go Kernel - `/backend/go-kernel`)** :
    * Orchestre la validation des comptes et le cache sécurisé (`SafeCache`) de performance multi-threadé avec protection contre les conditions de concurrence (`sync.RWMutex`).
    * Expose un service d'intégrité de niveau entreprise pour contrôler la validation d'autorisation de stock (`/api/v1/security/verify-stock`), protégeant les opérations d'achat/vente multi-utilisateurs en parallèle.
+3. **Moteur Métier Java (Java Enterprise Engine - `/backend/java-core` & `/backend/java-spring`)** :
+   * Orchestre la validation des règles de gestion d'entreprise, les scores de risque financier complexe et les intégrations bancaires de haut niveau.
+   * Expose un contrôleur REST Spring Boot (`/api/business/verify-stock`) s'appuyant sur l'algorithme `verifyStockIntegrity` du Java Core pour certifier et journaliser l'intégrité opérationnelle des inventaires avant tout déblocage d'écritures ou financements.
 
 ### 7.3. Système de Notifications Universel & Interactif
 Chaque notification émise dans l'écosystème KONTROL (depuis les alertes d'inventaire bas, les rapports financiers générés par l'IA ou les commentaires de ticket support) est **100% interactive** :
