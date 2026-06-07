@@ -37,11 +37,16 @@ interface Notification {
   id: string;
   title: string;
   message: string;
-  type: 'info' | 'success' | 'warning' | 'error';
+  type: 'info' | 'success' | 'warning' | 'error' | 'update';
   read: boolean;
   timestamp: number;
   companyId: string;
   link?: string;
+  isUpdate?: boolean;
+  versionNumber?: string;
+  versionDescription?: string;
+  versionFeatures?: string[];
+  versionAuthor?: string;
 }
 
 interface NotificationsCenterModuleProps {
@@ -134,14 +139,32 @@ export function NotificationsCenterModule({ profile, onNavigate }: Notifications
   const filteredNotifications = notifications.filter(n => {
     const matchesSearch = n.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
                          n.message.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = filterType === 'all' || n.type === filterType;
+    const matchesType = filterType === 'all' 
+      ? true 
+      : filterType === 'update' 
+        ? (n.isUpdate === true || n.type === 'update')
+        : n.type === filterType;
     const matchesUnread = !showOnlyUnread || !n.read;
     return matchesSearch && matchesType && matchesUnread;
   });
 
-  const handleAction = (notif: Notification) => {
+  const handleAction = (notif: any) => {
     if (!notif.read) markAsRead(notif.id);
     
+    // Intercept update notifications and open detailed release modal
+    if (notif.isUpdate || notif.versionNumber || (notif.link && notif.link.startsWith('version:'))) {
+      const versionData = {
+        id: notif.id,
+        version: notif.versionNumber || notif.link?.split(':')[1] || notif.title || 'Inconnu',
+        description: notif.versionDescription || notif.message,
+        features: notif.versionFeatures || [],
+        author: notif.versionAuthor || "Innov'Korp Team",
+        releaseDate: notif.timestamp || Date.now()
+      };
+      window.dispatchEvent(new CustomEvent('show-version-update-details', { detail: versionData }));
+      return;
+    }
+
     if (notif.link && onNavigate) {
       if (notif.link.includes('admin')) {
         onNavigate('admin', 'Système', 'Tour de contrôle');
@@ -199,6 +222,7 @@ export function NotificationsCenterModule({ profile, onNavigate }: Notifications
               { id: 'all', label: 'Toutes' },
               { id: 'info', label: 'Info' },
               { id: 'success', label: 'Succès' },
+              { id: 'update', label: 'Mises à jour' },
               { id: 'warning', label: 'Alertes' },
               { id: 'error', label: 'Erreurs' }
             ].map(type => (
@@ -301,7 +325,7 @@ export function NotificationsCenterModule({ profile, onNavigate }: Notifications
                         {notif.message}
                       </p>
 
-                      {notif.link && (
+                      {(notif.link || notif.isUpdate || notif.versionNumber) && (
                         <button 
                           onClick={() => handleAction(notif)}
                           className="mt-3 flex items-center gap-1.5 text-[11px] font-extrabold text-kontrol-blue uppercase tracking-widest hover:gap-2 transition-all group-link"

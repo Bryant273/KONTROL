@@ -49,9 +49,24 @@ export function NotificationCenter({ profile, onNavigate }: NotificationCenterPr
   const [unreadCount, setUnreadCount] = React.useState(0);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
 
-  const handleNotificationClick = (notif: Notification) => {
+  const handleNotificationClick = (notif: any) => {
     if (!notif.read) {
       markAsRead(notif.id);
+    }
+
+    // Intercept update notifications and open detailed release modal
+    if (notif.isUpdate || notif.versionNumber || (notif.link && notif.link.startsWith('version:'))) {
+      const versionData = {
+        id: notif.id,
+        version: notif.versionNumber || notif.link?.split(':')[1] || notif.title || 'Inconnu',
+        description: notif.versionDescription || notif.message,
+        features: notif.versionFeatures || [],
+        author: notif.versionAuthor || "Innov'Korp Team",
+        releaseDate: notif.timestamp || Date.now()
+      };
+      window.dispatchEvent(new CustomEvent('show-version-update-details', { detail: versionData }));
+      setIsOpen(false);
+      return;
     }
 
     if (notif.link && onNavigate) {

@@ -49,12 +49,25 @@ import { NotificationsCenterModule } from './modules/system/NotificationsCenterM
 import { Toaster } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { ERP_NAV_SECTIONS, COMPANY_NAV_SECTIONS } from './constants/navigation';
+import { VersionDetailsModal } from './components/common/VersionDetailsModal';
 
 export default function App() {
   const { t, i18n } = useTranslation();
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(() => {
+    const cached = localStorage.getItem('kontrol_profile_cache');
+    if (cached) {
+      try {
+        return JSON.parse(cached);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
   const [loading, setLoading] = useState(true);
+  const [updateVersionData, setUpdateVersionData] = useState<any>(null);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('activeTab') || 'dashboard');
   const [activeSection, setActiveSection] = useState(() => localStorage.getItem('activeSection') || 'Pilotage');
   const [activeLabel, setActiveLabel] = useState(() => localStorage.getItem('activeLabel') || 'Tableau de bord');
@@ -73,6 +86,21 @@ export default function App() {
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Listen for global system update detail popovers
+  useEffect(() => {
+    const handleShowUpdateDetails = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail) {
+        setUpdateVersionData(detail);
+        setIsUpdateModalOpen(true);
+      }
+    };
+    window.addEventListener('show-version-update-details', handleShowUpdateDetails);
+    return () => {
+      window.removeEventListener('show-version-update-details', handleShowUpdateDetails);
+    };
   }, []);
   const [showReminder, setShowReminder] = useState<{ days: number } | null>(null);
   const [isBlocked, setIsBlocked] = useState(false);
@@ -153,6 +181,7 @@ export default function App() {
       if (snapshot.exists()) {
         const profileData = snapshot.data() as UserProfile;
         setProfile(profileData);
+        localStorage.setItem('kontrol_profile_cache', JSON.stringify(profileData));
         if (!profileData.isProfileComplete && (profileData.role === 'ADMINISTRATEUR_ENTREPRISE' || profileData.role === 'GESTIONNAIRE_ENTREPRISE')) {
           setShowSetup(true);
         }
@@ -191,12 +220,14 @@ export default function App() {
             prev.companyName !== companyData.name ||
             prev.companyAbbreviation !== companyData.abbreviation
           ) {
-            return {
+            const updated = {
               ...prev,
               companyLogo: companyData.logo || '',
               companyName: companyData.name || prev.companyName || '',
               companyAbbreviation: companyData.abbreviation || prev.companyAbbreviation || ''
             };
+            localStorage.setItem('kontrol_profile_cache', JSON.stringify(updated));
+            return updated;
           }
           return prev;
         });
@@ -474,6 +505,12 @@ export default function App() {
       <AppGuideAssistant activeTab={activeTab} forceOpen={forceGuide} onCloseForce={() => setForceGuide(false)} />
       <Chatbot profile={profile} />
       <Toaster position="top-right" expand={false} richColors />
+      
+      <VersionDetailsModal 
+        version={updateVersionData} 
+        isOpen={isUpdateModalOpen} 
+        onClose={() => setIsUpdateModalOpen(false)} 
+      />
     </div>
   );
 }

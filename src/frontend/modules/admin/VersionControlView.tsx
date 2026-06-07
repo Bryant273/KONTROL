@@ -35,7 +35,9 @@ import {
   handleFirestoreError,
   OperationType,
   auth,
-  logAction
+  logAction,
+  setDoc,
+  writeBatch
 } from '../../../api/firebase';
 
 interface AppVersion {
@@ -70,6 +72,43 @@ export function VersionControlView() {
     features: '',
     author: 'Innov\'Korp Team'
   });
+
+  const pushUpdateNotificationToAllCompanies = async (
+    versionNum: string,
+    desc: string,
+    feats: string[],
+    versionAuthor: string
+  ) => {
+    try {
+      const companiesSnap = await getDocs(collection(db, 'companies'));
+      if (companiesSnap.empty) return;
+
+      const batch = writeBatch(db);
+      companiesSnap.docs.forEach((compDoc) => {
+        const companyId = compDoc.id;
+        const docId = `update_${companyId}_${versionNum.replace(/\./g, '_')}`;
+        const docRef = doc(db, 'notifications', docId);
+
+        batch.set(docRef, {
+          companyId,
+          title: `Mise à jour Système : ${versionNum}`,
+          message: desc,
+          type: 'update',
+          read: false,
+          timestamp: Date.now(),
+          isUpdate: true,
+          versionNumber: versionNum,
+          versionDescription: desc,
+          versionFeatures: feats || [],
+          versionAuthor: versionAuthor || "Innov'Korp Team"
+        });
+      });
+
+      await batch.commit();
+    } catch (err) {
+      console.error("Error setting deterministic update notifications:", err);
+    }
+  };
 
   useEffect(() => {
     // Listen to system config for current version
@@ -149,6 +188,17 @@ export function VersionControlView() {
         `Bascule réelle du système vers la version ${version}`
       );
 
+      // Instantly generate release update notification for all companies
+      const matchingVersion = versions.find(v => v.version === version);
+      if (matchingVersion) {
+        await pushUpdateNotificationToAllCompanies(
+          matchingVersion.version,
+          matchingVersion.description,
+          matchingVersion.features,
+          matchingVersion.author
+        );
+      }
+
       console.log(t('admin.versions.switch_success', { version }));
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, 'system/config', auth.currentUser, false);
@@ -171,6 +221,14 @@ export function VersionControlView() {
         status: 'ARCHIVED',
         releaseDate: Date.now()
       });
+
+      // Instantly notify everyone of the new archived/releasable version
+      await pushUpdateNotificationToAllCompanies(
+        newVersionData.version,
+        newVersionData.description,
+        featuresArray,
+        newVersionData.author
+      );
 
       setIsAddingVersion(false);
       setNewVersionData({ version: '', description: '', features: '', author: 'Innov\'Korp Team' });
