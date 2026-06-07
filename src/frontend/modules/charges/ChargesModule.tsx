@@ -306,6 +306,29 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
     return () => unsubscribe();
   }, [user, companyId, currentUserProfile]);
 
+  React.useEffect(() => {
+    const checkTargetId = () => {
+      const tid = localStorage.getItem('selected_target_id_charges');
+      if (tid) {
+        setSelectedId(tid);
+        localStorage.removeItem('selected_target_id_charges');
+      }
+    };
+    
+    checkTargetId();
+    
+    const listener = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail && detail.id) {
+        setSelectedId(detail.id);
+        localStorage.removeItem('selected_target_id_charges');
+      }
+    };
+    
+    window.addEventListener('select-entity-charges', listener);
+    return () => window.removeEventListener('select-entity-charges', listener);
+  }, []);
+
   const selectedCharge = charges.find(c => c.id === selectedId);
 
   const filteredCharges = charges.filter(c => {

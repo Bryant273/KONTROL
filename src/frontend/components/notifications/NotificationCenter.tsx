@@ -70,13 +70,74 @@ export function NotificationCenter({ profile, onNavigate }: NotificationCenterPr
     }
 
     if (notif.link && onNavigate) {
-      // Basic link parsing (e.g., /admin?tab=subscriptions)
-      if (notif.link.includes('admin')) {
-        onNavigate('admin', 'Système', 'Tour de contrôle');
-      } else if (notif.link.includes('tickets')) {
-        onNavigate('tickets', 'Support', 'Tickets Support');
-      } else if (notif.link.includes('subscriptions')) {
-        onNavigate('subscriptions', 'Entreprise', 'Mon Abonnement');
+      const linkStr = notif.link.trim();
+      let tab = '';
+      let section = 'Gestion';
+      let label = '';
+      let entityId = '';
+
+      if (linkStr.includes(':')) {
+        const parts = linkStr.split(':');
+        const entityType = parts[0].toLowerCase().trim();
+        entityId = parts[1].trim();
+
+        if (entityType.startsWith('transaction')) {
+          tab = 'transactions';
+          label = 'Transactions';
+        } else if (entityType.startsWith('product') || entityType.startsWith('produit')) {
+          tab = 'produits';
+          label = 'Produits';
+        } else if (entityType.startsWith('tier')) {
+          tab = 'tiers';
+          label = 'Partenaires & Tiers';
+        } else if (entityType.startsWith('charge')) {
+          tab = 'charges';
+          label = 'Dépenses & Charges';
+        } else if (entityType.startsWith('ticket')) {
+          tab = 'tickets';
+          section = 'Support';
+          label = 'Tickets Support';
+        } else if (entityType.startsWith('subscription') || entityType.startsWith('abonnement')) {
+          tab = 'abonnements';
+          section = 'Système';
+          label = 'Mon Abonnement';
+        }
+      } else {
+        // Fallback or exact matches
+        const lowerLink = linkStr.toLowerCase();
+        if (lowerLink.includes('admin')) {
+          tab = 'admin';
+          section = 'Système';
+          label = 'Tour de contrôle';
+        } else if (lowerLink.includes('ticket')) {
+          tab = 'tickets';
+          section = 'Support';
+          label = 'Tickets Support';
+        } else if (lowerLink.includes('subscription') || lowerLink.includes('abonnement')) {
+          tab = 'abonnements';
+          section = 'Système';
+          label = 'Mon Abonnement';
+        } else if (lowerLink.includes('transaction')) {
+          tab = 'transactions';
+          label = 'Transactions';
+        } else if (lowerLink.includes('product') || lowerLink.includes('produit')) {
+          tab = 'produits';
+          label = 'Produits';
+        } else if (lowerLink.includes('tier')) {
+          tab = 'tiers';
+          label = 'Partenaires & Tiers';
+        } else if (lowerLink.includes('charge')) {
+          tab = 'charges';
+          label = 'Dépenses & Charges';
+        }
+      }
+
+      if (tab) {
+        if (entityId) {
+          localStorage.setItem(`selected_target_id_${tab}`, entityId);
+          window.dispatchEvent(new CustomEvent(`select-entity-${tab}`, { detail: { id: entityId } }));
+        }
+        onNavigate(tab, section, label);
       }
       setIsOpen(false);
     }

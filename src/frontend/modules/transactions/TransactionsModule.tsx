@@ -296,6 +296,29 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
     return () => unsubscribes.forEach(unsub => unsub());
   }, [user, companyId, currentUserProfile, selectedCompanyId]);
 
+  React.useEffect(() => {
+    const checkTargetId = () => {
+      const tid = localStorage.getItem('selected_target_id_transactions');
+      if (tid) {
+        setSelectedId(tid);
+        localStorage.removeItem('selected_target_id_transactions');
+      }
+    };
+    
+    checkTargetId();
+    
+    const listener = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail && detail.id) {
+        setSelectedId(detail.id);
+        localStorage.removeItem('selected_target_id_transactions');
+      }
+    };
+    
+    window.addEventListener('select-entity-transactions', listener);
+    return () => window.removeEventListener('select-entity-transactions', listener);
+  }, []);
+
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!hasPermission(currentUserProfile?.role, 'TRANSACTION_CREATE')) {

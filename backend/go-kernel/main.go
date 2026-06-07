@@ -70,11 +70,24 @@ var (
 	inMemoryCache  = &SafeCache{items: make(map[string]CacheItem)}
 )
 
+type StockCheckRequest struct {
+	ProductID    string `json:"productId"`
+	CurrentStock int    `json:"currentStock"`
+	RequestedQty int    `json:"requestedQty"`
+}
+
+type StockCheckResponse struct {
+	Authorized bool      `json:"authorized"`
+	Message    string    `json:"message"`
+	Timestamp  time.Time `json:"timestamp"`
+}
+
 func main() {
 	http.HandleFunc("/api/v1/auth/login", handleLogin)
 	http.HandleFunc("/api/v1/system/health", handleHealth)
 	http.HandleFunc("/api/v1/cache/set", handleCacheSet)
 	http.HandleFunc("/api/v1/cache/get", handleCacheGet)
+	http.HandleFunc("/api/v1/security/verify-stock", handleVerifyStock)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -83,6 +96,39 @@ func main() {
 
 	fmt.Printf("[GO-KERNEL] KONTROL Engine booting on port %s...\n", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
+}
+
+func handleVerifyStock(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req StockCheckRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	authorized := true
+	message := "STOCK_CONTROLLER_SYSTEM: OK - High Integrity verified"
+
+	if req.RequestedQty <= 0 {
+		authorized = false
+		message = "STOCK_CONTROLLER_SYSTEM: ERROR - Invalid requested quantity"
+	} else if req.CurrentStock < req.RequestedQty {
+		authorized = false
+		message = fmt.Sprintf("STOCK_CONTROLLER_SYSTEM: ERROR - Insufficient stock (%d available, %d requested)", req.CurrentStock, req.RequestedQty)
+	}
+
+	resp := StockCheckResponse{
+		Authorized: authorized,
+		Message:    message,
+		Timestamp:  time.Now(),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
 }
 
 func handleLogin(w http.ResponseWriter, r *http.Request) {

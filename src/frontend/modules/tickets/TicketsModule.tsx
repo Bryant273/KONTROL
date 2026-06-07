@@ -336,6 +336,35 @@ Ne retourne aucune autre phrase, ni balises markdown \`\`\`json \`\`\``;
     return () => unsubscribe();
   }, [user, currentUserProfile]);
 
+  React.useEffect(() => {
+    const checkTargetId = () => {
+      const tid = localStorage.getItem('selected_target_id_tickets');
+      if (tid && tickets.length > 0) {
+        const match = tickets.find(t => t.id === tid);
+        if (match) {
+          setSelectedTicket(match);
+          localStorage.removeItem('selected_target_id_tickets');
+        }
+      }
+    };
+    
+    checkTargetId();
+    
+    const listener = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail && detail.id && tickets.length > 0) {
+        const match = tickets.find(t => t.id === detail.id);
+        if (match) {
+          setSelectedTicket(match);
+          localStorage.removeItem('selected_target_id_tickets');
+        }
+      }
+    };
+    
+    window.addEventListener('select-entity-tickets', listener);
+    return () => window.removeEventListener('select-entity-tickets', listener);
+  }, [tickets]);
+
   const handleUpdateStatus = async (ticketId: string, newStatus: Ticket['status']) => {
     try {
       await updateDoc(doc(db, 'tickets', ticketId), { 

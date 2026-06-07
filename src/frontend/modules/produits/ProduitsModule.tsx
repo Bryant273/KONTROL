@@ -315,6 +315,29 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
     return () => unsubscribe();
   }, [user, companyId, currentUserProfile, selectedCompanyId]);
 
+  React.useEffect(() => {
+    const checkTargetId = () => {
+      const tid = localStorage.getItem('selected_target_id_produits');
+      if (tid) {
+        setSelectedId(tid);
+        localStorage.removeItem('selected_target_id_produits');
+      }
+    };
+    
+    checkTargetId();
+    
+    const listener = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail && detail.id) {
+        setSelectedId(detail.id);
+        localStorage.removeItem('selected_target_id_produits');
+      }
+    };
+    
+    window.addEventListener('select-entity-produits', listener);
+    return () => window.removeEventListener('select-entity-produits', listener);
+  }, []);
+
   const selectedProduit = produits.find(p => p.id === selectedId);
   
   const filteredProduits = produits.filter(p => {

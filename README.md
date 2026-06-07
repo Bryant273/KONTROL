@@ -2,8 +2,8 @@
 
 ---
 ### DOCUMENT TECHNIQUE ET OPÉRATIONNEL DE RÉFÉRENCE DE LA SUITE APPLICATIVE
-**Version de Production :** 3.2.0-PRO  
-**Classification d'Accès :** Restreint aux Partenaires Certifiés & Administrateurs Système KONTROL  
+**Version de Production :** 1.0.0 (Version Unique et Harmonisée)  
+**Classification d'Accès :** Restreint aux Partenaires Certifiés & Administrateurs Système KONTROL (Information d'API hautement sécurisée, aucune clé ou clé d'accès n'est exposée en clair)  
 **Gouvernance Intellectuelle :** Division de Recherche & Développement, Département de Cybersécurité et Architectures Distribuées de **Innov’Korp**  
 **Pile Logicielle Fondatrice :** Full-Stack ESM/CJS • React 18 • Vite SPA • Express Unified Engine • Cloud Firestore Multi-Tenant • Native Wave Checkout • BLUE AI Cognitive Assistant
 
@@ -104,7 +104,7 @@ Afin d'obtenir une réactivité instantanée lors de la mise en service à chaud
 La protection des ressources de nos clients représente le premier niveau d'engagement de la suite d’**Innov’Korp**. Cette section présente en détails la matrice défensive de KONTROL ERP.
 
 ### 3.1 Durcissement des Comptes Systèmes et Résolution Majeure de la Vaincabilité sur `test-entreprise@kontrol.com`
-Au cours du récent sprint d’audit de la version 3.1.0, une irrégularité sémantique de haut niveau a été détectée et neutralisée par nos ingénieurs en cybersécurité.
+Au cours du récent sprint d’audit de la version 1.0.0, une irrégularité sémantique de haut niveau a été détectée et neutralisée par nos ingénieurs en cybersécurité.
 
 *   **La Faiblesse d'Escalade Décelée** :
     Le compte de test d'entreprise `test-entreprise@kontrol.com` avait été paramétré dans les bases de développement d’arrière-plan pour simuler à la fois l'utilisation d'un client et la vérification des données de support global de la plateforme ERP. En conséquence, les exceptions de filtrage à l'initialisation de session laissaient filer ce compte vers les fonctionnalités de la console d'administration centrale (Control Tower). Ce problème menaçait directement le secret des affaires de l’ensemble des véritables entreprises locataires de la plateforme.
@@ -553,11 +553,11 @@ Pour éviter de surcharger les processeurs des serveurs applicatifs ou de consom
 
 ---
 
-## 11. 🧑‍💻 DOSSIER TECHNIQUE : RÉSOLUTIONS ET REFACTORISATIONS CLÉS DES DERNIÈRES VERSIONS
+## 11. 🧑‍💻 DOSSIER TECHNIQUE : RÉSOLUTIONS ET REFACTORISATIONS CLÉS DE LA VERSION 1.0.0
 
-Ce dossier technique recense l'historique des travaux d'ingénierie majeurs menés par les équipes de développement d’**Innov’Korp** sur les dernières versions de la plateforme :
+Ce dossier technique recense le détail des travaux d'ingénierie majeurs menés par les équipes de développement d’**Innov’Korp** sur la plateforme :
 
-### 11.1 Version v3.1.2 — Stabilisation FinTech, Sémantique et Sécurité
+### 11.1 Version v1.0.0 — Stabilisation FinTech, Sémantique et Sécurité
 *   **Migration Complète Wave Business** : Retrait définitif de Paystack. Mise à jour des interfaces d'administration et de supervision technique de la Control Tower.
 *   **Sécurisation Multi-Tenant du Compte Test** : Retrait du compte démonstration d'entreprise `test-entreprise@kontrol.com` des vérifications de droits de la Control Tower ERP globale pour confiner son action au seul profil d’un Administrateur d’Entreprise isolé.
 *   **Correction d'Erreur i18n sur `common.status`** : Déploiement de `common.status_label` sur l'ensemble des grilles d'affichages et modules d'impressions de rapports.

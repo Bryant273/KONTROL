@@ -37,4 +37,15 @@ impl ShieldGuard {
         }
         result
     }
+
+    /// Contrôleur d'intégrité de stock bas niveau (Rust Shield)
+    pub fn verify_stock_integrity(&self, current_stock: i32, requested: i32) -> Result<bool, String> {
+        if requested <= 0 {
+            return Err("Quantité demandée invalide - doive être supérieure à zéro".to_string());
+        }
+        if current_stock < requested {
+            return Err(format!("STOCKS_GUARDIAN_CORRUPTION_DETECTED: Insufficient Stock {} < {}", current_stock, requested));
+        }
+        Ok(true)
+    }
 }

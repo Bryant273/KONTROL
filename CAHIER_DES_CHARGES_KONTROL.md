@@ -1,5 +1,8 @@
 # Cahier des Charges & Spécifications Fonctionnelles – KONTROL ERP
 
+**Version d'Écosystème & de Saisie Unique :** Version 1.0.0 (Alignée sur l'Interface Utilisateur active)  
+**Sécurité & Intégration API :** Architecture sécurisée unifiée par variables d'environnement distantes. Les clés secrètes et API de production ne sont jamais exposées dans la documentation ou l'interface.
+
 Ce document constitue la référence exhaustive de l'architecture fonctionnelle, de l'interface utilisateur et des exigences logicielles de la plateforme **KONTROL**, un ERP de Gestion Intelligente conçu pour les Petites et Moyennes Entreprises (PME) ainsi que pour la supervision administrative par les super-administrateurs.
 
 ---
@@ -140,3 +143,30 @@ Pour garantir des exports officiels hautement professionnels, le système d'édi
 ```
 
 Ce document de spécifications sert de socle pour guider les développements futurs et garantir la cohérence d'utilisation de la plateforme **KONTROL**.
+
+---
+
+## 7. Extensions de Sécurité, Contrôle des Stocks & Notifications Connectées
+
+### 7.1. Gestion Strict du Stock & Blocage de Vente
+Pour sécuriser l'exploitation commerciale des entreprises partenaires et interdire les découverts arbitraires, la plateforme intègre un **principe de contrôle strict des flux de stocks** lors de la création d'écritures :
+* **Interdiction de Vente à Découvert** : Lors de l'enregistrement d'une vente (transaction `VENTE`), l'ERP vérifie instantanément pour chaque produit ajouté si la quantité disponible en stock est supérieure ou égale à la quantité demandée (`prod.stock >= art.quantite`).
+* **Retour Utilisateur Explicite** : Si les stocks sont insuffisants, le système bloque immédiatement la transaction, remonte un message d'erreur d'une grande clarté à l'écran (ex. `Stock insuffisant : [Désignation] ([Dispo] disponibles)`), et empêche l'écriture dans la base de données.
+
+### 7.2. Double Bouclier de Sécurité : Rust & Go
+La plateforme KONTROL renforce son intégrité et sa protection système en s'appuyant sur deux composants autonomes hautement sécurisés :
+1. **Bouclier Interne Rust (Rust Shield - `/backend/rust-shield`)** :
+   * Fournit une barrière mémoire imperméable contre les dépassements de mémoire tampon (buffer overflows) et les injections d'entrées malveillantes via des validations de payload strictes sous Linux.
+   * Valide algorithmiquement la cohérence des transactions financières au plus bas niveau matériel et produit des signatures d'audit immuables (`TransactionGuard::generate_audit_proof`).
+   * Valide rigoureusement les états de stock par comparaison directe de registres via sa brique d'évaluation `verify_stock_integrity`.
+2. **Noyau de Pilotage Go (Go Kernel - `/backend/go-kernel`)** :
+   * Orchestre la validation des comptes et le cache sécurisé (`SafeCache`) de performance multi-threadé avec protection contre les conditions de concurrence (`sync.RWMutex`).
+   * Expose un service d'intégrité de niveau entreprise pour contrôler la validation d'autorisation de stock (`/api/v1/security/verify-stock`), protégeant les opérations d'achat/vente multi-utilisateurs en parallèle.
+
+### 7.3. Système de Notifications Universel & Interactif
+Chaque notification émise dans l'écosystème KONTROL (depuis les alertes d'inventaire bas, les rapports financiers générés par l'IA ou les commentaires de ticket support) est **100% interactive** :
+* **Clic Réactif & Ciblé** : Lorsque l'utilisateur clique sur une notification depuis le menu rapide ou le centre dédié, l'application analyse le champ lié `link` (contenant l'identifiant unique formaté tel que `transaction:TX_ID` ou `ticket:TICKET_ID`).
+* **Redirection & Sélection Automatique** :
+  1. Le système redirige instantanément l'utilisateur vers le module approprié (Transactions, Produits, Partenaires, Charges, ou Support).
+  2. Un mécanisme de détection dynamique par événements personnalisés et persistance rapide de session récupère l'identifiant pour sélectionner, surligner et ouvrir la fiche détaillée correspondante automatiquement, libérant l'utilisateur de toute recherche manuelle contraignante.
+

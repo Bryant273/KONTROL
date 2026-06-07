@@ -325,6 +325,29 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
     return () => unsubscribe();
   }, [user, companyId, currentUserProfile]);
 
+  React.useEffect(() => {
+    const checkTargetId = () => {
+      const tid = localStorage.getItem('selected_target_id_tiers');
+      if (tid) {
+        setSelectedId(tid);
+        localStorage.removeItem('selected_target_id_tiers');
+      }
+    };
+    
+    checkTargetId();
+    
+    const listener = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail && detail.id) {
+        setSelectedId(detail.id);
+        localStorage.removeItem('selected_target_id_tiers');
+      }
+    };
+    
+    window.addEventListener('select-entity-tiers', listener);
+    return () => window.removeEventListener('select-entity-tiers', listener);
+  }, []);
+
   const selectedTiers = tiers.find(t => t.id === selectedId);
 
   const filteredTiers = tiers.filter(t => {
