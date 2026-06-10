@@ -729,7 +729,10 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
             <h3 className="text-[12px] font-extrabold text-kontrol-dark uppercase tracking-widest">{t('finance.outflow_evolution_title') || "Évolution des Décaissements (6 derniers mois)"}</h3>
             <p className="text-[11px] text-kontrol-ink-muted mt-0.5">{t('finance.outflow_evolution_subtitle') || "Flux de sortie de fonds mensuels consolidés"}</p>
           </div>
-          <div className="flex items-center gap-1.5 bg-rose-50 border border-rose-100/50 rounded-full px-2.5 py-0.5 shadow-2xs">
+          <div 
+            title={t('finance.realtime') || "Mise à jour en Temps Réel"}
+            className="flex items-center gap-1.5 bg-rose-50 border border-rose-100/50 rounded-full px-2.5 py-0.5 shadow-2xs cursor-help"
+          >
             <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-ping" />
             <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider">{t('finance.realtime') || "Temps Réel"}</span>
           </div>

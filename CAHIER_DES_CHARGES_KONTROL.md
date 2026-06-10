@@ -127,7 +127,34 @@ Pour garantir des exports officiels hautement professionnels, le système d'édi
 
 ---
 
-## 6. Synthèse des flux applicatifs récurrents
+## 6. Architecture Découplée de Demain : Division Tri-Applicative
+
+Pour répondre au besoin d'expansion et d'étanchéité industrielle de la suite logicielle, KONTROL ERP établit son architecture cible sous la forme de **trois applications distinctes, autonomes et reliées par des interfaces d'API sécurisées**. Chaque composant possède sa propre base de données avec son schéma spécifique (Schema de DB par interface).
+
+### 6.1. Module 1 : L'Application Client / Entreprise (Espace PME)
+*   **Nature** : Application Frontend Web SPA (Vite/React) et backend d'orchestration locale des transactions d'affaires. 
+*   **Schéma DB Client** : Restreint à la logique métier de l'entreprise locataire.
+    *   `transactions` : Ventes et Achats des entités.
+    *   `products` : Registre physique des stocks et prix d'achat/vente.
+    *   `payments` : Encaissements de trésorerie (Wave ou virement direct).
+    *   `tiers` : Fournisseurs, clients et relations commerciales locales.
+
+### 6.2. Module 2 : L'Application Admin / Back-Office (La Tour de Contrôle)
+*   **Nature** : Portail d'administration de haute sécurité inaccessible au public, restreint aux administrateurs certifiés via un DNS sécurisé propre.
+*   **Schéma DB Admin** : Gère la télémétrie de l'écosystème, les données financières de second niveau (Revenus de la plateforme MRR) et les dossiers de support.
+    *   `companies` : Liste des structures clientes de la suite, avec statut d'approbation et validité de licence (`subscriptionStatus` / `subscriptionEndDate`).
+    *   `admin_audit_logs` : Journal d'infringement de sécurité, traçabilité des modifications administratives majeures.
+    *   `tickets` : Recensement des sollicitations d'assistance technique.
+
+### 6.3. Module 3 : BLUE AI (Le Serveur Sémantique Autonome)
+*   **Nature** : Service d’IA décisionnelle décliné en microservice, piloté par un orchestrateur neuronal Python (Python ensemble core), des signatures de bas niveau et des agents LLM.
+*   **Schéma DB BLUE AI** : Schéma orienté cognition et continuous-learning. L'IA apprend en continu de chaque retour utilisateur et de chaque action acceptée sur l'application principale d'entreprise, les transformant dynamiquement en scripts et codes d'évaluation à exécuter à chaud.
+    *   `blue_brain_training_pairs` : Paires de données d'affinement (`prompt`/`response`) assorties de facteurs probabilistes et de hashes de contrôle anti-intrusion.
+    *   `blue_system_cognitive_indexes` : Cartographie des anomalies comptables, vélocité logistique et scores de risque d'octroi de découverts Bridge.
+
+---
+
+## 7. Synthèse des flux applicatifs récurrents
 
 ```
 [Utilisateur Entreprise]
@@ -146,7 +173,7 @@ Ce document de spécifications sert de socle pour guider les développements fut
 
 ---
 
-## 7. Extensions de Sécurité, Contrôle des Stocks & Notifications Connectées
+## 8. Extensions de Sécurité, Contrôle des Stocks & Notifications Connectées
 
 ### 7.1. Gestion Strict du Stock & Blocage de Vente
 Pour sécuriser l'exploitation commerciale des entreprises partenaires et interdire les découverts arbitraires, la plateforme intègre un **principe de contrôle strict des flux de stocks** lors de la création d'écritures :

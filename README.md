@@ -99,6 +99,68 @@ Afin d'obtenir une réactivité instantanée lors de la mise en service à chaud
 
 ---
 
+### 2.3 Découplage Sémantique et Architecture Future Tri-Applicative de KONTROL
+
+Afin d'assurer une étanchéité absolue de la charge de calcul, des cycles de vie et des postures de sécurité, l'écosystème KONTROL est structuré pour s'éclater en **trois applications distinctes compilées séparément et interconnectées**, chacune disposant de son propre schéma de base de données.
+
+```
+======================================================================================================
+                                🏛️ ÉCOSYSTÈME TRI-APPLICATIF DÉCOUPLÉ
+======================================================================================================
+
+  ┌─────────────────────────┐         ┌─────────────────────────┐         ┌─────────────────────────┐
+  │   1. APPLICATIF CLIENT  │         │  2. APPLICATIF ADMIN    │         │      3. BLUE AI         │
+  │     (Front-Office)      │         │     (Back-Office)       │         │  (Cognitive Orchestrator)│
+  ├─────────────────────────┤         ├─────────────────────────┤         ├─────────────────────────┤
+  │ - Facturation & Stocks  │         │ - Supervision multi-t   │         │ - CFO Sémantique & IA   │
+  │ - Flux de Trésorerie PME│         │ - Validation Abonnements│         │ - Inférence multi-modèle│
+  │ - Wave Payment Link SDK │         │ - Tickets Support / MRR │         │ - Auto-génération doc   │
+  └────────────┬────────────┘         └────────────┬────────────┘         └────────────┬────────────┘
+               │                                   │                                   │
+  ======================================================================================================
+                                💾 CORRESPONDANCE DES SCHÉMAS DE BASES
+  ======================================================================================================
+  ┌────────────▼────────────┐         ┌────────────▼────────────┐         ┌────────────▼────────────┐
+  │    SCHEMA CLIENT DB     │         │     SCHEMA ADMIN DB     │         │     SCHEMA BLUE AI DB   │
+  ├─────────────────────────┤         ├─────────────────────────┤         ├─────────────────────────┤
+  │ - transactions {ownerId}│         │ - companies {id, status}│         │ - training_pairs        │
+  │ - products (SKU)        │         │ - admin_audit_logs      │         │ - user_feedback_nodes   │
+  │ - partners (Tiers)      │         │ - tickets {clientId}    │         │ - cognitive_indexes     │
+  └────────────▲────────────┘         └────────────▲────────────┘         └────────────▲────────────┘
+               │                                   │                                   │
+               └───────────────────────────────────┼───────────────────────────────────┘
+                                                   ▼
+                                [REST API / Webhooks & Payload Signatures]
+```
+
+#### A. Application Client / Entreprise (Plateforme PME / Front-Office)
+*   **Rôle et Responsabilités** : Elle constitue l'interface principale d'exécution au quotidien pour les entreprises clientes. Elle permet la saisie d'écritures, la gestion facturière, le suivi physique d'inventaires de stocks et le rapprochement de trésorerie en temps réel.
+*   **Schéma et Structure de Base de Données** : Son schéma de persistance est optimisé pour les écritures haut-débit et l'étanchéité multi-locataires (Multi-Tenant).
+    *   `transactions` : Registre des flux d'achats et de ventes avec relation `devise` et `modePaiement`.
+    *   `products` : Configuration de stock unifiée, fiches d'inventaire, codes-barres et taux de marge.
+    *   `payments` : Solde réel de cashflow et validations locales Wave.
+    *   `tiers` : Carnet d'adresse commercial des partenaires (Clients et Fournisseurs).
+
+#### B. Application Back-Office / Administrateur System (La Tour de Contrôle)
+*   **Rôle et Responsabilités** : Interface d'administration globale étanche réservée à l'usage exclusif d'Innov'Korp et des ingénieurs d'exploitation. Elle assure la supervision du parc d'abonnements, le contrôle de la télémétrie des serveurs Cloud Run, le traitement asynchrone des tickets de support client et la validation physique "hors-ledger" des virements de frais Wave ou bancaires.
+*   **Schéma et Structure de Base de Données** : Son schéma est axé sur la consolidation de données globales de haut niveau et les besoins d'audit de sécurité opérationnelle.
+    *   `companies` : Table d'état des locataires contenant les indicateurs `subscriptionStatus`, l'échéance `subscriptionEndDate` et le capital déclaré d'entreprise.
+    *   `admin_audit_logs` : Registre général d'audit (inviolable et en écriture seule) traçant les actions managériales clefs de la plateforme.
+    *   `tickets` : Gestion des incidents avec statuts `Nouveau`, `En cours` ou `Résolu`.
+
+#### C. Application BLUE AI Core (Agent & Moteur de Décision Sémantique)
+*   **Rôle et Responsabilités** : Cette brique applicative est complètement découplée en tant que moteur de calcul d'intelligence stratégique décisionnelle. Elle écoute les flux de l'ERP pour acquérir de nouvelles compétences métier au fil de l'eau. Tout ce que l'utilisateur réalise ou valide et chaque conseil de gestion accepté alimente un pipeline d'apprentissage dynamique continuous-learning qui auto-compile en direct des fonctions exécutables d'évaluation sémantique. Elle est également chargée de l'orchestration multi-modèles (confrontation de signaux) et de l'auto-génération de certificats de financement ou documents comptables sophistiqués.
+*   **Schéma et Structure de Base de Données** : Son schéma est spécifiquement élaboré pour le traitement d'apprentissage automatique d'Inférence, l'enrichissement de contextes, et la détection d'anomalies financières ou de stocks extrêmes.
+    *   `blue_brain_training_pairs` : Paires de données d'apprentissage continu composées du couple `prompt` et `response` avec un score de confiance `confidence` et une signature cryptographique d'authenticité (`security_hash`) à l'abri des manipulations de mémoire.
+    *   `blue_system_cognitive_indexes` : Cartographie des modules indexés en autonomie par le core d'apprentissage (ex : vélocité des stocks réels, alertes d'incohérences de balance de trésorerie).
+
+#### D. Canaux d'Interconnexion et d'Intégrité Inter-Applicatifs
+1.  **API REST de Synchronisation Réseau** : Les trois applications communiquent à travers des routes HTTP scellées sur SSL/TLS 1.3. L'intelligence sémantique de l'application BLUE AI accède en lecture seule aux données de calculs de l'application Client après vérification du jeton d'autorisation.
+2.  **Webhooks Wave & Transactions** : Les requêtes d'abonnement générées par l'app Client alertent en quasi-temps réel la Tour de Contrôle Admin par l'intermédiaire de signatures de webhooks d'acquittement sécurisés.
+3.  **Bouclier Logique Unifié** : Les moteurs Rust, Go, et Java Enterprise valident au format de flux d’octets (payloads) la cohérence inter-schémas des stocks et des flux financiers réels lors de chaque transfert inter-applicatif, prévenant toute corruption de registre entre les frontières logiques des trois bases.
+
+---
+
 ## 3. 🛡️ RAPPORT COMPLET D'AUDIT DE SÉCURITÉ ET PROTECTION APPLICATIVE
 
 La protection des ressources de nos clients représente le premier niveau d'engagement de la suite d’**Innov’Korp**. Cette section présente en détails la matrice défensive de KONTROL ERP.

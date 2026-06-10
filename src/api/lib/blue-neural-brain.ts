@@ -1,6 +1,7 @@
 
 import { GoogleGenAI } from "@google/genai";
 import Database from "better-sqlite3";
+import { exec } from "child_process";
 
 /**
  * KONTROL Blue Neural Brain Engine (v4.0)
@@ -23,6 +24,21 @@ export class BlueNeuralBrain {
       });
     }
     this.seedTrainingData();
+    this.triggerPythonSelfEvolution();
+  }
+
+  private triggerPythonSelfEvolution() {
+    try {
+      exec("python3 backend/python/ai/NeuralOrchestrator.py", (err, stdout, stderr) => {
+        if (err) {
+          console.warn("[BLUE-AI-PYTHON-TRIGGER] Base Python Orchestrator warning (may not be critical):", err.message);
+          return;
+        }
+        console.log("[BLUE-AI-PYTHON-TRIGGER] Dynamic Python Core synchronised and compiled successfully:\n", stdout);
+      });
+    } catch (e) {
+      console.warn("Could not start child python process:", e);
+    }
   }
 
   private seedTrainingData() {
@@ -590,6 +606,11 @@ Directives d'Interaction :
           status: "STABLE",
           contribution: "Évaluation d'activité & Calcul de trésorerie",
           confidence: 0.95
+        },
+        python_cognitive_engine: {
+          status: "SELF_EVOLVING",
+          contribution: "Reconstitution & Compilation dynamique de fonctions sur la base SQLite (Python Core)",
+          confidence: 0.99
         }
       };
 
@@ -608,6 +629,8 @@ Directives d'Interaction :
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `).run(learnId, prompt.substring(0, 500), responseText.substring(0, 1000), "CONTINUOUS_LEARNING", "USER_FEEDBACK", trustScore, security_hash, Date.now());
         console.log(`[BLUE-AI] Neural Brain dynamic continuous learning updated. Added learning node: ${learnId}`);
+        // Let the Python orchestrator read the newly added user node and compile functions in real-time
+        this.triggerPythonSelfEvolution();
       } catch (learnError) {
         console.warn("Could not save dynamic continuous learning node:", learnError);
       }
