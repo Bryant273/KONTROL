@@ -156,6 +156,10 @@ service cloud.firestore {
       allow update: if isKontrolAdmin() || isCompanyAdmin(existing().companyId);
     }
 
+    match /subscription_requests/{requestId} {
+      allow read, write: if isSignedIn();
+    }
+
     match /charges/{chargeId} {
       allow get: if isEmailVerified() && (belongsToCompany(existing().ownerId) || isKontrolAdmin());
       allow list: if isEmailVerified() && (resource.data.ownerId == getUserField('companyId', '') || isKontrolAdmin());

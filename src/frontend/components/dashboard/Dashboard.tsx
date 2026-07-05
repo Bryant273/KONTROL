@@ -99,8 +99,8 @@ export function Dashboard({ user, currentUserProfile, onNavigate, onStartGuide }
         const now = Date.now();
         const daysLeft = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
         
-        // Dynamically displays ONLY if subscription is close to expiry (e.g. 10 days or fewer)
-        if (daysLeft <= 10) {
+        // Dynamically displays ONLY if subscription is close to expiry (e.g. 5 days or fewer)
+        if (daysLeft <= 5) {
           return {
             isDemo: false,
             daysLeft: Math.max(0, daysLeft),

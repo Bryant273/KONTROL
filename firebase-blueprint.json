@@ -85,6 +85,25 @@
         "createdAt": { "type": "number" }
       }
     },
+    "SubscriptionRequest": {
+      "title": "Demande de validation d'abonnement Wave",
+      "description": "Demande de validation de paiement de renouvellement d'abonnement via Wave",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "companyId": { "type": "string" },
+        "companyName": { "type": "string" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "transactionId": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED"] },
+        "type": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["userId", "companyId", "amount", "transactionId", "status"]
+    },
     "Payment": {
       "title": "Mouvement financier",
       "description": "Enregistrement d'un paiement (encaissement ou décaissement)",
@@ -141,6 +160,10 @@
     "payment_requests/{requestId}": {
       "schema": "PaymentRequest",
       "description": "Demandes d'abonnement"
+    },
+    "subscription_requests/{requestId}": {
+      "schema": "SubscriptionRequest",
+      "description": "Demandes de validation d'abonnement Wave"
     },
     "tiers/{tierId}": {
       "schema": "Tier",

@@ -228,6 +228,79 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
   };
 
   const [isWaveLoading, setIsWaveLoading] = React.useState(false);
+  const [waveReference, setWaveReference] = React.useState('');
+  const [isWavePolling, setIsWavePolling] = React.useState(false);
+
+  // Polling automatique pour valider le paiement Wave
+  React.useEffect(() => {
+    if (!isWavePolling || !waveReference) return;
+
+    let toastId = toast.loading("En attente de votre paiement Wave... Veuillez valider la transaction sur votre téléphone.", {
+      description: "La plateforme détectera automatiquement la validation.",
+      duration: Infinity
+    });
+
+    const intervalId = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/wave/verify/${waveReference}`);
+        const data = await response.json();
+        if (response.ok && data.status === 'SUCCESS') {
+          clearInterval(intervalId);
+          setIsWavePolling(false);
+          toast.dismiss(toastId);
+          
+          // Ajouter le paiement dans Firestore
+          try {
+            await addDoc(collection(db, 'payments'), {
+              description: newPayment.description || `Paiement Wave ${waveReference}`,
+              montant: Number(newPayment.montant),
+              type: 'ENCAISSEMENT',
+              modePaiement: 'Wave',
+              date: Date.now(),
+              tiersId: newPayment.tiersId || 'system',
+              tiersNom: newPayment.tiersNom || 'Client Wave',
+              ownerId: companyId,
+              createdAt: Date.now()
+            });
+
+            // Enregistrer l'action
+            await logAction(
+              companyId,
+              user.uid,
+              currentUserProfile?.displayName,
+              "Paiement Wave Réussi",
+              `Paiement de ${formatCurrency(newPayment.montant)} reçu via Wave (Réf: ${waveReference})`
+            );
+
+            toast.success(`Paiement de ${formatCurrency(newPayment.montant)} reçu avec succès via Wave !`);
+            
+            // Fermer le formulaire et réinitialiser
+            setIsAddingPayment(false);
+            setNewPayment({
+              date: new Date().toISOString().split('T')[0],
+              montant: 0,
+              type: 'ENCAISSEMENT',
+              modePaiement: 'Espèces',
+              tiersId: '',
+              tiersNom: '',
+              description: ''
+            });
+            setWaveReference('');
+          } catch (dbErr) {
+            console.error("Erreur d'insertion du paiement Wave dans Firestore :", dbErr);
+            toast.error("Paiement validé mais erreur lors de la mise à jour de la base de données.");
+          }
+        }
+      } catch (err) {
+        console.error("Erreur de polling Wave:", err);
+      }
+    }, 3000);
+
+    return () => {
+      clearInterval(intervalId);
+      toast.dismiss(toastId);
+    };
+  }, [isWavePolling, waveReference, newPayment, companyId, user, currentUserProfile]);
 
   const handleWavePayment = async () => {
     if (newPayment.montant <= 0) {
@@ -246,8 +319,10 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
       });
       
       if (res.checkout_url) {
-        // Rediriger le client vers Wave
-        window.location.href = res.checkout_url;
+        setWaveReference(clientReference);
+        setIsWavePolling(true);
+        toast.info("Redirection vers Wave en cours... Veuillez finaliser le règlement.");
+        window.open(res.checkout_url, '_blank');
       } else {
         throw new Error("URL de paiement non reçue");
       }

@@ -1,910 +1,763 @@
-import * as React from 'react';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   CreditCard, 
   CheckCircle2, 
-  AlertCircle, 
-  Calendar, 
-  Package, 
-  Shield, 
-  Zap, 
   Clock, 
+  ExternalLink, 
+  FileText, 
   ArrowRight,
-  Loader2,
-  Sparkles,
-  History as HistoryIcon,
+  ShieldCheck,
+  RefreshCw,
+  Wallet,
+  Check,
+  Activity,
+  UserCheck,
   X,
-  Printer,
-  FileText,
-  Download,
-  Smartphone,
-  ExternalLink
+  Plus
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { UserProfile } from '../../types';
-import { cn, formatCurrency } from '../../lib/utils';
-import { exportToPDF } from '../../lib/export';
-import { db, doc, getDoc, getDocs, updateDoc, logAction, serverTimestamp, collection, addDoc, query, where, onSnapshot, orderBy, handleFirestoreError, OperationType, auth } from '../../../api/firebase';
-import { sendNotification } from '../../../api/services/notificationService';
-import { motion, AnimatePresence } from 'motion/react';
-
-import { ModuleActivityLog } from '../../components/common/ModuleActivityLog';
+import { db, doc, updateDoc, collection, addDoc, query, where, orderBy, onSnapshot, logAction, getDocs } from '../../../api/firebase';
+import { apiClient } from '../../../api/lib/api-client';
+import { formatCurrency } from '../../lib/utils';
 
 interface SubscriptionsModuleProps {
   profile: UserProfile | null;
 }
 
+interface SubscriptionRequest {
+  id: string;
+  amount: number;
+  currency: string;
+  transactionId: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  createdAt: number;
+  type: string;
+}
+
 export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
   const { t } = useTranslation();
-  const [loading, setLoading] = useState(false);
-  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
-  const [isPaying, setIsPaying] = useState(false);
-  const [paymentStep, setPaymentStep] = useState<'SELECT' | 'WAVE_INFO' | 'SUCCESS'>('SELECT');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [paymentInfo, setPaymentInfo] = useState({
-    email: profile?.email || '',
-    phone: profile?.phone || '',
-    companyName: profile?.companyName || ''
-  });
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [paymentReference, setPaymentReference] = useState('');
+  const [checkoutUrl, setCheckoutUrl] = useState('');
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+  const [isPolling, setIsPolling] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [requests, setRequests] = useState<SubscriptionRequest[]>([]);
+  const [loadingRequests, setLoadingRequests] = useState(true);
 
-  const formatStatus = (status: string) => {
-    switch (status) {
-      case 'ACTIVE': return t('common.status.active');
-      case 'EXPIRED': return t('common.status.expired');
-      case 'PENDING': return t('common.status.pending');
-      default: return status;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'ACTIVE': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-      case 'EXPIRED': return 'bg-rose-100 text-rose-700 border-rose-200';
-      case 'PENDING': return 'bg-amber-100 text-amber-700 border-amber-200';
-      default: return 'bg-gray-100 text-gray-700 border-gray-200';
-    }
-  };
-
-  const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
-    const [hasError, setHasError] = useState(false);
-
-    useEffect(() => {
-      const handleError = (error: ErrorEvent) => {
-        console.error("Caught by ErrorBoundary:", error);
-        setHasError(true);
-      };
-      window.addEventListener('error', handleError);
-      return () => window.removeEventListener('error', handleError);
-    }, []);
-
-    if (hasError) {
-      return (
-        <div className="p-8 bg-rose-50 border border-rose-100 rounded-[2rem] text-center space-y-4">
-          <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto">
-            <AlertCircle size={32} />
-          </div>
-          <h3 className="text-lg font-extrabold text-rose-900 uppercase tracking-tighter">{t('common.chatbot.error')}</h3>
-          <p className="text-sm text-rose-600 max-w-xs mx-auto">Le module de paiement n'a pas pu être chargé correctement.</p>
-          <button 
-            onClick={() => setHasError(false)}
-            className="px-6 py-2 bg-rose-600 text-white rounded-xl font-bold text-xs hover:bg-rose-700 transition-all"
-          >
-            {t('common.chatbot.thinking')}
-          </button>
-        </div>
-      );
-    }
-
-    return <>{children}</>;
-  };
-
+  // Load subscription/payment validation requests for this company in real-time
   useEffect(() => {
-    if (profile) {
-      setPaymentInfo({
-        email: profile.email || '',
-        phone: profile.phone || '',
-        companyName: profile.companyName || profile.displayName || ''
-      });
-    }
-  }, [profile]);
-  const [billingHistory, setBillingHistory] = useState<any[]>([]);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [manualReference, setManualReference] = useState('');
-  const itemsPerPage = 10;
-
-  // Derive pending requests directly from billing history for real-time accuracy
-  const pendingRequests = billingHistory.filter(h => h.status === 'PENDING');
-
-  const checkLiveStatus = async () => {
-    setIsSyncing(true);
-    try {
-      // Direct verification on the "machine" (server)
-      const userSnap = await getDoc(doc(db, 'users', profile.uid));
-      const payRequestsSnap = await getDocs(query(
-        collection(db, 'payment_requests'),
-        where('userId', '==', profile.uid),
-        where('status', '==', 'PENDING')
-      ));
-      
-      await new Promise(resolve => setTimeout(resolve, 1500)); // Comfort delay
-      
-      if (payRequestsSnap.empty) {
-        // No pending requests found on server
-        if (billingHistory.some(h => h.status === 'APPROVED')) {
-          alert("✅ Vérification terminée : Votre paiement a bien été validé par l'administrateur.");
-        } else {
-          alert("ℹ️ Aucun paiement en attente n'a été trouvé sur le serveur.");
-        }
-      } else {
-        alert("⏳ Vérification terminée : Vos demandes (Réf: " + payRequestsSnap.docs.map(d => d.data().reference).join(', ') + ") sont toujours en attente de traitement manuel.");
-      }
-    } catch (error) {
-      handleFirestoreError(error, OperationType.GET, 'payment_verification', auth.currentUser, false);
-      alert("❌ Erreur lors de la vérification en direct. Veuillez réessayer.");
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  const currency = profile?.currency || 'XOF';
-  const price = currency === 'XOF' ? 15000 : (currency === 'EUR' ? 23 : (currency === 'USD' ? 25 : Math.round(15000 * 0.0015)));
-
-  const handleWaveConfirmation = async (e?: React.BaseSyntheticEvent) => {
-    if (e && e.preventDefault && typeof e.preventDefault === 'function' && (e.target as any).tagName !== 'A') {
-      e.preventDefault();
-    }
-    
-    if (!manualReference.trim()) {
-      alert("Veuillez saisir votre référence de paiement Wave pour continuer.");
+    if (!profile?.companyId) {
+      setLoadingRequests(false);
       return;
     }
-    
-    setLoading(true);
-    try {
-      const companyId = profile?.companyId || profile?.uid || '';
-      const finalReference = manualReference.trim();
-      const currentCompanyName = profile?.companyName || profile?.displayName || profile?.email || 'Client K';
-      
-      // Enregistrer l'intention de paiement / demande de validation
-      await addDoc(collection(db, 'payment_requests'), {
-        userId: profile?.uid,
-        email: paymentInfo.email || profile?.email || '',
-        phone: paymentInfo.phone || '',
-        companyName: currentCompanyName,
-        companyId: companyId,
-        amount: price,
-        currency: currency,
-        reference: finalReference,
-        gateway: 'WAVE',
-        status: 'PENDING',
-        createdAt: serverTimestamp()
-      });
 
-      await logAction(
-        companyId,
-        profile?.uid || '',
-        profile?.displayName || profile?.email || '',
-        "Demande de validation d'abonnement (Wave)",
-        `En attente de validation manuelle par l'administrateur. Réf Wave: ${finalReference}`
-      );
-
-      // Notification de confirmation pour l'utilisateur
-      await sendNotification({
-        companyId: companyId,
-        userId: profile?.uid,
-        title: "✨ Demande de paiement reçue",
-        message: `Félicitations ${profile?.displayName || 'cher client'} ! Votre demande pour l'abonnement Standard (${price} ${currency}) via Wave est en cours d'examen.`,
-        type: 'info',
-        link: '/subscriptions'
-      });
-
-      // Notification Admin
-      await sendNotification({
-        companyId: 'SYSTEM',
-        title: "🚨 Nouvelle validation Wave requise",
-        message: `L'entreprise ${currentCompanyName} vient de soumettre un paiement Wave de ${price} ${currency} (Réf: ${finalReference}).`,
-        type: 'info',
-        link: '/admin?tab=subscriptions'
-      });
-
-      setPaymentStep('SUCCESS');
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'payment_requests', auth.currentUser, false);
-      alert("Erreur lors de l'enregistrement de votre confirmation. Veuillez contacter le support.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const totalPages = Math.ceil(billingHistory.length / itemsPerPage);
-
-  useEffect(() => {
-    if (!profile) return;
-    
-    // Watch for ALL payment requests (PENDING, APPROVED, REJECTED)
-    // Order by createdAt descending to show most recent first
-    const qPayments = query(
-      collection(db, 'payment_requests'),
-      where('userId', '==', profile.uid),
+    const q = query(
+      collection(db, 'subscription_requests'),
+      where('companyId', '==', profile.companyId),
       orderBy('createdAt', 'desc')
     );
-    
-    const unsubscribe = onSnapshot(qPayments, (snap) => {
-      const history = snap.docs.map(doc => {
-        const data = doc.data();
-        const time = data.approvedAt?.seconds ? data.approvedAt.seconds * 1000 : 
-                     (data.createdAt?.seconds ? data.createdAt.seconds * 1000 : Date.now());
-        
-        const date = new Date(time).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-        const expiryDateTime = time + (30 * 24 * 60 * 60 * 1000);
-        const expiryDate = data.status === 'APPROVED' ? 
-                           new Date(expiryDateTime).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : 
-                           null;
-        
-        // Auto-reminder logic: Check if expiry is near (within 7 days)
-        if (data.status === 'APPROVED' && !data.reminderSent) {
-          const now = Date.now();
-          const daysLeft = (expiryDateTime - now) / (1000 * 60 * 60 * 24);
-          
-          if (daysLeft > 0 && daysLeft <= 7) {
-            triggerExpiryReminder(doc.id, daysLeft, expiryDate);
-          }
-        }
 
-        return {
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const loaded: SubscriptionRequest[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        loaded.push({
           id: doc.id,
-          date,
-          expiryDate,
-          desc: `Renouvellement Abonnement Standard - ${data.gateway === 'WAVE' ? 'Wave' : (data.reference || 'Paiement')}`,
-          amount: data.amount,
-          status: data.status, // Directly use the database status
-          fullData: data
-        };
+          amount: data.amount || 15000,
+          currency: data.currency || 'XOF',
+          transactionId: data.transactionId || '',
+          status: data.status || 'PENDING',
+          createdAt: data.createdAt || Date.now(),
+          type: data.type || 'WAVE_RENEWAL'
+        });
       });
-      setBillingHistory(history);
-    }, (err) => handleFirestoreError(err, OperationType.LIST, 'payment_requests', auth.currentUser, false));
+      setRequests(loaded);
+      setLoadingRequests(false);
+    }, (error) => {
+      console.error("Error fetching subscription requests:", error);
+      setLoadingRequests(false);
+    });
 
     return () => unsubscribe();
-  }, [profile]);
+  }, [profile?.companyId]);
 
-  const triggerExpiryReminder = async (requestId: string, daysLeft: number, expiryDate: string | null) => {
+  // Automatic background verification polling for GeniusPay
+  useEffect(() => {
+    if (!isPolling || !paymentReference) return;
+
+    const intervalId = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/geniuspay/verify/${paymentReference}`);
+        const data = await response.json();
+        if (response.ok && data.status === 'SUCCESS') {
+          clearInterval(intervalId);
+          setPaymentSuccess(true);
+          setIsPolling(false);
+          
+          // Update profile locally if possible
+          try {
+            await updateDoc(doc(db, 'users', profile!.uid), {
+              subscriptionEndDate: Date.now() + 30 * 24 * 60 * 60 * 1000,
+              subscriptionStatus: 'ACTIVE'
+            });
+            console.log("[AUTO-DEBLOCAGE] Profile updated in Firebase!");
+          } catch (dbErr) {
+            console.warn("Firestore update failed, but transaction is successful", dbErr);
+          }
+
+          // Approve the subscription request document in Firestore so that the history list updates
+          try {
+            const reqQuery = query(
+              collection(db, 'subscription_requests'),
+              where('transactionId', '==', paymentReference)
+            );
+            const reqSnapshot = await getDocs(reqQuery);
+            reqSnapshot.forEach(async (requestDoc) => {
+              await updateDoc(doc(db, 'subscription_requests', requestDoc.id), {
+                status: 'APPROVED',
+                updatedAt: Date.now()
+              });
+            });
+            console.log("[AUTO-DEBLOCAGE] subscription_requests updated in Firebase!");
+          } catch (reqErr) {
+            console.warn("Firestore subscription_requests update failed", reqErr);
+          }
+
+          // Register payment in the core 'payments' collection so it displays on the main dashboard
+          try {
+            await addDoc(collection(db, 'payments'), {
+              description: `Abonnement KONTROL Standard - 30 jours (Réf: ${paymentReference})`,
+              montant: 15000,
+              type: 'ENCAISSEMENT',
+              modePaiement: 'GeniusPay',
+              date: Date.now(),
+              tiersId: 'system',
+              tiersNom: 'GeniusPay',
+              ownerId: profile!.companyId,
+              createdAt: Date.now()
+            });
+            console.log("[AUTO-DEBLOCAGE] payment logged in core payments collection!");
+          } catch (payErr) {
+            console.warn("Failed to create entry in core payments collection", payErr);
+          }
+
+          // Register transaction in the core 'transactions' collection so it displays on the main dashboard
+          try {
+            await addDoc(collection(db, 'transactions'), {
+              reference: `FAC-${paymentReference.toUpperCase()}`,
+              description: `Abonnement KONTROL Standard - 30 jours (Réf: ${paymentReference})`,
+              montantTotal: 15000,
+              type: 'VENTE',
+              modePaiement: 'GeniusPay',
+              devise: 'XOF',
+              tauxChange: 1,
+              montantDevise: 15000,
+              statut: 'PAYE',
+              ownerId: profile!.companyId,
+              companyId: profile!.companyId,
+              createdAt: Date.now(),
+              articles: [
+                {
+                  produitId: 'sub_standard_30d',
+                  designation: 'Abonnement KONTROL Standard 30 jours',
+                  prixUnitaire: 15000,
+                  quantite: 1,
+                  total: 15000
+                }
+              ]
+            });
+            console.log("[AUTO-DEBLOCAGE] transaction logged in core transactions collection!");
+          } catch (txErr) {
+            console.warn("Failed to create entry in core transactions collection", txErr);
+          }
+          
+          // Log action
+          await logAction(
+            profile!.companyId,
+            profile!.uid,
+            profile!.displayName || profile!.email,
+            'RECONNAISSANCE_AUTOMATIQUE_GENIUSPAY_REUSSIE',
+            `Paiement GeniusPay détecté automatiquement. Licence prolongée de 30 jours (Réf: ${paymentReference})`
+          );
+
+          toast.success("Abonnement activé avec succès ! KONTROL est maintenant débloqué.");
+          
+          // Auto-close modal after 3.5 seconds
+          setTimeout(() => {
+            setIsModalOpen(false);
+            setPaymentSuccess(false);
+            setPaymentReference('');
+          }, 3500);
+        }
+      } catch (err) {
+        console.error("Error polling payment status:", err);
+      }
+    }, 3000);
+
+    return () => clearInterval(intervalId);
+  }, [isPolling, paymentReference, profile]);
+
+  // Automatic reconciliation for any pending subscription requests on load or mount
+  useEffect(() => {
+    if (requests.length === 0 || !profile) return;
+
+    const pendingRequests = requests.filter(req => req.status === 'PENDING');
+    if (pendingRequests.length === 0) return;
+
+    const reconcilePending = async () => {
+      for (const req of pendingRequests) {
+        try {
+          console.log(`[RECONCILIATION] Checking pending transaction: ${req.transactionId}`);
+          const response = await fetch(`/api/geniuspay/verify/${req.transactionId}`);
+          const data = await response.json();
+          if (response.ok && data.status === 'SUCCESS') {
+            console.log(`[RECONCILIATION] Transaction ${req.transactionId} verified as successful! Activating subscription...`);
+            
+            // 1. Update profile subscription status
+            await updateDoc(doc(db, 'users', profile.uid), {
+              subscriptionEndDate: Date.now() + 30 * 24 * 60 * 60 * 1000,
+              subscriptionStatus: 'ACTIVE'
+            });
+
+            // 2. Update the subscription request status in Firestore
+            await updateDoc(doc(db, 'subscription_requests', req.id), {
+              status: 'APPROVED',
+              updatedAt: Date.now()
+            });
+
+            // 3. Register payment in the core 'payments' collection so it shows on the dashboard
+            await addDoc(collection(db, 'payments'), {
+              description: `Abonnement KONTROL Standard - 30 jours (Réf: ${req.transactionId})`,
+              montant: 15000,
+              type: 'ENCAISSEMENT',
+              modePaiement: 'GeniusPay',
+              date: Date.now(),
+              tiersId: 'system',
+              tiersNom: 'GeniusPay',
+              ownerId: profile.companyId,
+              createdAt: Date.now()
+            });
+
+            // 4. Register transaction in the core 'transactions' collection so it shows on the dashboard
+            await addDoc(collection(db, 'transactions'), {
+              reference: `FAC-${req.transactionId.toUpperCase()}`,
+              description: `Abonnement KONTROL Standard - 30 jours (Réf: ${req.transactionId})`,
+              montantTotal: 15000,
+              type: 'VENTE',
+              modePaiement: 'GeniusPay',
+              devise: 'XOF',
+              tauxChange: 1,
+              montantDevise: 15000,
+              statut: 'PAYE',
+              ownerId: profile.companyId,
+              companyId: profile.companyId,
+              createdAt: Date.now(),
+              articles: [
+                {
+                  produitId: 'sub_standard_30d',
+                  designation: 'Abonnement KONTROL Standard 30 jours',
+                  prixUnitaire: 15000,
+                  quantite: 1,
+                  total: 15000
+                }
+              ]
+            });
+
+            await logAction(
+              profile.companyId,
+              profile.uid,
+              profile.displayName || profile.email,
+              'RECONCILIATION_AUTOMATIQUE_REUSSIE',
+              `Abonnement reconcilié et validé pour la référence ${req.transactionId}`
+            );
+
+            toast.success(`Votre règlement GeniusPay (${req.transactionId}) a été récupéré et validé avec succès !`);
+          }
+        } catch (err) {
+          console.error(`[RECONCILIATION] Failed for transaction ${req.transactionId}:`, err);
+        }
+      }
+    };
+
+    reconcilePending();
+  }, [requests, profile]);
+
+  const handlePayWave = async () => {
+    setIsGeneratingLink(true);
+    setPaymentSuccess(false);
+    setIsPolling(false);
     try {
-      // Mark as reminder sent to avoid loops
-      await updateDoc(doc(db, 'payment_requests', requestId), {
-        reminderSent: true,
-        lastReminderAt: serverTimestamp()
+      toast.success("Génération du lien de paiement GeniusPay sécurisé...");
+      
+      const response = await fetch('/api/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          businessId: profile?.companyId || 'company_001',
+          businessName: profile?.companyName || profile?.companyAbbreviation || 'KONTROL',
+          phone: (profile as any)?.phoneNumber || '',
+          email: profile?.email || '',
+          plan: 'monthly',
+          amount: 15000
+        })
       });
 
-      // Send local notification
-      await sendNotification({
-        companyId: profile?.companyId || profile?.uid || '',
-        title: "⚠️ Expiration Proche",
-        message: `Votre abonnement KONTROL expire dans ${Math.ceil(daysLeft)} jours (${expiryDate}). Pensez à renouveler pour éviter toute interruption.`,
-        type: 'warning',
-        link: '/subscriptions'
-      });
-      
-      console.log("Subscription expiry reminder sent.");
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, 'payment_requests', auth.currentUser, false);
+      const data = await response.json();
+      if (!response.ok || !data.checkout_url) {
+        throw new Error(data.error || "Impossible de générer le lien de paiement.");
+      }
+
+      setPaymentReference(data.reference);
+      setCheckoutUrl(data.checkout_url);
+      setIsPolling(true);
+
+      // Create a pending request in Firestore so they see it in real-time
+      if (profile?.companyId) {
+        await addDoc(collection(db, 'subscription_requests'), {
+          companyId: profile.companyId,
+          companyName: profile.companyName || profile.companyAbbreviation || 'KONTROL',
+          userId: profile.uid,
+          userEmail: profile.email,
+          amount: 15000,
+          currency: 'XOF',
+          transactionId: data.reference,
+          status: 'PENDING',
+          createdAt: Date.now(),
+          type: 'GENIUSPAY_RENEWAL'
+        });
+      }
+
+      toast.success("Redirection vers la passerelle sécurisée GeniusPay...");
+      window.open(data.checkout_url, '_blank');
+    } catch (error: any) {
+      console.error("[GENIUSPAY INITIATION ERROR]", error);
+      toast.error(`Impossible d'initier le paiement GeniusPay : ${error.message || error}`);
+    } finally {
+      setIsGeneratingLink(false);
     }
   };
 
-  const paginatedHistory = billingHistory.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
-  const isExpired = profile?.subscriptionEndDate ? new Date(profile.subscriptionEndDate) < new Date() : true;
-
-  if (!profile) return null;
-
-  const isDemo = profile.isDemo === true;
-  const endDate = profile.subscriptionEndDate || 0;
-  const createdAtDate = profile.createdAt || (endDate - 30 * 24 * 60 * 60 * 1000);
-  const totalDuration = Math.max(1, endDate - createdAtDate);
-  const elapsed = Math.max(0, Date.now() - createdAtDate);
-  const percentElapsed = Math.min(100, Math.round((elapsed / totalDuration) * 100));
-  const percentRemaining = 100 - percentElapsed;
-  const daysLeftTrial = Math.max(0, Math.ceil((endDate - Date.now()) / (1000 * 60 * 60 * 24)));
-
-  const handleExportInvoice = (invoice: any) => {
-    const headers = ['Libellé', 'Émission', 'Prochaine Échéance', 'Référence', 'Montant'];
-    const data = [[
-      invoice.desc,
-      invoice.date,
-      invoice.expiryDate || 'N/A',
-      invoice.fullData?.reference || 'N/A',
-      formatCurrency(invoice.amount, currency)
-    ]];
-    
-    exportToPDF(
-      `Facture d'Abonnement`, 
-      headers, 
-      data, 
-      `Facture_KONTROL_${invoice.date.replace(/ /g, '_')}`,
-      {
-        companyInfo: {
-          name: 'KONTROL',
-          email: 'support@kontrol.app'
-        },
-        clientInfo: {
-          name: profile?.displayName || 'Client',
-          email: profile?.email || '',
-          company: profile?.companyName
-        },
-        footer: 'KONTROL - Solution de gestion intelligente pour entreprises. Merci de votre confiance.'
-      }
-    );
+  const getStatusBadgeClass = (status: string) => {
+    switch (status) {
+      case 'APPROVED':
+      case 'SUCCESS':
+        return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+      case 'REJECTED':
+      case 'FAILED':
+        return 'bg-rose-50 text-rose-700 border-rose-100';
+      case 'PENDING':
+      default:
+        return 'bg-amber-50 text-amber-700 border-amber-100 animate-pulse';
+    }
   };
 
-  const plan = {
-    id: 'standard',
-    name: 'Standard',
-    price: price,
-    period: 'mois',
-    features: [
-      'Utilisateurs illimités', 
-      'Gestion de stock complète', 
-      'Transactions illimitées', 
-      'Support prioritaire', 
-      'Analyse Blue AI',
-      'Multi-devises & Langues'
-    ],
-    color: 'bg-kontrol-blue'
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'APPROVED':
+      case 'SUCCESS':
+        return 'Validé';
+      case 'REJECTED':
+      case 'FAILED':
+        return 'Rejeté';
+      case 'PENDING':
+      default:
+        return 'En attente de validation';
+    }
   };
+
+  // Determine standard end date representation
+  const getSubscriptionEndDateLabel = () => {
+    if (profile?.subscriptionEndDate) {
+      const date = new Date(profile.subscriptionEndDate);
+      return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+    }
+    // Default 15 days placeholder if empty
+    const defaultDate = new Date();
+    defaultDate.setDate(defaultDate.getDate() + 15);
+    return defaultDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  };
+
+  const isSubActive = profile?.subscriptionStatus === 'ACTIVE' || !profile?.subscriptionEndDate || profile.subscriptionEndDate > Date.now();
+  const isFirstTime = !profile?.subscriptionEndDate || profile.subscriptionStatus === 'TRIAL';
+  const mainActionLabel = isFirstTime ? "S'abonner" : "Se réabonner";
 
   return (
-    <ErrorBoundary>
-      <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <h2 className="text-3xl font-extrabold text-kontrol-dark tracking-tighter">{t('subscriptions.title')}</h2>
-          <p className="text-[14px] text-kontrol-ink-muted mt-1 font-medium">{t('subscriptions.subtitle')}</p>
+    <div className="space-y-8 max-w-6xl mx-auto animate-in fade-in duration-300" id="subscriptions-module-root">
+      {/* Header section */}
+      <header className="flex flex-col gap-1.5">
+        <div className="flex items-center gap-2 text-kontrol-blue">
+          <CreditCard size={18} />
+          <span className="text-[10px] font-extrabold uppercase tracking-widest">{t('subscriptions.title')}</span>
         </div>
-        <div className="flex items-center gap-2 px-4 py-2 bg-white border border-kontrol-border rounded-2xl shadow-sm">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-[11px] font-bold text-kontrol-dark uppercase tracking-widest">{t('subscriptions.verified')}</span>
-        </div>
+        <h1 className="text-3xl font-black text-kontrol-dark tracking-tighter uppercase">
+          {t('subscriptions.title')}
+        </h1>
+        <p className="text-sm text-kontrol-ink-muted">
+          {t('subscriptions.subtitle')}
+        </p>
       </header>
 
-      {pendingRequests.length > 0 && (
-        <div className="p-6 bg-amber-50 border border-amber-100 rounded-[2rem] flex flex-col md:flex-row items-center gap-6 animate-in fade-in slide-in-from-top-4 duration-500 shadow-sm">
-          <div className="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center shrink-0 border border-amber-200">
-            {isSyncing ? <Loader2 size={24} className="animate-spin" /> : <Clock size={24} />}
-          </div>
-          <div className="flex-1 text-center md:text-left">
-            <h4 className="text-sm font-extrabold text-amber-900 uppercase tracking-tight flex items-center justify-center md:justify-start gap-2">
-              {t('subscriptions.pending_validation.title')}
-              {isSyncing && <span className="text-[10px] font-bold text-amber-500 animate-pulse">{t('subscriptions.pending_validation.verifying')}</span>}
-            </h4>
-            <div className="space-y-1 mt-1">
-              <p className="text-[12px] text-amber-600 font-medium">
-                {t('subscriptions.pending_validation.desc')}
-              </p>
-              <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-2">
-                {pendingRequests.map(req => (
-                  <span key={req.id} className="text-[9px] font-black text-amber-700 bg-white border border-amber-200 px-2.5 py-1 rounded-lg uppercase tracking-wider">
-                    Réf: {req.fullData?.reference || '...'}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-          <button 
-            onClick={checkLiveStatus}
-            disabled={isSyncing}
-            className="w-full md:w-auto px-6 py-3 bg-white border-2 border-amber-300 text-amber-700 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-amber-100 transition-all shadow-sm active:scale-95 disabled:opacity-50"
-          >
-            {isSyncing ? t('common.loading') : t('subscriptions.pending_validation.live_check')}
-          </button>
-        </div>
-      )}
-
-      {/* Hero Subscription Card */}
-      <div className="relative group">
-        <div className="absolute -inset-1 bg-gradient-to-r from-kontrol-blue to-kontrol-orange rounded-[2rem] blur opacity-25 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
-        <div className="relative card p-10 bg-kontrol-dark border-none text-white overflow-hidden rounded-[2rem]">
-          {/* Decorative Elements */}
-          <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-white/5 to-transparent" />
-          <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-kontrol-blue/20 rounded-full blur-[100px]" />
-          <div className="absolute -top-24 -left-24 w-64 h-64 bg-kontrol-orange/10 rounded-full blur-[100px]" />
-          
-          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-12">
-            <div className="space-y-6 max-w-xl">
-              <div className="flex items-center gap-3">
-                <div className={cn(
-                  "inline-flex items-center px-4 py-1.5 rounded-full text-[11px] font-extrabold uppercase tracking-[0.2em] border backdrop-blur-md",
-                  isDemo 
-                    ? "bg-amber-500/20 text-amber-300 border-amber-500/30" 
-                    : "bg-white/10 text-white border-white/10"
-                )}>
-                  {isDemo ? (
-                    <>
-                      <Sparkles size={14} className="mr-2 text-amber-400 fill-amber-400" />
-                      PÉRIODE D'ESSAI
-                    </>
-                  ) : (
-                    <>
-                      <Zap size={14} className="mr-2 text-kontrol-blue fill-kontrol-blue" />
-                      {t('subscriptions.hero.current_plan', { name: plan.name })}
-                    </>
-                  )}
-                </div>
-                <div className={cn(
-                  "inline-flex items-center px-4 py-1.5 rounded-full text-[11px] font-extrabold uppercase tracking-[0.2em] border backdrop-blur-md",
-                  isExpired 
-                    ? "bg-rose-500/20 text-rose-400 border-rose-500/30" 
-                    : isDemo 
-                    ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                    : "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                )}>
-                  {isExpired 
-                    ? t('common.status.expired') 
-                    : isDemo 
-                    ? "PROLONGÉE" 
-                    : t('common.status.active')}
-                </div>
-              </div>
-              
-              <h3 className="text-4xl sm:text-5xl font-extrabold tracking-tighter leading-none">
-                {isDemo 
-                  ? "Votre période d'essai a été prolongée pour vous accompagner de manière durable !"
-                  : t('subscriptions.hero.promo_text')}
-              </h3>
-              
-              <div className="grid sm:grid-cols-2 gap-8 pt-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10">
-                    <Calendar size={20} className={isDemo ? "text-amber-400" : "text-kontrol-blue"} />
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-white/50 block font-bold uppercase tracking-wider">
-                      {isDemo ? "Date d'expiration de l'essai" : "Prochaine Échéance"}
-                    </span>
-                    <div className="flex items-center gap-3 mt-0.5">
-                      <p className="text-lg font-bold text-white">
-                        {profile.subscriptionEndDate ? new Date(profile.subscriptionEndDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '15 Avril 2026'}
-                      </p>
-                      <button 
-                        onClick={() => setIsPaying(true)}
-                        className="px-4 py-1.5 bg-white text-kontrol-dark rounded-xl font-extrabold text-[10px] uppercase tracking-wider hover:bg-kontrol-blue hover:text-white transition-all duration-300 shadow-lg flex items-center gap-1.5 group/btn"
-                      >
-                        {isDemo ? "S'abonner" : t('subscriptions.hero.renew')} <ArrowRight size={10} className="group-hover/btn:translate-x-0.5 transition-transform" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10">
-                    <CreditCard size={20} className="text-kontrol-orange" />
-                  </div>
-                  <div>
-                    <p className="text-lg font-bold text-white">{formatCurrency(price, currency)} <span className="text-xs font-normal text-white/50">/ mois</span></p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="lg:w-80 shrink-0">
-              {isDemo ? (
-                <div className="bg-white/5 p-6 rounded-3xl border border-white/10 backdrop-blur-xl text-left space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-white/70 font-black uppercase tracking-widest">Suivi d'Évolution</span>
-                    <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2.5 py-0.5 rounded-lg font-black tracking-wider uppercase">
-                      {isExpired ? "Terminée" : `${daysLeftTrial} Jours Restants`}
-                    </span>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-[11px] text-white/50 font-bold">
-                      <span>Restant : {Math.max(0, percentRemaining)}%</span>
-                      <span>Écoulé : {Math.min(100, percentElapsed)}%</span>
-                    </div>
-                    <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden p-[2px] border border-white/5 shadow-inner">
-                      <div 
-                        className="h-full bg-gradient-to-r from-amber-400 via-amber-500 to-kontrol-orange rounded-full transition-all duration-1000"
-                        style={{ width: `${isExpired ? 0 : Math.max(0, percentRemaining)}%` }}
-                      />
-                    </div>
-                  </div>
-                  <p className="text-[10px] text-white/45 leading-relaxed font-medium">
-                    Ce compte bénéficie d'une période d'essai VIP prolongée de façon personnalisée par notre équipe de support.
-                  </p>
-                </div>
-              ) : (
-                <div className="bg-white/5 p-8 rounded-3xl border border-white/10 backdrop-blur-xl text-center space-y-4">
-                  <div>
-                    <p className={cn(
-                      "text-xl font-extrabold",
-                      isExpired ? "text-rose-400" : "text-emerald-400"
-                    )}>
-                      {isExpired ? t('subscriptions.details.required') : t('subscriptions.details.active')}
-                    </p>
-                  </div>
-                  <p className="text-[10px] text-white/30 italic">{t('subscriptions.details.auto_renew')}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Features Grid */}
-      <div className="grid md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 card p-8 grid sm:grid-cols-2 gap-x-12 gap-y-6">
-          <div className="col-span-full mb-2">
-            <h4 className="text-lg font-extrabold text-kontrol-dark flex items-center gap-2">
-              <Package size={20} className="text-kontrol-blue" /> {t('subscriptions.features_title')}
-            </h4>
-          </div>
-          {plan.features.map((feature, idx) => (
-            <div key={idx} className="flex items-center gap-3 group">
-              <div className="w-6 h-6 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-                <CheckCircle2 size={14} />
-              </div>
-              <span className="text-[13px] font-bold text-kontrol-ink-soft">{feature}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="card p-8 bg-kontrol-blue/5 border-kontrol-blue/20 flex flex-col items-center text-center justify-center space-y-4">
-          <div className="w-16 h-16 bg-white rounded-3xl shadow-lg flex items-center justify-center text-kontrol-blue border border-kontrol-blue/10">
-            <Shield size={32} />
-          </div>
-          <div>
-            <h4 className="text-lg font-extrabold text-kontrol-dark">{t('subscriptions.protection.title')}</h4>
-            <p className="text-[12px] text-kontrol-ink-muted mt-2 leading-relaxed">
-              {t('subscriptions.protection.desc')}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Billing History */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between px-2">
-          <h4 className="text-lg font-extrabold text-kontrol-dark flex items-center gap-2">
-            <HistoryIcon size={20} className="text-kontrol-orange" /> {t('subscriptions.history.title')}
-          </h4>
-          <button className="text-[11px] font-bold text-kontrol-blue uppercase tracking-widest hover:underline">{t('subscriptions.history.view_all')}</button>
-        </div>
+      {/* Bento Grid: Subscription status & renewal action */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        <div className="card overflow-hidden border-none shadow-xl shadow-kontrol-dark/5">
+        {/* Left Card: Beautiful active plan status */}
+        <div className="lg:col-span-7 space-y-8">
+          
+          {/* Active plan details */}
+          <div className="p-8 bg-kontrol-dark text-white rounded-[2.5rem] relative overflow-hidden shadow-2xl border border-white/5">
+            <div className="absolute top-0 right-0 w-80 h-80 bg-kontrol-blue/15 rounded-full blur-3xl -mr-28 -mt-28 pointer-events-none" />
+            
+            <div className="flex justify-between items-start mb-8 relative z-10">
+              <div>
+                <span className="px-3.5 py-1.5 bg-kontrol-blue text-[9px] font-extrabold uppercase tracking-widest rounded-full">
+                  {t('subscriptions.hero.current_plan', { name: 'Forfait Standard' })}
+                </span>
+                <h2 className="text-5xl font-black mt-5 tracking-tighter">
+                  15 000 F CFA <span className="text-base text-white/50 font-normal">/ mois</span>
+                </h2>
+              </div>
+              
+              <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10">
+                <ShieldCheck className="text-kontrol-blue" size={32} />
+              </div>
+            </div>
+
+            <div className="border-t border-white/10 pt-6 space-y-4 relative z-10">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-white/50">Statut de la licence d'utilisation</span>
+                <span className="flex items-center gap-2 font-bold">
+                  <span className={`w-2.5 h-2.5 rounded-full ${isSubActive ? 'bg-emerald-500' : 'bg-rose-500 animate-pulse'}`} />
+                  {isSubActive ? 'Licence Active' : 'Expirée (Paiement requis)'}
+                </span>
+              </div>
+              
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-white/50">Date de validité actuelle</span>
+                <span className="font-bold">{getSubscriptionEndDateLabel()}</span>
+              </div>
+
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-white/50">Méthode de règlement</span>
+                <span className="font-bold">Règlements Web</span>
+              </div>
+            </div>
+
+            {/* Prominent Re-subscribe Modal Trigger Button */}
+            <div className="mt-8 pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4 relative z-10">
+              <div className="text-xs text-white/60 text-center sm:text-left">
+                Prolongez instantanément votre accès à KONTROL.
+              </div>
+              <button 
+                type="button"
+                onClick={() => setIsModalOpen(true)}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 bg-kontrol-blue hover:bg-kontrol-blue/90 text-white font-extrabold text-[11px] uppercase tracking-widest rounded-2xl transition-all cursor-pointer shadow-lg shadow-kontrol-blue/20 transform active:scale-95"
+              >
+                <RefreshCw size={14} className="animate-spin-slow" />
+                {mainActionLabel} (15 000 F CFA)
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Card: Benefits details */}
+        <div className="lg:col-span-5">
+          <div className="p-8 bg-white border border-kontrol-border rounded-[2.5rem] shadow-sm h-full flex flex-col justify-between space-y-6">
+            <div>
+              <h3 className="text-lg font-extrabold text-kontrol-dark tracking-tight uppercase mb-4">
+                {t('subscriptions.features_title')}
+              </h3>
+
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
+                    <CheckCircle2 size={14} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-extrabold text-kontrol-dark">Gestion ERP Complète</h4>
+                    <p className="text-[10.5px] text-kontrol-ink-muted mt-0.5">Tiers, produits, stocks, factures, finances.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
+                    <CheckCircle2 size={14} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-extrabold text-kontrol-dark">Blue AI Assistant</h4>
+                    <p className="text-[10.5px] text-kontrol-ink-muted mt-0.5">Intelligence Artificielle intégrée 24h/24.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
+                    <CheckCircle2 size={14} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-extrabold text-kontrol-dark">Chiffrement & Sécurité</h4>
+                    <p className="text-[10.5px] text-kontrol-ink-muted mt-0.5">Sauvegardes quotidiennes et protection.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-kontrol-border flex items-center gap-2 text-kontrol-blue font-extrabold text-[10px] uppercase tracking-wider">
+              <ShieldCheck size={14} />
+                Paiement direct sécurisé GeniusPay (Wave, Orange, MTN, Moov, Cartes)
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Beautiful Modal Component */}
+      <AnimatePresence>
+        {isModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto" id="wave-payment-modal-backdrop">
+            {/* Backdrop with blur */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => !isGeneratingLink && setIsModalOpen(false)}
+              className="fixed inset-0 bg-kontrol-dark/60 backdrop-blur-sm cursor-default"
+            />
+
+            {/* Modal Box */}
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ type: "spring", duration: 0.5 }}
+              className="relative w-full max-w-lg bg-white rounded-[2.5rem] border border-kontrol-border shadow-2xl p-8 z-10 overflow-hidden"
+              id="wave-payment-modal-content"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-kontrol-blue/5 rounded-bl-[2.5rem] flex items-center justify-center border-l border-b border-kontrol-blue/5 pointer-events-none" />
+
+              {/* Header */}
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-kontrol-blue bg-kontrol-blue/10 px-2.5 py-1 rounded-full">
+                    Règlements Web
+                  </span>
+                  <h3 className="text-2xl font-black text-kontrol-dark tracking-tight mt-3">
+                    {mainActionLabel}
+                  </h3>
+                </div>
+                <button 
+                  type="button" 
+                  onClick={() => !isGeneratingLink && setIsModalOpen(false)}
+                  disabled={isGeneratingLink}
+                  className="p-2 bg-kontrol-light hover:bg-kontrol-border rounded-full text-kontrol-dark/60 hover:text-kontrol-dark transition-all disabled:opacity-30 cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Main Steps Content */}
+              <div className="space-y-6">
+                <AnimatePresence mode="wait">
+                  {!paymentReference && !paymentSuccess ? (
+                    <motion.div
+                      key="init"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="space-y-6"
+                    >
+                      <p className="text-xs text-kontrol-ink-muted leading-relaxed">
+                        Payez en toute sécurité via la passerelle GeniusPay (Orange Money, MTN, Moov, Wave, Visa, Mastercard). Votre licence sera automatiquement validée et prolongée sans aucune saisie de code ou d'action manuelle de votre part.
+                      </p>
+
+                      <div className="p-5 bg-kontrol-light rounded-[1.5rem] border border-kontrol-border">
+                        <div className="flex items-center gap-2 text-kontrol-blue text-xs font-extrabold uppercase tracking-wider mb-2">
+                          <CreditCard size={14} />
+                          Abonnement Standard 30 jours (15 000 F CFA)
+                        </div>
+                        <p className="text-[11px] text-kontrol-ink-muted mb-4 leading-relaxed">
+                          Cliquez ci-dessous pour ouvrir la page de paiement sécurisée de GeniusPay.
+                        </p>
+                        
+                        <button
+                          type="button"
+                          onClick={handlePayWave}
+                          disabled={isGeneratingLink}
+                          className="w-full flex items-center justify-center gap-2.5 py-3.5 bg-kontrol-blue hover:bg-kontrol-blue/90 text-white font-extrabold text-[11px] uppercase tracking-widest rounded-xl transition-all cursor-pointer disabled:opacity-50"
+                        >
+                          {isGeneratingLink ? (
+                            <RefreshCw className="animate-spin" size={14} />
+                          ) : (
+                            <>
+                              Initier le paiement sécurisé
+                              <ExternalLink size={14} />
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </motion.div>
+                  ) : isPolling ? (
+                    <motion.div
+                      key="polling"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="p-6 bg-kontrol-dark text-white rounded-[2rem] border border-white/10 space-y-5 text-center"
+                    >
+                      <div className="flex flex-col items-center justify-center py-4 space-y-4">
+                        <div className="relative">
+                          <div className="w-16 h-16 rounded-full border-4 border-white/10 border-t-kontrol-blue animate-spin" />
+                          <Activity className="absolute inset-0 m-auto text-kontrol-blue animate-pulse" size={24} />
+                        </div>
+                        
+                        <div>
+                          <h4 className="text-sm font-extrabold uppercase tracking-wider text-kontrol-blue">
+                            En attente du paiement
+                          </h4>
+                          <p className="text-[10px] text-white/40 font-mono mt-1">RÉF: {paymentReference}</p>
+                        </div>
+                      </div>
+
+                      <div className="bg-white/5 rounded-xl p-4 text-left space-y-3">
+                        <p className="text-xs text-white/80 leading-relaxed font-sans">
+                          Nous avons ouvert l'interface sécurisée GeniusPay dans un nouvel onglet. Veuillez y finaliser votre règlement.
+                        </p>
+                        <p className="text-[10px] text-white/60 leading-relaxed font-sans border-t border-white/10 pt-2.5 flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping shrink-0" />
+                          Détection automatique en cours... Pas besoin de saisir de référence.
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => window.open(checkoutUrl || `https://pay.genius.ci/checkout/sandbox/${paymentReference}?amount=15000&desc=Abonnement%20KONTROL`, '_blank')}
+                        className="w-full py-2.5 bg-white/10 hover:bg-white/15 text-white font-bold text-[10px] uppercase tracking-widest rounded-lg transition-all"
+                      >
+                        Réouvrir le lien GeniusPay
+                      </button>
+                    </motion.div>
+                  ) : paymentSuccess ? (
+                    <motion.div
+                      key="success"
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="p-6 bg-emerald-950 text-emerald-100 rounded-[2rem] border border-emerald-500/20 space-y-5 text-center"
+                    >
+                      <div className="flex flex-col items-center justify-center py-4 space-y-4">
+                        <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/20 animate-bounce">
+                          <Check className="text-white font-black" size={32} />
+                        </div>
+                        
+                        <div>
+                          <h4 className="text-base font-extrabold uppercase tracking-wider text-emerald-400">
+                            Paiement validé avec succès !
+                          </h4>
+                          <p className="text-[11px] text-emerald-400/70 mt-1">Votre licence KONTROL a été renouvelée de 30 jours.</p>
+                        </div>
+                      </div>
+
+                      <div className="bg-white/5 rounded-xl p-4 text-xs font-sans text-left leading-relaxed">
+                        Merci pour votre confiance ! La plateforme a été débloquée en temps réel. Cette fenêtre va se fermer d'ici quelques instants.
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsModalOpen(false);
+                          setPaymentSuccess(false);
+                          setPaymentReference('');
+                        }}
+                        className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all cursor-pointer shadow-lg shadow-emerald-500/20"
+                      >
+                        Retourner à l'application
+                      </button>
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
+              </div>
+
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Requests History */}
+      <div className="p-8 bg-white border border-kontrol-border rounded-[2.5rem] shadow-sm space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Clock className="text-kontrol-blue" size={18} />
+            <h3 className="text-lg font-extrabold text-kontrol-dark tracking-tight uppercase">
+              Historique des transactions d'abonnement
+            </h3>
+          </div>
+          {requests.length > 0 && (
+            <span className="px-3 py-1 bg-kontrol-light border border-kontrol-border rounded-full text-[10px] font-extrabold text-kontrol-ink-muted">
+              {requests.length} transaction{requests.length > 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+
+        {loadingRequests ? (
+          <div className="flex items-center justify-center py-12 text-kontrol-ink-muted gap-2 text-xs">
+            <RefreshCw className="animate-spin" size={16} />
+            Chargement de l'historique...
+          </div>
+        ) : requests.length === 0 ? (
+          <div className="text-center py-12 text-kontrol-ink-muted space-y-2">
+            <div className="w-12 h-12 rounded-full bg-kontrol-light text-kontrol-ink-muted/50 flex items-center justify-center mx-auto">
+              <FileText size={20} />
+            </div>
+            <p className="text-xs font-medium">Aucun règlement GeniusPay initié à ce jour.</p>
+          </div>
+        ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full border-collapse text-left text-xs">
               <thead>
-                <tr className="bg-kontrol-bg/50 border-b border-kontrol-border">
-                  <th className="px-8 py-5 text-[11px] font-extrabold uppercase tracking-[0.2em] text-kontrol-ink-muted">{t('subscriptions.history.columns.date')}</th>
-                  <th className="px-8 py-5 text-[11px] font-extrabold uppercase tracking-[0.2em] text-kontrol-ink-muted">{t('subscriptions.history.columns.desc')}</th>
-                  <th className="px-8 py-5 text-[11px] font-extrabold uppercase tracking-[0.2em] text-kontrol-ink-muted">{t('subscriptions.history.columns.amount')}</th>
-                  <th className="px-8 py-5 text-[11px] font-extrabold uppercase tracking-[0.2em] text-kontrol-ink-muted">{t('subscriptions.history.columns.status')}</th>
-                  <th className="px-8 py-5 text-[11px] font-extrabold uppercase tracking-[0.2em] text-kontrol-ink-muted text-right">{t('subscriptions.history.columns.action')}</th>
+                <tr className="border-b border-kontrol-border text-kontrol-ink-muted font-extrabold uppercase text-[10px] tracking-wider">
+                  <th className="pb-4 font-extrabold">Date de soumission</th>
+                  <th className="pb-4 font-extrabold">Description</th>
+                  <th className="pb-4 font-extrabold">Référence GeniusPay</th>
+                  <th className="pb-4 font-extrabold">Montant</th>
+                  <th className="pb-4 font-extrabold">Statut</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-kontrol-border font-medium">
-                {paginatedHistory.map((item, i) => (
-                  <tr key={i} className={cn("hover:bg-kontrol-bg/30 transition-colors group", i % 2 === 0 ? "bg-white" : "bg-kontrol-bg/10")}>
-                    <td className="px-8 py-5 text-[13px] text-kontrol-dark font-bold">{item.date}</td>
-                    <td className="px-8 py-5">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-kontrol-bg flex items-center justify-center text-kontrol-blue">
-                          <Package size={14} />
-                        </div>
-                        <span className="text-[13px] text-kontrol-ink-soft font-medium">{item.desc}</span>
-                      </div>
+              <tbody className="divide-y divide-kontrol-border text-kontrol-dark">
+                {requests.map((req) => (
+                  <tr key={req.id} className="hover:bg-kontrol-light/50 transition-colors">
+                    <td className="py-4 font-medium">
+                      {new Date(req.createdAt).toLocaleDateString('fr-FR', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
                     </td>
-                    <td className="px-8 py-5 text-[14px] font-extrabold text-kontrol-dark">{formatCurrency(item.amount, currency)}</td>
-                    <td className="px-8 py-5">
-                      {item.status === 'APPROVED' ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-700 uppercase tracking-widest border border-emerald-200 shadow-sm">
-                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          {t('common.status.paid')}
-                        </span>
-                      ) : item.status === 'PENDING' ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-700 uppercase tracking-widest border border-amber-200 shadow-sm">
-                          <Clock size={10} className="animate-spin-slow" />
-                          {t('common.status.pending')}
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-700 uppercase tracking-widest border border-rose-200">
-                          {t('common.status.rejected')}
-                        </span>
-                      )}
+                    <td className="py-4 font-medium">
+                      <span className="font-extrabold text-kontrol-dark">Réabonnement Standard 30 jours</span>
                     </td>
-                    <td className="px-8 py-5 text-right">
-                      {item.status === 'APPROVED' ? (
-                        <button 
-                          onClick={() => setSelectedInvoice(item)}
-                          className="px-4 py-2 bg-kontrol-bg text-kontrol-ink-soft hover:bg-kontrol-dark hover:text-white rounded-xl text-[11px] font-extrabold transition-all uppercase tracking-widest"
-                        >
-                          {t('subscriptions.history.invoice')}
-                        </button>
-                      ) : (
-                        <span className="text-[10px] font-bold text-kontrol-ink-muted uppercase italic">{t('subscriptions.history.unavailable')}</span>
-                      )}
+                    <td className="py-4 font-mono text-kontrol-blue font-bold">
+                      {req.transactionId}
+                    </td>
+                    <td className="py-4 font-extrabold">
+                      {formatCurrency(req.amount, req.currency)}
+                    </td>
+                    <td className="py-4">
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold border ${getStatusBadgeClass(req.status)}`}>
+                        {getStatusLabel(req.status)}
+                      </span>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          {totalPages > 1 && (
-            <div className="px-8 py-4 border-t border-kontrol-border bg-kontrol-bg/30 flex items-center justify-between">
-              <span className="text-[11px] text-kontrol-ink-muted font-extrabold uppercase tracking-widest">
-                {billingHistory.length} {t('finance.transactions.title').toLowerCase()}
-              </span>
-              <div className="flex items-center gap-4">
-                <button 
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage(prev => prev - 1)}
-                  className="p-2 rounded-xl hover:bg-white disabled:opacity-30 transition-all shadow-sm border border-transparent hover:border-kontrol-border"
-                >
-                  <ArrowRight size={16} className="rotate-180" />
-                </button>
-                <span className="text-[11px] font-extrabold text-kontrol-dark uppercase tracking-widest">
-                  {t('common.pagination', { current: currentPage, total: totalPages })}
-                </span>
-                <button 
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage(prev => prev + 1)}
-                  className="p-2 rounded-xl hover:bg-white disabled:opacity-30 transition-all shadow-sm border border-transparent hover:border-kontrol-border"
-                >
-                  <ArrowRight size={16} />
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+        )}
       </div>
-      {/* Payment Modal */}
-      <AnimatePresence>
-        {isPaying && (
-          <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-kontrol-dark/90 backdrop-blur-xl p-4">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-[500px] overflow-hidden"
-            >
-              <div className="p-6 border-b border-kontrol-border flex items-center justify-between bg-kontrol-bg/30">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-kontrol-blue rounded-xl flex items-center justify-center text-white shadow-lg shadow-kontrol-blue/20">
-                    <CreditCard size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-extrabold text-kontrol-dark tracking-tight">{t('subscriptions.modal.renewal')}</h3>
-                    <p className="text-[10px] text-kontrol-ink-muted font-bold uppercase tracking-widest">{t('subscriptions.modal.secure_payment')}</p>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => {
-                    setIsPaying(false);
-                    setPaymentStep('SELECT');
-                    setManualReference('');
-                  }}
-                  className="p-2 hover:bg-white rounded-full text-kontrol-ink-muted transition-all shadow-sm"
-                >
-                  <X size={18} />
-                </button>
-              </div>
 
-              <div className="p-6">
-                {paymentStep === 'SELECT' && (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 gap-4">
-                      {/* Wave Option */}
-                      <button 
-                        onClick={() => setPaymentStep('WAVE_INFO')}
-                        className="group relative p-6 bg-white border-2 border-kontrol-border rounded-[2rem] hover:border-[#1dc8ee] hover:bg-[#1dc8ee]/5 transition-all duration-500 overflow-hidden"
-                      >
-                        <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-100 transition-opacity translate-x-2 translate-y--2">
-                          <ExternalLink size={24} className="text-[#1dc8ee]" />
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-[#1dc8ee]/10 rounded-2xl flex items-center justify-center text-[#1dc8ee]">
-                            <Smartphone size={24} />
-                          </div>
-                          <div className="text-left">
-                            <h4 className="text-sm font-extrabold text-kontrol-dark uppercase tracking-tight">{t('subscriptions.modal.wave.title')}</h4>
-                            <p className="text-[10px] text-kontrol-ink-muted font-bold">{t('subscriptions.modal.wave.subtitle')}</p>
-                          </div>
-                        </div>
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {paymentStep === 'WAVE_INFO' && (
-                  <div className="space-y-6">
-                    <div className="bg-[#1dc8ee]/5 p-6 rounded-[2rem] border border-[#1dc8ee]/10 space-y-5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-[#1dc8ee] text-white rounded-lg flex items-center justify-center font-bold text-sm">1</div>
-                        <p className="text-sm font-bold text-kontrol-dark">{t('subscriptions.modal.wave.step1')}</p>
-                      </div>
-                      
-                      <a 
-                        href={`https://pay.wave.com/m/M_ci_jlScZ6K4EoKg/c/ci/?amount=15000`} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="w-full py-4 bg-[#1dc8ee] text-white rounded-2xl font-extrabold text-sm hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-xl shadow-[#1dc8ee]/20"
-                      >
-                        {t('subscriptions.modal.wave.cta_wave')} <ExternalLink size={16} />
-                      </a>
-
-                      <div className="border-t border-[#1dc8ee]/10 pt-5 space-y-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-[#1dc8ee] text-white rounded-lg flex items-center justify-center font-bold text-sm">2</div>
-                          <p className="text-sm font-bold text-kontrol-dark">{t('subscriptions.modal.wave.step2')}</p>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-bold text-kontrol-ink-muted uppercase tracking-widest ml-2">{t('subscriptions.modal.wave.ref_label')}</label>
-                          <input 
-                            type="text"
-                            value={manualReference}
-                            onChange={(e) => setManualReference(e.target.value)}
-                            placeholder="Ex: T-WAVE-123456"
-                            className="w-full px-5 py-4 bg-white border-2 border-kontrol-border rounded-xl font-bold text-sm focus:border-[#1dc8ee] outline-none transition-all"
-                          />
-                        </div>
-
-                        <button 
-                          onClick={(e) => handleWaveConfirmation(e)}
-                          disabled={loading || !manualReference.trim()}
-                          className="w-full py-4 bg-[#1dc8ee] text-white rounded-2xl font-extrabold text-sm hover:opacity-95 transition-all flex items-center justify-center gap-2 shadow-xl shadow-[#1dc8ee]/20 disabled:opacity-50"
-                        >
-                          {loading ? <Loader2 size={16} className="animate-spin" /> : t('subscriptions.modal.wave.confirm')}
-                        </button>
-                      </div>
-                    </div>
-
-                    <button 
-                      onClick={() => setPaymentStep('SELECT')}
-                      className="w-full text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest hover:text-kontrol-dark transition-colors"
-                    >
-                      ← {t('auth.back')}
-                    </button>
-                  </div>
-                )}
-
-                {paymentStep === 'SUCCESS' && (
-                  <div className="py-8 flex flex-col items-center text-center space-y-5">
-                    <div className={cn(
-                      "w-16 h-16 rounded-full flex items-center justify-center shadow-lg",
-                      paymentStep === 'SUCCESS' ? "bg-amber-100 text-amber-600 shadow-amber-500/20" : "bg-emerald-100 text-emerald-600 shadow-emerald-500/20"
-                    )}>
-                      {paymentStep === 'SUCCESS' ? <Clock size={32} /> : <CheckCircle2 size={32} />}
-                    </div>
-                    <div>
-                      <h4 className="text-xl font-extrabold text-kontrol-dark tracking-tight">
-                        {t('subscriptions.modal.success.title')}
-                      </h4>
-                      <p className="text-[12px] text-kontrol-ink-muted mt-1.5 px-4">
-                        {t('subscriptions.modal.success.desc')}
-                      </p>
-                    </div>
-                    <div className="w-full space-y-3">
-                      <button 
-                        onClick={() => {
-                          setIsPaying(false);
-                          setPaymentStep('SELECT');
-                          setManualReference('');
-                        }}
-                        className="w-full py-3.5 bg-kontrol-dark text-white rounded-xl font-extrabold text-xs hover:bg-kontrol-blue transition-all shadow-xl"
-                      >
-                        {t('dashboard.ai_analysis.close')}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Invoice Modal */}
-      <AnimatePresence>
-        {selectedInvoice && (
-          <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-kontrol-dark/80 backdrop-blur-md p-4">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="bg-white rounded-[2rem] shadow-2xl w-full max-w-[380px] overflow-hidden border border-white/20"
-            >
-              {/* Modal Header - Professional & Compact */}
-              <div className="p-4 border-b border-kontrol-border flex items-center justify-between bg-kontrol-bg/20">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 bg-kontrol-dark text-white rounded-lg flex items-center justify-center shadow-lg">
-                    <FileText size={16} />
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-black text-kontrol-dark uppercase tracking-tight">{t('subscriptions.modal.invoice_details.title')}</h3>
-                    <p className="text-[9px] text-kontrol-ink-muted font-bold tracking-widest uppercase">Réf: {selectedInvoice.fullData?.reference || 'N/A'}</p>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => setSelectedInvoice(null)}
-                  className="p-1.5 hover:bg-white rounded-full text-kontrol-ink-muted transition-all border border-transparent hover:border-kontrol-border"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-              
-              <div className="p-5 space-y-5">
-                {/* Header Layout (Company Left, Client Right) */}
-                <div className="flex justify-between items-start">
-                  <div className="space-y-0.5">
-                    <p className="text-[9px] font-extrabold text-kontrol-blue uppercase tracking-widest">{t('subscriptions.modal.invoice_details.issuer')}</p>
-                    <p className="text-[11px] font-black text-kontrol-dark uppercase">KONTROL</p>
-                    <p className="text-[8px] text-kontrol-ink-muted font-medium">support@kontrol.app</p>
-                  </div>
-                  <div className="text-right space-y-0.5">
-                    <p className="text-[9px] font-extrabold text-kontrol-orange uppercase tracking-widest">{t('subscriptions.modal.invoice_details.client')}</p>
-                    <p className="text-[11px] font-black text-kontrol-dark uppercase">{profile.companyName || profile.displayName}</p>
-                    <p className="text-[8px] text-kontrol-ink-muted font-medium">{profile.email}</p>
-                  </div>
-                </div>
-
-                {/* Content Section */}
-                <div className="bg-kontrol-bg/30 p-4 rounded-xl border border-kontrol-border/50">
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-                    <div className="space-y-0.5">
-                      <p className="text-[8px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">{t('subscriptions.modal.invoice_details.issue_date')}</p>
-                      <p className="text-[11px] font-bold text-kontrol-dark">{selectedInvoice.date}</p>
-                    </div>
-                    <div className="space-y-0.5 text-right">
-                      <p className="text-[8px] font-extrabold text-rose-600 uppercase tracking-widest">{t('subscriptions.modal.invoice_details.expiry')}</p>
-                      <p className="text-[11px] font-bold text-kontrol-dark">{selectedInvoice.expiryDate || 'N/A'}</p>
-                    </div>
-                    <div className="space-y-0.5">
-                      <p className="text-[8px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">{t('subscriptions.modal.invoice_details.method')}</p>
-                      <p className="text-[11px] font-bold text-kontrol-dark">{selectedInvoice.fullData?.gateway || 'Wave'}</p>
-                    </div>
-                    <div className="space-y-0.5 text-right">
-                      <p className="text-[8px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest">{t('subscriptions.modal.invoice_details.status')}</p>
-                      <p className="text-[11px] font-bold text-emerald-600">{t('common.status.paid')}</p>
-                    </div>
-                    <div className="col-span-full pt-2 border-t border-kontrol-border/50">
-                      <p className="text-[8px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest mb-0.5">{t('subscriptions.modal.invoice_details.designation')}</p>
-                      <p className="text-[11px] font-medium text-kontrol-dark leading-tight">{selectedInvoice.desc}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Total Section */}
-                <div className="flex items-center justify-between px-1 pt-1">
-                  <div className="space-y-0.5">
-                    <p className="text-[10px] font-black text-kontrol-dark uppercase tracking-tight">{t('subscriptions.modal.invoice_details.net_to_pay')}</p>
-                    <p className="text-[8px] text-emerald-600 font-bold uppercase tracking-widest">{t('subscriptions.modal.invoice_details.receipt')}</p>
-                  </div>
-                  <p className="text-xl font-black text-kontrol-blue tracking-tighter">
-                    {formatCurrency(selectedInvoice.amount, currency)}
-                  </p>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="p-4 bg-kontrol-bg/20 border-t border-kontrol-border flex gap-2">
-                <button 
-                  onClick={() => handleExportInvoice(selectedInvoice)}
-                  className="flex-1 py-2.5 px-4 bg-kontrol-dark text-white rounded-xl font-bold text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 hover:bg-kontrol-blue transition-all shadow-lg active:scale-95"
-                >
-                  <Download size={12} /> {t('common.download')} PDF
-                </button>
-                <button 
-                  onClick={() => setSelectedInvoice(null)}
-                  className="flex-1 py-2.5 px-4 bg-white text-kontrol-ink-soft border border-kontrol-border rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-kontrol-bg transition-all active:scale-95"
-                >
-                  {t('dashboard.ai_analysis.close')}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
-    </ErrorBoundary>
   );
 }

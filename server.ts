@@ -9,6 +9,7 @@ import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import hpp from "hpp";
 import xss from "xss-clean";
+import crypto from "crypto";
 import { BlueNeuralBrain } from "./src/api/lib/blue-neural-brain.ts";
 
 dotenv.config();
@@ -29,28 +30,38 @@ process.on('unhandledRejection', (reason, promise) => {
 const _dirname = typeof __dirname !== 'undefined' ? __dirname : process.cwd();
 const _filename = typeof __filename !== 'undefined' ? __filename : '';
 
-// PostgreSQL Emulation Layer (using SQLite for persistence in preview)
-// Note: Logic and queries are written with PostgreSQL compatibility in mind.
-const dbPath = path.join(process.cwd(), "kontrol.db");
-const sqlDir = path.join(process.cwd(), "database", "tables");
+// PostgreSQL Emulation Layer (using SQLite separated databases for persistence in preview)
+// Representing three decoupled application datastores: Client, Admin, and BLUE AI
+const dbPathClient = path.join(process.cwd(), "kontrol_client.db");
+const dbPathAdmin = path.join(process.cwd(), "kontrol_admin.db");
+const dbPathBlueAi = path.join(process.cwd(), "kontrol_blue_ai.db");
 
-let db: any;
+let dbClient: any;
+let dbAdmin: any;
+let dbBlueAi: any;
+
 try {
-  if (typeof Database !== 'function') {
-    console.error("[FATAL] better-sqlite3 import failed: Database is not a constructor. Type is:", typeof Database);
-    // Fallback for some ESM environments
-    const DB = (Database as any).default || Database;
-    db = new DB(dbPath);
-  } else {
-    db = new Database(dbPath);
-  }
-  console.log("[SYSTEM] Database connection established.");
+  const DB = (Database as any).default || Database;
+  dbClient = new DB(dbPathClient);
+  dbAdmin = new DB(dbPathAdmin);
+  dbBlueAi = new DB(dbPathBlueAi);
+  console.log("[SYSTEM] Separated Database connections established successfully.");
 } catch (err) {
-  console.error("[FATAL] Failed to connect to database:", err);
+  console.error("[FATAL] Failed to connect to independent databases:", err);
   process.exit(1);
 }
 
-const neuralBrain = new BlueNeuralBrain(db);
+// Ensure BLUE AI has access to full analytical views via SQLite Database Attachment
+try {
+  dbBlueAi.exec("ATTACH DATABASE './kontrol_client.db' AS client;");
+  dbBlueAi.exec("ATTACH DATABASE './kontrol_admin.db' AS admin;");
+} catch (e: any) {
+  console.warn("Cross-database attachment warning (some schemas may already be loaded):", e.message);
+}
+
+// Stand-in main db points to BlueAi for system operations
+const db = dbBlueAi;
+const neuralBrain = new BlueNeuralBrain(dbBlueAi);
 
 const securityShield = {
   validate: (req: any) => {
@@ -64,50 +75,219 @@ const securityShield = {
 };
 
 function initDb() {
-  console.log("Database Core Engine: Operational");
+  console.log("Database Core Engines bootstrapping...");
   try {
-    const files = fs.readdirSync(sqlDir);
-    for (const file of files) {
-      if (file.endsWith(".sql")) {
-        let sql = fs.readFileSync(path.join(sqlDir, file), "utf8");
-        // Adapt SQL for SQLite (replace ENUM and other incompatibilities)
-        sql = sql.replace(/ENUM\([^)]+\)/gi, "TEXT");
-        
-        try {
-          db.exec(sql);
-          console.log(`Executed SQL from ${file}`);
-        } catch (e: any) {
-          if (e.message.includes("already exists")) {
-            // Ignore already exists
-          } else {
-            console.error(`Error executing ${file}:`, e.message);
-          }
-        }
-      }
-    }
-    
-    // Create Performance Indexes
+    // 1. Core CLient Schema Initialization
+    dbClient.exec(`
+      CREATE TABLE IF NOT EXISTS users (
+          uid TEXT PRIMARY KEY,
+          email TEXT UNIQUE NOT NULL,
+          displayName TEXT,
+          role TEXT NOT NULL,
+          avatar_url TEXT,
+          status TEXT DEFAULT 'active',
+          last_login INTEGER,
+          createdAt INTEGER
+      );
+      CREATE TABLE IF NOT EXISTS tiers (
+          id TEXT PRIMARY KEY,
+          nom TEXT NOT NULL,
+          email TEXT,
+          telephone TEXT,
+          nif TEXT,
+          rccm TEXT,
+          adresse TEXT,
+          type TEXT, -- CLIENT / FOURNISSEUR
+          solde REAL DEFAULT 0,
+          created_at INTEGER
+      );
+      CREATE TABLE IF NOT EXISTS produits (
+          id TEXT PRIMARY KEY,
+          nom TEXT NOT NULL,
+          code_barre TEXT,
+          categorie TEXT,
+          prix_achat REAL,
+          prix_vente REAL,
+          stock INTEGER DEFAULT 0,
+          min_threshold INTEGER DEFAULT 5,
+          status TEXT DEFAULT 'DISPONIBLE',
+          created_at INTEGER
+      );
+      CREATE TABLE IF NOT EXISTS stock_movements (
+          id TEXT PRIMARY KEY,
+          product_id TEXT,
+          quantite INTEGER,
+          type TEXT, -- ENTRÉE / SORTIE
+          motif TEXT,
+          created_at INTEGER,
+          FOREIGN KEY(product_id) REFERENCES produits(id)
+      );
+      CREATE TABLE IF NOT EXISTS transactions (
+          id TEXT PRIMARY KEY,
+          tiers_id TEXT,
+          amount REAL NOT NULL,
+          type TEXT, -- ENCAISSEMENT / DÉCAISSEMENT
+          category TEXT,
+          description TEXT,
+          status TEXT DEFAULT 'VALIDÉ',
+          createdAt INTEGER,
+          FOREIGN KEY(tiers_id) REFERENCES tiers(id)
+      );
+      CREATE TABLE IF NOT EXISTS charges (
+          id TEXT PRIMARY KEY,
+          titre TEXT,
+          montant REAL,
+          frequence TEXT, -- PONCTUELLE / MENSUELLE
+          category TEXT,
+          due_date INTEGER,
+          status TEXT DEFAULT 'A_PAYER'
+      );
+      CREATE TABLE IF NOT EXISTS messages (
+          id TEXT PRIMARY KEY,
+          sender_id TEXT,
+          receiver_id TEXT,
+          content TEXT,
+          channel TEXT,
+          is_read BOOLEAN DEFAULT false,
+          createdAt INTEGER
+      );
+      CREATE TABLE IF NOT EXISTS notifications (
+          id TEXT PRIMARY KEY,
+          user_id TEXT,
+          type TEXT,
+          title TEXT,
+          message TEXT,
+          is_read BOOLEAN DEFAULT false,
+          createdAt INTEGER
+      );
+    `);
+
+    // 2. Core Admin Schema Initialization
+    dbAdmin.exec(`
+      CREATE TABLE IF NOT EXISTS users (
+          uid TEXT PRIMARY KEY,
+          email TEXT UNIQUE NOT NULL,
+          displayName TEXT,
+          role TEXT NOT NULL,
+          avatar_url TEXT,
+          status TEXT DEFAULT 'active',
+          last_login INTEGER,
+          createdAt INTEGER
+      );
+      CREATE TABLE IF NOT EXISTS companies (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          industry TEXT,
+          mrr REAL DEFAULT 0,
+          churn REAL DEFAULT 0,
+          plan TEXT DEFAULT 'free',
+          status TEXT DEFAULT 'active',
+          logo_url TEXT,
+          created_at INTEGER
+      );
+      CREATE TABLE IF NOT EXISTS subscriptions (
+          id TEXT PRIMARY KEY,
+          company_id TEXT,
+          plan_name TEXT,
+          price REAL,
+          billing_cycle TEXT,
+          next_billing INTEGER,
+          status TEXT,
+          FOREIGN KEY(company_id) REFERENCES companies(id)
+      );
+      CREATE TABLE IF NOT EXISTS tickets (
+          id TEXT PRIMARY KEY,
+          subject TEXT,
+          description TEXT,
+          priority TEXT,
+          status TEXT,
+          assigned_to TEXT,
+          company_id TEXT,
+          created_at INTEGER,
+          updated_at INTEGER
+      );
+      CREATE TABLE IF NOT EXISTS actions (
+          id TEXT PRIMARY KEY,
+          userId TEXT,
+          type TEXT,
+          description TEXT,
+          createdAt INTEGER
+      );
+    `);
+
+    // 3. Core BLUE AI Brain Schema Initialization
+    dbBlueAi.exec(`
+      CREATE TABLE IF NOT EXISTS blue_brain_training_pairs (
+          id TEXT PRIMARY KEY,
+          prompt TEXT NOT NULL,
+          response TEXT NOT NULL,
+          category TEXT DEFAULT 'GENERAL',
+          source TEXT DEFAULT 'USER_FEEDBACK',
+          confidence REAL DEFAULT 1.0,
+          security_hash TEXT,
+          createdAt INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS blue_system_cognitive_indexes (
+          id TEXT PRIMARY KEY,
+          module_key TEXT NOT NULL,
+          index_name TEXT NOT NULL,
+          record_count INTEGER DEFAULT 0,
+          last_indexed_at INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS ai_neural_history (
+          id TEXT PRIMARY KEY,
+          user_id TEXT,
+          prompt TEXT,
+          response TEXT,
+          trust_score REAL,
+          model_used TEXT,
+          createdAt INTEGER
+      );
+    `);
+
+    // Drop any accidental persistent views from the main schema to prevent cross-database reference errors
     try {
-      db.exec("CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category)");
-      db.exec("CREATE INDEX IF NOT EXISTS idx_transactions_created ON transactions(createdAt)");
-      db.exec("CREATE INDEX IF NOT EXISTS idx_actions_created ON actions(createdAt)");
-      console.log("SQL Performance Indexes verified.");
+      dbBlueAi.exec(`
+        DROP VIEW IF EXISTS users;
+        DROP VIEW IF EXISTS companies;
+        DROP VIEW IF EXISTS produits;
+        DROP VIEW IF EXISTS transactions;
+        DROP VIEW IF EXISTS charges;
+        DROP VIEW IF EXISTS tiers;
+      `);
+    } catch (dropErr) {
+      // Ignore if views don't exist or cannot be dropped
+    }
+
+    // Map active relational views in BLUE AI database as temporary views so that any query referring to ERP tables succeeds seamlessly
+    dbBlueAi.exec(`
+      CREATE TEMP VIEW IF NOT EXISTS users AS SELECT * FROM admin.users;
+      CREATE TEMP VIEW IF NOT EXISTS companies AS SELECT * FROM admin.companies;
+      CREATE TEMP VIEW IF NOT EXISTS produits AS SELECT * FROM client.produits;
+      CREATE TEMP VIEW IF NOT EXISTS transactions AS SELECT * FROM client.transactions;
+      CREATE TEMP VIEW IF NOT EXISTS charges AS SELECT * FROM client.charges;
+      CREATE TEMP VIEW IF NOT EXISTS tiers AS SELECT * FROM client.tiers;
+    `);
+
+    // Seed Performance Indexes
+    try {
+      dbClient.exec("CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category)");
+      dbClient.exec("CREATE INDEX IF NOT EXISTS idx_transactions_created ON transactions(createdAt)");
+      dbAdmin.exec("CREATE INDEX IF NOT EXISTS idx_actions_created ON actions(createdAt)");
     } catch (e) {}
     
-    // Seed some data if empty
-    const usersCount = db.prepare("SELECT count(*) as count FROM users").get() as { count: number };
-    if (usersCount.count === 0) {
-      console.log("Seeding KONTROL Ecosystem Data...");
+    // Seed some data in Admin DB if empty
+    const adminUsersCount = dbAdmin.prepare("SELECT count(*) as count FROM users").get() as { count: number };
+    if (adminUsersCount.count === 0) {
+      console.log("[SYSTEM] Seeding KONTROL Admin Datastore with secure identity records...");
       const now = Date.now();
       
-      // Users
-      db.prepare(`
+      dbAdmin.prepare(`
         INSERT INTO users (uid, email, displayName, role, createdAt) 
         VALUES ('admin_1', 'acherie812@gmail.com', 'Admin KONTROL', 'ADMINISTRATEUR_ERP', ?)
       `).run(now);
 
-      // Companies (Governance)
-      db.prepare(`
+      dbAdmin.prepare(`
         INSERT INTO companies (id, name, industry, mrr, plan, status, created_at)
         VALUES 
           ('comp_1', 'InnovKorp Africa', 'Tech', 2500000, 'enterprise', 'active', ?),
@@ -115,16 +295,40 @@ function initDb() {
           ('comp_3', 'EcoBuild SA', 'Construction', 450000, 'standard', 'warning', ?)
       `).run(now, now - 86400000 * 30, now - 86400000 * 60);
 
-      // Tiers
-      db.prepare(`
+      dbAdmin.prepare(`
+        INSERT INTO tickets (id, subject, description, priority, status, created_at)
+        VALUES 
+          ('tk1', 'Accès Bridge', 'Je ne parviens pas à valider le crédit bridge.', 'URGENT', 'OPEN', ?)
+      `).run(now);
+      
+      dbAdmin.prepare(`
+        INSERT INTO actions (id, userId, type, description, createdAt)
+        VALUES 
+          ('act_1', 'admin_1', 'SUCCÈS', 'Connexion sécurisée établie via SSL (Gateway)', ?),
+          ('act_2', 'admin_1', 'INFO', 'Indexation SQL du module Trésorerie terminée', ?),
+          ('act_3', 'system', 'ALERTE', 'Détection de croissance MRR (+12%) par le Core Engine', ?)
+      `).run(now, now - 1800000, now - 3600000);
+    }
+
+    // Seed some data in Client DB if empty
+    const clientUsersCount = dbClient.prepare("SELECT count(*) as count FROM users").get() as { count: number };
+    if (clientUsersCount.count === 0) {
+      console.log("[SYSTEM] Seeding KONTROL Client Datastore with secure transaction records...");
+      const now = Date.now();
+
+      dbClient.prepare(`
+        INSERT INTO users (uid, email, displayName, role, createdAt) 
+        VALUES ('admin_1', 'acherie812@gmail.com', 'Admin KONTROL', 'ADMINISTRATEUR_ERP', ?)
+      `).run(now);
+
+      dbClient.prepare(`
         INSERT INTO tiers (id, nom, email, nif, type, solde, created_at)
         VALUES 
           ('t1', 'AgriTech Solutions', 'contact@agritech.com', '123456789', 'FOURNISSEUR', -2500000, ?),
           ('t2', 'Sénégal Logistique', 'info@senelog.sn', '987654321', 'CLIENT', 1200000, ?)
       `).run(now, now);
 
-      // Inventory
-      db.prepare(`
+      dbClient.prepare(`
         INSERT INTO produits (id, nom, categorie, stock, prix_vente, prix_achat, status)
         VALUES 
           ('p1', 'Silo-Grains Ultra', 'Agri-Tech', 5, 1200000, 850000, 'DISPONIBLE'),
@@ -132,54 +336,35 @@ function initDb() {
           ('p3', 'Drone Surveillance V4', 'Tech', 8, 3500000, 2100000, 'RUPTURE_PROCHE')
       `).run();
       
-      // Stock Movements
-      db.prepare(`
+      dbClient.prepare(`
         INSERT INTO stock_movements (id, product_id, quantite, type, motif, created_at)
         VALUES 
           ('m1', 'p1', 2, 'ENTRÉE', 'Réception Fournisseur AgriTech', ?),
           ('m2', 'p3', 1, 'SORTIE', 'Vente Client X', ?)
       `).run(now, now);
 
-      // Transactions
-      db.prepare(`
-        INSERT INTO transactions (id, amount, status, type, category, description, createdAt)
+      dbClient.prepare(`
+        INSERT INTO transactions (id, amount, type, category, description, createdAt)
         VALUES 
-          ('tx_1', 1500000, 'SUCCESS', 'INCOME', 'ABONNEMENT', 'Licence Enterprise - InnovKorp', ?),
-          ('tx_2', 450000, 'SUCCESS', 'INCOME', 'VENTE', 'Vente Silo - Client X', ?),
-          ('tx_3', -25000, 'SUCCESS', 'EXPENSE', 'SERVICE', 'Audit Cloud Mensuel', ?),
-          ('tx_4', 850000, 'PENDING', 'INCOME', 'ABONNEMENT', 'Renouvellement annuel - TechGo', ?)
+          ('tx_1', 1500000, 'ENCAISSEMENT', 'VENTE', 'Licence Enterprise - InnovKorp', ?),
+          ('tx_2', 450000, 'ENCAISSEMENT', 'VENTE', 'Vente Silo - Client X', ?),
+          ('tx_3', -25000, 'DÉCAISSEMENT', 'FACTURE', 'Audit Cloud Mensuel', ?),
+          ('tx_4', 850000, 'ENCAISSEMENT', 'VENTE', 'Renouvellement annuel - TechGo', ?)
       `).run(now, now - 3600000, now - 7200000, now - 10800000);
 
-      // Charges
-      db.prepare(`
+      dbClient.prepare(`
         INSERT INTO charges (id, titre, montant, frequence, category, status, due_date)
         VALUES 
           ('ch1', 'Loyer Bureaux Dakar', 1500000, 'MENSUELLE', 'LOYER', 'PAYÉ', ?),
           ('ch2', 'Serveurs Cloud (Bridge)', 450000, 'MENSUELLE', 'TECH', 'A_PAYER', ?)
       `).run(now, now + 86400000 * 5);
 
-      // Notifications
-      db.prepare(`
+      dbClient.prepare(`
         INSERT INTO notifications (id, user_id, type, title, message, createdAt)
         VALUES 
           ('n1', 'admin_1', 'ALERTE', 'Stock Critique', 'Le produit Drone Surveillance est en rupture.', ?),
           ('n2', 'admin_1', 'INFO', 'Virement Reçu', 'Le client Sénégal Logistique a réglé sa facture.', ?)
       `).run(now, now - 1800000);
-
-      // Tickets
-      db.prepare(`
-        INSERT INTO tickets (id, author_id, subject, description, priority, status, created_at)
-        VALUES 
-          ('tk1', 'admin_1', 'Accès Bridge', 'Je ne parviens pas à valider le crédit bridge.', 'URGENT', 'OPEN', ?)
-      `).run(now);
-      
-      db.prepare(`
-        INSERT INTO actions (id, userId, type, description, createdAt)
-        VALUES 
-          ('act_1', 'admin_1', 'SUCCÈS', 'Connexion sécurisée établie via SSL (Gateway)', ?),
-          ('act_2', 'admin_1', 'INFO', 'Indexation SQL du module Trésorerie terminée', ?),
-          ('act_3', 'system', 'ALERTE', 'Détection de croissance MRR (+12%) par le Core Engine', ?)
-      `).run(now, now - 1800000, now - 3600000);
     }
   } catch (err) {
     console.error("Database Init Error:", err);
@@ -201,7 +386,7 @@ async function startServer() {
       useDefaults: true,
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://apis.google.com", "https://cdn.kkiapay.me"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://apis.google.com"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         imgSrc: ["'self'", "data:", "https://*.googleusercontent.com", "https://firebasestorage.googleapis.com", "*"],
         connectSrc: ["*"], 
@@ -246,7 +431,6 @@ async function startServer() {
   });
 
   app.use("/api/", apiLimiter);
-  app.use("/api/kkiapay/", paymentLimiter);
   app.use("/api/wave/", paymentLimiter);
   app.use(globalLimiter);
 
@@ -266,21 +450,6 @@ async function startServer() {
     currency: z.string().length(3),
     description: z.string().max(255),
     clientReference: z.string().min(5).max(64)
-  });
-
-  const KkiapayPaySchema = z.object({
-    amount: z.number().positive(),
-    phoneNumber: z.string().optional(),
-    channel: z.enum(['MTN', 'MOOV', 'CELTIIS', 'WAVE', 'CARD']),
-    token: z.string().min(10),
-    firstname: z.string().optional(),
-    lastname: z.string().optional(),
-    email: z.string().email().optional(),
-    otp: z.string().optional()
-  });
-
-  const KkiapayStatusSchema = z.object({
-    transactionId: z.string().min(5).max(128)
   });
 
   const WaveWebhookSchema = z.object({
@@ -446,10 +615,10 @@ async function startServer() {
     });
   });
 
-  // --- SYSTEM CONTROLLERS (MAPPING CORE MODULES) ---
+  // --- SYSTEM CONTROLLERS (MAPPING CORE MODULES DETACHED) ---
   const erpExpert = {
     stockAudit: (req: any, res: any) => {
-      const products = db.prepare("SELECT * FROM produits").all();
+      const products = dbClient.prepare("SELECT * FROM produits").all();
       res.json({
         module: "CORE_ERP_STOCK",
         total_valuation: products.reduce((acc: number, p: any) => acc + (p.stock * p.prix_achat), 0),
@@ -458,23 +627,23 @@ async function startServer() {
       });
     },
     movements: (req: any, res: any) => {
-      const moves = db.prepare("SELECT * FROM stock_movements ORDER BY created_at DESC LIMIT 50").all();
+      const moves = dbClient.prepare("SELECT * FROM stock_movements ORDER BY created_at DESC LIMIT 50").all();
       res.json({ module: "CORE_STOCK_MOVEMENTS", data: moves });
     },
     tiers: (req: any, res: any) => {
-      const tiers = db.prepare("SELECT * FROM tiers").all();
+      const tiers = dbClient.prepare("SELECT * FROM tiers").all();
       res.json({ module: "CORE_TIERS_MANAGER", count: tiers.length, data: tiers, shield: "SECURE_VERIFIED" });
     },
     products: (req: any, res: any) => {
-      const products = db.prepare("SELECT * FROM produits").all();
+      const products = dbClient.prepare("SELECT * FROM produits").all();
       res.json(products);
     }
   };
 
   const financeExpert = {
     treasuryAnalysis: (req: any, res: any) => {
-      const txs = db.prepare("SELECT * FROM transactions").all();
-      const charges = db.prepare("SELECT * FROM charges").all();
+      const txs = dbClient.prepare("SELECT * FROM transactions").all();
+      const charges = dbClient.prepare("SELECT * FROM charges").all();
       res.json({
         engine: "JAVA_FINANCE_HIVE",
         transactions: txs.length,
@@ -483,14 +652,13 @@ async function startServer() {
       });
     },
     getTransactions: (req: any, res: any) => {
-      res.json(db.prepare("SELECT * FROM transactions ORDER BY createdAt DESC").all());
+      res.json(dbClient.prepare("SELECT * FROM transactions ORDER BY createdAt DESC").all());
     },
     getCharges: (req: any, res: any) => {
-      res.json(db.prepare("SELECT * FROM charges").all());
+      res.json(dbClient.prepare("SELECT * FROM charges").all());
     },
     bridgeCalc: (req: any, res: any) => {
       const { cash = 0, invoices = 0 } = req.body;
-      // Activity-based logic: calculation based on verified flows
       const hasFlows = Number(cash) > 0 || Number(invoices) > 0;
       const activityFactor = hasFlows ? 1.2 : 0;
       const limit = (Number(cash) * 0.1) + (Number(invoices) * 0.45) * activityFactor;
@@ -505,22 +673,22 @@ async function startServer() {
 
   const communicationExpert = {
     chat: (req: any, res: any) => {
-      const msgs = db.prepare("SELECT * FROM messages ORDER BY createdAt DESC LIMIT 50").all();
+      const msgs = dbClient.prepare("SELECT * FROM messages ORDER BY createdAt DESC LIMIT 50").all();
       res.json({ module: "JAVA_CHAT_SERVICE", items: msgs });
     },
     sendMessage: (req: any, res: any) => {
       const { sender_id, receiver_id, content, channel } = req.body;
       const id = Date.now().toString();
-      db.prepare("INSERT INTO messages (id, sender_id, receiver_id, content, channel, createdAt) VALUES (?, ?, ?, ?, ?, ?)")
+      dbClient.prepare("INSERT INTO messages (id, sender_id, receiver_id, content, channel, createdAt) VALUES (?, ?, ?, ?, ?, ?)")
         .run(id, sender_id, receiver_id, content, channel, Date.now());
       res.json({ success: true, id });
     },
     support: (req: any, res: any) => {
-      const tks = db.prepare("SELECT * FROM tickets ORDER BY created_at DESC").all();
+      const tks = dbAdmin.prepare("SELECT * FROM tickets ORDER BY created_at DESC").all();
       res.json({ module: "JAVA_SUPPORT_ENGINE", stats: { open: tks.length }, tickets: tks });
     },
     getNotifications: (req: any, res: any) => {
-      res.json(db.prepare("SELECT * FROM notifications ORDER BY createdAt DESC").all());
+      res.json(dbClient.prepare("SELECT * FROM notifications ORDER BY createdAt DESC").all());
     }
   };
 
@@ -560,11 +728,11 @@ async function startServer() {
       }
     },
     getHistory: (req: any, res: any) => {
-      res.json(db.prepare("SELECT * FROM ai_neural_history ORDER BY createdAt DESC").all());
+      res.json(dbBlueAi.prepare("SELECT * FROM ai_neural_history ORDER BY createdAt DESC").all());
     },
     getIndexes: (req: any, res: any) => {
       try {
-        res.json(db.prepare("SELECT * FROM blue_system_cognitive_indexes").all());
+        res.json(dbBlueAi.prepare("SELECT * FROM blue_system_cognitive_indexes").all());
       } catch (err: any) {
         res.json([]);
       }
@@ -573,21 +741,21 @@ async function startServer() {
 
   const systemExpert = {
     auditLogs: (req: any, res: any) => {
-      res.json(db.prepare("SELECT * FROM actions ORDER BY createdAt DESC").all());
+      res.json(dbAdmin.prepare("SELECT * FROM actions ORDER BY createdAt DESC").all());
     },
     users: (req: any, res: any) => {
-      res.json(db.prepare("SELECT * FROM users").all());
+      res.json(dbAdmin.prepare("SELECT * FROM users").all());
     },
     profile: (req: any, res: any) => {
       const { uid } = req.params;
-      res.json(db.prepare("SELECT * FROM users WHERE uid = ?").get(uid));
+      res.json(dbAdmin.prepare("SELECT * FROM users WHERE uid = ?").get(uid));
     }
   };
 
   const adminExpert = {
     governance: (req: any, res: any) => {
-      const companies = db.prepare("SELECT * FROM companies").all();
-      const mrrRes = db.prepare("SELECT SUM(mrr) as total FROM companies").get() as any;
+      const companies = dbAdmin.prepare("SELECT * FROM companies").all();
+      const mrrRes = dbAdmin.prepare("SELECT SUM(mrr) as total FROM companies").get() as any;
       res.json({
         engine: "JAVA_ADMIN_CORE",
         mrr: mrrRes.total || 0,
@@ -720,7 +888,9 @@ async function startServer() {
         database: {
           state: dbStatus,
           records: userCount.count,
-          path: dbPath
+          pathClient: dbPathClient,
+          pathAdmin: dbPathAdmin,
+          pathBlueAi: dbPathBlueAi
         },
         services: {
           gateway: "ACTIVE",
@@ -767,129 +937,6 @@ async function startServer() {
     }
   });
 
-  // Kkiapay API Credentials
-  const KKIAPAY_PUBLIC_KEY = process.env.VITE_KKIAPAY_PUBLIC_KEY || "295bd8502b0211f1ae5939565e861882";
-  const KKIAPAY_PRIVATE_KEY = process.env.KKIAPAY_PRIVATE_KEY;
-  const KKIAPAY_SECRET = process.env.KKIAPAY_SECRET;
-
-  // 1. Get Kkiapay Access Token
-  app.post("/api/kkiapay/token", async (req, res) => {
-    try {
-      if (!KKIAPAY_PRIVATE_KEY || !KKIAPAY_SECRET) {
-        return res.status(400).json({ error: "Kkiapay credentials missing in server environment" });
-      }
-
-      console.log("Attempting to get Kkiapay token...");
-
-      // Try multiple endpoints as a fallback
-      const endpoints = [
-        "https://api.kkiapay.me/api/v1/utils/token",
-        "https://api.kkiapay.me/api/v1/token"
-      ];
-
-      let lastError = null;
-      for (const url of endpoints) {
-        try {
-          console.log(`Trying Kkiapay token endpoint: ${url}`);
-          const response = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              privateKey: KKIAPAY_PRIVATE_KEY,
-              private_key: KKIAPAY_PRIVATE_KEY, // Try both formats
-              secret: KKIAPAY_SECRET,
-              publicKey: KKIAPAY_PUBLIC_KEY
-            })
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            if (data.token) {
-              console.log(`Successfully obtained token from ${url}`);
-              return res.json({ token: data.token });
-            }
-          } else {
-            const text = await response.text();
-            console.warn(`Endpoint ${url} failed with status ${response.status}: ${text}`);
-            lastError = `Status ${response.status}: ${text}`;
-          }
-        } catch (e: any) {
-          console.warn(`Error connecting to ${url}:`, e.message);
-          lastError = e.message;
-        }
-      }
-
-      throw new Error(`Failed to obtain Kkiapay token: ${lastError}`);
-    } catch (error: any) {
-      console.error("Kkiapay Token Error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // 2. Initiate Direct Payment
-  app.post("/api/kkiapay/pay", async (req, res) => {
-    try {
-      const { amount, phoneNumber, channel, token, firstname, lastname, email, otp } = KkiapayPaySchema.parse(req.body);
-      
-      // For Wave, phoneNumber might be empty, but Kkiapay might require it.
-      // We'll provide a placeholder if it's missing for Wave.
-      const finalPhone = (channel === 'WAVE' && !phoneNumber) ? "22900000000" : phoneNumber;
-
-      const response = await fetch("https://api.kkiapay.me/api/v1/payments/direct", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          amount,
-          phoneNumber: finalPhone,
-          channel,
-          firstname,
-          lastname,
-          email,
-          otp
-        })
-      });
-
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`Kkiapay Payment Error (${response.status}): ${text}`);
-      }
-
-      const data = await response.json();
-      res.json(data);
-    } catch (error: any) {
-      console.error("Kkiapay Pay Error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // 3. Check Payment Status
-  app.get("/api/kkiapay/status/:transactionId", async (req, res) => {
-    try {
-      const { transactionId } = KkiapayStatusSchema.parse(req.params);
-      const token = req.headers.authorization;
-      const response = await fetch(`https://api.kkiapay.me/api/v1/payments/status/${transactionId}`, {
-        method: "GET",
-        headers: { 
-          "Authorization": token || ""
-        }
-      });
-
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`Kkiapay Status Error (${response.status}): ${text}`);
-      }
-
-      const data = await response.json();
-      res.json(data);
-    } catch (error: any) {
-      console.error("Kkiapay Status Error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
   // --- WAVE BUSINESS INTEGRATION ---
   const WAVE_API_KEY = process.env.WAVE_API_KEY || "wave_ci_test_key_xxxx_yyyy_zzzz";
   const WAVE_MERCHANT_ID = process.env.VITE_WAVE_MERCHANT_ID || "M_ci_jlScZ6K4EoKg";
@@ -905,7 +952,7 @@ async function startServer() {
 
       // Sauvegarde de la transaction en attente (SQLite pour le Bridge AI/Admin)
       try {
-        db.prepare(`
+        dbClient.prepare(`
           INSERT INTO transactions (id, amount, status, type, category, description, createdAt)
           VALUES (?, ?, 'PENDING', 'INCOME', 'WAVE_PAYMENT', ?, ?)
         `).run(clientReference, amount, description, Date.now());
@@ -932,11 +979,11 @@ async function startServer() {
 
       if (status === 'success') {
         // 1. Update SQLite (AI Bridge)
-        db.prepare('UPDATE transactions SET status = "SUCCESS", updatedAt = ? WHERE id = ?')
-          .run(Date.now(), client_reference);
+        dbClient.prepare('UPDATE transactions SET status = "SUCCESS" WHERE id = ?')
+          .run(client_reference);
         
         // 2. Insert into Actions log
-        db.prepare('INSERT INTO actions (id, userId, type, description, createdAt) VALUES (?, ?, ?, ?, ?)')
+        dbAdmin.prepare('INSERT INTO actions (id, userId, type, description, createdAt) VALUES (?, ?, ?, ?, ?)')
           .run(`act_wave_${Date.now()}`, 'system', 'PAIEMENT_VALIDE', `Confirmation Wave: ${amount} XOF (ID: ${transaction_id})`, Date.now());
       }
 
@@ -956,7 +1003,7 @@ async function startServer() {
       // Simulation Payout
       const payoutId = `wv_payout_${Math.random().toString(36).substring(7)}`;
       
-      db.prepare('INSERT INTO actions (id, userId, type, description, createdAt) VALUES (?, ?, ?, ?, ?)')
+      dbAdmin.prepare('INSERT INTO actions (id, userId, type, description, createdAt) VALUES (?, ?, ?, ?, ?)')
         .run(`act_payout_${Date.now()}`, 'system', 'TRANSFERT', `Transfert Wave vers ${recipient_number}: ${amount} XOF`, Date.now());
 
       res.json({
@@ -969,6 +1016,222 @@ async function startServer() {
       res.status(500).json({ error: error.message });
     }
   });
+
+  // Verify Wave payment status
+  app.get("/api/wave/verify/:reference", async (req, res) => {
+    try {
+      const { reference } = req.params;
+      const tx = dbClient.prepare('SELECT * FROM transactions WHERE id = ?').get(reference) as any;
+      
+      if (!tx) {
+        return res.status(404).json({ error: "Transaction introuvable" });
+      }
+
+      let status = tx.status;
+      
+      // Simuler le succès automatique de Wave après 6 secondes pour l'environnement de test/sandbox
+      if (status === "PENDING") {
+        const elapsed = Date.now() - tx.createdAt;
+        if (elapsed > 6000) {
+          status = "SUCCESS";
+          dbClient.prepare('UPDATE transactions SET status = "SUCCESS" WHERE id = ?')
+            .run(reference);
+
+          dbAdmin.prepare('INSERT INTO actions (id, userId, type, description, createdAt) VALUES (?, ?, ?, ?, ?)')
+            .run(`act_wave_${Date.now()}`, 'system', 'PAIEMENT_VALIDE', `Confirmation Wave (Mode Test): ${tx.amount} XOF`, Date.now());
+        }
+      }
+
+      res.json({ status, reference });
+    } catch (error: any) {
+      console.error("[WAVE-VERIFY] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // --- GENIUSPAY INTEGRATION ---
+  const GENIUSPAY_API_KEY = process.env.GENIUSPAY_API_KEY || "pk_sandbox_test_key_geniuspay";
+  const GENIUSPAY_API_SECRET = process.env.GENIUSPAY_API_SECRET || "sk_sandbox_test_secret_geniuspay";
+  const GENIUSPAY_WEBHOOK_SECRET = process.env.GENIUSPAY_WEBHOOK_SECRET || "whsec_test_secret";
+  const GENIUSPAY_BASE_URL = process.env.GENIUSPAY_BASE_URL || "https://pay.genius.ci/api/v1/merchant";
+  const GENIUSPAY_SIGNATURE_HEADER = process.env.GENIUSPAY_SIGNATURE_HEADER || "x-geniuspay-signature";
+
+  // Initiate GeniusPay payment
+  app.post("/api/subscribe", async (req, res) => {
+    try {
+      const { businessId, businessName, phone, email, plan, amount, redirectUrl } = req.body;
+      if (!businessId || !businessName || !amount) {
+        return res.status(400).json({ error: 'businessId, businessName et amount sont requis' });
+      }
+
+      const finalRedirectUrl = redirectUrl || req.headers.referer || "https://kontrol.app";
+
+      console.log(`[GENIUSPAY] Creating subscription payment for ${businessName} (${businessId}): ${amount} XOF`);
+
+      let checkout_url = "";
+      let reference = `gp_${Math.random().toString(36).substring(2, 10)}`;
+
+      // If we have real keys, fetch from GeniusPay API
+      if (GENIUSPAY_API_KEY && !GENIUSPAY_API_KEY.includes("test_key")) {
+        try {
+          const response = await fetch(`${GENIUSPAY_BASE_URL}/payments`, {
+            method: 'POST',
+            headers: {
+              'X-API-Key': GENIUSPAY_API_KEY,
+              'X-API-Secret': GENIUSPAY_API_SECRET,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              amount: Number(amount),
+              description: `Abonnement ${plan || 'monthly'} - ${businessName}`,
+              customer: {
+                name: businessName,
+                phone: phone || '',
+                email: email || '',
+              },
+              metadata: {
+                subscription_id: businessId,
+                plan: plan || 'monthly',
+              },
+            }),
+          });
+
+          const json: any = await response.json();
+          if (response.ok && json.success) {
+            checkout_url = json.data.checkout_url;
+            reference = json.data.reference;
+          } else {
+            console.warn("[GENIUSPAY] API returned error, falling back to sandbox checkout:", json);
+            checkout_url = `https://pay.genius.ci/checkout/sandbox/${reference}?amount=${amount}&desc=Abonnement%20KONTROL&redirect_url=${encodeURIComponent(finalRedirectUrl)}&return_url=${encodeURIComponent(finalRedirectUrl)}&success_url=${encodeURIComponent(finalRedirectUrl)}`;
+          }
+        } catch (apiErr) {
+          console.error("[GENIUSPAY] API connection error, falling back to sandbox:", apiErr);
+          checkout_url = `https://pay.genius.ci/checkout/sandbox/${reference}?amount=${amount}&desc=Abonnement%20KONTROL&redirect_url=${encodeURIComponent(finalRedirectUrl)}&return_url=${encodeURIComponent(finalRedirectUrl)}&success_url=${encodeURIComponent(finalRedirectUrl)}`;
+        }
+      } else {
+        // Fallback for test mode
+        checkout_url = `https://pay.genius.ci/checkout/sandbox/${reference}?amount=${amount}&desc=Abonnement%20KONTROL&redirect_url=${encodeURIComponent(finalRedirectUrl)}&return_url=${encodeURIComponent(finalRedirectUrl)}&success_url=${encodeURIComponent(finalRedirectUrl)}`;
+      }
+
+      // Record transaction in SQLite database
+      try {
+        dbClient.prepare(`
+          INSERT INTO transactions (id, amount, status, type, category, description, createdAt)
+          VALUES (?, ?, 'PENDING', 'INCOME', 'SUBSCRIPTION_PAYMENT', ?, ?)
+        `).run(reference, amount, `Abonnement GeniusPay - ${businessName}`, Date.now());
+      } catch (dbErr) {
+        console.warn("[GENIUSPAY-DB] SQLite record failed (might exist):", dbErr);
+      }
+
+      res.json({ checkout_url, reference });
+    } catch (error: any) {
+      console.error("[GENIUSPAY] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Verify transaction status (called by frontend when verifying)
+  app.get("/api/geniuspay/verify/:reference", async (req, res) => {
+    try {
+      const { reference } = req.params;
+      const tx = dbClient.prepare('SELECT * FROM transactions WHERE id = ?').get(reference) as any;
+      if (!tx) {
+        return res.status(404).json({ error: "Transaction introuvable" });
+      }
+
+      let status = tx.status || "PENDING";
+
+      // Simulation de succès automatique après 6 secondes en mode Test/Sandbox
+      const isTestKey = !GENIUSPAY_API_KEY || GENIUSPAY_API_KEY.includes("test_key");
+      if (status === "PENDING" && isTestKey) {
+        const elapsed = Date.now() - tx.createdAt;
+        if (elapsed > 6000) {
+          status = "SUCCESS";
+          dbClient.prepare('UPDATE transactions SET status = "SUCCESS" WHERE id = ?')
+            .run(reference);
+
+          dbAdmin.prepare('INSERT INTO actions (id, userId, type, description, createdAt) VALUES (?, ?, ?, ?, ?)')
+            .run(`act_gp_${Date.now()}`, 'system', 'PAIEMENT_VALIDE', `Confirmation GeniusPay (Mode Test): 15000 XOF`, Date.now());
+        }
+      } else if (status === "PENDING" && !isTestKey) {
+        try {
+          const apiRes = await fetch(`${GENIUSPAY_BASE_URL}/payments/${reference}`, {
+            method: 'GET',
+            headers: {
+              'X-API-Key': GENIUSPAY_API_KEY,
+              'X-API-Secret': GENIUSPAY_API_SECRET,
+            }
+          });
+          const json: any = await apiRes.json();
+          if (apiRes.ok && json.success && (json.data.status === "SUCCESS" || json.data.status === "APPROVED")) {
+            status = "SUCCESS";
+            dbClient.prepare('UPDATE transactions SET status = "SUCCESS" WHERE id = ?')
+              .run(reference);
+
+            dbAdmin.prepare('INSERT INTO actions (id, userId, type, description, createdAt) VALUES (?, ?, ?, ?, ?)')
+              .run(`act_gp_${Date.now()}`, 'system', 'PAIEMENT_VALIDE', `Confirmation GeniusPay: 15000 XOF`, Date.now());
+          }
+        } catch (apiErr) {
+          console.error("[GENIUSPAY-VERIFY] API check failed:", apiErr);
+        }
+      }
+
+      res.json({ status, reference });
+    } catch (error: any) {
+      console.error("[GENIUSPAY-VERIFY] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Webhook GeniusPay
+  app.post("/webhooks/geniuspay", async (req, res) => {
+    try {
+      const signature = req.headers[GENIUSPAY_SIGNATURE_HEADER] as string | undefined;
+      const isValid = verifyWebhookSignature(req, signature, GENIUSPAY_WEBHOOK_SECRET);
+
+      if (!isValid && GENIUSPAY_API_KEY && !GENIUSPAY_API_KEY.includes("test_key")) {
+        console.warn("[GENIUSPAY-WEBHOOK] Webhook rejected: signature invalid");
+        return res.status(401).send("Signature invalide");
+      }
+
+      const event = req.body;
+      const reference = event?.data?.reference;
+
+      if (event.event === "payment.success" && reference) {
+        dbClient.prepare('UPDATE transactions SET status = "SUCCESS" WHERE id = ?')
+          .run(reference);
+
+        dbAdmin.prepare('INSERT INTO actions (id, userId, type, description, createdAt) VALUES (?, ?, ?, ?, ?)')
+          .run(`act_gp_${Date.now()}`, 'system', 'PAIEMENT_VALIDE', `Confirmation Web GeniusPay: 15000 XOF`, Date.now());
+
+        console.log(`[GENIUSPAY-WEBHOOK] Payment reference ${reference} successfully processed.`);
+      }
+
+      res.status(200).send("OK");
+    } catch (error: any) {
+      console.error("[GENIUSPAY-WEBHOOK] Error:", error);
+      res.status(500).send("Internal Server Error");
+    }
+  });
+
+  // Helper for webhook signature verification
+  function verifyWebhookSignature(req: any, signatureFromHeader: string | undefined, secret: string) {
+    if (!secret || !signatureFromHeader) return false;
+    try {
+      const bodyData = req.rawBody || Buffer.from(JSON.stringify(req.body));
+      const expected = crypto
+        .createHmac('sha256', secret)
+        .update(bodyData)
+        .digest('hex');
+
+      const a = Buffer.from(expected, 'utf8');
+      const b = Buffer.from(signatureFromHeader, 'utf8');
+      if (a.length !== b.length) return false;
+      return crypto.timingSafeEqual(a, b);
+    } catch (err) {
+      return false;
+    }
+  }
 
   // Vite development bridge - MUST be before any catch-all routes
   if (process.env.NODE_ENV !== "production") {
@@ -1052,7 +1315,7 @@ async function startServer() {
   console.log("-----------------------------------------");
   
   const checks = {
-    "DATABASE (SQL)": fs.existsSync(dbPath),
+    "DATABASE (SQL)": fs.existsSync(dbPathClient) && fs.existsSync(dbPathAdmin) && fs.existsSync(dbPathBlueAi),
     "INDEX_HTML": fs.existsSync(path.join(process.cwd(), "index.html")),
     "ENTRY_POINT": fs.existsSync(path.join(process.cwd(), "src", "main.tsx")),
     "BRAIN_LIB": fs.existsSync(path.join(process.cwd(), "src", "api", "lib", "blue-neural-brain.ts")),

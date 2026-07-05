@@ -34,61 +34,6 @@ export interface NavSection {
   items: NavItem[];
 }
 
-export const ERP_NAV_SECTIONS: NavSection[] = [
-  {
-    titleKey: 'sections.control_tower',
-    icon: LayoutDashboard,
-    items: [
-      { id: 'dashboard', labelKey: 'common.dashboard', icon: LayoutDashboard },
-    ]
-  },
-  {
-    titleKey: 'sections.ecosystem',
-    icon: Building2,
-    items: [
-      { id: 'entreprises', labelKey: 'common.company_profile', icon: Building2 },
-      { id: 'utilisateurs', labelKey: 'common.users', icon: Users },
-      { id: 'ai', labelKey: 'common.blue_ai', icon: Brain },
-    ]
-  },
-  {
-    titleKey: 'sections.business',
-    icon: TrendingUp,
-    items: [
-      { id: 'revenue', labelKey: 'common.overview', icon: TrendingUp },
-      { id: 'subscriptions', labelKey: 'common.subscriptions', icon: CreditCard },
-      { id: 'admin_tiers', labelKey: 'common.tiers', icon: Users },
-      { id: 'admin_transactions', labelKey: 'common.kpis_business', icon: ArrowLeftRight },
-    ]
-  },
-  {
-    titleKey: 'sections.coordination',
-    icon: Shield,
-    items: [
-      { id: 'gestionnaires', labelKey: 'common.users', icon: Shield },
-      { id: 'chat', labelKey: 'common.chat', icon: MessageSquare },
-      { id: 'tickets', labelKey: 'common.support', icon: MessageCircle },
-    ]
-  },
-  {
-    titleKey: 'sections.maintenance',
-    icon: Settings,
-    items: [
-      { id: 'system', labelKey: 'common.overview', icon: Activity },
-      { id: 'actions', labelKey: 'common.actions', icon: History },
-      { id: 'versions', labelKey: 'common.versions', icon: History },
-      { id: 'updates', labelKey: 'common.blue_ai', icon: Sparkles },
-    ]
-  },
-  {
-    titleKey: 'sections.account',
-    icon: UserCircle,
-    items: [
-      { id: 'profil', labelKey: 'common.profile', icon: UserCircle },
-    ]
-  }
-];
-
 export const COMPANY_NAV_SECTIONS: NavSection[] = [
   {
     titleKey: 'sections.dashboard',

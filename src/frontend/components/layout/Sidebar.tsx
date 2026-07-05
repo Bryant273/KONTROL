@@ -8,7 +8,7 @@ import { cn } from '../../lib/utils';
 import { User, db, doc, onSnapshot } from '../../../api/firebase';
 import { UserProfile } from '../../types';
 import { Logo } from '../common/Logo';
-import { ERP_NAV_SECTIONS, COMPANY_NAV_SECTIONS } from '../../constants/navigation';
+import { COMPANY_NAV_SECTIONS } from '../../constants/navigation';
 import { Tooltip } from '../common/Tooltip';
 
 interface SidebarProps {
@@ -23,7 +23,6 @@ interface SidebarProps {
 
 export function Sidebar({ activeTab, setActiveTab, user, profile, onLogout, isOpen, setIsOpen }: SidebarProps) {
   const { t } = useTranslation();
-  const isKontrolAdmin = profile?.role === 'ADMINISTRATEUR_ERP' || profile?.role === 'GESTIONNAIRE_ERP' || profile?.role === 'ADMIN' || profile?.role === 'ADMINISTRATEUR_KONTROL' || profile?.role === 'GESTIONNAIRE_KONTROL';
   
   const [currentVersion, setCurrentVersion] = React.useState<string>('V1.0.0');
 
@@ -41,12 +40,10 @@ export function Sidebar({ activeTab, setActiveTab, user, profile, onLogout, isOp
     return () => unsub();
   }, [user]);
 
-  const navSections = isKontrolAdmin ? ERP_NAV_SECTIONS : COMPANY_NAV_SECTIONS;
+  const navSections = COMPANY_NAV_SECTIONS;
 
   const [openSections, setOpenSections] = React.useState<string[]>(
-    isKontrolAdmin 
-      ? [ERP_NAV_SECTIONS[0].titleKey, ERP_NAV_SECTIONS[1].titleKey] 
-      : [COMPANY_NAV_SECTIONS[0].titleKey, COMPANY_NAV_SECTIONS[1].titleKey]
+    [COMPANY_NAV_SECTIONS[0].titleKey, COMPANY_NAV_SECTIONS[1].titleKey]
   );
 
   const toggleSection = (titleKey: string) => {
@@ -173,28 +170,6 @@ export function Sidebar({ activeTab, setActiveTab, user, profile, onLogout, isOp
             );
           })}
         </nav>
-
-        {/* ERP Admin System Health */}
-        {profile?.role === 'ADMINISTRATEUR_ERP' && (
-          <div className="px-4 py-3 border-t border-white/10 mt-auto">
-            <div className="p-2.5 bg-white/5 rounded-xl border border-white/10">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[9px] font-extrabold uppercase tracking-widest text-white/30">{t('sections.system')}</span>
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-[9px]">
-                  <span className="text-white/40">Database</span>
-                  <span className="font-bold text-emerald-400">OK</span>
-                </div>
-                <div className="flex items-center justify-between text-[9px]">
-                  <span className="text-white/40">Auth Service</span>
-                  <span className="font-bold text-emerald-400">OK</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Footer / User */}
         <div className="p-2 border-t border-white/10 shrink-0">

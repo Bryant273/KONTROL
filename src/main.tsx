@@ -4,6 +4,43 @@ import App from './frontend/App.tsx';
 import './index.css';
 import './i18n/config';
 
+// --- LOCALSTORAGE 24H EXPIRATION OPTIMIZATION ---
+(() => {
+  const originalSetItem = Storage.prototype.setItem;
+  const originalGetItem = Storage.prototype.getItem;
+  const originalRemoveItem = Storage.prototype.removeItem;
+
+  Storage.prototype.setItem = function(key: string, value: string) {
+    const expiry = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+    const wrappedValue = {
+      _v: value,
+      _e: expiry,
+      _w: true // Wrap indicator
+    };
+    originalSetItem.call(this, key, JSON.stringify(wrappedValue));
+  };
+
+  Storage.prototype.getItem = function(key: string): string | null {
+    const rawValue = originalGetItem.call(this, key);
+    if (rawValue === null) return null;
+
+    try {
+      const parsed = JSON.parse(rawValue);
+      if (parsed && typeof parsed === 'object' && parsed._w === true) {
+        if (Date.now() > parsed._e) {
+          // Expired, delete the item and return null
+          originalRemoveItem.call(this, key);
+          return null;
+        }
+        return parsed._v;
+      }
+    } catch (e) {
+      // Not JSON or legacy key, fall back to returning original value
+    }
+    return rawValue;
+  };
+})();
+
 window.addEventListener('error', (event) => {
   console.error("!!! UNHANDLED ERROR DETECTED !!!");
   console.error("Message:", event.message);

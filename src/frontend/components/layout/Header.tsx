@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, Bell, ChevronDown, UserCircle, Shield, LogOut, Globe, Sparkles } from 'lucide-react';
+import { Menu, Bell, ChevronDown, UserCircle, Shield, LogOut, Globe, Sparkles, Maximize2, Minimize2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { User, db, doc, updateDoc, handleFirestoreError, OperationType } from '../../../api/firebase';
 import { cn } from '../../lib/utils';
@@ -24,7 +24,38 @@ export function Header({ section, page, user, profile, onLogout, onTabChange, to
   const { i18n, t } = useTranslation();
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
-  
+  const [isFullscreen, setIsFullscreen] = React.useState(false);
+
+  React.useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, []);
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        }
+      }
+    } catch (err: any) {
+      console.warn("Fullscreen toggle failed or blocked:", err.message);
+    }
+  };
+
   const isFirstTime = activeTab ? !localStorage.getItem(`kontrol_guide_${activeTab}_seen`) : false;
 
   const changeLanguage = async (lng: string) => {
@@ -123,6 +154,15 @@ export function Header({ section, page, user, profile, onLogout, onTabChange, to
         <div className="hidden sm:block text-[11.5px] text-kontrol-ink-muted px-2.5 py-1.5 bg-kontrol-bg border border-kontrol-border rounded-md whitespace-nowrap">
           {new Date().toLocaleDateString(i18n.language === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
         </div>
+
+        <button
+          onClick={toggleFullscreen}
+          type="button"
+          className="flex items-center justify-center w-8 h-8 bg-kontrol-bg border border-kontrol-border rounded-lg hover:bg-kontrol-border transition-colors text-kontrol-ink-soft cursor-pointer active:scale-95"
+          title={isFullscreen ? "Quitter le plein écran" : "Plein écran"}
+        >
+          {isFullscreen ? <Minimize2 size={14} className="text-kontrol-orange animate-[pulse_3s_infinite]" /> : <Maximize2 size={14} className="text-kontrol-blue" />}
+        </button>
 
         {onStartGuide && (
           <div className="relative">

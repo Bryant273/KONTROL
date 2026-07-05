@@ -107,6 +107,9 @@ class BlueAIBrain:
         clean_tag = "".join([c if c.isalnum() else "_" for c in prompt[:30].strip().lower()]).strip("_")
         func_name = f"dynamic_metric_solver_{pair_id}_{clean_tag}"
         
+        # Avoid backslash inside f-string expression block for compatibility with Python < 3.12
+        escaped_response = response[:200].replace('"', '\\"') if response else ''
+
         # Dynamically formulate the python function structure
         code_template = f"""
 def {func_name}(self, context=None):
@@ -128,7 +131,7 @@ def {func_name}(self, context=None):
     return {{
         "function_signature": "{func_name}",
         "category": "{category}",
-        "learned_response": "{response[:200].replace('"', '\\"') if response else ''}...",
+        "learned_response": "{escaped_response}...",
         "db_realtime_context": db_summary,
         "execution_timestamp": time.time()
     }}

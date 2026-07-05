@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --outfile=dist/server.cjs --external:better-sqlite3 --external:vite",
+    "build": "vite build && esbuild server_client.ts --bundle --platform=node --format=cjs --outfile=dist/server_client.cjs --external:better-sqlite3 --external:vite && esbuild server_admin.ts --bundle --platform=node --format=cjs --outfile=dist/server_admin.cjs --external:better-sqlite3 --external:vite && esbuild server_blue_ai.ts --bundle --platform=node --format=cjs --outfile=dist/server_blue_ai.cjs --external:better-sqlite3 --external:vite && esbuild server.ts --bundle --platform=node --format=cjs --outfile=dist/server.cjs --external:better-sqlite3 --external:vite",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
