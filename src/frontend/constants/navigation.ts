@@ -19,7 +19,8 @@ import {
   Box,
   Boxes,
   Bell,
-  Wallet as WalletIcon
+  Wallet as WalletIcon,
+  Database
 } from 'lucide-react';
 
 export interface NavItem {
@@ -78,6 +79,7 @@ export const COMPANY_NAV_SECTIONS: NavSection[] = [
       { id: 'profil', labelKey: 'common.profile', icon: UserCircle },
       { id: 'abonnements', labelKey: 'common.subscriptions', icon: CreditCard },
       { id: 'actions', labelKey: 'common.actions', icon: History },
+      { id: 'data_exchange', labelKey: 'common.data_exchange', icon: Database },
     ]
   }
 ];
