@@ -15,13 +15,15 @@ import {
   Activity,
   UserCheck,
   X,
-  Plus
+  Plus,
+  Printer
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { UserProfile } from '../../types';
 import { db, doc, updateDoc, collection, addDoc, query, where, orderBy, onSnapshot, logAction, getDocs } from '../../../api/firebase';
 import { apiClient } from '../../../api/lib/api-client';
 import { formatCurrency } from '../../lib/utils';
+import { generateInvoicePDF } from '../../lib/invoice';
 
 interface SubscriptionsModuleProps {
   profile: UserProfile | null;
@@ -32,9 +34,11 @@ interface SubscriptionRequest {
   amount: number;
   currency: string;
   transactionId: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUCCESS' | 'FAILED';
   createdAt: number;
   type: string;
+  previousDueDate?: number | string;
+  nextDueDate?: number | string;
 }
 
 export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
@@ -49,6 +53,8 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
   const [loadingRequests, setLoadingRequests] = useState(true);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isForcing, setIsForcing] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<SubscriptionRequest | null>(null);
+  const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
 
   // Load subscription/payment validation requests for this company in real-time
   useEffect(() => {
@@ -798,6 +804,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                   <th className="pb-4 font-extrabold">Référence GeniusPay</th>
                   <th className="pb-4 font-extrabold">Montant</th>
                   <th className="pb-4 font-extrabold">Statut</th>
+                  <th className="pb-4 font-extrabold text-right">Justificatif</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-kontrol-border text-kontrol-dark">
@@ -826,6 +833,26 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                         {getStatusLabel(req.status)}
                       </span>
                     </td>
+                    <td className="py-4 text-right">
+                      {req.status === 'APPROVED' || req.status === 'SUCCESS' ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedInvoice(req);
+                            setInvoiceModalOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-kontrol-dark border border-slate-200 hover:border-slate-300 rounded-xl text-[11px] font-bold transition-all cursor-pointer shadow-sm active:scale-95"
+                          title="Afficher la facture officielle PDF acquittée"
+                        >
+                          <FileText size={13} className="text-slate-500" />
+                          Facture PDF
+                        </button>
+                      ) : (
+                        <span className="text-[10px] text-kontrol-ink-muted/50 italic select-none">
+                          Non disponible
+                        </span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -833,6 +860,209 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
           </div>
         )}
       </div>
+
+      {/* High-End Interactive Invoice Overlay Modal */}
+      <AnimatePresence>
+        {invoiceModalOpen && selectedInvoice && (
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ duration: 0.25 }}
+              className="bg-slate-100 rounded-2xl overflow-hidden shadow-2xl border border-slate-200 w-full max-w-lg flex flex-col h-[80vh] md:h-auto max-h-[80vh]"
+            >
+              {/* Top Bar Actions */}
+              <div className="px-4 py-3 bg-white border-b border-slate-200 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-2">
+                  <FileText className="text-kontrol-blue" size={15} />
+                  <span className="text-[10px] font-black text-kontrol-dark uppercase tracking-wider">
+                    Aperçu de la Facture
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => generateInvoicePDF(selectedInvoice, profile)}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-kontrol-blue hover:bg-kontrol-blue/90 text-white rounded-lg text-xs font-extrabold transition-all cursor-pointer shadow-sm active:scale-95"
+                  >
+                    <Printer size={12} />
+                    Télécharger PDF
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInvoiceModalOpen(false)}
+                    className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-all"
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Printable Invoice Page Body */}
+              <div className="p-4 md:p-6 overflow-y-auto flex-1 bg-white">
+                <div id="kontrol-invoice-content" className="max-w-xl mx-auto space-y-5 text-slate-800">
+                  {/* Decorative Header Bar */}
+                  <div className="h-1 bg-gradient-to-r from-blue-600 to-blue-400 rounded-full" />
+
+                  {/* Invoice Header */}
+                  <div className="flex flex-col sm:flex-row justify-between items-start gap-3 pb-4 border-b border-slate-100">
+                    <div>
+                      <h2 className="text-xl font-black text-slate-900 tracking-tight uppercase">
+                        KONTROL<span className="text-blue-600">.</span>
+                      </h2>
+                      <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest mt-0.5">
+                        Gestion ERP Intelligente
+                      </p>
+                    </div>
+                    <div className="sm:text-right">
+                      <h1 className="text-sm font-black text-slate-950 uppercase tracking-tight">
+                        Facture d'Abonnement
+                      </h1>
+                      <p className="text-[11px] font-mono font-bold text-blue-600 mt-0.5">
+                        KT-FAC-{selectedInvoice.transactionId.substring(0, 10).toUpperCase()}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Metadata Blocks */}
+                  <div className="space-y-4">
+                    {/* Issuer (Left) & Client (Slightly below Right) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+                      {/* Émetteur à gauche */}
+                      <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-100">
+                        <h3 className="text-[9px] font-black uppercase text-slate-400 tracking-wider mb-1 border-b border-slate-200/60 pb-0.5">
+                          Émetteur (Prestataire)
+                        </h3>
+                        <p className="text-[12px] font-black text-slate-900">
+                          INNOV'KORP
+                        </p>
+                        <p className="text-[10px] text-slate-600 mt-0.5">
+                          Email : <span className="font-semibold text-slate-800">Innov.korp@gmail.com</span>
+                        </p>
+                      </div>
+
+                      {/* Client légèrement en dessous à droite */}
+                      <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-100 sm:mt-3">
+                        <h3 className="text-[9px] font-black uppercase text-slate-400 tracking-wider mb-1 border-b border-slate-200/60 pb-0.5">
+                          Client (Facturé à)
+                        </h3>
+                        <p className="text-[12px] font-black text-slate-900">
+                          {profile?.companyName || profile?.companyAbbreviation || "Votre Entreprise"}
+                        </p>
+                        <p className="text-[10px] text-slate-600 mt-0.5">
+                          À l'attention de : <span className="font-semibold text-slate-800">{profile?.displayName || profile?.email || "Utilisateur KONTROL"}</span>
+                        </p>
+                        <p className="text-[10px] text-slate-500">
+                          Email : <span className="font-semibold text-slate-800">{profile?.email || ""}</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Payment details and Subscription due date */}
+                    <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-100 grid grid-cols-1 sm:grid-cols-2 gap-3 text-[10px]">
+                      <div>
+                        <h4 className="font-black uppercase text-blue-900 text-[9px] tracking-wider mb-1">
+                          Règlement
+                        </h4>
+                        <p className="text-slate-600">
+                          Date d'émission : <span className="font-bold text-slate-900">{new Date(selectedInvoice.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                        </p>
+                        <p className="text-slate-600 mt-0.5">
+                          Moyen de paiement : <span className="font-bold text-slate-900">GeniusPay (Mobile Money)</span>
+                        </p>
+                      </div>
+                      <div className="border-t sm:border-t-0 sm:border-l border-blue-100 pt-2 sm:pt-0 sm:pl-3">
+                        <h4 className="font-black uppercase text-blue-900 text-[9px] tracking-wider mb-1">
+                          Échéance d'Abonnement
+                        </h4>
+                        <p className="text-blue-700 font-medium mt-1">
+                          Nouvelle échéance : <span className="font-black text-blue-950">{new Date(selectedInvoice.nextDueDate || (new Date(selectedInvoice.createdAt).getTime() + 30 * 24 * 60 * 60 * 1000)).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Items Table */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-[11px]">
+                      <thead>
+                        <tr className="bg-slate-50 text-slate-500 font-extrabold uppercase text-[8px] tracking-wider border-b border-slate-200">
+                          <th className="py-1.5 px-2">Description</th>
+                          <th className="py-1.5 px-2 text-center">Qté</th>
+                          <th className="py-1.5 px-2 text-right">Prix Unitaire</th>
+                          <th className="py-1.5 px-2 text-right">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-slate-700">
+                        <tr>
+                          <td className="py-3 px-2 max-w-xs">
+                            <span className="font-extrabold text-slate-900 block">
+                              ABONNEMENT: KONTROL STANDARD
+                            </span>
+                            <span className="text-[10px] text-slate-400 block mt-0.5 leading-relaxed">
+                              Accès complet aux modules Achats/Ventes, Stocks, Trésorerie, Blue AI Assistant et synchronisation en temps réel de vos données d'entreprise. Validité : 30 jours.
+                            </span>
+                          </td>
+                          <td className="py-3 px-2 text-center font-bold">1</td>
+                          <td className="py-3 px-2 text-right font-mono font-semibold">
+                            {formatCurrency(selectedInvoice.amount, selectedInvoice.currency)}
+                          </td>
+                          <td className="py-3 px-2 text-right font-mono font-extrabold text-slate-950">
+                            {formatCurrency(selectedInvoice.amount, selectedInvoice.currency)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Totals Section */}
+                  <div className="flex flex-col sm:flex-row justify-between items-start gap-4 pt-3 border-t border-slate-100">
+                    {/* Stamp of Success */}
+                    <div className="bg-emerald-50 border border-dashed border-emerald-400 p-2.5 rounded-xl flex items-center gap-2 max-w-xs shrink-0 select-none">
+                      <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                        ✓
+                      </div>
+                      <div>
+                        <h4 className="text-[10px] font-black uppercase text-emerald-800 leading-none">
+                          PAYEE
+                        </h4>
+                        <p className="text-[8px] text-emerald-600 mt-0.5 font-mono font-semibold leading-relaxed">
+                          Via GeniusPay • {selectedInvoice.transactionId.substring(0, 8)}...
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="w-full sm:w-60 space-y-1 text-[11px]">
+                      <div className="flex justify-between text-slate-500">
+                        <span>Sous-total</span>
+                        <span className="font-mono font-medium">{formatCurrency(selectedInvoice.amount, selectedInvoice.currency)}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-500">
+                        <span>TVA (0% - Exonéré)</span>
+                        <span className="font-mono font-medium">0 XOF</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs font-black text-slate-900 pt-1.5 border-t border-slate-100">
+                        <span>Montant Net Payé</span>
+                        <span className="font-mono text-xs text-blue-600">
+                          {formatCurrency(selectedInvoice.amount, selectedInvoice.currency)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bottom Footer block */}
+                  <div className="pt-4 border-t border-slate-100 text-center text-[9px] text-slate-400 space-y-0.5">
+                    <p className="font-extrabold text-slate-500">INNOV'KORP</p>
+                    <p>Facture générée numériquement et certifiée conforme.</p>
+                    <p>Merci pour votre abonnement et votre fidélité !</p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

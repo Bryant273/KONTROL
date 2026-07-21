@@ -12,7 +12,7 @@ import xss from "xss-clean";
 import crypto from "crypto";
 import { BlueNeuralBrain } from "./src/api/lib/blue-neural-brain.ts";
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, updateDoc, addDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { initializeFirestore, doc, updateDoc, addDoc, collection, query, where, getDocs } from "firebase/firestore";
 
 dotenv.config();
 
@@ -27,7 +27,12 @@ try {
   if (fs.existsSync(configPath)) {
     const firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
     const firebaseApp = initializeApp(firebaseConfig);
-    dbFirestore = getFirestore(firebaseApp);
+    
+    // Use stable initializeFirestore with database ID and experimentalForceLongPolling to prevent gRPC streaming issues in containers
+    dbFirestore = initializeFirestore(firebaseApp, {
+      experimentalForceLongPolling: true
+    }, firebaseConfig.firestoreDatabaseId);
+    
     console.log("[FIREBASE-SERVER] Firebase Firestore initialized successfully on the backend!");
   } else {
     console.warn("[FIREBASE-SERVER] firebase-applet-config.json not found, server-side firebase disabled.");
