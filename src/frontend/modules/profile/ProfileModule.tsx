@@ -20,7 +20,9 @@ import {
   ChevronLeft,
   KeyRound,
   Phone,
-  Briefcase
+  Briefcase,
+  CreditCard,
+  ArrowRight
 } from 'lucide-react';
 import { UserProfile, Company } from '../../types';
 import { 
@@ -388,6 +390,69 @@ export function ProfileModule({ profile, initialSection = 'MENU' }: ProfileModul
                     <LogOut size={14} className="group-hover:translate-x-0.5 transition-transform" /> Déconnexion
                   </button>
                 </div>
+              </div>
+            </div>
+
+            {/* Real-time Subscription Status Indicator */}
+            <div className="bg-white border border-kontrol-border rounded-3xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl -mr-16 -mt-16 pointer-events-none" />
+              <div className="flex items-start gap-4 relative z-10">
+                <div className={cn(
+                  "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border",
+                  profile.subscriptionStatus === 'ACTIVE' 
+                    ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
+                    : "bg-amber-50 text-amber-500 border-amber-100"
+                )}>
+                  <CreditCard size={22} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="text-[14px] font-extrabold text-kontrol-dark">Statut de l'abonnement KONTROL</h4>
+                    <span className={cn(
+                      "px-2.5 py-0.5 text-[9px] font-extrabold rounded-full uppercase tracking-wider border",
+                      profile.subscriptionStatus === 'ACTIVE'
+                        ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/20"
+                        : "bg-rose-500/15 text-rose-600 border-rose-500/20"
+                    )}>
+                      {profile.subscriptionStatus === 'ACTIVE' ? 'ACTIF' : 'EXPIRED / INACTIF'}
+                    </span>
+                  </div>
+                  <p className="text-[12px] text-kontrol-ink-muted mt-1 leading-relaxed">
+                    {profile.subscriptionStatus === 'ACTIVE' ? (
+                      <>
+                        Votre licence standard KONTROL est active et court jusqu'au <span className="font-bold text-kontrol-dark font-mono">{new Date(profile.subscriptionEndDate || Date.now()).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</span>.
+                      </>
+                    ) : (
+                      "Votre licence KONTROL a expiré ou n'est pas encore active. Veuillez régulariser votre abonnement standard."
+                    )}
+                  </p>
+                  <p className="text-[10px] text-slate-400 font-mono mt-1.5 flex items-center gap-1.5">
+                    <span className={cn(
+                      "inline-block w-2 h-2 rounded-full",
+                      profile.subscriptionStatus === 'ACTIVE' ? "bg-emerald-500 animate-pulse" : "bg-rose-500 animate-pulse"
+                    )} />
+                    Synchronisation temps réel via Firestore • Passerelle GeniusPay
+                  </p>
+                </div>
+              </div>
+              
+              <div className="shrink-0 flex items-center gap-3 self-end md:self-center relative z-10">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const event = new CustomEvent('app-navigate', { 
+                      detail: { 
+                        tab: 'abonnements', 
+                        section: 'Administration', 
+                        label: 'Abonnements' 
+                      } 
+                    });
+                    window.dispatchEvent(event);
+                  }}
+                  className="px-4 py-2 bg-slate-50 hover:bg-slate-100 text-kontrol-dark border border-slate-200 hover:border-slate-300 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+                >
+                  Gérer l'abonnement <ArrowRight size={13} />
+                </button>
               </div>
             </div>
 

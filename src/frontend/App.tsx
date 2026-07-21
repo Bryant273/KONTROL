@@ -116,6 +116,15 @@ export default function App() {
   
   // Auth state listener
   useEffect(() => {
+    const handleNavigate = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail) {
+        const { tab, section, label } = customEvent.detail;
+        handleTabChange(tab, section || 'Administration', label || 'Abonnements');
+      }
+    };
+    window.addEventListener('app-navigate', handleNavigate);
+
     // Safety timeout to ensure loading screen eventually disappears
     const authTimeout = setTimeout(() => {
       console.warn("Auth check timed out. Forcing UI load.");

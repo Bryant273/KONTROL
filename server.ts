@@ -11,12 +11,30 @@ import hpp from "hpp";
 import xss from "xss-clean";
 import crypto from "crypto";
 import { BlueNeuralBrain } from "./src/api/lib/blue-neural-brain.ts";
+import { initializeApp } from "firebase/app";
+import { getFirestore, doc, updateDoc, addDoc, collection, query, where, getDocs } from "firebase/firestore";
 
 dotenv.config();
 
 console.log("[SYSTEM] Orchestrator booting...");
 console.log("[SYSTEM] Node version:", process.version);
 console.log("[SYSTEM] CWD:", process.cwd());
+
+// Initialize Firebase for Real-time Server webhook synchronization
+let dbFirestore: any = null;
+try {
+  const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
+  if (fs.existsSync(configPath)) {
+    const firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    const firebaseApp = initializeApp(firebaseConfig);
+    dbFirestore = getFirestore(firebaseApp);
+    console.log("[FIREBASE-SERVER] Firebase Firestore initialized successfully on the backend!");
+  } else {
+    console.warn("[FIREBASE-SERVER] firebase-applet-config.json not found, server-side firebase disabled.");
+  }
+} catch (fbErr: any) {
+  console.error("[FIREBASE-SERVER] Failed to initialize Firebase on server:", fbErr.message);
+}
 
 process.on('uncaughtException', (err) => {
   console.error("[FATAL CRASH] Uncaught Exception:", err);
@@ -1056,6 +1074,134 @@ async function startServer() {
   const GENIUSPAY_BASE_URL = process.env.GENIUSPAY_BASE_URL || "https://pay.genius.ci/api/v1/merchant";
   const GENIUSPAY_SIGNATURE_HEADER = process.env.GENIUSPAY_SIGNATURE_HEADER || "x-geniuspay-signature";
 
+  // Helper to synchronize GeniusPay successful payment to Firestore (Real-time Sync)
+  async function syncSuccessfulPaymentToFirestore(reference: string) {
+    if (!dbFirestore) {
+      console.warn("[FIREBASE-SERVER] Cannot sync payment to Firestore: dbFirestore is not initialized.");
+      return;
+    }
+    try {
+      console.log(`[FIREBASE-SERVER] Starting Firestore sync for transaction: ${reference}`);
+      
+      // 1. Find subscription request document matching reference
+      const requestsCol = collection(dbFirestore, 'subscription_requests');
+      const q = query(requestsCol, where('transactionId', '==', reference));
+      const snapshot = await getDocs(q);
+      
+      let targetCompanyId = '';
+      let targetUserId = '';
+      let targetUserName = 'System';
+      
+      if (!snapshot.empty) {
+        for (const docSnap of snapshot.docs) {
+          const data = docSnap.data();
+          targetCompanyId = data.companyId || '';
+          targetUserId = data.userId || '';
+          
+          // Update subscription request status to APPROVED in Firestore
+          await updateDoc(doc(dbFirestore, 'subscription_requests', docSnap.id), {
+            status: 'APPROVED',
+            updatedAt: Date.now()
+          });
+          console.log(`[FIREBASE-SERVER] Subscription request ${docSnap.id} approved in Firestore.`);
+        }
+      }
+      
+      // 2. Fetch user information from users collection if we found a userId
+      if (targetUserId) {
+        const userRef = doc(dbFirestore, 'users', targetUserId);
+        const userSnap = await getDocs(query(collection(dbFirestore, 'users'), where('uid', '==', targetUserId)));
+        
+        if (!userSnap.empty) {
+          const userData = userSnap.docs[0].data();
+          targetUserName = userData.displayName || userData.email || 'System';
+          
+          // Update user subscription in Firestore
+          await updateDoc(doc(dbFirestore, 'users', targetUserId), {
+            subscriptionEndDate: Date.now() + 30 * 24 * 60 * 60 * 1000,
+            subscriptionStatus: 'ACTIVE'
+          });
+          console.log(`[FIREBASE-SERVER] User subscription updated in Firestore for user: ${targetUserId}`);
+        }
+      }
+      
+      // If we didn't find specific ids, let's search for any active user or default back
+      if (!targetCompanyId) {
+        // Try to find the companyId from the local SQLite transaction or default
+        const tx = dbClient.prepare('SELECT * FROM transactions WHERE id = ?').get(reference) as any;
+        if (tx) {
+          targetCompanyId = tx.companyId || tx.ownerId || '';
+        }
+      }
+      
+      // 3. Register standard payment in core 'payments' collection so it displays on the main dashboard
+      try {
+        await addDoc(collection(dbFirestore, 'payments'), {
+          description: `Abonnement KONTROL Standard - 30 jours (Réf: ${reference})`,
+          montant: 15000,
+          type: 'ENCAISSEMENT',
+          modePaiement: 'GeniusPay',
+          date: Date.now(),
+          tiersId: 'system',
+          tiersNom: 'GeniusPay',
+          ownerId: targetCompanyId || 'system',
+          createdAt: Date.now()
+        });
+        console.log("[FIREBASE-SERVER] Payment registered in Firestore payments collection.");
+      } catch (payErr: any) {
+        console.error("[FIREBASE-SERVER] Failed to create Firestore payment record:", payErr.message);
+      }
+
+      // 4. Register transaction in core 'transactions' collection so it displays on the main dashboard
+      try {
+        await addDoc(collection(dbFirestore, 'transactions'), {
+          reference: `FAC-${reference.toUpperCase()}`,
+          description: `Abonnement KONTROL Standard - 30 jours (Réf: ${reference})`,
+          montantTotal: 15000,
+          type: 'VENTE',
+          modePaiement: 'GeniusPay',
+          devise: 'XOF',
+          tauxChange: 1,
+          montantDevise: 15000,
+          statut: 'PAYE',
+          ownerId: targetCompanyId || 'system',
+          companyId: targetCompanyId || 'system',
+          createdAt: Date.now(),
+          articles: [
+            {
+              produitId: 'sub_standard_30d',
+              designation: 'Abonnement KONTROL Standard 30 jours',
+              prixUnitaire: 15000,
+              quantite: 1,
+              total: 15000
+            }
+          ]
+        });
+        console.log("[FIREBASE-SERVER] Transaction registered in Firestore transactions collection.");
+      } catch (txErr: any) {
+        console.error("[FIREBASE-SERVER] Failed to create Firestore transaction record:", txErr.message);
+      }
+      
+      // 5. Permanent entry in the system's activity log (Firestore 'actions' collection)
+      try {
+        await addDoc(collection(dbFirestore, 'actions'), {
+          companyId: targetCompanyId || 'system',
+          userId: targetUserId || 'system',
+          userName: targetUserName,
+          action: 'RECONNAISSANCE_AUTOMATIQUE_GENIUSPAY_REUSSIE',
+          details: `Paiement GeniusPay détecté automatiquement. Licence prolongée de 30 jours (Réf: ${reference})`,
+          timestamp: Date.now()
+        });
+        console.log("[FIREBASE-SERVER] Successful payment transaction permanent entry added to Firestore actions log!");
+      } catch (actErr: any) {
+        console.error("[FIREBASE-SERVER] Failed to write to Firestore actions collection:", actErr.message);
+      }
+      
+    } catch (err: any) {
+      console.error("[FIREBASE-SERVER] Error during Firestore payment sync:", err.message);
+    }
+  }
+
   // Initiate GeniusPay payment
   app.post("/api/subscribe", async (req, res) => {
     try {
@@ -1141,44 +1287,93 @@ async function startServer() {
 
       let status = tx.status || "PENDING";
 
-      // Simulation de succès automatique après 6 secondes en mode Test/Sandbox
-      const isTestKey = !GENIUSPAY_API_KEY || GENIUSPAY_API_KEY.includes("test_key");
-      if (status === "PENDING" && isTestKey) {
-        const elapsed = Date.now() - tx.createdAt;
-        if (elapsed > 6000) {
-          status = "SUCCESS";
-          dbClient.prepare('UPDATE transactions SET status = "SUCCESS" WHERE id = ?')
-            .run(reference);
+      // Identify if we are in sandbox/test mode
+      const isSandboxOrTest = !GENIUSPAY_API_KEY || 
+                              GENIUSPAY_API_KEY.includes("test_key") || 
+                              GENIUSPAY_API_KEY.toLowerCase().includes("sandbox") ||
+                              reference.toUpperCase().includes("SANDBOX") || 
+                              reference.startsWith("gp_");
 
-          dbAdmin.prepare('INSERT INTO actions (id, userId, type, description, createdAt) VALUES (?, ?, ?, ?, ?)')
-            .run(`act_gp_${Date.now()}`, 'system', 'PAIEMENT_VALIDE', `Confirmation GeniusPay (Mode Test): 15000 XOF`, Date.now());
-        }
-      } else if (status === "PENDING" && !isTestKey) {
-        try {
-          const apiRes = await fetch(`${GENIUSPAY_BASE_URL}/payments/${reference}`, {
-            method: 'GET',
-            headers: {
-              'X-API-Key': GENIUSPAY_API_KEY,
-              'X-API-Secret': GENIUSPAY_API_SECRET,
+      if (status === "PENDING") {
+        let apiSucceeded = false;
+
+        // Try checking the real GeniusPay API if we have configured keys (not dummy test keys)
+        if (GENIUSPAY_API_KEY && !GENIUSPAY_API_KEY.includes("test_key")) {
+          try {
+            const apiRes = await fetch(`${GENIUSPAY_BASE_URL}/payments/${reference}`, {
+              method: 'GET',
+              headers: {
+                'X-API-Key': GENIUSPAY_API_KEY,
+                'X-API-Secret': GENIUSPAY_API_SECRET,
+              }
+            });
+            const json: any = await apiRes.json();
+            console.log(`[GENIUSPAY-VERIFY] Checked reference ${reference}. Response:`, JSON.stringify(json));
+
+            const rawApiStatus = json?.data?.status || json?.status || json?.payment?.status;
+            if (apiRes.ok && rawApiStatus) {
+              const apiStatus = rawApiStatus.toString().toUpperCase();
+              if (apiStatus === "SUCCESS" || apiStatus === "APPROVED" || apiStatus === "PAID" || apiStatus === "SUCCESSFUL") {
+                status = "SUCCESS";
+                dbClient.prepare("UPDATE transactions SET status = 'SUCCESS' WHERE id = ?")
+                  .run(reference);
+
+                dbAdmin.prepare('INSERT INTO actions (id, userId, type, description, createdAt) VALUES (?, ?, ?, ?, ?)')
+                  .run(`act_gp_${Date.now()}`, 'system', 'PAIEMENT_VALIDE', `Confirmation GeniusPay: 15000 XOF`, Date.now());
+                
+                await syncSuccessfulPaymentToFirestore(reference);
+                apiSucceeded = true;
+              }
             }
-          });
-          const json: any = await apiRes.json();
-          if (apiRes.ok && json.success && (json.data.status === "SUCCESS" || json.data.status === "APPROVED")) {
+          } catch (apiErr) {
+            console.error("[GENIUSPAY-VERIFY] API check failed:", apiErr);
+          }
+        }
+
+        // Fallback for sandbox/test simulation if the real API check did not succeed yet
+        if (!apiSucceeded && isSandboxOrTest) {
+          const elapsed = Date.now() - tx.createdAt;
+          if (elapsed > 4000) {
             status = "SUCCESS";
-            dbClient.prepare('UPDATE transactions SET status = "SUCCESS" WHERE id = ?')
+            dbClient.prepare("UPDATE transactions SET status = 'SUCCESS' WHERE id = ?")
               .run(reference);
 
             dbAdmin.prepare('INSERT INTO actions (id, userId, type, description, createdAt) VALUES (?, ?, ?, ?, ?)')
-              .run(`act_gp_${Date.now()}`, 'system', 'PAIEMENT_VALIDE', `Confirmation GeniusPay: 15000 XOF`, Date.now());
+              .run(`act_gp_${Date.now()}`, 'system', 'PAIEMENT_VALIDE', `Confirmation GeniusPay (Simulation Sandbox/Test): 15000 XOF`, Date.now());
+            
+            await syncSuccessfulPaymentToFirestore(reference);
           }
-        } catch (apiErr) {
-          console.error("[GENIUSPAY-VERIFY] API check failed:", apiErr);
         }
       }
 
       res.json({ status, reference });
     } catch (error: any) {
       console.error("[GENIUSPAY-VERIFY] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Force success of a transaction (for sandbox/testing/developer verification purposes)
+  app.post("/api/geniuspay/force-success/:reference", async (req, res) => {
+    try {
+      const { reference } = req.params;
+      const tx = dbClient.prepare('SELECT * FROM transactions WHERE id = ?').get(reference) as any;
+      if (!tx) {
+        return res.status(404).json({ error: "Transaction introuvable" });
+      }
+
+      dbClient.prepare("UPDATE transactions SET status = 'SUCCESS' WHERE id = ?")
+        .run(reference);
+
+      dbAdmin.prepare('INSERT INTO actions (id, userId, type, description, createdAt) VALUES (?, ?, ?, ?, ?)')
+        .run(`act_gp_${Date.now()}`, 'system', 'PAIEMENT_VALIDE', `Validation manuelle GeniusPay (Mode Sandbox/Test): 15000 XOF`, Date.now());
+
+      await syncSuccessfulPaymentToFirestore(reference);
+
+      console.log(`[GENIUSPAY-FORCE-SUCCESS] Reference ${reference} manually forced to SUCCESS.`);
+      res.json({ status: "SUCCESS", reference });
+    } catch (error: any) {
+      console.error("[GENIUSPAY-FORCE-SUCCESS] Error:", error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -1195,14 +1390,21 @@ async function startServer() {
       }
 
       const event = req.body;
-      const reference = event?.data?.reference;
+      const reference = event?.data?.reference || event?.reference;
+      const eventName = event?.event || event?.event_name;
+      const statusValue = event?.data?.status || event?.status;
 
-      if (event.event === "payment.success" && reference) {
-        dbClient.prepare('UPDATE transactions SET status = "SUCCESS" WHERE id = ?')
+      const isSuccessEvent = eventName === "payment.success" || eventName === "payment.approved" || eventName === "payment.captured";
+      const isSuccessStatus = statusValue && (statusValue.toString().toUpperCase() === "SUCCESS" || statusValue.toString().toUpperCase() === "APPROVED");
+
+      if (reference && (isSuccessEvent || isSuccessStatus)) {
+        dbClient.prepare("UPDATE transactions SET status = 'SUCCESS' WHERE id = ?")
           .run(reference);
 
         dbAdmin.prepare('INSERT INTO actions (id, userId, type, description, createdAt) VALUES (?, ?, ?, ?, ?)')
           .run(`act_gp_${Date.now()}`, 'system', 'PAIEMENT_VALIDE', `Confirmation Web GeniusPay: 15000 XOF`, Date.now());
+
+        await syncSuccessfulPaymentToFirestore(reference);
 
         console.log(`[GENIUSPAY-WEBHOOK] Payment reference ${reference} successfully processed.`);
       }

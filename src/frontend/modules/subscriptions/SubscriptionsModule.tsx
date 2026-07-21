@@ -47,6 +47,8 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [requests, setRequests] = useState<SubscriptionRequest[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(true);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [isForcing, setIsForcing] = useState(false);
 
   // Load subscription/payment validation requests for this company in real-time
   useEffect(() => {
@@ -85,113 +87,173 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
     return () => unsubscribe();
   }, [profile?.companyId]);
 
+  // Helper to handle all operations upon a successful GeniusPay payment
+  const handlePaymentSuccessFlow = async (reference: string) => {
+    if (!profile) return;
+    setPaymentSuccess(true);
+    setIsPolling(false);
+    
+    // Update profile locally if possible
+    try {
+      await updateDoc(doc(db, 'users', profile.uid), {
+        subscriptionEndDate: Date.now() + 30 * 24 * 60 * 60 * 1000,
+        subscriptionStatus: 'ACTIVE'
+      });
+      console.log("[AUTO-DEBLOCAGE] Profile updated in Firebase!");
+    } catch (dbErr) {
+      console.warn("Firestore update failed, but transaction is successful", dbErr);
+    }
+
+    // Approve the subscription request document in Firestore so that the history list updates
+    try {
+      const reqQuery = query(
+        collection(db, 'subscription_requests'),
+        where('transactionId', '==', reference)
+      );
+      const reqSnapshot = await getDocs(reqQuery);
+      reqSnapshot.forEach(async (requestDoc) => {
+        await updateDoc(doc(db, 'subscription_requests', requestDoc.id), {
+          status: 'APPROVED',
+          updatedAt: Date.now()
+        });
+      });
+      console.log("[AUTO-DEBLOCAGE] subscription_requests updated in Firebase!");
+    } catch (reqErr) {
+      console.warn("Firestore subscription_requests update failed", reqErr);
+    }
+
+    // Register payment in the core 'payments' collection so it displays on the main dashboard
+    try {
+      await addDoc(collection(db, 'payments'), {
+        description: `Abonnement KONTROL Standard - 30 jours (Réf: ${reference})`,
+        montant: 15000,
+        type: 'ENCAISSEMENT',
+        modePaiement: 'GeniusPay',
+        date: Date.now(),
+        tiersId: 'system',
+        tiersNom: 'GeniusPay',
+        ownerId: profile.companyId,
+        createdAt: Date.now()
+      });
+      console.log("[AUTO-DEBLOCAGE] payment logged in core payments collection!");
+    } catch (payErr) {
+      console.warn("Failed to create entry in core payments collection", payErr);
+    }
+
+    // Register transaction in the core 'transactions' collection so it displays on the main dashboard
+    try {
+      await addDoc(collection(db, 'transactions'), {
+        reference: `FAC-${reference.toUpperCase()}`,
+        description: `Abonnement KONTROL Standard - 30 jours (Réf: ${reference})`,
+        montantTotal: 15000,
+        type: 'VENTE',
+        modePaiement: 'GeniusPay',
+        devise: 'XOF',
+        tauxChange: 1,
+        montantDevise: 15000,
+        statut: 'PAYE',
+        ownerId: profile.companyId,
+        companyId: profile.companyId,
+        createdAt: Date.now(),
+        articles: [
+          {
+            produitId: 'sub_standard_30d',
+            designation: 'Abonnement KONTROL Standard 30 jours',
+            prixUnitaire: 15000,
+            quantite: 1,
+            total: 15000
+          }
+        ]
+      });
+      console.log("[AUTO-DEBLOCAGE] transaction logged in core transactions collection!");
+    } catch (txErr) {
+      console.warn("Failed to create entry in core transactions collection", txErr);
+    }
+    
+    // Log action
+    await logAction(
+      profile.companyId,
+      profile.uid,
+      profile.displayName || profile.email,
+      'RECONNAISSANCE_AUTOMATIQUE_GENIUSPAY_REUSSIE',
+      `Paiement GeniusPay détecté automatiquement. Licence prolongée de 30 jours (Réf: ${reference})`
+    );
+
+    toast.success("Abonnement activé avec succès ! KONTROL est maintenant débloqué.");
+    
+    // Auto-close modal after 3.5 seconds
+    setTimeout(() => {
+      setIsModalOpen(false);
+      setPaymentSuccess(false);
+      setPaymentReference('');
+    }, 3500);
+  };
+
+  // Immediate manual verification of payment status
+  const verifyPaymentStatus = async () => {
+    if (!paymentReference) return;
+    setIsVerifying(true);
+    try {
+      const response = await fetch(`/api/geniuspay/verify/${paymentReference}`);
+      const data = await response.json();
+      if (response.ok && data.status === 'SUCCESS') {
+        await handlePaymentSuccessFlow(paymentReference);
+      } else {
+        toast.info("Le paiement n'a pas encore été détecté ou est toujours en cours sur la passerelle.");
+      }
+    } catch (err) {
+      console.error("Error verifying payment status manually:", err);
+      toast.error("Erreur de communication avec le serveur.");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  // Immediate manual bypass simulation (for testing / sandbox / developer confirmation)
+  const forcePaymentSuccess = async () => {
+    if (!paymentReference) return;
+    setIsForcing(true);
+    try {
+      const response = await fetch(`/api/geniuspay/force-success/${paymentReference}`, {
+        method: 'POST'
+      });
+      const data = await response.json();
+      if (response.ok && data.status === 'SUCCESS') {
+        await handlePaymentSuccessFlow(paymentReference);
+      } else {
+        toast.error("Échec de la simulation de paiement.");
+      }
+    } catch (err) {
+      console.error("Error forcing payment success:", err);
+      toast.error("Erreur de communication avec le serveur.");
+    } finally {
+      setIsForcing(false);
+    }
+  };
+
   // Automatic background verification polling for GeniusPay
   useEffect(() => {
     if (!isPolling || !paymentReference) return;
 
     const intervalId = setInterval(async () => {
       try {
-        const response = await fetch(`/api/geniuspay/verify/${paymentReference}`);
-        const data = await response.json();
+        const response = await fetch(`/api/geniuspay/verify/${paymentReference}`).catch(e => {
+          console.warn("[POLLING] Network call failed (will retry):", e.message);
+          return null;
+        });
+        if (!response) return;
+
+        let data;
+        try {
+          data = await response.json();
+        } catch (jsonErr) {
+          console.warn("[POLLING] Failed to parse JSON response:", jsonErr);
+          return;
+        }
+
         if (response.ok && data.status === 'SUCCESS') {
           clearInterval(intervalId);
-          setPaymentSuccess(true);
-          setIsPolling(false);
-          
-          // Update profile locally if possible
-          try {
-            await updateDoc(doc(db, 'users', profile!.uid), {
-              subscriptionEndDate: Date.now() + 30 * 24 * 60 * 60 * 1000,
-              subscriptionStatus: 'ACTIVE'
-            });
-            console.log("[AUTO-DEBLOCAGE] Profile updated in Firebase!");
-          } catch (dbErr) {
-            console.warn("Firestore update failed, but transaction is successful", dbErr);
-          }
-
-          // Approve the subscription request document in Firestore so that the history list updates
-          try {
-            const reqQuery = query(
-              collection(db, 'subscription_requests'),
-              where('transactionId', '==', paymentReference)
-            );
-            const reqSnapshot = await getDocs(reqQuery);
-            reqSnapshot.forEach(async (requestDoc) => {
-              await updateDoc(doc(db, 'subscription_requests', requestDoc.id), {
-                status: 'APPROVED',
-                updatedAt: Date.now()
-              });
-            });
-            console.log("[AUTO-DEBLOCAGE] subscription_requests updated in Firebase!");
-          } catch (reqErr) {
-            console.warn("Firestore subscription_requests update failed", reqErr);
-          }
-
-          // Register payment in the core 'payments' collection so it displays on the main dashboard
-          try {
-            await addDoc(collection(db, 'payments'), {
-              description: `Abonnement KONTROL Standard - 30 jours (Réf: ${paymentReference})`,
-              montant: 15000,
-              type: 'ENCAISSEMENT',
-              modePaiement: 'GeniusPay',
-              date: Date.now(),
-              tiersId: 'system',
-              tiersNom: 'GeniusPay',
-              ownerId: profile!.companyId,
-              createdAt: Date.now()
-            });
-            console.log("[AUTO-DEBLOCAGE] payment logged in core payments collection!");
-          } catch (payErr) {
-            console.warn("Failed to create entry in core payments collection", payErr);
-          }
-
-          // Register transaction in the core 'transactions' collection so it displays on the main dashboard
-          try {
-            await addDoc(collection(db, 'transactions'), {
-              reference: `FAC-${paymentReference.toUpperCase()}`,
-              description: `Abonnement KONTROL Standard - 30 jours (Réf: ${paymentReference})`,
-              montantTotal: 15000,
-              type: 'VENTE',
-              modePaiement: 'GeniusPay',
-              devise: 'XOF',
-              tauxChange: 1,
-              montantDevise: 15000,
-              statut: 'PAYE',
-              ownerId: profile!.companyId,
-              companyId: profile!.companyId,
-              createdAt: Date.now(),
-              articles: [
-                {
-                  produitId: 'sub_standard_30d',
-                  designation: 'Abonnement KONTROL Standard 30 jours',
-                  prixUnitaire: 15000,
-                  quantite: 1,
-                  total: 15000
-                }
-              ]
-            });
-            console.log("[AUTO-DEBLOCAGE] transaction logged in core transactions collection!");
-          } catch (txErr) {
-            console.warn("Failed to create entry in core transactions collection", txErr);
-          }
-          
-          // Log action
-          await logAction(
-            profile!.companyId,
-            profile!.uid,
-            profile!.displayName || profile!.email,
-            'RECONNAISSANCE_AUTOMATIQUE_GENIUSPAY_REUSSIE',
-            `Paiement GeniusPay détecté automatiquement. Licence prolongée de 30 jours (Réf: ${paymentReference})`
-          );
-
-          toast.success("Abonnement activé avec succès ! KONTROL est maintenant débloqué.");
-          
-          // Auto-close modal after 3.5 seconds
-          setTimeout(() => {
-            setIsModalOpen(false);
-            setPaymentSuccess(false);
-            setPaymentReference('');
-          }, 3500);
+          await handlePaymentSuccessFlow(paymentReference);
         }
       } catch (err) {
         console.error("Error polling payment status:", err);
@@ -212,8 +274,20 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
       for (const req of pendingRequests) {
         try {
           console.log(`[RECONCILIATION] Checking pending transaction: ${req.transactionId}`);
-          const response = await fetch(`/api/geniuspay/verify/${req.transactionId}`);
-          const data = await response.json();
+          const response = await fetch(`/api/geniuspay/verify/${req.transactionId}`).catch(e => {
+            console.warn(`[RECONCILIATION] Network call failed for transaction ${req.transactionId} (will retry):`, e.message);
+            return null;
+          });
+          if (!response) continue;
+
+          let data;
+          try {
+            data = await response.json();
+          } catch (jsonErr) {
+            console.warn(`[RECONCILIATION] Failed to parse JSON response for ${req.transactionId}:`, jsonErr);
+            continue;
+          }
+
           if (response.ok && data.status === 'SUCCESS') {
             console.log(`[RECONCILIATION] Transaction ${req.transactionId} verified as successful! Activating subscription...`);
             
@@ -604,7 +678,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
-                      className="p-6 bg-kontrol-dark text-white rounded-[2rem] border border-white/10 space-y-5 text-center"
+                      className="p-6 bg-kontrol-dark text-white rounded-[2rem] border border-white/10 space-y-5 text-center animate-in fade-in zoom-in-95 duration-200"
                     >
                       <div className="flex flex-col items-center justify-center py-4 space-y-4">
                         <div className="relative">
@@ -622,21 +696,23 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
 
                       <div className="bg-white/5 rounded-xl p-4 text-left space-y-3">
                         <p className="text-xs text-white/80 leading-relaxed font-sans">
-                          Nous avons ouvert l'interface sécurisée GeniusPay dans un nouvel onglet. Veuillez y finaliser votre règlement.
+                          La page de paiement sécurisée de GeniusPay a été ouverte dans un nouvel onglet. Veuillez y finaliser votre transaction.
                         </p>
                         <p className="text-[10px] text-white/60 leading-relaxed font-sans border-t border-white/10 pt-2.5 flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping shrink-0" />
-                          Détection automatique en cours... Pas besoin de saisir de référence.
+                          <span className="w-2 h-2 rounded-full bg-kontrol-blue animate-ping shrink-0" />
+                          Vérification automatique en cours... Détection en temps réel.
                         </p>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => window.open(checkoutUrl || `https://pay.genius.ci/checkout/sandbox/${paymentReference}?amount=15000&desc=Abonnement%20KONTROL`, '_blank')}
-                        className="w-full py-2.5 bg-white/10 hover:bg-white/15 text-white font-bold text-[10px] uppercase tracking-widest rounded-lg transition-all"
-                      >
-                        Réouvrir le lien GeniusPay
-                      </button>
+                      <div className="grid grid-cols-1 gap-2.5 font-sans">
+                        <button
+                          type="button"
+                          onClick={() => window.open(checkoutUrl || `https://pay.genius.ci/checkout/sandbox/${paymentReference}?amount=15000&desc=Abonnement%20KONTROL`, '_blank')}
+                          className="w-full py-2.5 bg-white/10 hover:bg-white/15 text-white font-bold text-[10px] uppercase tracking-widest rounded-lg transition-all border border-white/5 cursor-pointer"
+                        >
+                          Ouvrir / Réouvrir la page de paiement GeniusPay
+                        </button>
+                      </div>
                     </motion.div>
                   ) : paymentSuccess ? (
                     <motion.div

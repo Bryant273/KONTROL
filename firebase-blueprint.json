@@ -35,7 +35,9 @@
         "companyId": { "type": "string" },
         "companyName": { "type": "string" },
         "active": { "type": "boolean" },
-        "createdAt": { "type": "number" }
+        "createdAt": { "type": "number" },
+        "subscriptionStatus": { "type": "string" },
+        "subscriptionEndDate": { "type": "number" }
       },
       "required": ["uid", "email", "role"]
     },

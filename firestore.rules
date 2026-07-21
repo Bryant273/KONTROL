@@ -102,7 +102,8 @@ service cloud.firestore {
         (request.auth.uid == userId && 
          incoming().diff(existing()).affectedKeys().hasOnly([
            'displayName', 'photoURL', 'phone', 'companyName', 'companyAbbreviation', 'companyLogo', 'logoUrl', 
-           'country', 'city', 'address', 'currency', 'language', 'isProfileComplete', 'companyId', 'role', 'password', 'updatedAt', 'lastLogin'
+           'country', 'city', 'address', 'currency', 'language', 'isProfileComplete', 'companyId', 'role', 'password', 'updatedAt', 'lastLogin',
+           'subscriptionEndDate', 'subscriptionStatus'
          ]) && 
          (!(incoming().get('role', '') in ['ADMINISTRATEUR_ERP', 'ADMINISTRATEUR_KONTROL', 'ADMIN', 'GESTIONNAIRE_ERP', 'GESTIONNAIRE_KONTROL']) || isKontrolAdmin())
         ) ||
@@ -137,7 +138,7 @@ service cloud.firestore {
     match /payments/{paymentId} {
       allow get: if isEmailVerified() && (belongsToCompany(existing().ownerId) || isKontrolAdmin());
       allow list: if isEmailVerified() && (resource.data.ownerId == getUserField('companyId', '') || isKontrolAdmin());
-      allow create: if isEmailVerified() && (isCompanyManager(incoming().ownerId) || isKontrolAdmin()) && (incoming().createdAt is number || incoming().createdAt == request.time);
+      allow create: if isEmailVerified() && (belongsToCompany(incoming().ownerId) || isCompanyManager(incoming().ownerId) || isKontrolAdmin()) && (incoming().createdAt is number || incoming().createdAt == request.time);
       allow update: if isEmailVerified() && (isKontrolAdmin() || isCompanyManager(existing().ownerId)) && 
                     incoming().ownerId == existing().ownerId;
     }
