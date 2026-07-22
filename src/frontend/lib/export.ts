@@ -61,7 +61,18 @@ export const exportToPDF = (title: string, headers: string[], data: any[][], fil
   doc.setLineWidth(0.5);
   doc.line(0, 40, pageWidth, 40);
   
-  const sanitize = (str: string) => str.replace(/\u00A0/g, ' ');
+  const cleanText = (val: any): string => {
+    if (val === null || val === undefined) return '';
+    return String(val)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/œ/g, 'oe')
+      .replace(/Œ/g, 'OE')
+      .replace(/æ/g, 'ae')
+      .replace(/Æ/g, 'AE')
+      .replace(/’/g, "'")
+      .replace(/\u00A0/g, ' ');
+  };
 
   // Draw vector KONTROL Logo - fully visible with bright contrast
   drawKontrolLogo(doc, 15, 11, 18);
@@ -70,7 +81,7 @@ export const exportToPDF = (title: string, headers: string[], data: any[][], fil
   doc.setTextColor(15, 23, 42); // slate-900
   doc.setFontSize(22);
   doc.setFont('helvetica', 'bold');
-  doc.text(sanitize(companyInfo.name), 38, 23);
+  doc.text(cleanText(companyInfo.name), 38, 23);
   
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
@@ -82,16 +93,16 @@ export const exportToPDF = (title: string, headers: string[], data: any[][], fil
     doc.setTextColor(15, 23, 42); // slate-900
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
-    const clientText = `CLIENT: ${sanitize((clientInfo as any).name || '')}`;
+    const clientText = `CLIENT: ${cleanText((clientInfo as any).name || '')}`;
     
     doc.text(clientText, pageWidth - 15, 23, { align: 'right' });
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(71, 85, 105); // slate-600
     if ((clientInfo as any).email) {
-      doc.text(sanitize((clientInfo as any).email), pageWidth - 15, 29, { align: 'right' });
+      doc.text(cleanText((clientInfo as any).email), pageWidth - 15, 29, { align: 'right' });
     }
     if ((clientInfo as any).company) {
-      doc.text(sanitize((clientInfo as any).company), pageWidth - 15, 34, { align: 'right' });
+      doc.text(cleanText((clientInfo as any).company), pageWidth - 15, 34, { align: 'right' });
     }
   }
   
@@ -99,18 +110,18 @@ export const exportToPDF = (title: string, headers: string[], data: any[][], fil
   doc.setTextColor(51, 51, 51);
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
-  doc.text(sanitize(title), 15, 55);
+  doc.text(cleanText(title), 15, 55);
   
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  const dateStr = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }).replace(/\u00A0/g, ' ');
-  doc.text(`Émis le: ${dateStr}`, 15, 62);
+  const dateStr = cleanText(new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }));
+  doc.text(`Emis le: ${dateStr}`, 15, 62);
   
   // Table
   autoTable(doc, {
     startY: 75,
-    head: [headers.map(h => sanitize(h))],
-    body: data.map(row => row.map(cell => typeof cell === 'string' ? sanitize(cell) : cell)),
+    head: [headers.map(h => cleanText(h))],
+    body: data.map(row => row.map(cell => cleanText(cell))),
     theme: 'grid',
     headStyles: { 
       fillColor: [15, 23, 42],

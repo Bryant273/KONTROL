@@ -24,6 +24,8 @@ import { db, doc, updateDoc, collection, addDoc, query, where, orderBy, onSnapsh
 import { apiClient } from '../../../api/lib/api-client';
 import { formatCurrency } from '../../lib/utils';
 import { generateInvoicePDF } from '../../lib/invoice';
+import { SubscriptionContractModal } from '../../components/subscription/SubscriptionContractModal';
+import { generateContractPDF } from '../../lib/contract';
 
 interface SubscriptionsModuleProps {
   profile: UserProfile | null;
@@ -55,6 +57,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
   const [isForcing, setIsForcing] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<SubscriptionRequest | null>(null);
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
+  const [showContractModal, setShowContractModal] = useState(false);
 
   // Load subscription/payment validation requests for this company in real-time
   useEffect(() => {
@@ -135,6 +138,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
         montant: 15000,
         type: 'DECAISSEMENT',
         modePaiement: 'GeniusPay',
+        referencePaiement: reference,
         date: Date.now(),
         tiersId: 'innov_korp',
         tiersNom: "INNOV'KORP",
@@ -154,6 +158,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
         montantTotal: 15000,
         type: 'ACHAT',
         modePaiement: 'GeniusPay',
+        referencePaiement: reference,
         devise: 'XOF',
         tauxChange: 1,
         montantDevise: 15000,
@@ -316,6 +321,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
               montant: 15000,
               type: 'DECAISSEMENT',
               modePaiement: 'GeniusPay',
+              referencePaiement: req.transactionId,
               date: Date.now(),
               tiersId: 'innov_korp',
               tiersNom: "INNOV'KORP",
@@ -330,6 +336,7 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
               montantTotal: 15000,
               type: 'ACHAT',
               modePaiement: 'GeniusPay',
+              referencePaiement: req.transactionId,
               devise: 'XOF',
               tauxChange: 1,
               montantDevise: 15000,
@@ -470,18 +477,40 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
   return (
     <div className="space-y-8 max-w-6xl mx-auto animate-in fade-in duration-300" id="subscriptions-module-root">
       {/* Header section */}
-      <header className="flex flex-col gap-1.5">
-        <div className="flex items-center gap-2 text-kontrol-blue">
-          <CreditCard size={18} />
-          <span className="text-[10px] font-extrabold uppercase tracking-widest">{t('subscriptions.title')}</span>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <header className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2 text-kontrol-blue">
+            <CreditCard size={18} />
+            <span className="text-[10px] font-extrabold uppercase tracking-widest">{t('subscriptions.title')}</span>
+          </div>
+          <h1 className="text-3xl font-black text-kontrol-dark tracking-tighter uppercase">
+            {t('subscriptions.title')}
+          </h1>
+          <p className="text-sm text-kontrol-ink-muted">
+            {t('subscriptions.subtitle')}
+          </p>
+        </header>
+
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowContractModal(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-kontrol-border hover:border-kontrol-blue text-kontrol-dark font-extrabold text-xs rounded-2xl shadow-sm hover:shadow-md transition-all cursor-pointer"
+          >
+            <FileText size={16} className="text-kontrol-blue" />
+            Contrat d'Abonnement
+            {profile?.contractSignedAt ? (
+              <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-full ml-1">
+                Signé
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded-full ml-1 animate-pulse">
+                À signer
+              </span>
+            )}
+          </button>
         </div>
-        <h1 className="text-3xl font-black text-kontrol-dark tracking-tighter uppercase">
-          {t('subscriptions.title')}
-        </h1>
-        <p className="text-sm text-kontrol-ink-muted">
-          {t('subscriptions.subtitle')}
-        </p>
-      </header>
+      </div>
 
       {/* Bento Grid: Subscription status & renewal action */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -1065,6 +1094,12 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
           </div>
         )}
       </AnimatePresence>
+
+      <SubscriptionContractModal 
+        profile={profile}
+        isOpen={showContractModal}
+        onClose={() => setShowContractModal(false)}
+      />
 
     </div>
   );

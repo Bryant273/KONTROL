@@ -27,6 +27,9 @@ export interface UserProfile {
   subscriptionStatus?: 'ACTIVE' | 'EXPIRED' | 'TRIAL';
   subscriptionTier?: 'STANDARD' | 'PRO' | 'ENTERPRISE';
   subscriptionEndDate?: number;
+  contractSignedAt?: number;
+  contractSignedBy?: string;
+  subscriptionNextDueDate?: number;
   autoConvertToSubscriber?: boolean;
   lastLogin?: number;
   createdAt: number;
@@ -52,6 +55,9 @@ export interface Company {
   subscriptionTier: 'STANDARD' | 'PRO' | 'ENTERPRISE' | 'BASIC';
   isDemo?: boolean;
   subscriptionEndDate?: number;
+  contractSignedAt?: number;
+  contractSignedBy?: string;
+  subscriptionNextDueDate?: number;
   autoConvertToSubscriber?: boolean;
   createdAt: number;
 }
@@ -72,6 +78,9 @@ export interface Transaction {
   articles: any[];
   paymentMethod: string;
   modePaiement?: string; // Some code uses modePaiement
+  referencePaiement?: string;
+  numCheque?: string;
+  numBonCaisse?: string;
   reference?: string;
   invoiceFileUrl?: string;
   devise?: string;

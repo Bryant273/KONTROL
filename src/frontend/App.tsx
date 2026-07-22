@@ -46,6 +46,7 @@ import { Toaster } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { COMPANY_NAV_SECTIONS } from './constants/navigation';
 import { VersionDetailsModal } from './components/common/VersionDetailsModal';
+import { SubscriptionContractModal } from './components/subscription/SubscriptionContractModal';
 
 export default function App() {
   const { t, i18n } = useTranslation();
@@ -69,7 +70,17 @@ export default function App() {
   const [activeLabel, setActiveLabel] = useState(() => localStorage.getItem('activeLabel') || 'Tableau de bord');
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => window.innerWidth >= 1024);
   const [showSetup, setShowSetup] = useState(false);
+  const [showContractPopup, setShowContractPopup] = useState(false);
   const [forceGuide, setForceGuide] = useState(false);
+
+  // Auto show subscription contract modal after company setup or on login if not signed
+  useEffect(() => {
+    if (profile && profile.isProfileComplete && !profile.contractSignedAt && !showSetup) {
+      setShowContractPopup(true);
+    } else {
+      setShowContractPopup(false);
+    }
+  }, [profile, showSetup]);
 
   // Handle window resize for sidebar
   useEffect(() => {
@@ -397,6 +408,14 @@ export default function App() {
         version={updateVersionData} 
         isOpen={isUpdateModalOpen} 
         onClose={() => setIsUpdateModalOpen(false)} 
+      />
+
+      <SubscriptionContractModal 
+        profile={profile}
+        isOpen={showContractPopup}
+        onClose={() => setShowContractPopup(false)}
+        onSigned={(updated) => setProfile(updated)}
+        isMandatoryPopup={true}
       />
     </div>
   );
