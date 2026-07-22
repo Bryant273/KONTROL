@@ -5,13 +5,18 @@ const cleanText = (str: string): string => {
   if (!str) return '';
   return str
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\u0300-\u036f]/g, "") // removes accents e.g. é -> e
+    .replace(/[\u2018\u2019]/g, "'") // smart single quotes
+    .replace(/[\u201C\u201D«»]/g, '"') // smart double quotes & French quotes
+    .replace(/[\u2013\u2014]/g, '-') // dashes
+    .replace(/[\u00A0\u202F]/g, ' ') // non-breaking spaces
     .replace(/œ/g, 'oe')
     .replace(/Œ/g, 'OE')
     .replace(/æ/g, 'ae')
     .replace(/Æ/g, 'AE')
-    .replace(/’/g, "'")
-    .replace(/[^\x00-\x7F]/g, " ");
+    .replace(/°/g, '.')
+    .replace(/€/g, 'EUR')
+    .replace(/[^\x00-\x7F]/g, ''); // strip remaining unknown non-ASCII cleanly without introducing extra spaces
 };
 
 const drawKontrolLogo = (doc: jsPDF, x: number, y: number, size: number) => {
@@ -164,6 +169,9 @@ export const generateContractPDF = (profile: UserProfile | null) => {
   doc.setFontSize(7.5);
   doc.text(cleanText(`Represente par : ${managerName} · Email : ${email} · Tel : ${phone}`), margin + 8, y + 27);
 
+  // Advance vertical cursor past Parties Box (32mm height + 7mm margin)
+  y += 39;
+
   // List of 25 detailed Articles grouped into Titles with OHADA, CGI/DGI & Ivoirian legal citations
   const sections = [
     {
@@ -275,7 +283,7 @@ export const generateContractPDF = (profile: UserProfile | null) => {
         },
         {
           num: "ARTICLE 22 : FORCE MAJEURE SELON LA JURISPRUDENCE CCJA / OHADA",
-          text: "Les parties sont exonerees de leur responsabilite en cas d'evenement de force majeure repondant aux criteres d'extériorité, d'imprévisibilité et d'irrésistibilité etablis par la jurisprudence de la Cour Commune de Justice et d'Arbitrage (CCJA) de l'OHADA."
+          text: "Les parties sont exonerees de leur responsabilite en cas d'evenement de force majeure repondant aux criteres d'exteriorite, d'imprevisibilite et d'irresistibilite etablis par la jurisprudence de la Cour Commune de Justice et d'Arbitrage (CCJA) de l'OHADA."
         },
         {
           num: "ARTICLE 23 : DUREE SANS ENGAGEMENT ET LIBERTE DE RESILIATION",
@@ -287,27 +295,37 @@ export const generateContractPDF = (profile: UserProfile | null) => {
         },
         {
           num: "ARTICLE 25 : DROIT APPLICABLE ET ATTRIBUTION DE COMPETENCE (TRIBUNAL DE COMMERCE D'ABIDJAN)",
-          text: "Le present contrat est exclusivement regi par le Droit Ivoirien et les Actes Uniformes de l'OHADA. En cas de differend relatif a sa validite, son interpretation ou son execution non resolu a l'amiable, COMPETENCE EXCLUSIVE ET ATTRIBUTION DE JURIDICTION SONT DELEGUÉES AU TRIBUNAL DE COMMERCE D'ABIDJAN (TCA) (Loi n° 2014-424 portant organisation des juridictions de commerce en Cote d'Ivoire)."
+          text: "Le present contrat est exclusivement regi par le Droit Ivoirien et les Actes Uniformes de l'OHADA. En cas de differend relatif a sa validite, son interpretation ou son execution non resolu a l'amiable, COMPETENCE EXCLUSIVE ET ATTRIBUTION DE JURIDICTION SONT DELEGUEES AU TRIBUNAL DE COMMERCE D'ABIDJAN (TCA) (Loi n° 2014-424 portant organisation des juridictions de commerce en Cote d'Ivoire)."
         }
       ]
     }
   ];
 
   sections.forEach((sec) => {
-    y = checkPageSpace(12, y);
+    // Check space for section header + first article to avoid orphan section titles
+    let firstArtHeight = 20;
+    if (sec.articles.length > 0) {
+      const firstLines = doc.splitTextToSize(cleanText(sec.articles[0].text), contentWidth);
+      firstArtHeight = 5 + (firstLines.length * 3.6) + 4;
+    }
+    y = checkPageSpace(9 + firstArtHeight, y);
 
     // Section Header Title
     doc.setFillColor(241, 245, 249);
-    doc.rect(margin, y, contentWidth, 6, 'F');
+    doc.rect(margin, y, contentWidth, 7, 'F');
+    doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(0.3);
+    doc.rect(margin, y, contentWidth, 7, 'S');
+
     doc.setTextColor(37, 99, 235);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8.5);
-    doc.text(cleanText(sec.sectionTitle), margin + 3, y + 4.2);
-    y += 9;
+    doc.text(cleanText(sec.sectionTitle), margin + 3, y + 4.8);
+    y += 10;
 
     sec.articles.forEach((art) => {
       const artLines = doc.splitTextToSize(cleanText(art.text), contentWidth);
-      const neededBoxHeight = 4.5 + (artLines.length * 3.5) + 3;
+      const neededBoxHeight = 5 + (artLines.length * 3.6) + 4;
 
       y = checkPageSpace(neededBoxHeight, y);
 
@@ -316,13 +334,13 @@ export const generateContractPDF = (profile: UserProfile | null) => {
       doc.setFontSize(8);
       doc.text(cleanText(art.num), margin, y);
 
-      y += 4;
+      y += 4.5;
       doc.setTextColor(51, 65, 85);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7.5);
       doc.text(artLines, margin, y);
 
-      y += (artLines.length * 3.5) + 3.5;
+      y += (artLines.length * 3.6) + 4;
     });
 
     y += 2;

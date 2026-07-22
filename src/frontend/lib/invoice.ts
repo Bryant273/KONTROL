@@ -8,12 +8,17 @@ export const cleanText = (str: string): string => {
   return str
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "") // Remove combining diacritical marks (accents)
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D«»]/g, '"')
+    .replace(/[\u2013\u2014]/g, '-')
+    .replace(/[\u00A0\u202F]/g, ' ')
     .replace(/œ/g, 'oe')
     .replace(/Œ/g, 'OE')
     .replace(/æ/g, 'ae')
     .replace(/Æ/g, 'AE')
-    .replace(/’/g, "'")
-    .replace(/[^\x00-\x7F]/g, " "); // Replace any other non-ASCII characters with spaces
+    .replace(/°/g, '.')
+    .replace(/€/g, 'EUR')
+    .replace(/[^\x00-\x7F]/g, ''); // Strip remaining unknown non-ASCII cleanly without introducing spaces
 };
 
 // Formats amount with a clean space separator to avoid non-breaking space issues.
@@ -371,7 +376,14 @@ export const generateInvoicePDF = (transaction: any, userProfile?: any) => {
     }
   });
 
-  const finalTableY = (doc as any).lastAutoTable.finalY || 185;
+  let finalTableY = (doc as any).lastAutoTable.finalY || 185;
+  
+  // Check if totals & security seal block fit on current page (need ~60mm)
+  if (finalTableY + 60 > 255) {
+    doc.addPage();
+    finalTableY = 15;
+  }
+  
   const totalsY = finalTableY + 10;
 
   // Totals Box on the right
@@ -426,7 +438,7 @@ export const generateInvoicePDF = (transaction: any, userProfile?: any) => {
   doc.setTextColor(6, 95, 70);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
-  doc.text("PAYÉE ET VALITÉE", margin + 12, totalsY + 9);
+  doc.text("PAYEE ET VALIDEE", margin + 12, totalsY + 9);
 
   doc.setTextColor(4, 120, 87);
   doc.setFont('helvetica', 'normal');
@@ -451,40 +463,43 @@ export const generateInvoicePDF = (transaction: any, userProfile?: any) => {
   doc.setTextColor(30, 41, 59);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
-  doc.text(cleanText("CACHET NUMÉRIQUE DE CERTIFICATION KONTROL"), margin + 17, sealY + 7);
+  doc.text(cleanText("CACHET NUMERIQUE DE CERTIFICATION KONTROL"), margin + 17, sealY + 7);
 
   doc.setTextColor(71, 85, 105);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
-  doc.text(cleanText("Document certifié conforme, archivé en registre infalsifiable et signé cryptographiquement par KONTROL."), margin + 17, sealY + 12);
+  doc.text(cleanText("Document certifie conforme, archive en registre infalsifiable et signe cryptographiquement par KONTROL."), margin + 17, sealY + 12);
   
   doc.setFont('courier', 'normal');
   doc.setTextColor(100, 116, 139);
   doc.setFontSize(7);
   doc.text(`Verification ID: SEC-KEY-SHA256-${reference.substring(0, 12).toUpperCase()}-VERIFIED-KONTROL`, margin + 17, sealY + 17);
 
-  // 9. Footer (Anchored to bottom at Y=264)
-  const footerY = 264;
-  
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.3);
-  doc.line(margin, footerY - 5, pageWidth - margin, footerY - 5);
+  // 9. Footers on all pages
+  const totalPages = (doc as any).internal.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    const footerY = 272;
+    
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.3);
+    doc.line(margin, footerY - 4, pageWidth - margin, footerY - 4);
 
-  doc.setTextColor(71, 85, 105);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.text(myCompany, pageWidth / 2, footerY, { align: 'center' });
+    doc.setTextColor(71, 85, 105);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.text(myCompany, pageWidth / 2, footerY, { align: 'center' });
 
-  doc.setTextColor(37, 99, 235);
-  doc.setFont('helvetica', 'semibold');
-  doc.setFontSize(8);
-  doc.text(`Contact : ${myUserEmail || 'Innov.korp@gmail.com'}`, pageWidth / 2, footerY + 4, { align: 'center' });
+    doc.setTextColor(37, 99, 235);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.text(`Contact : ${myUserEmail || 'Innov.korp@gmail.com'} · Page ${p} sur ${totalPages}`, pageWidth / 2, footerY + 4, { align: 'center' });
 
-  doc.setTextColor(148, 163, 184);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.text(cleanText("Facture générée automatiquement et certifiée conforme sur KONTROL. Aucune signature manuscrite n'est requise."), pageWidth / 2, footerY + 9, { align: 'center' });
-  doc.text(cleanText("Merci pour votre confiance envers nos services et notre plateforme ERP."), pageWidth / 2, footerY + 13, { align: 'center' });
+    doc.setTextColor(148, 163, 184);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.text(cleanText("Facture generee automatiquement et certifiee conforme sur KONTROL. Aucune signature manuscrite n'est requise."), pageWidth / 2, footerY + 8, { align: 'center' });
+  }
 
   // Trigger download
   doc.save(`Facture_${cleanText(myCompany).replace(/\s+/g, '_')}_${invoiceNumber}.pdf`);

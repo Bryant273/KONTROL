@@ -5,6 +5,24 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function cleanText(str: string): string {
+  if (!str) return '';
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // remove accents cleanly (é -> e, è -> e, etc.)
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D«»]/g, '"')
+    .replace(/[\u2013\u2014]/g, '-')
+    .replace(/[\u00A0\u202F]/g, ' ')
+    .replace(/œ/g, 'oe')
+    .replace(/Œ/g, 'OE')
+    .replace(/æ/g, 'ae')
+    .replace(/Æ/g, 'AE')
+    .replace(/°/g, '.')
+    .replace(/€/g, 'EUR')
+    .replace(/[^\x00-\x7F]/g, ''); // strip remaining unknown non-ASCII cleanly
+}
+
 export function formatCurrency(amount: number, currency: string = 'XOF'): string {
   // Manual formatting to ensure a simple space as thousands separator
   // This avoids non-renderable characters in PDF exports

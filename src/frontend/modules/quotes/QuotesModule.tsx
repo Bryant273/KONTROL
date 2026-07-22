@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Tiers, Produit, UserProfile, Transaction } from '../../types';
-import { cn, formatCurrency } from '../../lib/utils';
+import { cn, formatCurrency, cleanText } from '../../lib/utils';
 import { handleFirestoreError, OperationType, db, logAction } from '../../../api/firebase';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { CompanySelector } from '../../components/common/CompanySelector';
@@ -355,45 +355,80 @@ export function QuotesModule({ user, currentUserProfile }: QuotesModuleProps) {
   // Export PDF Devis
   const handlePrintQuotePDF = (quote: Quote) => {
     try {
-      const pdf = new jsPDF();
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       const currency = currentUserProfile?.currency || 'XOF';
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const margin = 15;
 
-      // Header
-      pdf.setFillColor(15, 23, 42); // Dark
-      pdf.rect(0, 0, 210, 35, 'F');
+      // 1. Top Bar
+      pdf.setFillColor(37, 99, 235);
+      pdf.rect(0, 0, pageWidth, 4, 'F');
 
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(18);
-      pdf.text(quote.type === 'VENTE' ? "DEVIS DE VENTE / PROFORMA" : "DEMANDE DE PRIX / DEVIS ACHAT", 14, 20);
-
-      pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(`Réf : ${quote.reference}`, 14, 27);
-      pdf.text(`Date : ${new Date(quote.date).toLocaleDateString('fr-FR')}`, 150, 20);
-      pdf.text(`Validité : ${new Date(quote.dateValidite).toLocaleDateString('fr-FR')}`, 150, 27);
-
-      // Client Info
+      // 2. Header
       pdf.setTextColor(15, 23, 42);
-      pdf.setFontSize(11);
       pdf.setFont('helvetica', 'bold');
-      pdf.text("ÉMETTEUR :", 14, 45);
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(9.5);
-      pdf.text(`${currentUserProfile?.companyName || 'KONTROL ERP'}`, 14, 51);
-      pdf.text(`Email : ${currentUserProfile?.email || '-'}`, 14, 56);
+      pdf.setFontSize(20);
+      pdf.text(cleanText(currentUserProfile?.companyName || 'KONTROL ERP'), margin, 18);
 
-      pdf.setFontSize(11);
+      pdf.setTextColor(100, 116, 139);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8.5);
+      pdf.text(cleanText(`Email: ${currentUserProfile?.email || '-'} · Tel: ${currentUserProfile?.phone || '-'}`), margin, 24);
+
+      // Title & Ref Right Aligned
+      const titleText = quote.type === 'VENTE' ? "DEVIS PROFORMA" : "DEVIS D'ACHAT";
+      pdf.setTextColor(37, 99, 235);
       pdf.setFont('helvetica', 'bold');
-      pdf.text("CLIENT / DESTINATAIRE :", 120, 45);
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(9.5);
-      pdf.text(`${quote.tiersNom}`, 120, 51);
+      pdf.setFontSize(15);
+      pdf.text(cleanText(titleText), pageWidth - margin, 18, { align: 'right' });
 
-      // Table of Products
+      pdf.setTextColor(15, 23, 42);
+      pdf.setFontSize(9.5);
+      pdf.text(cleanText(`Réf : ${quote.reference}`), pageWidth - margin, 24, { align: 'right' });
+
+      // Divider line
+      pdf.setDrawColor(226, 232, 240);
+      pdf.setLineWidth(0.4);
+      pdf.line(margin, 28, pageWidth - margin, 28);
+
+      // 3. Client & Dates Info Card
+      pdf.setFillColor(248, 250, 252);
+      pdf.rect(margin, 32, pageWidth - (margin * 2), 26, 'F');
+      pdf.setDrawColor(226, 232, 240);
+      pdf.rect(margin, 32, pageWidth - (margin * 2), 26, 'S');
+
+      // Left column inside card: Client
+      pdf.setTextColor(100, 116, 139);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(8);
+      pdf.text(cleanText("CLIENT / DESTINATAIRE :"), margin + 4, 38);
+
+      pdf.setTextColor(15, 23, 42);
+      pdf.setFontSize(10);
+      pdf.text(cleanText(quote.tiersNom || 'Client'), margin + 4, 44);
+
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8.5);
+      pdf.setTextColor(71, 85, 105);
+      pdf.text(cleanText(`Statut : ${quote.statut}`), margin + 4, 50);
+
+      // Right column inside card: Dates
+      pdf.setTextColor(100, 116, 139);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(8);
+      pdf.text(cleanText("DATES CLEFS :"), 120, 38);
+
+      pdf.setTextColor(15, 23, 42);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8.5);
+      pdf.text(cleanText(`Date d'émission : ${new Date(quote.date).toLocaleDateString('fr-FR')}`), 120, 44);
+      pdf.text(cleanText(`Date de validité : ${new Date(quote.dateValidite).toLocaleDateString('fr-FR')}`), 120, 50);
+
+      // 4. Products Table
       const tableData = quote.articles.map((item, idx) => [
         (idx + 1).toString(),
-        item.designation,
+        cleanText(item.designation),
         item.quantite.toString(),
         formatCurrency(item.prixUnitaire, currency),
         `${item.tva}%`,
@@ -401,38 +436,129 @@ export function QuotesModule({ user, currentUserProfile }: QuotesModuleProps) {
       ]);
 
       (autoTable as any)(pdf, {
-        startY: 68,
-        head: [['#', 'Désignation', 'Qté', 'Prix Unitaire', 'TVA', 'Total TTC']],
+        startY: 63,
+        margin: { left: margin, right: margin },
+        head: [[
+          cleanText('#'), 
+          cleanText('Désignation / Prestation'), 
+          cleanText('Qté'), 
+          cleanText('Prix Unitaire'), 
+          cleanText('TVA'), 
+          cleanText('Total TTC')
+        ]],
         body: tableData,
-        headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontStyle: 'bold' },
-        styles: { fontSize: 8.5, cellPadding: 3 }
+        theme: 'striped',
+        headStyles: {
+          fillColor: [15, 23, 42],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 8.5
+        },
+        styles: {
+          font: 'helvetica',
+          fontSize: 8.5,
+          cellPadding: 4,
+          valign: 'middle'
+        },
+        columnStyles: {
+          0: { cellWidth: 10, halign: 'center' },
+          1: { cellWidth: 80, halign: 'left' },
+          2: { cellWidth: 15, halign: 'center' },
+          3: { cellWidth: 28, halign: 'right' },
+          4: { cellWidth: 15, halign: 'center' },
+          5: { cellWidth: 32, halign: 'right', fontStyle: 'bold' }
+        }
       });
 
-      const finalY = (pdf as any).lastAutoTable.previous.finalY + 10;
+      let finalY = (pdf as any).lastAutoTable.finalY + 10;
 
-      // Totals Box
+      // Check if totals & notes fit on current page (need ~40mm)
+      if (finalY + 40 > pageHeight - 20) {
+        pdf.addPage();
+        finalY = 20;
+      }
+
+      // Totals Box on the RIGHT (x = 115 to 195, width = 80)
+      const totalsBoxX = 115;
+      const totalsBoxWidth = 80;
+
       pdf.setFillColor(248, 250, 252);
-      pdf.rect(120, finalY, 76, 28, 'F');
+      pdf.rect(totalsBoxX, finalY, totalsBoxWidth, 32, 'F');
       pdf.setDrawColor(226, 232, 240);
-      pdf.rect(120, finalY, 76, 28, 'S');
+      pdf.setLineWidth(0.4);
+      pdf.rect(totalsBoxX, finalY, totalsBoxWidth, 32, 'S');
 
-      pdf.setFontSize(9);
+      pdf.setFontSize(8.5);
       pdf.setFont('helvetica', 'normal');
-      pdf.text(`Total HT :`, 124, finalY + 7);
-      pdf.text(formatCurrency(quote.montantHT, currency), 192, finalY + 7, { align: 'right' });
-
-      pdf.text(`TVA :`, 124, finalY + 14);
-      pdf.text(formatCurrency(quote.montantTVA, currency), 192, finalY + 14, { align: 'right' });
-
+      pdf.setTextColor(100, 116, 139);
+      pdf.text("Montant HT :", totalsBoxX + 4, finalY + 8);
+      pdf.setTextColor(15, 23, 42);
       pdf.setFont('helvetica', 'bold');
-      pdf.text(`TOTAL TTC :`, 124, finalY + 22);
-      pdf.text(formatCurrency(quote.montantTotal, currency), 192, finalY + 22, { align: 'right' });
+      pdf.text(formatCurrency(quote.montantHT, currency), totalsBoxX + totalsBoxWidth - 4, finalY + 8, { align: 'right' });
 
-      // Conditions
-      if (quote.notes) {
-        pdf.setFontSize(8);
-        pdf.setFont('helvetica', 'italic');
-        pdf.text(`Notes & Conditions : ${quote.notes}`, 14, finalY + 15);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(100, 116, 139);
+      pdf.text("Montant TVA :", totalsBoxX + 4, finalY + 16);
+      pdf.setTextColor(15, 23, 42);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(formatCurrency(quote.montantTVA, currency), totalsBoxX + totalsBoxWidth - 4, finalY + 16, { align: 'right' });
+
+      pdf.setDrawColor(226, 232, 240);
+      pdf.line(totalsBoxX + 4, finalY + 20, totalsBoxX + totalsBoxWidth - 4, finalY + 20);
+
+      pdf.setTextColor(37, 99, 235);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(10);
+      pdf.text("TOTAL TTC :", totalsBoxX + 4, finalY + 27);
+      pdf.setFontSize(11);
+      pdf.text(formatCurrency(quote.montantTotal, currency), totalsBoxX + totalsBoxWidth - 4, finalY + 27, { align: 'right' });
+
+      // Notes Box on the LEFT (x = margin to 108, width = 93)
+      const notesBoxX = margin;
+      const notesBoxWidth = 93;
+
+      pdf.setFillColor(248, 250, 252);
+      pdf.rect(notesBoxX, finalY, notesBoxWidth, 32, 'F');
+      pdf.setDrawColor(226, 232, 240);
+      pdf.setLineWidth(0.4);
+      pdf.rect(notesBoxX, finalY, notesBoxWidth, 32, 'S');
+
+      pdf.setTextColor(100, 116, 139);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(8);
+      pdf.text(cleanText("NOTES & CONDITIONS :"), notesBoxX + 4, finalY + 7);
+
+      const notesText = quote.notes 
+        ? cleanText(quote.notes) 
+        : cleanText("Devis valable 30 jours à compter de la date d'émission. Règlement selon conditions convenues.");
+      
+      const splitNotes = pdf.splitTextToSize(notesText, notesBoxWidth - 8);
+      pdf.setTextColor(51, 65, 85);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(7.5);
+      pdf.text(splitNotes, notesBoxX + 4, finalY + 13);
+
+      // Footer and Page Numbers on all pages
+      const pageCount = (pdf as any).internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        pdf.setPage(i);
+        pdf.setDrawColor(226, 232, 240);
+        pdf.setLineWidth(0.3);
+        pdf.line(margin, pageHeight - 12, pageWidth - margin, pageHeight - 12);
+
+        pdf.setFontSize(7);
+        pdf.setTextColor(148, 163, 184);
+        pdf.text(
+          cleanText(`Devis ${quote.reference} · KONTROL ERP · ${currentUserProfile?.companyName || 'Entreprise'}`),
+          margin,
+          pageHeight - 7
+        );
+        pdf.text(
+          `Page ${i} sur ${pageCount}`,
+          pageWidth - margin,
+          pageHeight - 7,
+          { align: 'right' }
+        );
       }
 
       pdf.save(`Devis_${quote.reference}.pdf`);
