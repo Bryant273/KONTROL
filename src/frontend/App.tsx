@@ -43,6 +43,7 @@ import { AlertTriangle, Clock, X, Loader2 } from 'lucide-react';
 import { KChatModule } from './modules/chat/KChatModule';
 import { NotificationsCenterModule } from './modules/system/NotificationsCenterModule';
 import { DataExchangeModule } from './modules/system/DataExchangeModule';
+import { SignatureModule } from './modules/system/SignatureModule';
 import { Toaster } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { COMPANY_NAV_SECTIONS } from './constants/navigation';
@@ -386,6 +387,7 @@ export default function App() {
           {activeTab === 'abonnements' && <SubscriptionsModule profile={profile} />}
           {activeTab === 'notifications' && <NotificationsCenterModule profile={profile} onNavigate={handleTabChange} />}
           {activeTab === 'profil' && <ProfileModule profile={profile} initialSection="MENU" />}
+          {activeTab === 'signature' && <SignatureModule profile={profile} onProfileUpdate={setProfile} />}
           {activeTab === 'actions' && <ActionsModule user={user} currentUserProfile={profile} />}
           {activeTab === 'data_exchange' && <DataExchangeModule currentUserProfile={profile} />}
         </div>

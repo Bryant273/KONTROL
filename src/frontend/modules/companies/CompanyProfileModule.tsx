@@ -75,6 +75,7 @@ export function CompanyProfileModule({ currentUserProfile }: CompanyProfileModul
     setMessage(null);
 
     try {
+      const signatureVal = company.signatureUrl || company.companySignature || '';
       await updateDoc(doc(db, 'companies', company.id), {
         name: company.name,
         abbreviation: company.abbreviation || '',
@@ -83,15 +84,19 @@ export function CompanyProfileModule({ currentUserProfile }: CompanyProfileModul
         address: company.address || '',
         sector: company.sector || '',
         logo: company.logo || '',
+        signatureUrl: signatureVal,
+        companySignature: signatureVal,
         updatedAt: Date.now()
       });
 
-      // Also update company name and abbreviation in user profile if it changed
+      // Also update company name, abbreviation and signature in user profile if it changed
       if (auth.currentUser) {
         await updateDoc(doc(db, 'users', auth.currentUser.uid), {
           companyName: company.name,
           companyAbbreviation: company.abbreviation || '',
-          companyLogo: company.logo
+          companyLogo: company.logo,
+          signatureUrl: signatureVal,
+          companySignature: signatureVal
         });
       }
 
@@ -167,6 +172,57 @@ export function CompanyProfileModule({ currentUserProfile }: CompanyProfileModul
                     value={company.logo || ''}
                     onChange={(e) => setCompany({ ...company, logo: e.target.value })}
                   />
+                </div>
+              )}
+            </div>
+
+            {/* Signature Officielle Card */}
+            <div className="card p-6 flex flex-col items-center">
+              <p className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-widest mb-4 self-start flex items-center gap-1.5">
+                <span>Signature & Cachet Officiel</span>
+              </p>
+
+              <div className="relative group w-full h-28 rounded-2xl bg-slate-50 border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden transition-all hover:border-kontrol-blue p-2">
+                {company.companySignature || company.signatureUrl ? (
+                  <img src={company.companySignature || company.signatureUrl} alt="Signature Officielle" className="max-h-full max-w-full object-contain" />
+                ) : (
+                  <div className="text-center p-2">
+                    <Upload size={20} className="mx-auto text-slate-400 mb-1" />
+                    <span className="text-[10px] text-slate-400 font-medium block">Aucune signature chargée</span>
+                  </div>
+                )}
+              </div>
+
+              {canUpdate && (
+                <div className="w-full mt-3 space-y-2">
+                  <label className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1.5">
+                    <Upload size={14} />
+                    <span>Importer image (PNG/JPG)</span>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          const dataUrl = reader.result as string;
+                          setCompany({ ...company, companySignature: dataUrl, signatureUrl: dataUrl });
+                        };
+                        reader.readAsDataURL(file);
+                      }} 
+                    />
+                  </label>
+                  {(company.companySignature || company.signatureUrl) && (
+                    <button
+                      type="button"
+                      onClick={() => setCompany({ ...company, companySignature: '', signatureUrl: '' })}
+                      className="w-full py-1 text-[10px] text-rose-600 hover:text-rose-800 font-bold text-center"
+                    >
+                      Supprimer la signature
+                    </button>
+                  )}
                 </div>
               )}
             </div>

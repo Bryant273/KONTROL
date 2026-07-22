@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, CheckCircle2, Download, FileText, Building2, ShieldCheck, Calendar, ArrowRight, Sparkles, FileCheck } from 'lucide-react';
+import { X, CheckCircle2, Download, FileText, Building2, ShieldCheck, Calendar, ArrowRight, Sparkles, FileCheck, Upload, Trash2, Image as ImageIcon } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType, auth } from '../../../api/firebase';
 import { UserProfile } from '../../types';
@@ -23,8 +23,37 @@ export const SubscriptionContractModal: React.FC<SubscriptionContractModalProps>
 }) => {
   const [signing, setSigning] = useState(false);
   const [agreedTerms, setAgreedTerms] = useState(false);
+  const [uploadedSignature, setUploadedSignature] = useState<string>(
+    profile?.companySignature || profile?.signatureUrl || ''
+  );
+
+  React.useEffect(() => {
+    if (profile?.companySignature || profile?.signatureUrl) {
+      setUploadedSignature(profile.companySignature || profile.signatureUrl || '');
+    }
+  }, [profile]);
 
   if (!isOpen || !profile) return null;
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error("Veuillez sélectionner un fichier image valide (PNG, JPEG, WebP).");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("L'image de la signature ne doit pas dépasser 5 Mo.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setUploadedSignature(dataUrl);
+      toast.success("Signature officielle importée avec succès ! Elle apparaîtra sur vos contrats et factures.");
+    };
+    reader.readAsDataURL(file);
+  };
 
   const isSigned = Boolean(profile.contractSignedAt);
   const signDate = profile.contractSignedAt ? new Date(profile.contractSignedAt) : new Date();
@@ -49,23 +78,33 @@ export const SubscriptionContractModal: React.FC<SubscriptionContractModalProps>
       const nextDueDate = now + 30 * 24 * 60 * 60 * 1000;
 
       const userRef = doc(db, 'users', profile.uid);
-      const updateData = {
+      const updateData: any = {
         contractSignedAt: now,
         contractSignedBy: managerName,
         subscriptionNextDueDate: nextDueDate,
         updatedAt: now
       };
 
+      if (uploadedSignature) {
+        updateData.companySignature = uploadedSignature;
+        updateData.signatureUrl = uploadedSignature;
+      }
+
       await updateDoc(userRef, updateData);
 
       if (profile.companyId) {
         try {
           const compRef = doc(db, 'companies', profile.companyId);
-          await updateDoc(compRef, {
+          const companyUpdateData: any = {
             contractSignedAt: now,
             contractSignedBy: managerName,
             subscriptionNextDueDate: nextDueDate
-          });
+          };
+          if (uploadedSignature) {
+            companyUpdateData.companySignature = uploadedSignature;
+            companyUpdateData.signatureUrl = uploadedSignature;
+          }
+          await updateDoc(compRef, companyUpdateData);
         } catch (compErr) {
           console.warn("Company contract update notice:", compErr);
         }
@@ -75,7 +114,9 @@ export const SubscriptionContractModal: React.FC<SubscriptionContractModalProps>
         ...profile,
         contractSignedAt: now,
         contractSignedBy: managerName,
-        subscriptionNextDueDate: nextDueDate
+        subscriptionNextDueDate: nextDueDate,
+        companySignature: uploadedSignature || profile.companySignature,
+        signatureUrl: uploadedSignature || profile.signatureUrl
       };
 
       toast.success("Contrat d'abonnement KONTROL signé avec succès ! Échéance fixée à 30 jours.");
@@ -409,8 +450,55 @@ export const SubscriptionContractModal: React.FC<SubscriptionContractModalProps>
               </p>
             </div>
 
+            {/* Interactive Company Signature Upload Box */}
+            <div className="mt-5 p-4 rounded-xl border border-blue-200/90 bg-gradient-to-r from-blue-50/80 via-slate-50 to-indigo-50/40 space-y-3 shadow-2xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <Upload size={16} className="text-blue-600 shrink-0" />
+                    <h5 className="font-extrabold text-xs text-blue-950 uppercase tracking-wide">
+                      Signature Officielle & Cachet de l'Entreprise
+                    </h5>
+                  </div>
+                  <p className="text-[11px] text-slate-600">
+                    Importez une image de votre signature manuscrite ou tampon d'entreprise (PNG/JPG). Elle sera liée et imprimée sur ce contrat ainsi que sur l'ensemble de vos devis et factures.
+                  </p>
+                </div>
+
+                <label className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl cursor-pointer transition-all shadow-xs shrink-0 flex items-center justify-center gap-2 active:scale-95">
+                  <Upload size={14} />
+                  <span>{uploadedSignature ? "Changer la signature" : "Importer l'image"}</span>
+                  <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                </label>
+              </div>
+
+              {uploadedSignature && (
+                <div className="flex items-center gap-3 p-2.5 bg-white rounded-xl border border-blue-200 shadow-2xs">
+                  <div className="w-28 h-12 bg-slate-50 rounded-lg border border-slate-200 p-1 flex items-center justify-center overflow-hidden shrink-0">
+                    <img src={uploadedSignature} alt="Signature Entreprise" className="max-h-full max-w-full object-contain" />
+                  </div>
+                  <div className="text-[11px] text-slate-700 space-y-0.5">
+                    <span className="font-bold text-emerald-700 flex items-center gap-1">
+                      <CheckCircle2 size={13} /> Image de signature valide & prête
+                    </span>
+                    <span className="text-[10px] text-slate-500 block">
+                      Apposée automatiquement sur vos documents officiels, factures et états.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setUploadedSignature('')}
+                    className="ml-auto text-xs text-rose-600 hover:text-rose-800 font-bold px-2 py-1 rounded-lg hover:bg-rose-50 transition-colors flex items-center gap-1"
+                  >
+                    <Trash2 size={13} />
+                    <span className="hidden sm:inline">Effacer</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* Visual Signature Stamps in Contract Modal */}
-            <div className="mt-6 p-4 rounded-xl border border-slate-200 bg-slate-50/80 space-y-3">
+            <div className="mt-4 p-4 rounded-xl border border-slate-200 bg-slate-50/80 space-y-3">
               <h5 className="font-extrabold text-xs text-slate-800 uppercase tracking-wide flex items-center gap-2">
                 <FileCheck size={16} className="text-kontrol-blue" />
                 Signatures & Cachets Électroniques des Parties
@@ -429,20 +517,35 @@ export const SubscriptionContractModal: React.FC<SubscriptionContractModalProps>
 
                 {/* Subscriber Stamp */}
                 {isSigned ? (
-                  <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200 space-y-1">
+                  <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200 space-y-2">
                     <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">Pour l'Abonné (Souscripteur)</span>
                     <p className="font-extrabold text-emerald-950">{companyName}</p>
                     <p className="text-[11px] text-emerald-800">Représenté par : <strong>{profile.contractSignedBy || managerName}</strong></p>
+                    
+                    {uploadedSignature && (
+                      <div className="my-1.5 p-1.5 bg-white rounded-lg border border-emerald-200/80 inline-block">
+                        <img src={uploadedSignature} alt="Signature Officielle" className="h-10 max-w-[140px] object-contain" />
+                      </div>
+                    )}
+
                     <p className="text-[10px] text-emerald-700">Horodatage : {signDateFormatted}</p>
                     <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-emerald-600 text-white font-bold text-[10px] rounded shadow-xs mt-1">
                       <ShieldCheck size={12} /> Contrat Signé & Approuvé
                     </div>
                   </div>
                 ) : (
-                  <div className="p-3 bg-slate-100 rounded-lg border border-dashed border-slate-300 space-y-1 flex flex-col justify-center">
+                  <div className="p-3 bg-slate-100 rounded-lg border border-dashed border-slate-300 space-y-2 flex flex-col justify-center">
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Pour l'Abonné (Souscripteur)</span>
                     <p className="font-bold text-slate-700">{companyName}</p>
-                    <p className="text-[11px] text-slate-500 italic">En attente d'acceptation et de signature électronique ci-dessous</p>
+                    
+                    {uploadedSignature ? (
+                      <div className="my-1 p-1 bg-white rounded border border-slate-200 inline-block self-start">
+                        <img src={uploadedSignature} alt="Signature Officielle" className="h-9 max-w-[120px] object-contain" />
+                        <span className="text-[9px] text-emerald-700 font-bold block text-center">Prête à être apposée</span>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-slate-500 italic">En attente d'acceptation et de signature ci-dessous</p>
+                    )}
                   </div>
                 )}
               </div>

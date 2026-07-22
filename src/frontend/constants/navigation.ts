@@ -21,7 +21,8 @@ import {
   Bell,
   Wallet as WalletIcon,
   Database,
-  FileCheck
+  FileCheck,
+  PenTool
 } from 'lucide-react';
 
 export interface NavItem {
@@ -79,6 +80,7 @@ export const COMPANY_NAV_SECTIONS: NavSection[] = [
       { id: 'notifications', labelKey: 'common.notifications', icon: Bell },
       { id: 'company_hub', labelKey: 'common.company_hub', icon: Building2 },
       { id: 'profil', labelKey: 'common.profile', icon: UserCircle },
+      { id: 'signature', labelKey: 'common.signature', icon: PenTool },
       { id: 'abonnements', labelKey: 'common.subscriptions', icon: CreditCard },
       { id: 'actions', labelKey: 'common.actions', icon: History },
       { id: 'data_exchange', labelKey: 'common.data_exchange', icon: Database },

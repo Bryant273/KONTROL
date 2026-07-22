@@ -21,6 +21,8 @@ export interface UserProfile {
   companyAbbreviation?: string;
   companyLogo?: string;
   logoUrl?: string;
+  companySignature?: string;
+  signatureUrl?: string;
   isProfileComplete: boolean;
   active: boolean;
   isDemo?: boolean;
@@ -47,6 +49,8 @@ export interface Company {
   name: string;
   abbreviation?: string;
   logo?: string;
+  signatureUrl?: string;
+  companySignature?: string;
   email: string;
   phone?: string;
   address?: string;
@@ -69,6 +73,8 @@ export interface Transaction {
   ownerId?: string; // Some code uses ownerId
   tiersId: string;
   tiersNom: string;
+  quoteId?: string;
+  quoteRef?: string;
   montant?: number;
   montantTotal?: number; // Some code uses montantTotal
   date: number;

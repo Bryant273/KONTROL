@@ -381,6 +381,17 @@ export const generateContractPDF = (profile: UserProfile | null) => {
     doc.setFontSize(6.5);
     doc.setFont('helvetica', 'normal');
     doc.text("KONTROL VERIFIED", pageWidth - margin - 26, y + 18, { align: 'center' });
+
+    // Embed company signature image if provided in profile
+    const signatureImg = profile?.companySignature || profile?.signatureUrl;
+    if (signatureImg && signatureImg.startsWith('data:image')) {
+      try {
+        const format = signatureImg.includes('image/png') ? 'PNG' : 'JPEG';
+        doc.addImage(signatureImg, format, pageWidth - margin - 85, y + 5, 32, 18);
+      } catch (e) {
+        console.warn("Could not embed company signature in contract PDF:", e);
+      }
+    }
   } else {
     // Slate / Neutral box for Unsigned Draft / Specimen
     doc.setFillColor(248, 250, 252);

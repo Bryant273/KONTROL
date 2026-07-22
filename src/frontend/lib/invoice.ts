@@ -475,6 +475,17 @@ export const generateInvoicePDF = (transaction: any, userProfile?: any) => {
   doc.setFontSize(7);
   doc.text(`Verification ID: SEC-KEY-SHA256-${reference.substring(0, 12).toUpperCase()}-VERIFIED-KONTROL`, margin + 17, sealY + 17);
 
+  // Embed official company signature if provided
+  const companySig = userProfile?.companySignature || userProfile?.signatureUrl;
+  if (companySig && companySig.startsWith('data:image')) {
+    try {
+      const format = companySig.includes('image/png') ? 'PNG' : 'JPEG';
+      doc.addImage(companySig, format, pageWidth - margin - 35, sealY + 2, 30, 17);
+    } catch (e) {
+      console.warn("Could not embed company signature in invoice PDF:", e);
+    }
+  }
+
   // 9. Footers on all pages
   const totalPages = (doc as any).internal.getNumberOfPages();
   for (let p = 1; p <= totalPages; p++) {

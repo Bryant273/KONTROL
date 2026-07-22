@@ -318,12 +318,35 @@ export function QuotesModule({ user, currentUserProfile }: QuotesModuleProps) {
       const randomNum = Math.floor(1000 + Math.random() * 9000);
       const invoiceRef = `FAC-${refYear}-${randomNum}`;
       
+      // Ensure tier information is fully resolved and bound from local state or Firestore
+      let boundTiersId = quote.tiersId || '';
+      let boundTiersNom = quote.tiersNom || 'Tiers Client';
+
+      if (boundTiersId) {
+        const foundTier = tiers.find(t => t.id === boundTiersId);
+        if (foundTier) {
+          boundTiersNom = foundTier.nom || foundTier.name || boundTiersNom;
+        } else {
+          try {
+            const tierSnap = await getDoc(doc(db, 'tiers', boundTiersId));
+            if (tierSnap.exists()) {
+              const data = tierSnap.data();
+              boundTiersNom = data.nom || data.name || boundTiersNom;
+            }
+          } catch (e) {
+            console.warn('Impossible de charger les détails du tiers:', e);
+          }
+        }
+      }
+
       const newTransaction: Transaction = {
         id: '',
         reference: invoiceRef,
         type: quote.type === 'ACHAT' ? 'ACHAT' : 'VENTE',
-        tiersId: quote.tiersId,
-        tiersNom: quote.tiersNom,
+        tiersId: boundTiersId,
+        tiersNom: boundTiersNom,
+        quoteId: quote.id,
+        quoteRef: quote.reference,
         date: Date.now(),
         articles: quote.articles.map(a => ({
           produitId: a.produitId,
@@ -340,7 +363,7 @@ export function QuotesModule({ user, currentUserProfile }: QuotesModuleProps) {
         status: 'PENDING',
         modePaiement: 'VIREMENT',
         paymentMethod: 'VIREMENT',
-        description: `Facture issue de la conversion unique du Devis ${quote.reference}`,
+        description: `Facture issue de la conversion du Devis ${quote.reference} (${boundTiersNom})`,
         ownerId: companyId,
         companyId: companyId,
         createdAt: Date.now()

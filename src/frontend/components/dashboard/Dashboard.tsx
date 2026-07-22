@@ -1,5 +1,5 @@
 import React from 'react';
-import {  AlertTriangle, BrainCircuit, TrendingUp, TrendingDown, Users, Package, Loader2, PieChart, Wallet, ArrowUpRight, ArrowDownRight, Sparkles, X, FileText, ShieldCheck, MessageCircle, Activity, Zap, Settings, Building2, ArrowRight, ChevronRight, Trophy, User } from 'lucide-react';
+import {  AlertTriangle, BrainCircuit, TrendingUp, TrendingDown, Users, Package, Loader2, PieChart, Wallet, ArrowUpRight, ArrowDownRight, Sparkles, X, FileText, ShieldCheck, MessageCircle, Activity, Zap, Settings, Building2, ArrowRight, ChevronRight, Trophy, User, Clock } from 'lucide-react';
 import { exportToPDF } from '../../lib/export';
 import Markdown from 'react-markdown';
 import { useTranslation } from 'react-i18next';
@@ -137,47 +137,63 @@ export function Dashboard({ user, currentUserProfile, onNavigate, onStartGuide }
   const [isAnalyzing, setIsAnalyzing] = React.useState(false);
   const [isAnalyzingCode, setIsAnalyzingCode] = React.useState(false);
   const [isChecklistOpen, setIsChecklistOpen] = React.useState(false);
-  // Reactive subscription alert and trial tracker computed directly from the live profile
+  // Real-time tick for live precision calculation
+  const [nowTime, setNowTime] = React.useState(Date.now());
+  React.useEffect(() => {
+    const timer = setInterval(() => {
+      setNowTime(Date.now());
+    }, 10000); // Live tick every 10s
+    return () => clearInterval(timer);
+  }, []);
+
+  // Reactive subscription alert and trial tracker computed directly from the live profile in real-time
   const subscriptionAlertMemo = React.useMemo(() => {
     if (!currentUserProfile || isKontrolAdmin) return null;
     
-    // Check if the account is officially subscribed (status is ACTIVE and isDemo/trial is inactive)
     const isSubscribed = currentUserProfile.subscriptionStatus === 'ACTIVE' && !currentUserProfile.isDemo;
+    const endDate = currentUserProfile.subscriptionEndDate || 0;
+    if (!endDate) return null;
+
+    const diffMs = endDate - nowTime;
+    const daysLeft = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+    const hoursLeft = Math.max(0, Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)));
+    const formattedDate = new Date(endDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+
+    // Calculate real dynamic elapsed percentage based on creation/contract date vs end date
+    const startDate = currentUserProfile.contractSignedAt || currentUserProfile.createdAt || (endDate - 30 * 24 * 60 * 60 * 1000);
+    const totalDurationMs = Math.max(24 * 60 * 60 * 1000, endDate - startDate);
+    const elapsedMs = Math.max(0, nowTime - startDate);
+    const elapsedPercent = Math.min(100, Math.max(0, Math.round((elapsedMs / totalDurationMs) * 100)));
 
     if (isSubscribed) {
-      if (currentUserProfile.subscriptionEndDate) {
-        const endDate = currentUserProfile.subscriptionEndDate;
-        const now = Date.now();
-        const daysLeft = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
-        
-        // Dynamically displays ONLY if subscription is close to expiry (e.g. 5 days or fewer)
-        if (daysLeft <= 5) {
-          return {
-            isDemo: false,
-            daysLeft: Math.max(0, daysLeft),
-            expiryDate: new Date(endDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }),
-            endDate
-          };
-        }
+      if (daysLeft <= 5) {
+        return {
+          isDemo: false,
+          statusLabel: 'Abonnement en cours',
+          daysLeft,
+          hoursLeft,
+          expiryDate: formattedDate,
+          endDate,
+          elapsedPercent
+        };
       }
-      return null; // Trial banner and subscription warning disappear completely for non-expiring subscriptions
+      return null; // Non-expiring subscription hides alert
     }
 
-    // Default to Trial / Demo logic if they are still on a Trial
     if (currentUserProfile.isDemo || currentUserProfile.subscriptionStatus === 'TRIAL') {
-      const endDate = currentUserProfile.subscriptionEndDate || 0;
-      const now = Date.now();
-      const daysLeft = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
       return {
         isDemo: true,
-        daysLeft: Math.max(0, daysLeft),
-        expiryDate: endDate ? new Date(endDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : 'N/A',
-        endDate
+        statusLabel: 'Abonnement en cours',
+        daysLeft,
+        hoursLeft,
+        expiryDate: formattedDate,
+        endDate,
+        elapsedPercent
       };
     }
     
     return null;
-  }, [currentUserProfile, isKontrolAdmin]);
+  }, [currentUserProfile, isKontrolAdmin, nowTime]);
   
   const [monthlyData, setMonthlyData] = React.useState<any[]>([]);
   
@@ -893,70 +909,53 @@ export function Dashboard({ user, currentUserProfile, onNavigate, onStartGuide }
   return (
     <div className="space-y-6">
       {subscriptionAlertMemo && (
-        subscriptionAlertMemo.isDemo ? (
-          <div className="bg-gradient-to-r from-amber-50 to-amber-100/60 border border-amber-200/80 p-5 rounded-2xl shadow-sm animate-in slide-in-from-top duration-500 space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-amber-500/15 flex items-center justify-center text-amber-600 shrink-0">
-                  <Sparkles size={20} className="fill-amber-500/20" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-amber-950 uppercase tracking-wide flex items-center gap-2">
-                    Période d'essai prolongée active
-                    <span className="bg-amber-500/20 text-amber-800 text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wide">
-                      VIP
-                    </span>
-                  </h4>
-                  <p className="text-xs text-amber-800 font-medium mt-0.5 animate-in fade-in duration-550">
-                    Votre accès d'essai a été prolongé jusqu'au <span className="font-extrabold">{subscriptionAlertMemo.expiryDate}</span> ({subscriptionAlertMemo.daysLeft} jours restants). Profitez-en pleinement !
-                  </p>
-                </div>
+        <div className="bg-gradient-to-r from-amber-50/90 via-amber-50 to-amber-100/50 border border-amber-200/90 rounded-xl px-3.5 py-2.5 shadow-2xs transition-all flex flex-col gap-2 animate-in slide-in-from-top duration-300">
+          <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-7 h-7 rounded-lg bg-amber-500/15 flex items-center justify-center text-amber-700 shrink-0">
+                <Sparkles size={15} />
               </div>
+              <div className="flex items-center gap-2 flex-wrap text-xs">
+                <span className="font-extrabold text-amber-950 uppercase tracking-wider text-[11px]">
+                  {subscriptionAlertMemo.statusLabel}
+                </span>
+                <span className="bg-amber-200/70 text-amber-900 font-extrabold px-2.5 py-0.5 rounded-full text-[11px] font-mono flex items-center gap-1 border border-amber-300/60 shadow-2xs">
+                  <Clock size={12} className="text-amber-700 animate-pulse" />
+                  {subscriptionAlertMemo.daysLeft > 0 ? (
+                    `${subscriptionAlertMemo.daysLeft}j ${subscriptionAlertMemo.hoursLeft}h restants`
+                  ) : (
+                    "Expire aujourd'hui"
+                  )}
+                </span>
+                <span className="text-[11px] text-amber-800/80 hidden md:inline font-medium">
+                  • Fin : <strong className="font-bold">{subscriptionAlertMemo.expiryDate}</strong>
+                </span>
+                <span className="text-[10px] font-extrabold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-200">
+                  {subscriptionAlertMemo.elapsedPercent}% écoulé
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
               <button 
                 onClick={() => onNavigate?.('abonnements', t('sections.system'), t('common.subscriptions'))}
-                className="self-start sm:self-center px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer flex items-center gap-1.5"
+                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold rounded-lg transition-all shadow-2xs active:scale-95 cursor-pointer flex items-center gap-1"
               >
-                <span>S'abonner maintenant</span> <ArrowRight size={12} />
+                <span>Gérer l'offre</span>
+                <ArrowRight size={12} />
               </button>
             </div>
-            
-            {/* Real-time trial evolution status bar */}
-            <div className="space-y-1.5 pt-1.5 border-t border-amber-200/40">
-              <div className="flex justify-between items-center text-[10px] text-amber-800 font-bold">
-                <span>Progression : {Math.max(0, 100 - Math.min(100, Math.round((subscriptionAlertMemo.daysLeft / 30) * 100)))}% écoulé</span>
-                <span className="font-extrabold text-amber-900">{subscriptionAlertMemo.daysLeft} jours restants</span>
-              </div>
-              <div className="w-full h-2 bg-amber-500/10 rounded-full overflow-hidden p-[1px] border border-amber-500/10">
-                <div 
-                  className="h-full bg-gradient-to-r from-amber-400 to-amber-600 rounded-full transition-all duration-1000"
-                  style={{ width: `${Math.min(100, Math.max(0, (subscriptionAlertMemo.daysLeft / 30) * 100))}%` }}
-                />
-              </div>
-            </div>
           </div>
-        ) : (
-          <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-center justify-between shadow-sm animate-in slide-in-from-top duration-500">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
-                <AlertTriangle size={20} />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-amber-900">
-                  {t('dashboard.alerts.subscription_expiring')}
-                </p>
-                <p className="text-xs text-amber-700">
-                  {t('dashboard.alerts.subscription_expiry_date', { date: subscriptionAlertMemo.expiryDate, days: subscriptionAlertMemo.daysLeft })}
-                </p>
-              </div>
-            </div>
-            <button 
-              onClick={() => onNavigate?.('abonnements', t('sections.system'), t('common.subscriptions'))}
-              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
-            >
-              {t('dashboard.alerts.renew_now')}
-            </button>
+
+          {/* Real functional progress bar calculating real consumed subscription time */}
+          <div className="w-full h-1.5 bg-amber-200/60 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-amber-500 to-amber-700 rounded-full transition-all duration-500"
+              style={{ width: `${Math.min(100, Math.max(1, subscriptionAlertMemo.elapsedPercent))}%` }}
+              title={`Progression réelle : ${subscriptionAlertMemo.elapsedPercent}% de la période d'abonnement écoulée`}
+            />
           </div>
-        )
+        </div>
       )}
 
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
