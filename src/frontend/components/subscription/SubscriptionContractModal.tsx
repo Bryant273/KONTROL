@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, CheckCircle2, Download, FileText, Building2, ShieldCheck, Calendar, ArrowRight, Sparkles, FileCheck } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../../../api/firebase';
+import { db, handleFirestoreError, OperationType, auth } from '../../../api/firebase';
 import { UserProfile } from '../../types';
 import { generateContractPDF } from '../../lib/contract';
 import { toast } from 'sonner';
@@ -91,6 +91,7 @@ export const SubscriptionContractModal: React.FC<SubscriptionContractModalProps>
     } catch (err) {
       console.error("Signature error:", err);
       toast.error("Erreur lors de la signature du contrat.");
+      handleFirestoreError(err, OperationType.UPDATE, `users/${profile.uid}`, auth.currentUser, false);
     } finally {
       setSigning(false);
     }

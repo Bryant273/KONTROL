@@ -103,7 +103,8 @@ service cloud.firestore {
          incoming().diff(existing()).affectedKeys().hasOnly([
            'displayName', 'photoURL', 'phone', 'companyName', 'companyAbbreviation', 'companyLogo', 'logoUrl', 
            'country', 'city', 'address', 'currency', 'language', 'isProfileComplete', 'companyId', 'role', 'password', 'updatedAt', 'lastLogin',
-           'subscriptionEndDate', 'subscriptionStatus'
+           'subscriptionEndDate', 'subscriptionStatus', 'subscriptionTier', 'contractSignedAt', 'contractSignedBy', 'subscriptionNextDueDate',
+           'autoConvertToSubscriber', 'plan', 'pricingPlan', 'maxUsers', 'fneEnabled', 'modules', 'active'
          ]) && 
          (!(incoming().get('role', '') in ['ADMINISTRATEUR_ERP', 'ADMINISTRATEUR_KONTROL', 'ADMIN', 'GESTIONNAIRE_ERP', 'GESTIONNAIRE_KONTROL']) || isKontrolAdmin())
         ) ||
