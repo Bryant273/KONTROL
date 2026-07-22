@@ -97,108 +97,324 @@ export const SubscriptionContractModal: React.FC<SubscriptionContractModalProps>
   };
 
   return (
-    <div className="fixed inset-0 z-[2500] flex items-center justify-center bg-kontrol-dark/70 backdrop-blur-md p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl border border-kontrol-border w-full max-w-3xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 my-8">
-        
-        {/* Header */}
-        <div className="bg-gradient-to-r from-kontrol-dark via-slate-900 to-kontrol-blue p-6 text-white relative">
-          {!isMandatoryPopup && (
-            <button 
-              onClick={onClose}
-              className="absolute top-5 right-5 p-2 text-white/60 hover:text-white hover:bg-white/10 rounded-full transition-all"
-            >
-              <X size={20} />
-            </button>
-          )}
-
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-kontrol-blue/20 border border-kontrol-blue/40 rounded-xl">
-              <FileText className="text-kontrol-blue" size={24} />
+    <div className="fixed inset-0 z-[2500] flex items-center justify-center bg-kontrol-dark/70 backdrop-blur-md p-3 sm:p-5 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl border border-kontrol-border w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+           {/* Compact Fixed Header */}
+        <div className="shrink-0 bg-kontrol-dark text-white px-4 sm:px-5 py-3 flex items-center justify-between border-b border-slate-800 z-10">
+          <div className="flex items-center gap-3">
+            <div className="p-1.5 bg-kontrol-blue/20 border border-kontrol-blue/40 rounded-lg shrink-0">
+              <FileText className="text-kontrol-blue" size={18} />
             </div>
             <div>
-              <span className="text-[10px] font-bold tracking-widest text-kontrol-blue uppercase">DOCUMENT OFFICIEL</span>
-              <h2 className="text-xl font-extrabold">Contrat d'Abonnement KONTROL ERP</h2>
+              <h2 className="text-sm sm:text-base font-extrabold text-white leading-tight">
+                Contrat d'Abonnement KONTROL ERP
+              </h2>
+              <p className="text-[11px] text-slate-300">
+                Convention d'utilisation et de service · INNOV'KORP
+              </p>
             </div>
           </div>
-          <p className="text-xs text-slate-300 max-w-xl">
-            Convention d'utilisation et d'accès aux services de gestion commerciale et trésorerie édités par INNOV'KORP.
-          </p>
-        </div>
 
-        {/* Company & Signer Data Card */}
-        <div className="bg-slate-50 border-b border-kontrol-border p-5 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold text-kontrol-ink-muted uppercase tracking-wider block">Prestataire / Éditeur</span>
-            <p className="font-extrabold text-kontrol-dark">INNOV'KORP</p>
-            <p className="text-kontrol-ink-soft">Siège social: Abidjan, Côte d'Ivoire</p>
-            <p className="text-kontrol-ink-soft">Email: Innov.korp@gmail.com</p>
-          </div>
-
-          <div className="space-y-1 md:border-l md:border-kontrol-border md:pl-4">
-            <span className="text-[10px] font-bold text-kontrol-blue uppercase tracking-wider block">Abonné Souscripteur</span>
-            <p className="font-extrabold text-kontrol-blue flex items-center gap-1.5">
-              <Building2 size={13} /> {companyName}
-            </p>
-            <p className="text-kontrol-ink-soft">Représentant: <span className="font-semibold">{managerName}</span></p>
-            <p className="text-kontrol-ink-soft">Email: {profile.email}</p>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
+              isSigned 
+                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
+                : 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+            }`}>
+              {isSigned ? 'Contrat Signé' : 'À Signer'}
+            </span>
+            {!isMandatoryPopup && (
+              <button 
+                onClick={onClose}
+                className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+                title="Fermer"
+              >
+                <X size={18} />
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Contract Text Scrollable Area */}
-        <div className="p-6 max-h-[380px] overflow-y-auto space-y-5 text-xs text-slate-700 leading-relaxed custom-scrollbar bg-white">
-          <section className="bg-blue-50/50 p-4 rounded-xl border border-blue-100/80 text-blue-900">
-            <h4 className="font-extrabold text-sm mb-1 text-blue-950 flex items-center gap-2">
-              <Sparkles size={16} className="text-kontrol-blue" />
-              RÉSUMÉ DES CONDITIONS D'ABONNEMENT
+        {/* Scrollable Contract Content */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 text-xs text-slate-700 leading-relaxed custom-scrollbar bg-white min-h-0">
+          
+          {/* Scrollable Document Card Header */}
+          <div className="bg-slate-50 border border-kontrol-border rounded-xl p-4 space-y-3 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-3">
+              <div>
+                <span className="text-[10px] font-bold tracking-wider text-kontrol-blue uppercase block">CONVENTION DE SERVICE OFFICIELLE</span>
+                <h3 className="text-base font-extrabold text-kontrol-dark">Contrat d'Abonnement KONTROL ERP</h3>
+              </div>
+              <div className="text-left sm:text-right text-[11px] text-slate-500">
+                <p>Réf : <span className="font-mono font-semibold text-slate-700">CTR-ABN-{profile.uid.substring(0,8).toUpperCase()}</span></p>
+                <p>Échéance 1er cycle : <span className="font-semibold text-slate-700">{dueDateFormatted}</span></p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              <div className="space-y-0.5">
+                <span className="text-[10px] font-bold text-kontrol-ink-muted uppercase tracking-wider block">Prestataire / Éditeur</span>
+                <p className="font-extrabold text-kontrol-dark">INNOV'KORP</p>
+                <p className="text-kontrol-ink-soft">Siège social : Abidjan, Côte d'Ivoire</p>
+                <p className="text-kontrol-ink-soft">Email : Innov.korp@gmail.com</p>
+              </div>
+
+              <div className="space-y-0.5 md:border-l md:border-kontrol-border md:pl-4">
+                <span className="text-[10px] font-bold text-kontrol-blue uppercase tracking-wider block">Abonné Souscripteur</span>
+                <p className="font-extrabold text-kontrol-blue flex items-center gap-1.5">
+                  <Building2 size={13} /> {companyName}
+                </p>
+                <p className="text-kontrol-ink-soft">Représentant : <span className="font-semibold">{managerName}</span></p>
+                <p className="text-kontrol-ink-soft">Email : {profile.email}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Executive Summary Box */}
+          <section className="bg-blue-50/80 p-4 rounded-xl border border-blue-100 text-blue-900 shadow-sm">
+            <h4 className="font-extrabold text-xs sm:text-sm mb-1.5 text-blue-950 flex items-center gap-2">
+              <Sparkles size={16} className="text-kontrol-blue shrink-0" />
+              RÉSUMÉ EXÉCUTIF DU CONTRAT D'ABONNEMENT
             </h4>
             <ul className="list-disc list-inside space-y-1 text-xs">
-              <li><strong>Tarif Mensuel :</strong> 15 000 F CFA TTC / mois via GeniusPay.</li>
-              <li><strong>Échéance Effective :</strong> Exactement <strong>30 jours à compter de la date de signature</strong> ({dueDateFormatted}).</li>
-              <li><strong>Accès complet :</strong> Modules Ventes, Achats, Facturation, Trésorerie, Stocks et Assistant IA.</li>
+              <li><strong>Ensemble Contractuel :</strong> Regroupe les conditions d'utilisation, les mentions légales et le contrat d'abonnement.</li>
+              <li><strong>Objectif Majeur :</strong> Structurer la gestion financière des TPE/PME et assurer leur préparation à la <strong>Facture Normalisée Électronique (FNE)</strong>.</li>
+              <li><strong>Tarif Forfaitaire :</strong> 15 000 F CFA TTC / mois via les systèmes de paiement sécurisés de la plateforme.</li>
+              <li><strong>Période & Échéance :</strong> Fixée impérativement à <strong>30 jours calendaires après signature</strong> ({dueDateFormatted}).</li>
+              <li><strong>Modules Inclus :</strong> Tableau de Bord 360°, Ventes (Devis/Factures/Proforma/Avoirs), Achats, Trésorerie & Caisse, Charges, Stocks, IA KONTROL Genius, K-Chat & Journal d'Audit.</li>
             </ul>
           </section>
 
-          <div>
-            <h4 className="font-bold text-sm text-kontrol-dark mb-1">ARTICLE 1 : OBJET DU CONTRAT & ACCÈS AU SERVICE</h4>
-            <p className="text-slate-600">
-              Le présent contrat régit les conditions d'accès et d'utilisation de la solution cloud KONTROL ERP, éditée par INNOV'KORP, au profit de l'Abonné. KONTROL ERP fournit des outils de gestion commerciale, comptabilité certifiée, trésorerie et pilotage d'entreprise.
-            </p>
+          {/* TITRE I */}
+          <div className="space-y-3">
+            <div className="px-3 py-1.5 bg-slate-100 border-l-4 border-kontrol-blue rounded-r-lg font-extrabold text-xs text-kontrol-dark uppercase tracking-wide">
+              TITRE I : MENTIONS LÉGALES & IDENTIFICATION DE L'ÉDITEUR
+            </div>
+
+            <div className="space-y-1">
+              <h5 className="font-bold text-xs text-kontrol-dark">ARTICLE 1 : IDENTIFICATION DE L'ÉDITEUR</h5>
+              <p className="text-slate-600 leading-relaxed">
+                La plateforme applicative KONTROL ERP est entièrement conçue, éditée, développée et exploitée par l'entité <strong>INNOV'KORP</strong> (ci-après "l'Éditeur"), dont le siège social est situé à Abidjan, Côte d'Ivoire (Email de contact officiel : Innov.korp@gmail.com).
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <h5 className="font-bold text-xs text-kontrol-dark">ARTICLE 2 : HÉBERGEMENT, INFRASTRUCTURE CLOUD & DISPONIBILITÉ</h5>
+              <p className="text-slate-600 leading-relaxed">
+                Les infrastructures informatiques, serveurs cloud, bases de données et services applicatifs de KONTROL ERP sont hébergés sur des centres de données sécurisés offrant un taux de disponibilité cible de 99,9%, un chiffrement continu des communications (TLS/SSL) et une redondance géographique des sauvegardes.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <h5 className="font-bold text-xs text-kontrol-dark">ARTICLE 3 : ASSISTANCE TECHNIQUE ET SUPPORT CLIENT</h5>
+              <p className="text-slate-600 leading-relaxed">
+                L'Éditeur met à la disposition de l'Abonné un service d'assistance technique et d'accompagnement client directement accessible depuis l'interface KONTROL ERP ainsi que par courrier électronique, afin d'assurer le traitement des demandes de support, correctifs ou conseils d'utilisation.
+              </p>
+            </div>
           </div>
 
-          <div>
-            <h4 className="font-bold text-sm text-kontrol-dark mb-1">ARTICLE 2 : TARIF & MODALITÉS DE PAIEMENT</h4>
-            <p className="text-slate-600">
-              L'utilisation du service KONTROL ERP est soumise à un abonnement mensuel forfaitaire fixé à <strong>15 000 FCFA TTC / mois</strong>. Le paiement s'effectue exclusivement en ligne via la passerelle de paiement sécurisée intégrée <strong>GeniusPay</strong> (Mobile Money, Carte Bancaire).
-            </p>
+          {/* TITRE II */}
+          <div className="space-y-3">
+            <div className="px-3 py-1.5 bg-slate-100 border-l-4 border-kontrol-blue rounded-r-lg font-extrabold text-xs text-kontrol-dark uppercase tracking-wide">
+              TITRE II : CONDITIONS GÉNÉRALES D'UTILISATION (CGU)
+            </div>
+
+            <div className="space-y-1">
+              <h5 className="font-bold text-xs text-kontrol-dark">ARTICLE 4 : OBJET, OBJECTIFS STRATÉGIQUES & ACCOMPAGNEMENT FNE</h5>
+              <p className="text-slate-600 leading-relaxed">
+                Les présentes CGU définissent les règles d'accès, d'utilisation et de navigation sur l'ensemble des modules de KONTROL ERP. Conçue spécialement pour soutenir et formaliser la gestion des petites et moyennes entreprises (TPE/PME), la plateforme a pour objectif d'assainir la gestion commerciale, financière et comptable des souscripteurs, tout en les préparant à l'adoption réglementaire progressive de la <strong>Facture Normalisée Électronique (FNE)</strong> exigée par la Direction Générale des Impôts (DGI).
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <h5 className="font-bold text-xs text-kontrol-dark">ARTICLE 5 : ACCEPTATION, ENTRÉE EN VIGUEUR ET OPPOSABILITÉ</h5>
+              <p className="text-slate-600 leading-relaxed">
+                L'utilisation des services de KONTROL ERP est strictement conditionnée par l'acceptation sans réserve des présentes CGU. La validation électronique effectuée par le représentant habilité de l'Abonné vaut signature ferme, définitive et opposable à l'Abonné.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <h5 className="font-bold text-xs text-kontrol-dark">ARTICLE 6 : CRÉATION, ACCÈS ET SÉCURISATION DES COMPTES UTILISATEURS</h5>
+              <p className="text-slate-600 leading-relaxed">
+                Chaque compte souscrit est propre à l'entreprise Abonnée. L'Abonné s'engage à fournir des informations exactes lors de la création du compte et est seul responsable de la garde, de la confidentialité et de la transmission de ses identifiants de connexion. Tout accès réalisé au moyen des identifiants de l'Abonné est réputé effectué sous sa responsabilité exclusive.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <h5 className="font-bold text-xs text-kontrol-dark">ARTICLE 7 : HIÉRARCHIE INTERNE, RÔLES ET HABILITATIONS UTILISATEURS</h5>
+              <p className="text-slate-600 leading-relaxed">
+                L'Abonné bénéficie d'une gestion fine des utilisateurs structurée autour de trois rôles applicatifs natifs :
+              </p>
+              <ul className="list-disc list-inside space-y-1 text-slate-600 ml-2 mt-1">
+                <li><strong>ADMINISTRATEUR ENTREPRISE :</strong> Dirigeant ou représentant légal disposant des droits maximaux (administration de la société, création/modification des comptes utilisateurs, signature du contrat d'abonnement, accès financier complet et réinitialisations).</li>
+                <li><strong>GESTIONNAIRE ENTREPRISE :</strong> Manager ou responsable comptable habilité à piloter les transactions (ventes, achats, factures), gérer la trésorerie, la caisse, les stocks et le répertoire tiers clients/fournisseurs.</li>
+                <li><strong>UTILISATEUR :</strong> Collaborateur, commercial ou caissier restreint aux opérations d'exécution quotidienne (saisie des devis, émission des factures clients, enregistrement des règlements et consultation du catalogue produits).</li>
+              </ul>
+            </div>
+
+            <div className="space-y-1">
+              <h5 className="font-bold text-xs text-kontrol-dark">ARTICLE 8 : USAGE ACCEPTABLE, INTERDICTIONS ET COMPORTEMENTS PROHIBÉS</h5>
+              <p className="text-slate-600 leading-relaxed">
+                L'Abonné s'interdit formellement toute tentative de rétro-ingénierie, décompilation, extraction massive de code ou de données, introduction de scripts malveillants ou surcharge intentionnelle des serveurs. Tout manquement entraînera la suspension immédiate du compte sans préavis ni indemnité.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <h5 className="font-bold text-xs text-kontrol-dark">ARTICLE 9 : PROPRIÉTÉ INTELLECTUELLE ET DROITS CONCÉDÉS</h5>
+              <p className="text-slate-600 leading-relaxed">
+                L'ensemble de la plateforme KONTROL ERP, ses codes sources, interfaces graphiques, logos, marques, bases de données et algorithmes demeurent la propriété exclusive d'INNOV'KORP. L'Abonné ne bénéficie que d'un droit d'usage personnel, non exclusif, temporaire et intransférable.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <h5 className="font-bold text-xs text-kontrol-dark">ARTICLE 10 : DISPONIBILITÉ, MAINTENANCE PRÉVENTIVE ET ÉVOLUTIONS</h5>
+              <p className="text-slate-600 leading-relaxed">
+                L'Éditeur s'efforce d'assurer un accès ininterrompu au service 24h/24 et 7j/7. Toutefois, l'Éditeur se réserve le droit d'interrompre momentanément l'accès pour réaliser des opérations de maintenance préventive, évolutive ou corrective, en informant préalablement l'Abonné via la plateforme.
+              </p>
+            </div>
           </div>
 
-          <div>
-            <h4 className="font-bold text-sm text-kontrol-dark mb-1">ARTICLE 3 : PRISE D'EFFET & ÉCHÉANCE FIXÉE À 30 JOURS</h4>
-            <p className="text-slate-600">
-              Le présent contrat prend effet de plein droit dès sa signature électronique. L'entreprise dispose d'une période initiale effective de <strong>30 jours calendaires</strong>. La première échéance de renouvellement est fixée au <strong>{dueDateFormatted}</strong>.
-            </p>
+          {/* TITRE III */}
+          <div className="space-y-3">
+            <div className="px-3 py-1.5 bg-slate-100 border-l-4 border-kontrol-blue rounded-r-lg font-extrabold text-xs text-kontrol-dark uppercase tracking-wide">
+              TITRE III : CONTRAT D'ABONNEMENT, TARIFICATION & RÈGLEMENT
+            </div>
+
+            <div className="space-y-1">
+              <h5 className="font-bold text-xs text-kontrol-dark">ARTICLE 11 : PÉRIMÈTRE ET FONCTIONNALITÉS DES MODULES INCLUS</h5>
+              <p className="text-slate-600 leading-relaxed">
+                L'abonnement KONTROL ERP octroie un accès illimité aux fonctionnalités opérationnelles disponibles dans le logiciel :
+              </p>
+              <ul className="list-disc list-inside space-y-1 text-slate-600 ml-2 mt-1">
+                <li><strong>Tableau de Bord 360° :</strong> Suivi en temps réel des indicateurs clés (CA, marge brute, créances clients, dettes fournisseurs et solde de trésorerie).</li>
+                <li><strong>Gestion Commerciale Ventes & Achats :</strong> Répertoire Tiers (Clients & Fournisseurs), Catalogue Produits/Services, Devis, Factures Proforma, Factures de Vente, Factures d'Avoir, Bons de Commande et Reçus.</li>
+                <li><strong>Préparation FNE :</strong> Formalisation des mentions obligatoire et conformité des pièces pour la transmission fiscale.</li>
+                <li><strong>Trésorerie, Caisse & Charges :</strong> Suivi des comptes bancaires et caisses, enregistrement des dépenses, rapports de solvabilité et attestations financières.</li>
+                <li><strong>Gestion des Stocks :</strong> Suivi des mouvements (entrées/sorties), inventaires, réassorts et valorisation du stock.</li>
+                <li><strong>Assistant IA KONTROL Genius :</strong> Analyses prédictives des ventes, détection d'anomalies de trésorerie et conseils de gestion.</li>
+                <li><strong>Communication & Administration :</strong> Messagerie interne K-Chat, support par tickets, fiche entreprise Hub et Journal d'Audit des opérations.</li>
+              </ul>
+            </div>
+
+            <div className="space-y-1">
+              <h5 className="font-bold text-xs text-kontrol-dark">ARTICLE 12 : TARIFICATION ET CONDITIONS DE RÉVISION</h5>
+              <p className="text-slate-600 leading-relaxed">
+                Le droit d'accès au service est accordé moyennant le paiement d'un abonnement mensuel forfaitaire fixé à <strong>15 000 F CFA TTC par mois</strong>. L'Éditeur se réserve la faculté de réviser ses tarifs en notifiant l'Abonné au moins 30 jours civils avant l'application du nouveau tarif.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <h5 className="font-bold text-xs text-kontrol-dark">ARTICLE 13 : PRISE D'EFFET & ÉCHÉANCE EFFECTIVE D'ABONNEMENT À 30 JOURS</h5>
+              <p className="text-slate-600 leading-relaxed">
+                Le présent contrat prend effet à compter de sa signature électronique. L'Abonné bénéficie d'une période d'utilisation dont la première échéance effective de renouvellement est impérativement fixée à 30 jours calendaires à compter du jour de la signature, soit le <strong>{dueDateFormatted}</strong>.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <h5 className="font-bold text-xs text-kontrol-dark">ARTICLE 14 : MODALITÉS DE RÈGLEMENT ET MODES DE PAIEMENT</h5>
+              <p className="text-slate-600 leading-relaxed">
+                Le règlement des mensualités s'effectue au moyen des systèmes et canaux de paiement électronique sécurisés mis à disposition sur la plateforme. La génération de la référence de transaction validée constitue la preuve irréfragable du paiement effectif.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <h5 className="font-bold text-xs text-kontrol-dark">ARTICLE 15 : DÉFAUT DE PAIEMENT, RETARDS ET SUSPENSION DES ACCÈS</h5>
+              <p className="text-slate-600 leading-relaxed">
+                À défaut de règlement de la redevance à la date d'échéance effective fixée, l'Éditeur se réserve le droit de restreindre temporairement l'accès aux fonctions d'écriture et d'émission de pièces commerciales jusqu'à la régularisation complète des sommes dues.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <h5 className="font-bold text-xs text-kontrol-dark">ARTICLE 16 : FACTURATION ET QUITTANCES D'ABONNEMENT</h5>
+              <p className="text-slate-600 leading-relaxed">
+                Chaque paiement validé donne lieu à la mise à disposition automatique d'un reçu numérique d'achat d'abonnement au sein de l'espace d'administration de l'Abonné, servant de justificatif comptable et fiscal.
+              </p>
+            </div>
           </div>
 
-          <div>
-            <h4 className="font-bold text-sm text-kontrol-dark mb-1">ARTICLE 4 : CONFIDENTIALITÉ & SÉCURITÉ DES DONNÉES</h4>
-            <p className="text-slate-600">
-              INNOV'KORP s'engage à préserver la confidentialité absolue des données de trésorerie, factures et fichiers clients enregistrés par l'Abonné. Les données sont hébergées sur des serveurs hautement sécurisés avec chiffrement de bout en bout.
-            </p>
+          {/* TITRE IV */}
+          <div className="space-y-3">
+            <div className="px-3 py-1.5 bg-slate-100 border-l-4 border-kontrol-blue rounded-r-lg font-extrabold text-xs text-kontrol-dark uppercase tracking-wide">
+              TITRE IV : CONFIDENTIALITÉ, TRAITEMENT DES DONNÉES & SÉCURITÉ
+            </div>
+
+            <div className="space-y-1">
+              <h5 className="font-bold text-xs text-kontrol-dark">ARTICLE 17 : SECRET DES AFFAIRES ET CONFIDENTIALITÉ STRICTE</h5>
+              <p className="text-slate-600 leading-relaxed">
+                L'Éditeur s'engage à observer la plus stricte confidentialité sur l'ensemble des données commerciales, financières, comptables, clients et fournisseurs saisies ou stockées par l'Abonné au sein de son espace KONTROL ERP.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <h5 className="font-bold text-xs text-kontrol-dark">ARTICLE 18 : PROPRIÉTÉ ET PROTECTION DES DONNÉES ENTREPRISE</h5>
+              <p className="text-slate-600 leading-relaxed">
+                L'Abonné demeure le seul et unique propriétaire de l'ensemble de ses données commerciales, fichiers clients et écritures comptables. L'Éditeur ne procède à aucune vente, location ou cession de données à des tiers.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <h5 className="font-bold text-xs text-kontrol-dark">ARTICLE 19 : SAUVEGARDES AUTOMATIQUES, ARCHIVAGE ET RESTITUTION</h5>
+              <p className="text-slate-600 leading-relaxed">
+                L'Éditeur réalise des sauvegardes automatisées quotidiennes. En cas de cessation ou de résiliation de l'abonnement, l'Abonné dispose d'un délai de 30 jours pour solliciter l'extraction complète de ses données au format standard.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <h5 className="font-bold text-xs text-kontrol-dark">ARTICLE 20 : HORODATAGE, TRAÇABILITÉ ET INTÉGRITÉ DES REGISTRES</h5>
+              <p className="text-slate-600 leading-relaxed">
+                L'ensemble des pièces commerciales et opérations saisies sur KONTROL ERP fait l'objet d'un horodatage numérique infalsifiable garantissant l'intégrité et la valeur probante des écritures enregistrées.
+              </p>
+            </div>
           </div>
 
-          <div>
-            <h4 className="font-bold text-sm text-kontrol-dark mb-1">ARTICLE 5 : VALEUR PROBANTE DE LA SIGNATURE ÉLECTRONIQUE</h4>
-            <p className="text-slate-600">
-              La validation électronique du présent contrat via le bouton "J'accepte et je signe le contrat" constitue une signature numérique valide et opposable, engagée librement par le représentant légal de l'Abonné.
-            </p>
+          {/* TITRE V */}
+          <div className="space-y-3">
+            <div className="px-3 py-1.5 bg-slate-100 border-l-4 border-kontrol-blue rounded-r-lg font-extrabold text-xs text-kontrol-dark uppercase tracking-wide">
+              TITRE V : RESPONSABILITÉS, RÉSILIATION, SIGNATURE & LITIGES
+            </div>
+
+            <div className="space-y-1">
+              <h5 className="font-bold text-xs text-kontrol-dark">ARTICLE 21 : LIMITATION ET EXCLUSION DE RESPONSABILITÉ</h5>
+              <p className="text-slate-600 leading-relaxed">
+                L'Éditeur ne saurait être tenu pour responsable des dommages indirects, pertes d'exploitation, manque à gagner ou erreurs de décision financière résultant de données de saisie inexactes ou incomplètes effectuées par les utilisateurs de l'Abonné.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <h5 className="font-bold text-xs text-kontrol-dark">ARTICLE 22 : CAS DE FORCE MAJEURE</h5>
+              <p className="text-slate-600 leading-relaxed">
+                Chacune des parties sera exonérée de sa responsabilité en cas d'inexécution subie consécutive à un événement de force majeure habituellement reconnu par la jurisprudence et les tribunaux compétents.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <h5 className="font-bold text-xs text-kontrol-dark">ARTICLE 23 : DURÉE DU CONTRAT, ROULEMENT ET MODALITES DE RÉSILIATION</h5>
+              <p className="text-slate-600 leading-relaxed">
+                Le présent contrat est conclu sans engagement de durée minimale de conservation. L'Abonné conserve la faculté de résilier son abonnement à tout moment directement depuis son tableau de bord d'administration sans pénalités.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <h5 className="font-bold text-xs text-kontrol-dark">ARTICLE 24 : VALEUR PROBANTE DE LA SIGNATURE ÉLECTRONIQUE</h5>
+              <p className="text-slate-600 leading-relaxed">
+                La validation du présent document via le bouton d'acceptation "J'accepte et je signe le contrat" constitue une signature électronique pleinement valide, authentique et légalement opposable entre l'Abonné et l'Éditeur.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <h5 className="font-bold text-xs text-kontrol-dark">ARTICLE 25 : DROIT APPLICABLE ET JURISDICTION EN CAS DE LITIGE</h5>
+              <p className="text-slate-600 leading-relaxed">
+                Le présent contrat est soumis au droit en vigueur. Tout différend relatif à sa validité, son interprétation ou son exécution fera l'objet d'une recherche de solution amiable avant toute saisie des tribunaux compétents.
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* Footer Actions / Agreement */}
-        <div className="p-5 bg-slate-50 border-t border-kontrol-border flex flex-col gap-4">
+        {/* Fixed Footer Actions / Agreement */}
+        <div className="shrink-0 p-4 sm:p-5 bg-slate-50 border-t border-kontrol-border flex flex-col gap-3">
           
           {isSigned ? (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-emerald-50 border border-emerald-200 p-4 rounded-xl text-emerald-900">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-emerald-50 border border-emerald-200 p-3.5 rounded-xl text-emerald-900">
               <div className="flex items-center gap-3">
                 <ShieldCheck size={24} className="text-emerald-600 shrink-0" />
                 <div>
@@ -225,8 +441,8 @@ export const SubscriptionContractModal: React.FC<SubscriptionContractModalProps>
               </div>
             </div>
           ) : (
-            <div className="space-y-4">
-              <label className="flex items-start gap-3 cursor-pointer p-3 bg-white rounded-xl border border-kontrol-border hover:border-kontrol-blue/50 transition-all">
+            <div className="space-y-3">
+              <label className="flex items-start gap-3 cursor-pointer p-3 bg-white rounded-xl border border-kontrol-border hover:border-kontrol-blue/50 transition-all shadow-sm">
                 <input 
                   type="checkbox"
                   checked={agreedTerms}
@@ -238,7 +454,7 @@ export const SubscriptionContractModal: React.FC<SubscriptionContractModalProps>
                 </span>
               </label>
 
-              <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-1">
+              <div className="flex flex-col sm:flex-row items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => generateContractPDF(profile)}

@@ -86,7 +86,7 @@ export const generateCashFlowPDF = (
     .reduce((acc, t) => acc + (t.montantTotal || t.montant || 0), 0);
     
   const decaissements = periodTransactions
-    .filter(t => (t.type === 'ACHAT' || t.type === 'CHARGE' || t.type === 'ABONNEMENT') && t.statut === 'PAYE')
+    .filter(t => (t.type === 'ACHAT' || (t.type as string) === 'CHARGE' || (t.type as string) === 'ABONNEMENT') && t.statut === 'PAYE')
     .reduce((acc, t) => acc + (t.montantTotal || t.montant || 0), 0);
 
   const finalBalance = initialBalance + encaissements - decaissements;
@@ -224,7 +224,7 @@ export const generateCashFlowPDF = (
   // 7. Table of Movements
   const tableData = periodTransactions.map(t => {
     const isEncaissement = t.type === 'VENTE';
-    const natureStr = isEncaissement ? "Encaissement Client" : (t.type === 'ABONNEMENT' ? "Charge d'Abonnement" : "Décaissement Fournisseur");
+    const natureStr = isEncaissement ? "Encaissement Client" : ((t.type as string) === 'ABONNEMENT' ? "Charge d'Abonnement" : "Décaissement Fournisseur");
     const amountVal = t.montantTotal || t.montant || 0;
     const formattedVal = (isEncaissement ? "+" : "-") + formatSimpleNumber(amountVal, currency);
 
