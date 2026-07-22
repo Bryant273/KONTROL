@@ -35,7 +35,7 @@ import { tiersService } from '../../../api/services/tiersService';
 import { productService } from '../../../api/services/productService';
 import { transactionService } from '../../../api/services/transactionService';
 import { User as FirebaseUser } from 'firebase/auth';
-import { collection, query, where, orderBy, getDocs, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, getDocs, getDoc, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -64,6 +64,11 @@ export interface Quote {
   companyId: string;
   createdAt: number;
   createdByName?: string;
+  convertedInvoiceRef?: string;
+  convertedInvoiceId?: string;
+  convertedAt?: number;
+  convertedBy?: string;
+  convertedByName?: string;
 }
 
 interface QuotesModuleProps {
@@ -91,6 +96,7 @@ export function QuotesModule({ user, currentUserProfile }: QuotesModuleProps) {
   const [isAdding, setIsAdding] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [isConverting, setIsConverting] = React.useState(false);
+  const [convertingQuoteIds, setConvertingQuoteIds] = React.useState<Set<string>>(new Set());
   
   // Form State
   const [formData, setFormData] = React.useState<{
@@ -281,10 +287,33 @@ export function QuotesModule({ user, currentUserProfile }: QuotesModuleProps) {
     }
   };
 
-  // Convert Quote to Invoice
+  // Convert Quote to Invoice (Strict Single-Conversion Guard)
   const handleConvertQuoteToInvoice = async (quote: Quote) => {
+    if (convertingQuoteIds.has(quote.id)) {
+      return;
+    }
+
+    if (quote.statut === 'CONVERTI' || quote.convertedInvoiceRef) {
+      toast.error(`Le devis ${quote.reference} a déjà été converti en facture (${quote.convertedInvoiceRef || 'déjà converti'}). Conversion multiple impossible.`);
+      return;
+    }
+
+    setConvertingQuoteIds(prev => new Set(prev).add(quote.id));
     setIsConverting(true);
+
     try {
+      // Atomic verification directly from Firestore
+      const quoteRef = doc(db, 'quotes', quote.id);
+      const quoteSnap = await getDoc(quoteRef);
+      if (quoteSnap.exists()) {
+        const latestQuote = quoteSnap.data() as Quote;
+        if (latestQuote.statut === 'CONVERTI' || latestQuote.convertedInvoiceRef) {
+          toast.error(`Avertissement : Le devis ${quote.reference} a déjà été converti en facture (${latestQuote.convertedInvoiceRef || ''}). Conversion ignorée.`);
+          loadData();
+          return;
+        }
+      }
+
       const refYear = new Date().getFullYear();
       const randomNum = Math.floor(1000 + Math.random() * 9000);
       const invoiceRef = `FAC-${refYear}-${randomNum}`;
@@ -311,28 +340,47 @@ export function QuotesModule({ user, currentUserProfile }: QuotesModuleProps) {
         status: 'PENDING',
         modePaiement: 'VIREMENT',
         paymentMethod: 'VIREMENT',
-        description: `Facture issue de la conversion du Devis ${quote.reference}`,
+        description: `Facture issue de la conversion unique du Devis ${quote.reference}`,
         ownerId: companyId,
         companyId: companyId,
         createdAt: Date.now()
       };
 
       // 1. Create Transaction in Firestore
-      await transactionService.createTransaction(newTransaction, user, currentUserProfile);
+      const createdTxId = await transactionService.createTransaction(newTransaction, user, currentUserProfile);
 
-      // 2. Update quote status to CONVERTI
-      await updateDoc(doc(db, 'quotes', quote.id), {
-        statut: 'CONVERTI'
+      // 2. Lock quote status permanently to CONVERTI with invoice details
+      await updateDoc(quoteRef, {
+        statut: 'CONVERTI',
+        convertedInvoiceRef: invoiceRef,
+        convertedInvoiceId: createdTxId || '',
+        convertedAt: Date.now(),
+        convertedBy: user.uid,
+        convertedByName: currentUserProfile?.displayName || user.email || 'Utilisateur'
       });
 
-      await logAction(companyId, user.uid, currentUserProfile?.displayName || user.email || 'Utilisateur', 'CONVERSION_DEVIS', `Devis ${quote.reference} converti en Facture ${invoiceRef}`);
-      toast.success(`Devis converti avec succès en Facture ${invoiceRef} !`);
+      // 3. Log explicit detailed activity
+      const amountStr = quote.montantTotal.toLocaleString('fr-FR');
+      await logAction(
+        companyId, 
+        user.uid, 
+        currentUserProfile?.displayName || user.email || 'Utilisateur', 
+        'CONVERSION_DEVIS', 
+        `Conversion du Devis ${quote.reference} (${quote.tiersNom || 'Client'}, ${amountStr} XOF) en Facture de Vente ${invoiceRef}`
+      );
+
+      toast.success(`Devis ${quote.reference} converti avec succès en Facture ${invoiceRef} !`);
       setSelectedQuote(null);
       loadData();
     } catch (error) {
       toast.error("Erreur lors de la conversion du devis en facture");
       console.error("Conversion error:", error);
     } finally {
+      setConvertingQuoteIds(prev => {
+        const next = new Set(prev);
+        next.delete(quote.id);
+        return next;
+      });
       setIsConverting(false);
     }
   };
@@ -744,13 +792,32 @@ export function QuotesModule({ user, currentUserProfile }: QuotesModuleProps) {
                           <Printer size={16} />
                         </button>
 
-                        {quote.statut !== 'CONVERTI' && (
+                        {quote.statut === 'CONVERTI' || quote.convertedInvoiceRef ? (
+                          <span 
+                            title={`Converti le ${quote.convertedAt ? new Date(quote.convertedAt).toLocaleDateString('fr-FR') : ''}`}
+                            className="px-2.5 py-1 bg-slate-100 text-slate-600 font-semibold rounded-lg border border-slate-200 text-[11px] flex items-center gap-1 cursor-default"
+                          >
+                            <CheckCircle2 size={13} className="text-emerald-600" />
+                            {quote.convertedInvoiceRef ? `FAC (${quote.convertedInvoiceRef})` : 'Converti'}
+                          </span>
+                        ) : (
                           <button
                             onClick={() => handleConvertQuoteToInvoice(quote)}
-                            title="Convertir en Facture de Vente"
-                            className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg border border-emerald-200 text-[11px] flex items-center gap-1 transition-all"
+                            disabled={convertingQuoteIds.has(quote.id)}
+                            title="Convertir ce devis en facture de vente (Action unique)"
+                            className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg border border-emerald-200 text-[11px] flex items-center gap-1 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            <ArrowRight size={13} /> Facture
+                            {convertingQuoteIds.has(quote.id) ? (
+                              <>
+                                <Loader2 size={13} className="animate-spin text-emerald-600" />
+                                <span>En cours...</span>
+                              </>
+                            ) : (
+                              <>
+                                <ArrowRight size={13} />
+                                <span>Convertir</span>
+                              </>
+                            )}
                           </button>
                         )}
 

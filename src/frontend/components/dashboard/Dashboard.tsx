@@ -1,5 +1,5 @@
 import React from 'react';
-import {  AlertTriangle, BrainCircuit, TrendingUp, TrendingDown, Users, Package, Loader2, PieChart, Wallet, ArrowUpRight, ArrowDownRight, Sparkles, X, FileText, ShieldCheck, MessageCircle, Activity, Zap, Settings, Building2, ArrowRight, ChevronRight, Trophy } from 'lucide-react';
+import {  AlertTriangle, BrainCircuit, TrendingUp, TrendingDown, Users, Package, Loader2, PieChart, Wallet, ArrowUpRight, ArrowDownRight, Sparkles, X, FileText, ShieldCheck, MessageCircle, Activity, Zap, Settings, Building2, ArrowRight, ChevronRight, Trophy, User } from 'lucide-react';
 import { exportToPDF } from '../../lib/export';
 import Markdown from 'react-markdown';
 import { useTranslation } from 'react-i18next';
@@ -45,6 +45,57 @@ interface DashboardProps {
   onNavigate?: (tab: string, section: string, label: string) => void;
   onStartGuide?: () => void;
 }
+
+const formatActionLabel = (actionKey: string) => {
+  if (!actionKey) return 'Opération';
+  const key = actionKey.toUpperCase();
+  if (key.includes('CONVERSION_DEVIS')) return 'Conversion Devis';
+  if (key.includes('CREATION_DEVIS')) return 'Création Devis';
+  if (key.includes('SUPPRESSION_DEVIS')) return 'Suppr. Devis';
+  if (key.includes('VENTE') || key.includes('TRANSACTION')) return 'Nouvelle Vente';
+  if (key.includes('ACHAT')) return 'Nouvel Achat';
+  if (key.includes('PAIEMENT')) return 'Paiement Enregistré';
+  if (key.includes('TIERS')) return 'Tiers / Client';
+  if (key.includes('PRODUIT')) return 'Produit / Stock';
+  if (key.includes('CHARGE')) return 'Nouvelle Charge';
+  if (key.includes('LOGIN') || key.includes('CONNEXION')) return 'Connexion';
+  if (key.includes('PROFILE')) return 'Modif. Profil';
+  if (key.includes('COMPANY')) return 'Modif. Entreprise';
+  return actionKey.replace(/_/g, ' ');
+};
+
+const getActionBadgeStyle = (actionKey: string) => {
+  if (!actionKey) return 'bg-slate-100 text-slate-700 border-slate-200';
+  const key = actionKey.toUpperCase();
+  if (key.includes('CONVERSION') || key.includes('PAIEMENT')) {
+    return 'bg-emerald-50 text-emerald-800 border-emerald-200';
+  }
+  if (key.includes('CREATION') || key.includes('VENTE')) {
+    return 'bg-blue-50 text-blue-800 border-blue-200';
+  }
+  if (key.includes('SUPPRESSION') || key.includes('DELETE')) {
+    return 'bg-rose-50 text-rose-800 border-rose-200';
+  }
+  if (key.includes('UPDATE') || key.includes('MODIF')) {
+    return 'bg-amber-50 text-amber-800 border-amber-200';
+  }
+  return 'bg-slate-100 text-slate-800 border-slate-200';
+};
+
+const formatActionTimestamp = (timestamp: any) => {
+  if (!timestamp) return '-';
+  const d = timestamp?.toDate ? timestamp.toDate() : (typeof timestamp === 'number' ? new Date(timestamp) : new Date(timestamp));
+  if (isNaN(d.getTime())) return '-';
+
+  const today = new Date();
+  const isToday = d.toDateString() === today.toDateString();
+  const timeStr = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  if (isToday) {
+    return `Aujourd'hui à ${timeStr}`;
+  }
+  const dateStr = d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return `${dateStr} à ${timeStr}`;
+};
 
 export function Dashboard({ user, currentUserProfile, onNavigate, onStartGuide }: DashboardProps) {
   const { t, i18n } = useTranslation();
@@ -239,9 +290,8 @@ export function Dashboard({ user, currentUserProfile, onNavigate, onStartGuide }
 
     const unsubActions = onSnapshot(query(
       collection(db, 'actions'), 
-      where('timestamp', '>=', startOfToday),
       orderBy('timestamp', 'desc'), 
-      limit(5)
+      limit(20)
     ), (snap) => {
       setGlobalStats(prev => ({ ...prev, recentActions: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'actions', user, false));
@@ -341,8 +391,8 @@ export function Dashboard({ user, currentUserProfile, onNavigate, onStartGuide }
 
       const qActions = query(
         collection(db, 'actions'), 
-        where('timestamp', '>=', startOfToday),
-        orderBy('timestamp', 'desc')
+        orderBy('timestamp', 'desc'),
+        limit(30)
       );
       unsubscribes.push(onSnapshot(qActions, (snapshot) => {
         setRecentActions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -462,8 +512,8 @@ export function Dashboard({ user, currentUserProfile, onNavigate, onStartGuide }
       const qActions = query(
         collection(db, 'actions'), 
         where('companyId', '==', companyId), 
-        where('timestamp', '>=', startOfToday),
-        orderBy('timestamp', 'desc')
+        orderBy('timestamp', 'desc'),
+        limit(30)
       );
       unsubscribes.push(onSnapshot(qActions, (snapshot) => {
         setRecentActions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -1171,39 +1221,50 @@ export function Dashboard({ user, currentUserProfile, onNavigate, onStartGuide }
 
       {/* Recent Activity */}
       <div className="card">
-        <div className="card-hd">
-          <h4 className="card-title">{t('dashboard.activity.title')}</h4>
+        <div className="card-hd flex items-center justify-between">
+          <h4 className="card-title flex items-center gap-2">
+            <Activity size={18} className="text-kontrol-blue" />
+            {t('dashboard.activity.title')}
+          </h4>
+          <span className="text-[11px] font-bold text-kontrol-ink-muted bg-kontrol-bg px-2.5 py-1 rounded-full border border-kontrol-border">
+            {recentActions.length} activités récentes
+          </span>
         </div>
         <div className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-kontrol-bg/50 border-b border-kontrol-border">
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('dashboard.activity.columns.action')}</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('dashboard.activity.columns.module')}</th>
-                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">{t('dashboard.activity.columns.date')}</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Action & Utilisateur</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Détails de l'Activité</th>
+                  <th className="px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-kontrol-ink-muted">Date & Heure</th>
                 </tr>
               </thead>
-                <tbody className="divide-y divide-kontrol-border">
-                  {recentActions.slice((actionsPage - 1) * itemsPerPage, actionsPage * itemsPerPage).map((action, idx) => (
-                    <tr key={action.id} className={cn(
-                      "hover:bg-kontrol-bg/30 transition-colors",
-                      idx % 2 === 0 ? "bg-white" : "bg-kontrol-bg/40"
-                    )}>
-                      <td className="px-4 py-3 text-[13px] font-medium text-kontrol-dark">
-                        <div className="flex flex-col">
-                          <span>{action.action}</span>
-                          <span className="text-[10px] text-kontrol-ink-muted">{action.userName}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-[12px] text-kontrol-ink-soft">
-                        {action.details || '-'}
-                      </td>
-                      <td className="px-4 py-3 text-[12px] text-kontrol-ink-muted">
-                        {new Date(action.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </td>
-                    </tr>
-                  ))}
+              <tbody className="divide-y divide-kontrol-border">
+                {recentActions.slice((actionsPage - 1) * itemsPerPage, actionsPage * itemsPerPage).map((action, idx) => (
+                  <tr key={action.id} className={cn(
+                    "hover:bg-kontrol-bg/30 transition-colors",
+                    idx % 2 === 0 ? "bg-white" : "bg-kontrol-bg/40"
+                  )}>
+                    <td className="px-4 py-3 text-[12px] font-medium text-kontrol-dark whitespace-nowrap">
+                      <div className="flex flex-col gap-1">
+                        <span className={cn("px-2.5 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider border w-fit", getActionBadgeStyle(action.action))}>
+                          {formatActionLabel(action.action)}
+                        </span>
+                        <span className="text-[11px] text-kontrol-ink-muted font-medium flex items-center gap-1">
+                          <User size={11} className="text-kontrol-ink-soft" />
+                          {action.userName || 'Utilisateur'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-[12.5px] text-kontrol-dark font-medium leading-relaxed">
+                      {action.details || 'Aucune précision disponible'}
+                    </td>
+                    <td className="px-4 py-3 text-[11px] text-kontrol-ink-muted whitespace-nowrap font-mono">
+                      {formatActionTimestamp(action.timestamp)}
+                    </td>
+                  </tr>
+                ))}
                 {recentActions.length === 0 && (
                   <tr>
                     <td colSpan={3} className="px-4 py-8 text-center text-[13px] text-kontrol-ink-muted">
