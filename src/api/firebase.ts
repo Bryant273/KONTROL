@@ -169,9 +169,7 @@ export async function ensureUserProfile(user: User, companyName?: string, hashed
   const userRef = doc(db, 'users', user.uid);
   const userDoc = await getDoc(userRef);
   
-  const userEmail = user.email?.toLowerCase();
-  const isAdminEmail = userEmail === 'innov.korp@gmail.com' || userEmail === 'acherie812@gmail.com';
-  const targetRole = isAdminEmail ? 'ADMINISTRATEUR_KONTROL' : 'ADMINISTRATEUR_ENTREPRISE';
+  const targetRole = 'ADMINISTRATEUR_ENTREPRISE';
 
     if (!userDoc.exists()) {
       // If user exists in Auth but not in Firestore, auto-create a profile
@@ -182,8 +180,8 @@ export async function ensureUserProfile(user: User, companyName?: string, hashed
         displayName: user.displayName || user.email?.split('@')[0] || 'Utilisateur',
         role: targetRole,
         companyId: user.uid,
-        companyName: companyName || (isAdminEmail ? 'KONTROL' : ''),
-        isProfileComplete: isAdminEmail,
+        companyName: companyName || '',
+        isProfileComplete: false,
         active: true,
         createdAt: serverTimestamp(),
         subscriptionStatus: 'TRIAL',
@@ -200,17 +198,6 @@ export async function ensureUserProfile(user: User, companyName?: string, hashed
     } else {
     const data = userDoc.data();
     const updates: any = {};
-    
-    // Force role update for admin emails to ensure they always have access to Control Tower
-    if (isAdminEmail && data.role !== 'ADMINISTRATEUR_KONTROL') {
-      updates.role = 'ADMINISTRATEUR_KONTROL';
-      updates.isProfileComplete = true;
-    }
-
-    // Demote test-entreprise@kontrol.com to company admin if it was admin
-    if (userEmail === 'test-entreprise@kontrol.com' && data.role !== 'ADMINISTRATEUR_ENTREPRISE') {
-      updates.role = 'ADMINISTRATEUR_ENTREPRISE';
-    }
 
     if (!data.companyId && (data.role === 'ADMINISTRATEUR_ENTREPRISE' || data.role === 'GESTIONNAIRE_ENTREPRISE')) {
       updates.companyId = user.uid;
@@ -239,16 +226,17 @@ export const updateUserProfile = async (uid: string, data: Partial<UserProfile>)
 // Action Logger Helper
 export const logAction = async (companyId: string, userId: string, userName: string, action: string, details?: string) => {
   try {
+    const activeUserId = userId || auth.currentUser?.uid || 'system';
     await addDoc(collection(db, 'actions'), {
-      companyId,
-      userId,
-      userName,
-      action,
+      companyId: companyId || '',
+      userId: activeUserId,
+      userName: userName || auth.currentUser?.displayName || 'Utilisateur',
+      action: action || 'ACTION',
       details: details || '',
       timestamp: Date.now()
     });
   } catch (error) {
-    handleFirestoreError(error, OperationType.CREATE, 'actions', auth.currentUser, false);
+    console.warn("Could not log action:", error);
   }
 };
 export const recordStockMovement = async (movement: Omit<StockMovement, 'id'>) => {

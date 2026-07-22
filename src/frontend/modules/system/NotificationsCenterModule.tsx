@@ -201,10 +201,10 @@ export function NotificationsCenterModule({ profile, onNavigate }: Notifications
       } else {
         // Fallback or exact matches
         const lowerLink = linkStr.toLowerCase();
-        if (lowerLink.includes('admin')) {
-          tab = 'admin';
+        if (lowerLink.includes('admin') || lowerLink.includes('company')) {
+          tab = 'company_hub';
           section = 'Système';
-          label = 'Tour de contrôle';
+          label = 'Entreprise';
         } else if (lowerLink.includes('ticket')) {
           tab = 'tickets';
           section = 'Support';

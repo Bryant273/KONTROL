@@ -339,8 +339,8 @@
     "stocks": "Stocks",
     "communication": "Communication",
     "system": "System",
-    "control_tower": "Control Tower",
-    "ecosystem": "Ecosystem Supervision",
+    "control_tower": "Administration",
+    "ecosystem": "System Administration",
     "business": "KONTROL Business Pilot",
     "coordination": "Coordination & Team",
     "maintenance": "Maintenance & Audit",
@@ -410,8 +410,8 @@
       }
     },
     "admin": {
-      "title": "Control Tower",
-      "subtitle": "Global supervision of KONTROL system",
+      "title": "Company Administration",
+      "subtitle": "System management for KONTROL",
       "status": {
         "operational": "System Status: Operational",
         "sync_live": "Live Sync Activated"

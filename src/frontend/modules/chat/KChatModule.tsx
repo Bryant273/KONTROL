@@ -129,15 +129,8 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
   useEffect(() => {
     if (!profile) return;
     
-    // Admins see all users, users see only users from their company
-    let q;
-    const isKontrolAdmin = ['ADMINISTRATEUR_ERP', 'GESTIONNAIRE_ERP', 'ADMINISTRATEUR_KONTROL', 'GESTIONNAIRE_KONTROL', 'ADMIN'].includes(profile.role);
-    
-    if (isKontrolAdmin) {
-      q = collection(db, 'users');
-    } else {
-      q = query(collection(db, 'users'), where('companyId', '==', profile.companyId));
-    }
+    // Users see users from their company
+    const q = query(collection(db, 'users'), where('companyId', '==', profile.companyId));
     
     const unsub = onSnapshot(q, (snap) => {
       const users = snap.docs.map(d => ({ id: d.id, ...d.data() } as UserProfile));
@@ -162,19 +155,11 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
   useEffect(() => {
     if (!profile) return;
     
-    // Admins see all conversations, users see only theirs
-    let q;
-    const isKontrolAdmin = ['ADMINISTRATEUR_ERP', 'GESTIONNAIRE_ERP', 'ADMINISTRATEUR_KONTROL', 'GESTIONNAIRE_KONTROL', 'ADMIN'].includes(profile.role);
-    
-    if (isKontrolAdmin) {
-      q = query(collection(db, 'conversations'), orderBy('updatedAt', 'desc'));
-    } else {
-      q = query(
-        collection(db, 'conversations'), 
-        where('participants', 'array-contains', user.uid),
-        orderBy('updatedAt', 'desc')
-      );
-    }
+    const q = query(
+      collection(db, 'conversations'), 
+      where('participants', 'array-contains', user.uid),
+      orderBy('updatedAt', 'desc')
+    );
 
     const unsub = onSnapshot(q, (snap) => {
       const convs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Conversation));
@@ -328,7 +313,7 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
     }
   };
 
-  const isKontrolAdmin = profile ? ['ADMINISTRATEUR_ERP', 'GESTIONNAIRE_ERP', 'ADMINISTRATEUR_KONTROL', 'GESTIONNAIRE_KONTROL', 'ADMIN'].includes(profile.role) : false;
+  const isKontrolAdmin = false;
 
   const getOtherParticipant = (participants: string[]) => {
     if (!participants || !Array.isArray(participants)) return undefined;

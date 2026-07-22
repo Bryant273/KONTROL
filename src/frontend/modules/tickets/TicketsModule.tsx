@@ -66,7 +66,7 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const itemsPerPage = 10;
 
-  const isKontrolAdmin = ['ADMINISTRATEUR_ERP', 'GESTIONNAIRE_ERP', 'ADMINISTRATEUR_KONTROL', 'GESTIONNAIRE_KONTROL', 'ADMIN', 'SUPER_ADMIN'].includes(currentUserProfile?.role || '');
+  const isKontrolAdmin = false;
 
   const [replyText, setReplyText] = React.useState('');
   const [isAiDrafting, setIsAiDrafting] = React.useState(false);
@@ -747,7 +747,7 @@ Ne retourne aucune autre phrase, ni balises markdown \`\`\`json \`\`\``;
                         </p>
                       ) : (
                         selectedTicket.replies.map((rep: any) => {
-                          const isRepAdmin = ['ADMINISTRATEUR_ERP', 'GESTIONNAIRE_ERP', 'ADMINISTRATEUR_KONTROL', 'GESTIONNAIRE_KONTROL', 'ADMIN', 'SUPER_ADMIN'].includes(rep.role || '');
+                          const isRepAdmin = rep.role === 'ADMINISTRATEUR_ENTREPRISE' || rep.role === 'GESTIONNAIRE_ENTREPRISE';
                           return (
                             <div 
                               key={rep.id} 

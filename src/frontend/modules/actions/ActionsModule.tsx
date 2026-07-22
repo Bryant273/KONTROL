@@ -33,7 +33,6 @@ import {
 } from '../../../api/firebase';
 import { UserProfile } from '../../types';
 import { cn } from '../../lib/utils';
-import { CompanySelector } from '../../components/common/CompanySelector';
 
 interface ActionLog {
   id: string;
@@ -52,12 +51,7 @@ interface ActionsModuleProps {
 
 export function ActionsModule({ user, currentUserProfile }: ActionsModuleProps) {
   const { t } = useTranslation();
-  const isERPAdmin = currentUserProfile?.role === 'ADMINISTRATEUR_ERP' || currentUserProfile?.role === 'GESTIONNAIRE_ERP';
-  const [selectedCompanyId, setSelectedCompanyId] = React.useState<string | null>(currentUserProfile?.companyId || null);
-  
-  const companyId = isERPAdmin 
-    ? (selectedCompanyId || currentUserProfile?.companyId || user.uid) 
-    : (currentUserProfile?.companyId || user.uid);
+  const companyId = currentUserProfile?.companyId || user.uid;
   const [actions, setActions] = React.useState<ActionLog[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -69,14 +63,12 @@ export function ActionsModule({ user, currentUserProfile }: ActionsModuleProps) 
     if (!currentUserProfile) return;
     
     setLoading(true);
-    const constraints: any[] = [orderBy('timestamp', 'desc'), limit(100)];
-    
-    // If not ERP Admin, or if ERP Admin has selected a company
-    if (!(isERPAdmin && !selectedCompanyId)) {
-      constraints.unshift(where('companyId', '==', companyId));
-    }
-
-    const q = query(collection(db, 'actions'), ...constraints);
+    const q = query(
+      collection(db, 'actions'),
+      where('companyId', '==', companyId),
+      orderBy('timestamp', 'desc'),
+      limit(100)
+    );
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setActions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as ActionLog[]);
@@ -87,7 +79,7 @@ export function ActionsModule({ user, currentUserProfile }: ActionsModuleProps) 
     });
 
     return () => unsubscribe();
-  }, [companyId, currentUserProfile, selectedCompanyId, isERPAdmin]);
+  }, [companyId, currentUserProfile]);
 
   const filteredActions = actions.filter(a => {
     const matchesSearch = 
@@ -133,16 +125,6 @@ export function ActionsModule({ user, currentUserProfile }: ActionsModuleProps) 
             <h2 className="text-xl font-extrabold text-kontrol-dark tracking-tight">{t('common.actions')}</h2>
           </div>
         </div>
-        
-        {isERPAdmin && (
-          <div className="flex items-center gap-3">
-            <span className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">{t('admin.companies.filters')} :</span>
-            <CompanySelector 
-              selectedId={selectedCompanyId} 
-              onSelect={setSelectedCompanyId} 
-            />
-          </div>
-        )}
       </div>
 
       {/* Filter Bar */}

@@ -29,7 +29,6 @@ import { Tiers, Produit, UserProfile, Transaction } from '../../types';
 import { cn, formatCurrency, cleanText } from '../../lib/utils';
 import { handleFirestoreError, OperationType, db, logAction } from '../../../api/firebase';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
-import { CompanySelector } from '../../components/common/CompanySelector';
 import { motion, AnimatePresence } from 'motion/react';
 import { tiersService } from '../../../api/services/tiersService';
 import { productService } from '../../../api/services/productService';
@@ -78,12 +77,7 @@ interface QuotesModuleProps {
 
 export function QuotesModule({ user, currentUserProfile }: QuotesModuleProps) {
   const { t } = useTranslation();
-  const isERPAdmin = currentUserProfile?.role === 'ADMINISTRATEUR_ERP' || currentUserProfile?.role === 'GESTIONNAIRE_ERP';
-  const [selectedCompanyId, setSelectedCompanyId] = React.useState<string | null>(currentUserProfile?.companyId || null);
-  
-  const companyId = isERPAdmin 
-    ? (selectedCompanyId || currentUserProfile?.companyId || user.uid) 
-    : (currentUserProfile?.companyId || user.uid);
+  const companyId = currentUserProfile?.companyId || user.uid;
 
   const [quotes, setQuotes] = React.useState<Quote[]>([]);
   const [tiers, setTiers] = React.useState<Tiers[]>([]);
@@ -665,12 +659,6 @@ export function QuotesModule({ user, currentUserProfile }: QuotesModuleProps) {
               <FileCheck className="text-kontrol-blue" size={24} />
               Devis & Factures Proforma
             </h1>
-            {isERPAdmin && (
-              <CompanySelector
-                selectedId={selectedCompanyId}
-                onSelect={setSelectedCompanyId}
-              />
-            )}
           </div>
           <p className="text-xs text-kontrol-ink-soft mt-1">
             Établissez des devis commerciaux, suivez leur acceptation et convertissez-les en factures de vente officielles en 1 clic.

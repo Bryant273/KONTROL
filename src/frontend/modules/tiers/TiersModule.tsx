@@ -26,7 +26,6 @@ import {
   OperationType
 } from '../../../api/firebase';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
-import { CompanySelector } from '../../components/common/CompanySelector';
 
 interface TiersModuleProps {
   user: User;
@@ -35,12 +34,7 @@ interface TiersModuleProps {
 
 export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
   const { t } = useTranslation();
-  const isERPAdmin = currentUserProfile?.role === 'ADMINISTRATEUR_ERP' || currentUserProfile?.role === 'GESTIONNAIRE_ERP';
-  const [selectedCompanyId, setSelectedCompanyId] = React.useState<string | null>(currentUserProfile?.companyId || null);
-  
-  const companyId = isERPAdmin 
-    ? (selectedCompanyId || currentUserProfile?.companyId || user.uid) 
-    : (currentUserProfile?.companyId || user.uid);
+  const companyId = currentUserProfile?.companyId || user.uid;
   const [tiers, setTiers] = React.useState<Tiers[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -296,19 +290,11 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
     if (!currentUserProfile) return;
     const path = 'tiers';
     
-    let q;
-    if (isERPAdmin && !selectedCompanyId) {
-      q = query(
-        collection(db, path),
-        orderBy('createdAt', 'desc')
-      );
-    } else {
-      q = query(
-        collection(db, path),
-        where('ownerId', '==', companyId),
-        orderBy('createdAt', 'desc')
-      );
-    }
+    const q = query(
+      collection(db, path),
+      where('ownerId', '==', companyId),
+      orderBy('createdAt', 'desc')
+    );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const tiersData = snapshot.docs.map(doc => ({
@@ -442,14 +428,6 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
             <h2 className="text-xl font-extrabold text-kontrol-dark tracking-tight">{t('tiers.title')}</h2>
             <p className="text-[13px] text-kontrol-ink-muted mt-1">{t('tiers.subtitle')}</p>
           </div>
-          {isERPAdmin && (
-            <div className="hidden md:block">
-              <CompanySelector 
-                selectedId={selectedCompanyId} 
-                onSelect={setSelectedCompanyId} 
-              />
-            </div>
-          )}
         </div>
         <div className="flex gap-2">
           <input 

@@ -148,8 +148,7 @@ Sur le Tableau de Bord (Pilotage) :
 10. **Tickets de Support** : Gestion des demandes d'assistance technique.
 11. **BLUE AI** : Directeur Financier virtuel propulsé par Gemini AI.
 12. **Échange de Données XML** : Imports/exports structurés.
-13. **Company Hub & Profil** : Identity, logo, adresse et informations d'entreprise.
-14. **Tour de Contrôle (Super-Admin)** : Supervision globale, calcul du MRR, gestion des licences et logs d'audit.
+13. **Company Hub & Profil** : Identité, logo, adresse et informations d'entreprise.
 
 ---
 

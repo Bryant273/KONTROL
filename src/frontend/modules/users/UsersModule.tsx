@@ -79,7 +79,7 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
   const canCreateUser = hasPermission(currentUserProfile?.role, 'USER_CREATE');
   const canUpdateUser = hasPermission(currentUserProfile?.role, 'USER_UPDATE');
   const canDeleteUser = hasPermission(currentUserProfile?.role, 'USER_DELETE');
-  const canAdminERP = hasPermission(currentUserProfile?.role, 'ADMIN_ACCESS');
+  const canAdminERP = false;
 
   const [newUser, setNewUser] = React.useState({
     email: '',
@@ -377,13 +377,9 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
     .sort((a, b) => {
       // Sort priority: ERP Admin > Enterprise Admin > Manager > User
       const rolePriority: Record<string, number> = {
-        'ADMINISTRATEUR_ERP': 0,
-        'ADMINISTRATEUR_KONTROL': 0,
-        'GESTIONNAIRE_ERP': 1,
-        'GESTIONNAIRE_KONTROL': 1,
-        'ADMINISTRATEUR_ENTREPRISE': 2,
-        'GESTIONNAIRE_ENTREPRISE': 3,
-        'UTILISATEUR': 4
+        'ADMINISTRATEUR_ENTREPRISE': 0,
+        'GESTIONNAIRE_ENTREPRISE': 1,
+        'UTILISATEUR': 2
       };
       
       const priorityA = rolePriority[a.role] ?? 99;
@@ -400,8 +396,7 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
   );
 
   const isOwner = currentUserProfile?.role === 'ADMINISTRATEUR_ENTREPRISE' || 
-                  currentUserProfile?.role === 'GESTIONNAIRE_ENTREPRISE' ||
-                  currentUserProfile?.role === 'ADMINISTRATEUR_ERP';
+                  currentUserProfile?.role === 'GESTIONNAIRE_ENTREPRISE';
 
   return (
     <div className="space-y-6">
@@ -499,10 +494,8 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
                       "bg-kontrol-blue/20 text-white border-white/20"
                     )}>
                       {selectedUser.role === 'ADMINISTRATEUR_ENTREPRISE' ? t('users.roles.admin_enterprise') : 
-                       selectedUser.role === 'GESTIONNAIRE_ENTREPRISE' ? "Gestión de Empresas" :
-                       (selectedUser.role === 'ADMINISTRATEUR_ERP' || selectedUser.role === 'ADMINISTRATEUR_KONTROL') ? t('users.roles.admin_kontrol') :
-                       (selectedUser.role === 'GESTIONNAIRE_ERP' || selectedUser.role === 'GESTIONNAIRE_KONTROL') ? t('users.roles.manager_kontrol') :
-                       selectedUser.role.replace('_', ' ')}
+                       selectedUser.role === 'GESTIONNAIRE_ENTREPRISE' ? t('users.roles.manager_enterprise') :
+                       t('users.roles.user')}
                     </span>
                     <span className={cn(
                       "text-[10px] font-extrabold uppercase tracking-[0.2em] px-3 py-1 rounded-full backdrop-blur-md border",
@@ -787,23 +780,18 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
                     )}
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        {u.role.includes('ERP') || u.role.includes('KONTROL') ? (
-                          <Shield size={14} className="text-kontrol-blue animate-pulse" />
-                        ) : u.role === 'ADMINISTRATEUR_ENTREPRISE' ? (
+                        {u.role === 'ADMINISTRATEUR_ENTREPRISE' ? (
                           <Shield size={14} className="text-kontrol-orange" />
                         ) : (
                           <Users size={14} className="text-kontrol-ink-soft" />
                         )}
                         <span className={cn(
                           "text-[11px] font-bold",
-                          u.role.includes('ERP') || u.role.includes('KONTROL') ? "text-kontrol-blue" :
                           u.role === 'ADMINISTRATEUR_ENTREPRISE' ? "text-kontrol-orange" : 
                           "text-kontrol-ink-soft"
                         )}>
-                          {(u.role === 'ADMINISTRATEUR_ERP' || u.role === 'ADMINISTRATEUR_KONTROL') ? t('users.roles.admin_kontrol') :
-                           (u.role === 'GESTIONNAIRE_ERP' || u.role === 'GESTIONNAIRE_KONTROL') ? t('users.roles.manager_kontrol') :
-                           u.role === 'ADMINISTRATEUR_ENTREPRISE' ? t('users.roles.admin_enterprise') : 
-                           u.role === 'GESTIONNAIRE_ENTREPRISE' ? "Gestión de Empresas" :
+                          {u.role === 'ADMINISTRATEUR_ENTREPRISE' ? t('users.roles.admin_enterprise') : 
+                           u.role === 'GESTIONNAIRE_ENTREPRISE' ? t('users.roles.manager_enterprise') :
                            t('users.roles.user')}
                         </span>
                       </div>

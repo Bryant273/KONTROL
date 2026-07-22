@@ -3,7 +3,7 @@
 **Version d'Écosystème & de Saisie Unique :** Version 1.0.0 (Alignée sur l'Interface Utilisateur active)  
 **Sécurité & Intégration API :** Architecture Full-Stack sécurisée unifiée par variables d'environnement distantes. Passerelles de paiement (GeniusPay, Kkiapay, Wave) et clés d'Intelligence Artificielle (Gemini API) gérées côté serveur.
 
-Ce document constitue la référence exhaustive de l'architecture fonctionnelle, des processus de souscription, de l'imputation documentaire certifiée, de l'interface utilisateur et des exigences logicielles de la plateforme **KONTROL**, un ERP de Gestion Intelligente pour les Petites et Moyennes Entreprises (PME) et de supervision par la Tour de Contrôle administrative.
+Ce document constitue la référence exhaustive de l'architecture fonctionnelle, des processus de souscription, de l'imputation documentaire certifiée, de l'interface utilisateur et des exigences logicielles de la plateforme **KONTROL**, un ERP de Gestion Intelligente pour les Petites et Moyennes Entreprises (PME).
 
 ---
 
@@ -11,9 +11,7 @@ Ce document constitue la référence exhaustive de l'architecture fonctionnelle,
 
 **KONTROL** est un Écosystème ERP Full-Stack modulaire permettant de centraliser l'intégralité du pilotage opérationnel et financier des entreprises. Il résout la fragmentation des données en interconnectant les achats, les ventes, les stocks, la trésorerie, la facturation certifiée, les abonnements et le conseil stratégique assisté par l'Intelligence Artificielle.
 
-L'application propose deux profils d'expérience distincts et sécurisés :
-1. **L'Espace Client (Entreprise)** : Dédié aux dirigeants, comptables et gestionnaires pour administrer l'activité commerciale quotidienne, gérer l'empreinte documentaire (signatures/cachets) et suivre leur abonnement.
-2. **La Tour de Contrôle (Super-Administrateur ERP)** : Dédié aux administrateurs de la plateforme KONTROL pour superviser l'ensemble des entreprises souscrites, calculer les revenus mensuels récurrents (MRR), piloter la maintenance et répondre aux demandes d'assistance.
+L'application est dédiée aux dirigeants, comptables et gestionnaires pour administrer l'activité commerciale quotidienne, gérer l'empreinte documentaire (signatures/cachets) et suivre leur abonnement en toute autonomie.
 
 ---
 
@@ -35,11 +33,9 @@ L'interface de KONTROL respecte une charte professionnelle stricte, privilégian
 
 ## 3. Description Détaillée des Modules Opérationnels
 
-### 3.1. Espace Client – Pour les Entreprises Mandataires
+L'expérience utilisateur s'articule autour des grandes sections de navigation :
 
-L'expérience utilisateur s'articule autour de 6 grandes sections de navigation :
-
-#### A. Pilotage (Tableau de bord)
+### A. Pilotage (Tableau de bord)
 * **Visualisation des KPIs Clés** : Cartes synthétiques des ventes, des charges mensuelles, du solde réel de trésorerie et de la marge d'exploitation.
 * **Graphiques de Performance** : Histogrammes et courbes de tendance dynamiques représentant les flux de trésorerie récents (`Recharts`).
 * **Suivi d'Abonnement Temps Réel & Calculateur de Précision** :
@@ -48,7 +44,7 @@ L'expérience utilisateur s'articule autour de 6 grandes sections de navigation 
   * **Barre de Progression Fonctionnelle** : Calcule le pourcentage exact consommé de la période de souscription (`elapsedPercent`) en comparant la date de souscription/contrat (`contractSignedAt`/`createdAt`) et la date d'échéance (`subscriptionEndDate`).
   * **Bouton d'Action Directe "Gérer l'offre" / "Renouveler"** : Redirige vers le module d'abonnements pour souscrire ou régulariser.
 
-#### B. Gestion Commerciale, Financière & Facturation
+### B. Gestion Commerciale, Financière & Facturation
 * **Tiers (Clients et Fournisseurs)** : Annuaire complet avec recherche prédictive, types d'entité, contacts associés, conditions de paiement individuelles et historique des transactions liées.
 * **Produits & Services** : Catalogue d'articles avec références (SKU), prix d'achat, prix de vente standard, marge brute et suivi automatique des niveaux de stock.
 * **Transactions & Encaissements Multi-Canaux** :
@@ -57,16 +53,16 @@ L'expérience utilisateur s'articule autour de 6 grandes sections de navigation 
 * **Finance & Trésorerie** : Analyses graphiques interactives via `Recharts`, rapports de liquidités exportables et calcul de l'éligibilité au financement de trésorerie.
 * **Charges** : Gestionnaire analytique des dépenses fixes et variables (loyers, électricité, abonnements tiers) avec catégorisation et filtres intelligents.
 
-#### C. Gestion des Stocks
+### C. Gestion des Stocks
 * **Mouvements de Stocks** : Historique chronologique des entrées (approvisionnements) et sorties (livraisons clients, pertes).
 * **Contrôle Strict contre Vente à Découvert** : Blocage systématique à la saisie de vente si la quantité en stock est insuffisante avec message explicite.
 * **Alerte de Stock Bas** : Indicateur visuel d'état du stock avec seuil de sécurité personnalisable.
 
-#### D. Communication & Assistance
+### D. Communication & Assistance
 * **Chat Interne (K-Chat)** : Messagerie collaborative en temps réel permettant aux membres d'une même entreprise d'échanger des instructions opérationnelles.
-* **Tickets de Support** : Portail d'ouverture et de suivi de fiches d'assistance pour signaler toute anomalie à l'équipe technique KONTROL.
+* **Tickets de Support** : Portail d'ouverture et de suivi de fiches d'assistance pour vos demandes auprès du support KONTROL.
 
-#### E. Système, Paramètres & Signature Officielle
+### E. Système, Paramètres & Signature Officielle
 * **Signature & Cachet Officiel d'Entreprise (`/signature`)** :
   * Module dédié dans le menu Système pour téléverser l'image officielle de la signature manuscrite ou du tampon d'entreprise (PNG/JPG jusqu'à 5 Mo).
   * Aperçu en temps réel de l'apposition sur les spécimens de contrats, factures et devis.
@@ -77,26 +73,13 @@ L'expérience utilisateur s'articule autour de 6 grandes sections de navigation 
 
 ---
 
-### 3.2. Tour de Contrôle – Pour les Super-Administrateurs
-
-L'espace super-administrateur offre une vision consolidée pour la supervision et la maintenance globale :
-
-* **Supervision des Entreprises & Abonnements** :
-  * Gestion de la liste des entreprises souscrites, activation/blocage de licences, prolongation des périodes d'essai.
-  * **Calcul Automatique du MRR (Monthly Recurring Revenue)** : Suivi en temps réel des revenus récurrents de la plateforme.
-* **Validation des Contrats & Paiements** : Consultation des contrats signés électroniquement et validation des paiements soumis via GeniusPay / Kkiapay / Wave / Virement.
-* **Gestion des Tickets & Support Client** : Attribution, traitement et clôture des demandes d'assistance émanant des entreprises.
-* **Status Monitor & Audit Logs** : Traçabilité des actions sensibles, logs d'audit d'intégrité et suivi des versions applicatives.
-
----
-
 ## 4. Processus Contractuel, Signature Électronique & Certifications
 
 ### 4.1. Contrat d'Abonnement Électronique (Cadre Légal OHADA & Côte d'Ivoire)
 Conformément aux **Articles 28 à 35 de la Loi n° 2013-546 du 30 juillet 2013 relative aux transactions électroniques en Côte d'Ivoire** et aux dispositions de l'**Acte Uniforme OHADA**, la plateforme intègre un parcours de signature électronique à valeur juridique :
 
 1. **Modal de Contrat d'Abonnement (`SubscriptionContractModal`)** :
-   * Présentation des CGU, des engagements réciproques, du rôle des administrateurs et des modalités de renouvellement à 30 jours.
+   * Présentation des CGU, des engagements réciproques, du rôle des administrateurs d'entreprise et des modalités de renouvellement à 30 jours.
 2. **Import Préalable ou Intégré de la Signature** :
    * L'entreprise peut importer son image de signature/cachet directement depuis le modal de contrat ou depuis la page dédiée `Signature & Cachet`.
 3. **Acceptation & Horodatage Certifié** :
@@ -118,13 +101,13 @@ Pour fluidifier le règlement des abonnements et des factures clients, KONTROL i
 
 1. **Paiement d'Abonnement KONTROL** :
    * Intégration directe des passerelles **GeniusPay** et **Kkiapay** permettant le paiement instantané par Mobile Money (Wave, Orange Money, MTN Mobile Money, Moov Money) et cartes bancaires (Visa, Mastercard).
-   * Validation automatique ou semi-automatique de l'abonnement dès confirmation du webhook / callback de paiement.
+   * Validation automatique de l'abonnement dès confirmation de paiement.
 2. **Règlement Rapide des Factures Clients** :
    * Génération de liens d'encaissement direct et codes QR Wave / Kkiapay configurés dynamiquement au montant exact de la facture.
 
 ---
 
-## 6. Architecture Technique, Sécurité & Tri-Applicatif
+## 6. Architecture Technique & Sécurité
 
 ### 6.1. Persistance & Haute Disponibilité
 * **Base de Données Cloud Firestore Multi-Tenant** : Stockage sécurisé avec isolation stricte des données par `companyId`.
@@ -134,12 +117,6 @@ Pour fluidifier le règlement des abonnements et des factures clients, KONTROL i
 * **Rust Shield (`/backend/rust-shield`)** : Validation bas niveau contre les débordements de mémoire, hachage immuable des transactions et vérification d'intégrité de registre de stock.
 * **Go Kernel (`/backend/go-kernel`)** : Cache sécurisé multi-thread (`sync.RWMutex`) et vérification d'autorisation de stock à haute concurrence.
 * **Java Core Engine (`/backend/java-core`)** : Contrôleur d'intégrité d'inventaires et calcul des règles de risques bancaires.
-
-### 6.3. Architecture Cible Tri-Applicative
-L'écosystème KONTROL s'articule autour de trois modules autonomes :
-1. **Applicatif Client (Espace PME)** : Saisie commerciale, facturation, stocks, signature et trésorerie.
-2. **Applicatif Admin (Tour de Contrôle)** : Supervision multi-entreprises, calcul du MRR et traitement des tickets.
-3. **BLUE AI (Serveur Sémantique CFO)** : Service d'IA décisionnelle et d'analyse financière prédictive.
 
 ---
 

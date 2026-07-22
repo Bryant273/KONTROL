@@ -35,7 +35,6 @@ import { hasPermission } from '../../lib/permissions';
 import { logAction, handleFirestoreError, OperationType, serverTimestamp } from '../../../api/firebase';
 import { generateInvoicePDF, generateReceiptPDF } from '../../lib/invoice';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
-import { CompanySelector } from '../../components/common/CompanySelector';
 import { motion, AnimatePresence } from 'motion/react';
 import { transactionService } from '../../../api/services/transactionService';
 import { tiersService } from '../../../api/services/tiersService';
@@ -53,12 +52,7 @@ interface TransactionsModuleProps {
 
 export function TransactionsModule({ user, currentUserProfile }: TransactionsModuleProps) {
   const { t } = useTranslation();
-  const isERPAdmin = currentUserProfile?.role === 'ADMINISTRATEUR_ERP' || currentUserProfile?.role === 'GESTIONNAIRE_ERP';
-  const [selectedCompanyId, setSelectedCompanyId] = React.useState<string | null>(currentUserProfile?.companyId || null);
-  
-  const companyId = isERPAdmin 
-    ? (selectedCompanyId || currentUserProfile?.companyId || user.uid) 
-    : (currentUserProfile?.companyId || user.uid);
+  const companyId = currentUserProfile?.companyId || user.uid;
   const [transactions, setTransactions] = React.useState<Transaction[]>([]);
   const [tiers, setTiers] = React.useState<Tiers[]>([]);
   const [produits, setProduits] = React.useState<Produit[]>([]);
@@ -273,29 +267,20 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
     const unsubscribes: (() => void)[] = [];
 
     // Transactions
-    const transConstraints: any[] = [orderBy('createdAt', 'desc')];
-    if (!(isERPAdmin && !selectedCompanyId)) {
-      transConstraints.unshift(where('ownerId', '==', companyId));
-    }
+    const transConstraints: any[] = [where('ownerId', '==', companyId), orderBy('createdAt', 'desc')];
     unsubscribes.push(transactionService.subscribeToAll(setTransactions, user, transConstraints));
 
     // Tiers
-    const tiersConstraints = [];
-    if (!(isERPAdmin && !selectedCompanyId)) {
-      tiersConstraints.push(where('ownerId', '==', companyId));
-    }
+    const tiersConstraints = [where('ownerId', '==', companyId)];
     unsubscribes.push(tiersService.subscribeToAll(setTiers, user, tiersConstraints));
 
     // Produits
-    const prodConstraints = [];
-    if (!(isERPAdmin && !selectedCompanyId)) {
-      prodConstraints.push(where('ownerId', '==', companyId));
-    }
+    const prodConstraints = [where('ownerId', '==', companyId)];
     unsubscribes.push(productService.subscribeToAll(setProduits, user, prodConstraints));
 
     setLoading(false);
     return () => unsubscribes.forEach(unsub => unsub());
-  }, [user, companyId, currentUserProfile, selectedCompanyId]);
+  }, [user, companyId, currentUserProfile]);
 
   React.useEffect(() => {
     const checkTargetId = () => {
@@ -935,14 +920,6 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
             <h2 className="text-xl font-extrabold text-kontrol-dark tracking-tight">{t('transactions.title')}</h2>
             <p className="text-[13px] text-kontrol-ink-muted mt-1">{t('transactions.subtitle')}</p>
           </div>
-          {isERPAdmin && (
-            <div className="hidden md:block">
-              <CompanySelector 
-                selectedId={selectedCompanyId} 
-                onSelect={setSelectedCompanyId} 
-              />
-            </div>
-          )}
         </div>
         <div className="flex gap-2">
           <input 

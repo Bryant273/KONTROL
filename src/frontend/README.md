@@ -47,8 +47,7 @@ Dans le strict respect de la **Charte d'Honnêteté Architecturale d'Innov'Korp*
     ├── stocks/ & produits/      - Inventaire d'entrepôt, alertes de sous-produits et mouvements physiques
     ├── blue/                    - Salon de consultation avec l'assistant virtuel BLUE AI
     ├── system/                  - SignatureModule (Signature & Cachet), NotificationsCenterModule, DataExchangeModule
-    ├── companies/               - CompanyHubModule, CompanyProfileModule
-    └── admin/                   - ControlTower d'administration de la plateforme (réservé aux admins KONTROL)
+    └── companies/               - CompanyHubModule, CompanyProfileModule
 ```
 
 ---

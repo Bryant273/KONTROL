@@ -91,8 +91,6 @@ export function CompanySetupModal({ profile, onClose, onComplete }: CompanySetup
       return;
     }
 
-    const isAdminEmail = ["acherie812@gmail.com", "innov.korp@gmail.com", "Innov.korp@gmail.com", "Acherie812@gmail.com"].includes(profile.email || '');
-
     setLoading(true);
     try {
       const updates = {
@@ -107,7 +105,7 @@ export function CompanySetupModal({ profile, onClose, onComplete }: CompanySetup
         language: detectedInfo?.language || 'fr',
         isProfileComplete: true,
         companyId: profile.companyId || profile.uid,
-        role: (isAdminEmail ? 'ADMINISTRATEUR_ERP' : 'ADMINISTRATEUR_ENTREPRISE') as any
+        role: 'ADMINISTRATEUR_ENTREPRISE' as any
       };
       await updateUserProfile(profile.uid, updates);
       
