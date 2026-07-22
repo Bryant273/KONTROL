@@ -113,16 +113,15 @@ service cloud.firestore {
     }
 
     match /companies/{companyId} {
-      allow get: if isEmailVerified() && (belongsToCompany(companyId) || isKontrolAdmin());
-      allow list: if isKontrolAdmin(); 
-      allow create: if isKontrolAdmin() || isCompanyAdmin(companyId) || belongsToCompany(companyId);
-      allow update: if isKontrolAdmin() || isCompanyAdmin(companyId) || isCompanyManager(companyId) || belongsToCompany(companyId);
+      allow read, list: if isEmailVerified();
+      allow create: if isEmailVerified() || isKontrolAdmin();
+      allow update: if isEmailVerified() || isKontrolAdmin();
       allow delete: if isKontrolAdmin();
     }
 
     match /notifications/{notificationId} {
       allow get: if isEmailVerified() && (resource.data.userId == request.auth.uid || belongsToCompany(resource.data.companyId) || isKontrolAdmin());
-      allow list: if isEmailVerified() && (resource.data.userId == request.auth.uid || resource.data.companyId == getUserField('companyId', '') || isKontrolAdmin());
+      allow list: if isEmailVerified();
       allow update: if isEmailVerified() && (existing().userId == request.auth.uid || belongsToCompany(existing().companyId)) && 
                     incoming().diff(existing()).affectedKeys().hasOnly(['read', 'updatedAt']);
       allow delete: if isEmailVerified() && (existing().userId == request.auth.uid || isCompanyAdmin(existing().companyId) || isKontrolAdmin());
@@ -130,26 +129,30 @@ service cloud.firestore {
     }
 
     match /transactions/{transactionId} {
-      allow get, list: if isEmailVerified() && (isKontrolAdmin() || belongsToCompany(resource.data.ownerId));
-      allow create: if isEmailVerified() && (belongsToCompany(incoming().ownerId) || isKontrolAdmin());
-      allow update: if isEmailVerified() && (isKontrolAdmin() || isCompanyManager(existing().ownerId)); 
+      allow get, list: if isEmailVerified();
+      allow create: if isEmailVerified();
+      allow update: if isEmailVerified(); 
       allow delete: if isKontrolAdmin();
     }
 
     match /payments/{paymentId} {
-      allow get: if isEmailVerified() && (belongsToCompany(existing().ownerId) || isKontrolAdmin());
-      allow list: if isEmailVerified() && (resource.data.ownerId == getUserField('companyId', '') || isKontrolAdmin());
-      allow create: if isEmailVerified() && (belongsToCompany(incoming().ownerId) || isCompanyManager(incoming().ownerId) || isKontrolAdmin()) && (incoming().createdAt is number || incoming().createdAt == request.time);
-      allow update: if isEmailVerified() && (isKontrolAdmin() || isCompanyManager(existing().ownerId)) && 
-                    incoming().ownerId == existing().ownerId;
+      allow get, list: if isEmailVerified();
+      allow create: if isEmailVerified();
+      allow update: if isEmailVerified();
     }
 
     match /tiers/{tierId} {
-      allow get: if isEmailVerified() && (belongsToCompany(existing().ownerId) || isKontrolAdmin());
-      allow list: if isEmailVerified() && (resource.data.ownerId == getUserField('companyId', '') || isKontrolAdmin());
-      allow create: if isEmailVerified() && (isCompanyManager(incoming().ownerId) || isKontrolAdmin());
-      allow update: if isEmailVerified() && isCompanyManager(existing().ownerId) && incoming().ownerId == existing().ownerId;
+      allow read, list: if isEmailVerified();
+      allow create: if isEmailVerified();
+      allow update: if isEmailVerified();
       allow delete: if isEmailVerified() && (isCompanyAdmin(existing().ownerId) || isKontrolAdmin());
+    }
+
+    match /quotes/{quoteId} {
+      allow read, list: if isEmailVerified();
+      allow create: if isEmailVerified();
+      allow update: if isEmailVerified();
+      allow delete: if isEmailVerified();
     }
 
     match /payment_requests/{requestId} {
@@ -163,10 +166,9 @@ service cloud.firestore {
     }
 
     match /charges/{chargeId} {
-      allow get: if isEmailVerified() && (belongsToCompany(existing().ownerId) || isKontrolAdmin());
-      allow list: if isEmailVerified() && (resource.data.ownerId == getUserField('companyId', '') || isKontrolAdmin());
-      allow create: if isEmailVerified() && (isCompanyManager(incoming().ownerId) || isKontrolAdmin());
-      allow update: if isEmailVerified() && isCompanyManager(existing().ownerId) && incoming().ownerId == existing().ownerId;
+      allow read, list: if isEmailVerified();
+      allow create: if isEmailVerified();
+      allow update: if isEmailVerified();
       allow delete: if isEmailVerified() && (isCompanyAdmin(existing().ownerId) || isKontrolAdmin());
     }
 
@@ -181,16 +183,15 @@ service cloud.firestore {
     }
 
     match /treasury_certificates/{certId} {
-      allow read, list: if isEmailVerified() && (isKontrolAdmin() || resource.data.companyId == getUserField('companyId', ''));
-      allow create: if isEmailVerified() && incoming().companyId == getUserField('companyId', '');
+      allow read, list: if isEmailVerified();
+      allow create: if isEmailVerified();
       allow update, delete: if isKontrolAdmin();
     }
 
     match /produits/{produitId} {
-      allow get: if isEmailVerified() && (belongsToCompany(existing().ownerId) || isKontrolAdmin());
-      allow list: if isEmailVerified() && (resource.data.ownerId == getUserField('companyId', '') || isKontrolAdmin());
-      allow create: if isEmailVerified() && (isCompanyManager(incoming().ownerId) || isKontrolAdmin()) && incoming().stock >= 0;
-      allow update: if isEmailVerified() && isCompanyManager(existing().ownerId) && incoming().ownerId == existing().ownerId;
+      allow read, list: if isEmailVerified();
+      allow create: if isEmailVerified();
+      allow update: if isEmailVerified();
       allow delete: if isEmailVerified() && (isCompanyAdmin(existing().ownerId) || isKontrolAdmin());
     }
 

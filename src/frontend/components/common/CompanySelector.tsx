@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Building2, ChevronDown, Search, Loader2 } from 'lucide-react';
-import { db, collection, getDocs, query, where, orderBy, handleFirestoreError, OperationType, auth } from '../../../api/firebase';
-import { Company } from '../../types';
+import { db, collection, getDocs, doc, getDoc, query, orderBy, handleFirestoreError, OperationType, auth } from '../../../api/firebase';
+import { Company, UserProfile } from '../../types';
 import { cn } from '../../lib/utils';
 
 interface CompanySelectorProps {
@@ -14,21 +14,46 @@ export function CompanySelector({ onSelect, selectedId }: CompanySelectorProps) 
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [checkingRole, setCheckingRole] = useState(true);
 
   useEffect(() => {
-    const fetchCompanies = async () => {
-      setLoading(true);
+    const checkRoleAndFetchCompanies = async () => {
+      const user = auth.currentUser;
+      if (!user) {
+        setCheckingRole(false);
+        return;
+      }
+
       try {
-        const snapshot = await getDocs(query(collection(db, 'companies'), orderBy('name')));
-        setCompanies(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Company)));
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          const profile = userDoc.data() as UserProfile;
+          setUserProfile(profile);
+
+          const isSuperAdmin = ['ADMINISTRATEUR_ERP', 'GESTIONNAIRE_ERP', 'ADMINISTRATEUR_KONTROL', 'GESTIONNAIRE_KONTROL', 'ADMIN'].includes(profile.role);
+          if (isSuperAdmin) {
+            setLoading(true);
+            const snapshot = await getDocs(query(collection(db, 'companies'), orderBy('name')));
+            setCompanies(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Company)));
+          }
+        }
       } catch (error) {
-        handleFirestoreError(error, OperationType.LIST, 'companies', auth.currentUser, false);
+        // Silently catch or handle
       } finally {
+        setCheckingRole(false);
         setLoading(false);
       }
     };
-    fetchCompanies();
+    checkRoleAndFetchCompanies();
   }, []);
+
+  const isSuperAdmin = userProfile && ['ADMINISTRATEUR_ERP', 'GESTIONNAIRE_ERP', 'ADMINISTRATEUR_KONTROL', 'GESTIONNAIRE_KONTROL', 'ADMIN'].includes(userProfile.role);
+
+  // Non-super-admins should NEVER see or use the company selector dropdown
+  if (checkingRole || !isSuperAdmin) {
+    return null;
+  }
 
   const selectedCompany = companies.find(c => c.id === selectedId);
   const filteredCompanies = companies.filter(c => 

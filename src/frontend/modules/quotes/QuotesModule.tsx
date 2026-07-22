@@ -594,10 +594,12 @@ export function QuotesModule({ user, currentUserProfile }: QuotesModuleProps) {
               <FileCheck className="text-kontrol-blue" size={24} />
               Devis & Factures Proforma
             </h1>
-            <CompanySelector
-              selectedId={selectedCompanyId}
-              onSelect={setSelectedCompanyId}
-            />
+            {isERPAdmin && (
+              <CompanySelector
+                selectedId={selectedCompanyId}
+                onSelect={setSelectedCompanyId}
+              />
+            )}
           </div>
           <p className="text-xs text-kontrol-ink-soft mt-1">
             Établissez des devis commerciaux, suivez leur acceptation et convertissez-les en factures de vente officielles en 1 clic.
