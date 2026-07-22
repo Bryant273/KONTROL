@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, CheckCircle2, Download, FileText, Building2, ShieldCheck, Calendar, ArrowRight, Sparkles } from 'lucide-react';
+import { X, CheckCircle2, Download, FileText, Building2, ShieldCheck, Calendar, ArrowRight, Sparkles, FileCheck } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../api/firebase';
 import { UserProfile } from '../../types';
@@ -397,15 +397,54 @@ export const SubscriptionContractModal: React.FC<SubscriptionContractModalProps>
             <div className="space-y-1">
               <h5 className="font-bold text-xs text-kontrol-dark">ARTICLE 24 : VALEUR PROBANTE DE LA SIGNATURE ÉLECTRONIQUE</h5>
               <p className="text-slate-600 leading-relaxed">
-                La validation du présent document via le bouton d'acceptation "J'accepte et je signe le contrat" constitue une signature électronique pleinement valide, authentique et légalement opposable entre l'Abonné et l'Éditeur.
+                En application des <strong>Articles 28 à 35 de la Loi n° 2013-546 du 30 juillet 2013 relative aux transactions électroniques en Côte d'Ivoire</strong>, la validation du présent document via le bouton d'acceptation "J'accepte et je signe le contrat" équivaut de plein droit à une signature manuscrite authentique, certifiée et légalement opposable entre l'Abonné et l'Éditeur.
               </p>
             </div>
 
             <div className="space-y-1">
-              <h5 className="font-bold text-xs text-kontrol-dark">ARTICLE 25 : DROIT APPLICABLE ET JURISDICTION EN CAS DE LITIGE</h5>
+              <h5 className="font-bold text-xs text-kontrol-dark">ARTICLE 25 : DROIT APPLICABLE ET JURIDICTION EN CAS DE LITIGE</h5>
               <p className="text-slate-600 leading-relaxed">
-                Le présent contrat est soumis au droit en vigueur. Tout différend relatif à sa validité, son interprétation ou son exécution fera l'objet d'une recherche de solution amiable avant toute saisie des tribunaux compétents.
+                Le présent contrat est exclusivement régi par le <strong>Droit Ivoirien</strong> et les <strong>Actes Uniformes de l'OHADA</strong>. En cas de différend relatif à sa validite, son interprétation ou son exécution non résolu à l'amiable, <strong>COMPÉTENCE EXCLUSIVE ET ATTRIBUTION DE JURIDICTION SONT DÉLÉGUÉES AU TRIBUNAL DE COMMERCE D'ABIDJAN (TCA)</strong> (Loi n° 2014-424 portant organisation et fonctionnement des juridictions de commerce en Côte d'Ivoire).
               </p>
+            </div>
+
+            {/* Visual Signature Stamps in Contract Modal */}
+            <div className="mt-6 p-4 rounded-xl border border-slate-200 bg-slate-50/80 space-y-3">
+              <h5 className="font-extrabold text-xs text-slate-800 uppercase tracking-wide flex items-center gap-2">
+                <FileCheck size={16} className="text-kontrol-blue" />
+                Signatures & Cachets Électroniques des Parties
+              </h5>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                {/* Editor Stamp */}
+                <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-1">
+                  <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block">Pour l'Éditeur (INNOV'KORP)</span>
+                  <p className="font-extrabold text-slate-900">INNOV'KORP Côte d'Ivoire</p>
+                  <p className="text-[11px] text-slate-500">Signé électroniquement via la plateforme KONTROL ERP</p>
+                  <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-50 text-blue-700 font-bold text-[10px] rounded border border-blue-200 mt-1">
+                    <CheckCircle2 size={12} /> Cachet Éditeur Certifié
+                  </div>
+                </div>
+
+                {/* Subscriber Stamp */}
+                {isSigned ? (
+                  <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200 space-y-1">
+                    <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">Pour l'Abonné (Souscripteur)</span>
+                    <p className="font-extrabold text-emerald-950">{companyName}</p>
+                    <p className="text-[11px] text-emerald-800">Représenté par : <strong>{profile.contractSignedBy || managerName}</strong></p>
+                    <p className="text-[10px] text-emerald-700">Horodatage : {signDateFormatted}</p>
+                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-emerald-600 text-white font-bold text-[10px] rounded shadow-xs mt-1">
+                      <ShieldCheck size={12} /> Contrat Signé & Approuvé
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-slate-100 rounded-lg border border-dashed border-slate-300 space-y-1 flex flex-col justify-center">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Pour l'Abonné (Souscripteur)</span>
+                    <p className="font-bold text-slate-700">{companyName}</p>
+                    <p className="text-[11px] text-slate-500 italic">En attente d'acceptation et de signature électronique ci-dessous</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

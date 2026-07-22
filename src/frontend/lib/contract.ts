@@ -59,6 +59,7 @@ export const generateContractPDF = (profile: UserProfile | null) => {
   const phone = cleanText(profile?.phone || 'Non renseigne');
 
   const signDateObj = profile?.contractSignedAt ? new Date(profile.contractSignedAt) : new Date();
+  const isSigned = !!profile?.contractSignedAt;
   const signDateStr = signDateObj.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
   
   const dueDateObj = new Date(signDateObj.getTime() + 30 * 24 * 60 * 60 * 1000);
@@ -163,132 +164,130 @@ export const generateContractPDF = (profile: UserProfile | null) => {
   doc.setFontSize(7.5);
   doc.text(cleanText(`Represente par : ${managerName} · Email : ${email} · Tel : ${phone}`), margin + 8, y + 27);
 
-  y += 37;
-
-  // List of 25 detailed Articles grouped into Titles
+  // List of 25 detailed Articles grouped into Titles with OHADA, CGI/DGI & Ivoirian legal citations
   const sections = [
     {
       sectionTitle: "TITRE I : MENTIONS LEGALES & IDENTIFICATION DE L'EDITEUR",
       articles: [
         {
-          num: "ARTICLE 1 : IDENTIFICATION DE L'EDITEUR",
-          text: "La plateforme applicative KONTROL ERP est entierement concue, editee, developpee et exploitee par l'entite INNOV'KORP (ci-apres \"l'Editeur\"), dont le siege social est situe a Abidjan, Cote d'Ivoire (Email de contact officiel : Innov.korp@gmail.com)."
+          num: "ARTICLE 1 : IDENTIFICATION DE L'EDITEUR & REGISTRE OHADA",
+          text: "La plateforme applicative KONTROL ERP est entierement concue, editee et exploitee par l'entite INNOV'KORP (ci-apres \"l'Editeur\"), dont le siege social est situe a Abidjan, Cote d'Ivoire (Email : Innov.korp@gmail.com). Conformement aux dispositions des Articles 13 a 20 de l'Acte Uniforme OHADA portant Droit Commercial General (AUDCG), l'Editeur est regulierement inscrit au Registre du Commerce et du Credit Mobilier (RCCM) d'Abidjan."
         },
         {
-          num: "ARTICLE 2 : HEBERGEMENT, INFRASTRUCTURE CLOUD & DISPONIBILITE",
-          text: "Les infrastructures informatiques, serveurs cloud, bases de donnees et services applicatifs de KONTROL ERP sont heberges sur des centres de donnees securises offrant un taux de disponibilite cible de 99,9%, un chiffrement continu des communications (TLS/SSL) et une redondance geographique des sauvegardes."
+          num: "ARTICLE 2 : HEBERGEMENT, INFRASTRUCTURE CLOUD & CYBERSECURITE",
+          text: "Les infrastructures informatiques, serveurs cloud et bases de donnees de KONTROL ERP sont heberges sur des centres de donnees haute disponibilite (99,9%) avec chiffrement continu TLS/SSL, conformement aux obligations de securite et d'integrite des systemes d'information edictees par la Loi n° 2013-451 du 19 juin 2013 relative a la lutte contre la cybercriminalite en Cote d'Ivoire."
         },
         {
           num: "ARTICLE 3 : ASSISTANCE TECHNIQUE ET SUPPORT CLIENT",
-          text: "L'Editeur met a la disposition de l'Abonne un service d'assistance technique et d'accompagnement client directement accessible depuis l'interface KONTROL ERP ainsi que par courrier electronique, afin d'assurer le traitement des demandes de support, correctifs ou conseils d'utilisation."
+          text: "L'Editeur met a la disposition de l'Abonne un service d'assistance technique et d'accompagnement client accessible via la plateforme applicative et par courrier electronique, garantissant une prise en charge diligente des demandes d'assistance sous l'empire du Code des Obligations de Cote d'Ivoire."
         }
       ]
     },
     {
-      sectionTitle: "TITRE II : CONDITIONS GENERALES D'UTILISATION (CGU)",
+      sectionTitle: "TITRE II : CONDITIONS GENERALES D'UTILISATION (CGU), FNE & ROLES",
       articles: [
         {
-          num: "ARTICLE 4 : OBJET, OBJECTIFS STRATEGIQUES & ACCOMPAGNEMENT FNE",
-          text: "Les presentes CGU definissent les regles d'utilisation de KONTROL ERP. Concue specialement pour structurer la gestion des PME et TPE, la plateforme a pour objectif d'assainir la gestion commerciale, financiere et comptable des entreprises, tout en les preparant a la mise en conformite reglementaire avec la Facture Normalisee Electronique (FNE) exigee par les administrations fiscales."
+          num: "ARTICLE 4 : OBJET, CONFORMITE FNE DGI & CONSOLIDATION DES PME/TPE",
+          text: "Les presentes CGU definissent les regles d'utilisation de KONTROL ERP. Concue pour structurer et assainir la gestion financiere et comptable des PME/TPE, la plateforme a pour objectif majeur la mise en conformite des entreprises avec l'obligation legale de la Facture Normalisee Electronique (FNE) regie par le Code General des Impots (CGI) de Cote d'Ivoire (Articles 216, 217 et suivants) et les directives de la Direction Generale des Impots (DGI)."
         },
         {
-          num: "ARTICLE 5 : ACCEPTATION, ENTREE EN VIGUEUR ET OPPOSABILITE",
-          text: "L'utilisation des services de KONTROL ERP est strictement conditionnee par l'acceptation sans reserve des presentes CGU. La validation electronique effectuee par le representant habilite de l'Abonne vaut signature ferme, definitive et opposable a l'Abonne."
+          num: "ARTICLE 5 : ACCEPTATION, FORMATION DU CONTRAT ET OPPOSABILITE",
+          text: "L'utilisation des services est conditionnee par l'acceptation sans reserve des presentes CGU. Conformement aux Articles 15 a 22 de la Loi n° 2013-546 du 30 juillet 2013 relative aux transactions electroniques en Cote d'Ivoire, la validation electronique vaut consentement ferme, definitif et legalement opposable a l'Abonne."
         },
         {
           num: "ARTICLE 6 : CREATION, ACCES ET SECURISATION DES COMPTES UTILISATEURS",
-          text: "Chaque compte souscrit est propre a l'entreprise Abonnee. L'Abonne s'engage a fournir des informations exactes lors de la creation du compte et est seul responsable de la garde, de la confidentialite et de la transmission de ses identifiants de connexion. Tout acces realise au moyen des identifiants de l'Abonne est repute effectue sous sa responsabilite exclusive."
+          text: "L'Abonne est responsable de l'exactitude des informations fournies et de la confidentialite absolue de ses identifiants. Tout acces ou transaction realise a l'aide des identifiants de l'Abonne est repute effectue sous sa responsabilite exclusive, en application du Droit Commercial General OHADA."
         },
         {
-          num: "ARTICLE 7 : HIERARCHIE INTERNE, ROLES ET HABILITATIONS UTILISATEURS",
-          text: "L'Abonne dispose d'une gestion fine des utilisateurs articulee autour de trois roles cles du logiciel : (1) ADMINISTRATEUR ENTREPRISE : Representant legal ou dirigeant avec controle total de la societe, gestion des comptes utilisateurs, signature des contrats, validation financiere et reinitialisations ; (2) GESTIONNAIRE ENTREPRISE : Responsable operationnel ou comptable habilite a piloter les transactions, valider les factures, suivre la tresorerie, les stocks et les tiers ; (3) UTILISATEUR : Collaborateur, commercial ou caissier restreint aux operations quotidiennes d'execution (saisie des devis, facturation, enregistrement des reglements)."
+          num: "ARTICLE 7 : HIERARCHIE INTERNE, ROLES ET POUVOIRS DE REPRESENTATION",
+          text: "Conformement a l'Acte Uniforme OHADA relatif au Droit des Societes Commerciales et du GIE (AUSCGIE, Art. 121 et suiv.), les privileges applicatifs sont repartis en trois roles cles : (1) ADMINISTRATEUR ENTREPRISE : Representant legal ou dirigeant avec pouvoir total (gestion de societe, signature des contrats, validation financiere et gestion des acces) ; (2) GESTIONNAIRE ENTREPRISE : Responsable operationnel habilite a piloter les ventes, achats, factures, la tresorerie, la caisse, les stocks et les tiers ; (3) UTILISATEUR : Collaborateur ou caissier restreint aux actes d'execution quotidienne (saisie des devis, factures, encaissements)."
         },
         {
-          num: "ARTICLE 8 : USAGE ACCEPTABLE, INTERDICTIONS ET COMPORTEMENTS PROHIBES",
-          text: "L'Abonne s'interdit formellement toute tentative de retro-ingenierie, decompilation, extraction massive de code ou de donnees, introduction de scripts malveillants ou surcharge intentionnelle des serveurs. Tout manquement entrainera la resiliation immediate du compte sans preavis ni indemnite."
+          num: "ARTICLE 8 : USAGE ACCEPTABLE ET PROTECTION DU SYSTEME AUTOMATISE",
+          text: "Tout usage abusif, tentative d'extraction non autorisee, retro-ingenierie ou atteinte a l'integrite du logiciel est formellement prohibe sous peine de resiliation immediate, sans prejudice des sanctions pénales prevues par la Loi n° 2013-451 du 19 juin 2013 sur la cybercriminalite."
         },
         {
           num: "ARTICLE 9 : PROPRIETE INTELLECTUELLE ET DROITS CONCEDES",
-          text: "L'ensemble de la plateforme KONTROL ERP, ses codes sources, interfaces graphiques, logos, marques, bases de donnees et algorithmes demeurent la propriete exclusive d'INNOV'KORP. L'Abonne ne beneficie que d'un droit d'usage personnel, non exclusif, temporaire et intransferable."
+          text: "L'ensemble du logiciel KONTROL ERP, ses algorithmes, marques et bases de donnees sont proteges par l'Annexe I de l'Accord de Bangui (OAPI). L'Abonne ne beneficie que d'un droit d'usage personnel, non exclusif, temporaire et intransferable."
         },
         {
           num: "ARTICLE 10 : DISPONIBILITE, MAINTENANCE PREVENTIVE ET EVOLUTIONS",
-          text: "L'Editeur s'efforce d'assurer un acces ininterrompu au service 24h/24 et 7j/7. Toutefois, l'Editeur se reserve le droit d'interrompre momentanement l'acces pour realiser des operations de maintenance preventive, evolutive ou corrective, en informant prealablement l'Abonne via la plateforme."
+          text: "L'Editeur s'efforce d'assurer un acces ininterrompu au service. Les interruptions temporaires pour maintenance preventive ou mises a jour reglementaires sont notifiees via le tableau de bord sans engager la responsabilite de l'Editeur."
         }
       ]
     },
     {
-      sectionTitle: "TITRE III : CONTRAT D'ABONNEMENT, TARIFICATION & REGLEMENT",
+      sectionTitle: "TITRE III : CONTRAT D'ABONNEMENT, PERIMETRE & MODALITES FINANCIERES",
       articles: [
         {
-          num: "ARTICLE 11 : PERIMETRE DES MODULES ET FONCTIONNALITES INCLUSES",
-          text: "L'abonnement KONTROL ERP donne un acces complet aux modules natifs de l'application : (1) Tableau de Bord 360° (suivi du CA, marges, creances, dettes et solde de tresorerie) ; (2) Ventes & Achats (Devis, Factures Proforma, Factures de Vente, Factures d'Avoir, Bons de Commande, Recus et Repertoire Tiers Clients/Fournisseurs) ; (3) Module de Preparation FNE (conformite des mentions de facturation pour transmission aux impots) ; (4) Tresorerie, Caisse & Charges (suivi des comptes, charges d'exploitation, attestations financieres) ; (5) Gestion des Stocks & Mouvements (entrees/sorties, inventaires, valorisation) ; (6) Assistant IA KONTROL Genius (analyses financieres et conseils) ; (7) Messagerie d'Entreprise K-Chat & Support ; (8) Fiche Entreprise & Journal d'Audit des actions."
+          num: "ARTICLE 11 : PERIMETRE EXHAUSTIF DES MODULES ET FONCTIONNALITES INCLUSES",
+          text: "L'abonnement KONTROL ERP octroie un acces illimite aux modules applicatifs natifs : (1) Tableau de Bord 360° (suivi du CA, marge brute, creances, dettes, solde de tresorerie) ; (2) Ventes & Achats (Devis/Proforma, Factures de Vente, Factures d'Avoir, Bons de Commande, Recus et Repertoire Tiers Clients/Fournisseurs) ; (3) Module de Preparation FNE (conformite des mentions fiscales d'identification) ; (4) Tresorerie, Caisse & Charges (comptes bancaires/caisses, suivi des charges, attestations financieres) ; (5) Gestion des Stocks (mouvements, inventaires, valorisation) ; (6) Assistant IA KONTROL Genius (analyses financieres) ; (7) Messagerie K-Chat & Journal d'Audit des actions."
         },
         {
-          num: "ARTICLE 12 : TARIFICATION ET CONDITIONS DE REVISION",
-          text: "Le droit d'acces au service est accorde moyennant le paiement d'un abonnement mensuel forfaitaire fixe a 15 000 F CFA TTC par mois. L'Editeur se reserve la faculte de reviser ses tarifs en notifiant l'Abonne au moins 30 jours civils avant l'application du nouveau tarif."
+          num: "ARTICLE 12 : TARIFICATION FORFAITAIRE ET LIBERTE DES PRIX",
+          text: "L'abonnement est concédé au tarif forfaitaire mensuel de 15 000 F CFA TTC par mois, fixe conformement a la reglementation sur la liberte des prix et de la concurrence en Cote d'Ivoire (Ordonnance n° 2013-662)."
         },
         {
           num: "ARTICLE 13 : PRISE D'EFFET & ECHEANCE EFFECTIVE D'ABONNEMENT A 30 JOURS",
-          text: `Le present contrat prend effet a compter de sa signature electronique le ${signDateStr}. L'Abonne beneficie d'une periode d'utilisation dont la premiere echeance effective de renouvellement est imperativement fixee a 30 jours calendaires a compter du jour de la signature, soit le ${dueDateStr}.`
+          text: `Le présent contrat prend effet le ${signDateStr}. L'Abonné bénéficie d'un cycle d'utilisation dont la premiere echeance de renouvellement est imperativement fixee a 30 jours calendaires a compter de la date d'effet, soit le ${dueDateStr}.`
         },
         {
-          num: "ARTICLE 14 : MODALITES DE REGLEMENT ET MODES DE PAIEMENT",
-          text: "Le reglement des mensualites s'effectue au moyen des systemes et canaux de paiement electronique securises mis a disposition sur la plateforme. La generation de la reference de transaction validee constitue la preuve irrefragable du paiement effectif."
+          num: "ARTICLE 14 : REGLEMENT ET MONNAIE ELECTRONIQUE UMOA / BCEAO",
+          text: "Le paiement s'effectue via les moyens de reglement electroniques et monelies electroniques autorises par la BCEAO au sein de l'UMOA. La validation electronique de la transaction vaut preuve libératoire de reglement."
         },
         {
-          num: "ARTICLE 15 : DEFAUT DE PAIEMENT, RETARDS ET SUSPENSION DES ACCES",
-          text: "A defaut de reglement de la redevance a la date d'echeance effective fixee, l'Editeur se reserve le droit de restreindre temporairement l'acces aux fonctions d'ecriture et d'emission de pieces commerciales jusqu'a la regularisation complete des sommes dues."
+          num: "ARTICLE 15 : RECOUVREMENT DES IMPAYES ET VOIES D'EXECUTION OHADA",
+          text: "En cas de defaut de paiement a l'echeance, l'Editeur suspend les fonctions d'emission de pieces. L'Editeur se reserve la faculte de poursuivre le recouvrement des impayes conformement a l'Acte Uniforme OHADA portant organisation des procedures simplifiees de recouvrement et des voies d'execution (AUPSRVE)."
         },
         {
-          num: "ARTICLE 16 : FACTURATION ET QUITTANCES D'ABONNEMENT",
-          text: "Chaque paiement valide donne lieu a la mise a disposition automatique d'un recu numerique d'achat d'abonnement au sein de l'espace d'administration de l'Abonne, servant de justificatif comptable et fiscal."
+          num: "ARTICLE 16 : FACTURATION ET PIECES JUSTIFICATIVES COMPTABLES",
+          text: "Chaque reglement valide genere une quittance d'abonnement numerique conforme aux obligations du Code General des Impots (CGI) de Cote d'Ivoire, servant de piece justificative comptable."
         }
       ]
     },
     {
-      sectionTitle: "TITRE IV : CONFIDENTIALITE, TRAITEMENT DES DONNEES & SECURITE",
+      sectionTitle: "TITRE IV : CONFIDENTIALITE, PROTECTION DES DONNEES & CONSERVATION",
       articles: [
         {
           num: "ARTICLE 17 : SECRET DES AFFAIRES ET CONFIDENTIALITE STRICTE",
-          text: "L'Editeur s'engage a observer la plus stricte confidentialite sur l'ensemble des donnees commerciales, financieres, comptables, clients et fournisseurs saisies ou stockees par l'Abonne au sein de son espace KONTROL ERP."
+          text: "L'Editeur s'engage au secret professionnel et a la confidentialite absolue sur les donnees financieres et commerciales de l'Abonne, conformement aux usages du commerce sous le droit OHADA."
         },
         {
-          num: "ARTICLE 18 : PROPRIETE ET PROTECTION DES DONNEES ENTREPRISE",
-          text: "L'Abonne demeure le seul et unique proprietaire de l'ensemble de ses donnees commerciales, fichiers clients et ecritures comptables. L'Editeur ne procede a aucune vente, location ou cession de donnees a des tiers."
+          num: "ARTICLE 18 : PROPRIETE ET PROTECTION DES DONNEES A CARACTERE PERSONNEL",
+          text: "L'Abonne demeure le proprietaire exclusif de ses donnees. Conformement a la Loi n° 2013-450 du 19 juin 2013 relative a la protection des donnees a caractere personnel en Cote d'Ivoire (ARTCI), l'Abonne dispose d'un droit permanent d'acces, de rectification et de suppression de ses donnees."
         },
         {
-          num: "ARTICLE 19 : SAUVEGARDES AUTOMATIQUES, ARCHIVAGE ET RESTITUTION",
-          text: "L'Editeur realise des sauvegardes automatisees quotidiennes. En cas de cessation ou de resiliation de l'abonnement, l'Abonne dispose d'un delai de 30 jours pour solliciter l'extraction complete de ses donnees au format standard."
+          num: "ARTICLE 19 : CONSERVATION DES LIVRES COMPTABLES (SYSCOHADA) ET SAUVEGARDES",
+          text: "L'Editeur opere des sauvegardes quotidiennes. Conformement a l'Article 24 de l'Acte Uniforme OHADA relatif au droit comptable et a l'information financiere (SYSCOHADA) fixant la conservation des documents comptables a 10 ans, l'Abonne peut exporter ses donnees a tout moment."
         },
         {
-          num: "ARTICLE 20 : HORODATAGE, TRACABILITE ET INTEGRITE DES REGISTRES",
-          text: "L'ensemble des pieces commerciales et operations saisies sur KONTROL ERP fait l'objet d'un horodatage numerique infalsifiable garantissant l'integrite et la valeur probante des ecritures enregistrees."
+          num: "ARTICLE 20 : HORODATAGE ET TRACABILITE DES REGISTRES D'AUDIT",
+          text: "Chaque operation et modification sur la plateforme fait l'objet d'un horodatage numerique certifie garantissant l'integrite et la valeur probante des ecritures, conformement a la Loi n° 2013-546 sur les transactions electroniques."
         }
       ]
     },
     {
-      sectionTitle: "TITRE V : RESPONSABILITES, RESILIATION, SIGNATURE & LITIGES",
+      sectionTitle: "TITRE V : RESPONSABILITES, RESILIATION, SIGNATURE & JURIDICTION",
       articles: [
         {
-          num: "ARTICLE 21 : LIMITATION ET EXCLUSION DE RESPONSABILITE",
-          text: "L'Editeur ne saurait etre tenu pour responsable des dommages indirects, pertes d'exploitation, manque a gagner ou erreurs de decision financiere resultant de donnees de saisie inexactes ou incompletes effectuees par les utilisateurs de l'Abonne."
+          num: "ARTICLE 21 : RESPONSABILITE CONTRACTUELLE ET EXCLUSIONS",
+          text: "L'Editeur est tenu a une obligation de moyens. Il ne saurait etre tenu responsable des erreurs de saisie effectuees par l'Abonne ou des pertes d'exploitation indirectes."
         },
         {
-          num: "ARTICLE 22 : CAS DE FORCE MAJEURE",
-          text: "Chacune des parties sera exoneree de sa responsabilite en cas d'inexecution subie consecutive a un evenement de force majeure habituellement reconnu par la jurisprudence et les tribunaux competents."
+          num: "ARTICLE 22 : FORCE MAJEURE SELON LA JURISPRUDENCE CCJA / OHADA",
+          text: "Les parties sont exonerees de leur responsabilite en cas d'evenement de force majeure repondant aux criteres d'extériorité, d'imprévisibilité et d'irrésistibilité etablis par la jurisprudence de la Cour Commune de Justice et d'Arbitrage (CCJA) de l'OHADA."
         },
         {
-          num: "ARTICLE 23 : DUREE DU CONTRAT, ROULEMENT ET MODALITES DE RESILIATION",
-          text: "Le present contrat est conclu sans engagement de duree minimale de conservation. L'Abonne conserve la faculte de resilier son abonnement a tout moment directement depuis son tableau de bord d'administration sans penalites."
+          num: "ARTICLE 23 : DUREE SANS ENGAGEMENT ET LIBERTE DE RESILIATION",
+          text: "Le contrat est conclu sans engagement de duree minimale. L'Abonne peut resilier a tout moment sans penalites depuis son espace d'administration, conformement aux principes du droit des contrats OHADA."
         },
         {
           num: "ARTICLE 24 : VALEUR PROBANTE DE LA SIGNATURE ELECTRONIQUE",
-          text: "La validation du present document via le bouton d'acceptation \"J'accepte et je signe le contrat\" constitue une signature electronique pleinement valide, authentique et legalement opposable entre l'Abonne et l'Editeur."
+          text: "En application des Articles 28 a 35 de la Loi n° 2013-546 du 30 juillet 2013 relative aux transactions electroniques en Cote d'Ivoire, l'acceptation electronique du contrat par le souscripteur via le bouton \"J'accepte et je signe le contrat\" equivaut de plein droit a une signature manuscrite authentique et legale."
         },
         {
-          num: "ARTICLE 25 : DROIT APPLICABLE ET JURIDICTION EN CAS DE LITIGE",
-          text: "Le present contrat est soumis au droit en vigueur. Tout differend relatif a sa validite, son interpretation ou son execution fera l'objet d'une recherche de solution amiable avant toute saisie des tribunaux competents."
+          num: "ARTICLE 25 : DROIT APPLICABLE ET ATTRIBUTION DE COMPETENCE (TRIBUNAL DE COMMERCE D'ABIDJAN)",
+          text: "Le present contrat est exclusivement regi par le Droit Ivoirien et les Actes Uniformes de l'OHADA. En cas de differend relatif a sa validite, son interpretation ou son execution non resolu a l'amiable, COMPETENCE EXCLUSIVE ET ATTRIBUTION DE JURIDICTION SONT DELEGUÉES AU TRIBUNAL DE COMMERCE D'ABIDJAN (TCA) (Loi n° 2014-424 portant organisation des juridictions de commerce en Cote d'Ivoire)."
         }
       ]
     }
@@ -330,37 +329,72 @@ export const generateContractPDF = (profile: UserProfile | null) => {
   });
 
   // Signatures section on final page
-  y = checkPageSpace(35, y);
-
+  y = checkPageSpace(38, y);
   y += 2;
-  doc.setFillColor(236, 253, 245);
-  doc.rect(margin, y, contentWidth, 28, 'F');
-  doc.setDrawColor(16, 185, 129);
-  doc.setLineWidth(0.4);
-  doc.rect(margin, y, contentWidth, 28, 'S');
 
-  doc.setTextColor(6, 95, 70);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
-  doc.text(cleanText("ATTESTATION DE SIGNATURE ELECTRONIQUE CERTIFIEE"), margin + 4, y + 5.5);
+  if (isSigned) {
+    // Green box for certified signed contract
+    doc.setFillColor(236, 253, 245);
+    doc.rect(margin, y, contentWidth, 30, 'F');
+    doc.setDrawColor(16, 185, 129);
+    doc.setLineWidth(0.4);
+    doc.rect(margin, y, contentWidth, 30, 'S');
 
-  doc.setTextColor(4, 120, 87);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.text(cleanText(`Signe electroniquement par : ${managerName} (${companyName})`), margin + 4, y + 12);
-  doc.text(cleanText(`Date & Heure de Signature : ${signDateStr}`), margin + 4, y + 17);
-  doc.text(cleanText(`Echeance d'abonnement effective : ${dueDateStr}`), margin + 4, y + 22);
+    doc.setTextColor(6, 95, 70);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.text(cleanText("ATTESTATION DE SIGNATURE ELECTRONIQUE CERTIFIEE (LOI N° 2013-546)"), margin + 4, y + 5.5);
 
-  // Digital Seal Badge
-  doc.setFillColor(16, 185, 129);
-  doc.rect(pageWidth - margin - 48, y + 5, 44, 17, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.text("CONTRAT SIGNE", pageWidth - margin - 26, y + 11.5, { align: 'center' });
-  doc.setFontSize(6.5);
-  doc.setFont('helvetica', 'normal');
-  doc.text("KONTROL VERIFIED", pageWidth - margin - 26, y + 16, { align: 'center' });
+    doc.setTextColor(4, 120, 87);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.text(cleanText(`Editeur : INNOV'KORP · Signature electronique certifiée apposee`), margin + 4, y + 11);
+    doc.text(cleanText(`Abonné Souscripteur : ${managerName} (${companyName})`), margin + 4, y + 16);
+    doc.text(cleanText(`Horodatage certifie : ${signDateStr}`), margin + 4, y + 21);
+    doc.text(cleanText(`Echéance d'abonnement effective (30 jours) : ${dueDateStr}`), margin + 4, y + 26);
+
+    // Digital Seal Badge
+    doc.setFillColor(16, 185, 129);
+    doc.rect(pageWidth - margin - 48, y + 6, 44, 18, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.text("CONTRAT SIGNE", pageWidth - margin - 26, y + 13, { align: 'center' });
+    doc.setFontSize(6.5);
+    doc.setFont('helvetica', 'normal');
+    doc.text("KONTROL VERIFIED", pageWidth - margin - 26, y + 18, { align: 'center' });
+  } else {
+    // Slate / Neutral box for Unsigned Draft / Specimen
+    doc.setFillColor(248, 250, 252);
+    doc.rect(margin, y, contentWidth, 30, 'F');
+    doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(0.4);
+    doc.rect(margin, y, contentWidth, 30, 'S');
+
+    doc.setTextColor(30, 41, 59);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.text(cleanText("PROJET DE CONTRAT · SPECIMEN NON SIGNE"), margin + 4, y + 5.5);
+
+    doc.setTextColor(71, 85, 105);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.text(cleanText(`Editeur : INNOV'KORP (Signature electronique pre-apposee)`), margin + 4, y + 11);
+    doc.text(cleanText(`Abonné Souscripteur : ${companyName} (EN ATTENTE DE SIGNATURE)`), margin + 4, y + 16);
+    doc.text(cleanText(`Statut actuel : Non signe par l'Abonne`), margin + 4, y + 21);
+    doc.text(cleanText(`Note : La signature electronique sera validee lors de la confirmation en ligne`), margin + 4, y + 26);
+
+    // Pending Seal Badge
+    doc.setFillColor(100, 116, 139);
+    doc.rect(pageWidth - margin - 48, y + 6, 44, 18, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.text("EN ATTENTE", pageWidth - margin - 26, y + 13, { align: 'center' });
+    doc.setFontSize(6);
+    doc.setFont('helvetica', 'normal');
+    doc.text("SIGNATURE CLIENT", pageWidth - margin - 26, y + 18, { align: 'center' });
+  }
 
   // Render footers & page numbers on all pages
   const totalPages = currentPage;

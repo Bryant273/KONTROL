@@ -21,6 +21,7 @@ import { TiersModule } from './modules/tiers/TiersModule';
 import { ProduitsModule } from './modules/produits/ProduitsModule';
 import { TransactionsModule } from './modules/transactions/TransactionsModule';
 import { ChargesModule } from './modules/charges/ChargesModule';
+import { QuotesModule } from './modules/quotes/QuotesModule';
 import { StocksModule } from './modules/stocks/StocksModule';
 import { FinanceModule } from './modules/finance/FinanceModule';
 import { BlueAIModule } from './modules/blue/BlueAIModule';
@@ -374,6 +375,7 @@ export default function App() {
           {activeTab === 'produits' && <ProduitsModule user={user} currentUserProfile={profile} />}
           {activeTab === 'transactions' && <TransactionsModule user={user} currentUserProfile={profile} />}
           {activeTab === 'charges' && <ChargesModule user={user} currentUserProfile={profile} />}
+          {activeTab === 'devis' && user && <QuotesModule user={user} currentUserProfile={profile} />}
           {activeTab === 'stocks' && <StocksModule user={user} currentUserProfile={profile} />}
           {activeTab === 'finance' && <FinanceModule user={user} currentUserProfile={profile} />}
           {activeTab === 'ai' && <BlueAIModule user={user} currentUserProfile={profile} />}
