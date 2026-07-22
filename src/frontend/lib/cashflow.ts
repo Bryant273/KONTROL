@@ -1,41 +1,51 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Transaction, UserProfile } from '../types';
-import { formatCurrency } from './utils';
+
+// Helper to sanitize accents to prevent jsPDF text encoding bugs
+const cleanText = (str: string): string => {
+  if (!str) return '';
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/œ/g, 'oe')
+    .replace(/Œ/g, 'OE')
+    .replace(/æ/g, 'ae')
+    .replace(/Æ/g, 'AE')
+    .replace(/’/g, "'")
+    .replace(/[^\x00-\x7F]/g, " ");
+};
+
+const formatSimpleNumber = (num: number, currency: string = "XOF") => {
+  const rounded = Math.round(num || 0);
+  const formatted = rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  return `${formatted} ${cleanText(currency)}`;
+};
 
 const drawKontrolLogo = (doc: jsPDF, x: number, y: number, size: number) => {
-  const ctrX = x + size / 2;
-  const ctrY = y + size / 2;
-  
-  // Outer sky blue ring
-  doc.setDrawColor(125, 211, 252); // #7DD3FC
+  const cx = x + size * 0.5;
+  const cy = y + size * 0.5;
+
+  doc.setDrawColor(125, 211, 252);
+  doc.setLineWidth(size * 0.12);
+  doc.circle(cx, cy, size * 0.42, 'S');
+
+  doc.setDrawColor(249, 115, 22);
   doc.setLineWidth(size * 0.1);
-  doc.circle(ctrX, ctrY, size * 0.40, 'S');
-  
-  // Orange ring representing top/right swirl path
-  doc.setDrawColor(249, 115, 22); // #F97316
-  doc.setLineWidth(size * 0.1);
-  doc.circle(ctrX, ctrY, size * 0.32, 'S');
-  
-  // Blue Arrow in the center
-  const scale = size / 100;
-  doc.setFillColor(59, 130, 246); // #3B82F6
-  
-  // Arrow Head triangle (P1: 50,20; P2: 75,55; P3: 25,55)
-  const ax1 = x + 50 * scale;
-  const ay1 = y + 20 * scale;
-  const ax2 = x + 75 * scale;
-  const ay2 = y + 55 * scale;
-  const ax3 = x + 25 * scale;
-  const ay3 = y + 55 * scale;
-  doc.triangle(ax1, ay1, ax2, ay2, ax3, ay3, 'F');
-  
-  // Arrow Base stem rectangle (rx: 40, ry: 55, w: 20, h: 25)
-  const rWidth = 20 * scale;
-  const rHeight = 25 * scale;
-  const rx = x + 40 * scale;
-  const ry = y + 55 * scale;
-  doc.rect(rx, ry, rWidth, rHeight, 'F');
+  doc.circle(cx, cy, size * 0.32, 'S');
+
+  doc.setFillColor(59, 130, 246);
+  doc.triangle(
+    x + size * 0.5, y + size * 0.22,
+    x + size * 0.72, y + size * 0.55,
+    x + size * 0.28, y + size * 0.55,
+    'F'
+  );
+  doc.rect(
+    x + size * 0.41, y + size * 0.55,
+    size * 0.18, size * 0.23,
+    'F'
+  );
 };
 
 export const generateCashFlowPDF = (
@@ -43,18 +53,26 @@ export const generateCashFlowPDF = (
   dateRange: { start: string, end: string },
   profile: UserProfile | null
 ) => {
-  const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.width;
-  
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  const pageWidth = 210;
+  const pageHeight = 297;
+  const margin = 15;
+
   const start = new Date(dateRange.start);
   const end = new Date(dateRange.end);
-  
-  // Calculate Initial Balance
-  // Assuming all transactions in the state are available
+  const currency = profile?.currency || "XOF";
+
+  // Calculate Initial Balance from prior completed transactions
   const initialTransactions = transactions.filter(t => new Date(t.date) < start && t.statut === 'PAYE');
   const initialBalance = initialTransactions.reduce((acc, t) => {
     const amount = t.montantTotal || t.montant || 0;
-    return t.type === 'VENTE' ? acc + amount : acc - amount;
+    const isIncome = t.type === 'VENTE';
+    return isIncome ? acc + amount : acc - amount;
   }, 0);
 
   // Period Transactions
@@ -68,95 +86,218 @@ export const generateCashFlowPDF = (
     .reduce((acc, t) => acc + (t.montantTotal || t.montant || 0), 0);
     
   const decaissements = periodTransactions
-    .filter(t => t.type === 'ACHAT' && t.statut === 'PAYE')
+    .filter(t => (t.type === 'ACHAT' || t.type === 'CHARGE' || t.type === 'ABONNEMENT') && t.statut === 'PAYE')
     .reduce((acc, t) => acc + (t.montantTotal || t.montant || 0), 0);
 
   const finalBalance = initialBalance + encaissements - decaissements;
+  const netFlow = encaissements - decaissements;
 
-  // Header
-  doc.setFillColor(15, 23, 42);
-  doc.rect(0, 0, pageWidth, 40, 'F');
+  // 1. Top Decorative Blue Bar
+  doc.setFillColor(37, 99, 235);
+  doc.rect(0, 0, pageWidth, 4, 'F');
+
+  // 2. KONTROL Logo
+  drawKontrolLogo(doc, margin, 14, 16);
+
+  // 3. Header Titles
+  const companyName = cleanText(profile?.companyName || profile?.companyAbbreviation || 'KONTROL ENTERPRISE');
   
-  // Draw vector KONTROL Logo
-  drawKontrolLogo(doc, 15, 11, 18);
-
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(22);
+  doc.setTextColor(15, 23, 42);
   doc.setFont('helvetica', 'bold');
-  doc.text(profile?.companyName || 'KONTROL', 38, 23);
-  
-  doc.setFontSize(10);
+  doc.setFontSize(20);
+  doc.text(companyName, 35, 23);
+
+  doc.setTextColor(100, 116, 139);
   doc.setFont('helvetica', 'normal');
-  doc.text('RAPPORT DE FLUX DE TRÉSORERIE', 38, 31);
+  doc.setFontSize(8.5);
+  doc.text(cleanText("RAPPORT SYNTHÉTIQUE ET ÉTAT DES FLUX DE TRÉSORERIE"), 35, 28);
 
-  // Metadata
-  doc.setTextColor(51, 51, 51);
-  doc.setFontSize(12);
+  // Right Header
+  doc.setTextColor(37, 99, 235);
   doc.setFont('helvetica', 'bold');
-  doc.text(`Période du ${start.toLocaleDateString('fr-FR')} au ${end.toLocaleDateString('fr-FR')}`, 15, 55);
-
-  // Summary Cards (Simulated)
-  doc.setDrawColor(229, 231, 235);
-  doc.rect(15, 65, 180, 45); // Main box
-  
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text('SOLDE INITIAL:', 20, 75);
-  doc.setFont('helvetica', 'bold');
-  doc.text(formatCurrency(initialBalance), 100, 75, { align: 'right' });
-
-  doc.setFont('helvetica', 'normal');
-  doc.text('TOTAL ENCAISSEMENTS (+):', 20, 85);
-  doc.setTextColor(16, 185, 129); // emerald-500
-  doc.setFont('helvetica', 'bold');
-  doc.text(formatCurrency(encaissements), 100, 85, { align: 'right' });
-
-  doc.setTextColor(51, 51, 51);
-  doc.setFont('helvetica', 'normal');
-  doc.text('TOTAL DÉCAISSEMENTS (-):', 20, 95);
-  doc.setTextColor(244, 63, 94); // rose-500
-  doc.setFont('helvetica', 'bold');
-  doc.text(formatCurrency(decaissements), 100, 95, { align: 'right' });
-
-  doc.setTextColor(51, 51, 51);
-  doc.setDrawColor(229, 231, 235);
-  doc.line(20, 100, 100, 100);
-
   doc.setFontSize(11);
-  doc.text('SOLDE FINAL:', 20, 106);
-  doc.setFont('helvetica', 'bold');
-  doc.text(formatCurrency(finalBalance), 100, 106, { align: 'right' });
+  doc.text(cleanText("DOCUMENT OFFICIEL DE TRÉSORERIE"), pageWidth - margin, 22, { align: 'right' });
 
-  // Table of Movements
-  autoTable(doc, {
-    startY: 120,
-    head: [['Date', 'Référence', 'Tiers', 'Type', 'Montant', 'Statut']],
-    body: periodTransactions.map(t => [
+  doc.setTextColor(100, 116, 139);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.text(cleanText(`Généré le : ${new Date().toLocaleDateString('fr-FR')}`), pageWidth - margin, 27, { align: 'right' });
+
+  // Divider
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.5);
+  doc.line(margin, 35, pageWidth - margin, 35);
+
+  // 4. Period & Executive Summary Title
+  doc.setTextColor(15, 23, 42);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  const periodText = `Période d'analyse : du ${start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} au ${end.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+  doc.text(cleanText(periodText), margin, 44);
+
+  // 5. Four Executive Summary KPI Cards across full width
+  const cardY = 50;
+  const cardWidth = 42;
+  const cardHeight = 26;
+
+  // Card 1: Solde Initial
+  doc.setFillColor(248, 250, 252);
+  doc.rect(margin, cardY, cardWidth, cardHeight, 'F');
+  doc.setDrawColor(226, 232, 240);
+  doc.rect(margin, cardY, cardWidth, cardHeight, 'S');
+
+  doc.setTextColor(100, 116, 139);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.text(cleanText("SOLDE DE DÉPART"), margin + 4, cardY + 6);
+
+  doc.setTextColor(30, 41, 59);
+  doc.setFontSize(9.5);
+  doc.text(formatSimpleNumber(initialBalance, currency), margin + 4, cardY + 16);
+
+  // Card 2: Total Encaissements (+)
+  const c2X = margin + 45;
+  doc.setFillColor(236, 253, 245);
+  doc.rect(c2X, cardY, cardWidth, cardHeight, 'F');
+  doc.setDrawColor(167, 243, 208);
+  doc.rect(c2X, cardY, cardWidth, cardHeight, 'S');
+
+  doc.setTextColor(4, 120, 87);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.text(cleanText("ENCAISSEMENTS (+)"), c2X + 4, cardY + 6);
+
+  doc.setTextColor(6, 95, 70);
+  doc.setFontSize(9.5);
+  doc.text(`+${formatSimpleNumber(encaissements, currency)}`, c2X + 4, cardY + 16);
+
+  // Card 3: Total Décaissements (-)
+  const c3X = margin + 90;
+  doc.setFillColor(255, 241, 242);
+  doc.rect(c3X, cardY, cardWidth, cardHeight, 'F');
+  doc.setDrawColor(254, 205, 211);
+  doc.rect(c3X, cardY, cardWidth, cardHeight, 'S');
+
+  doc.setTextColor(190, 18, 60);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.text(cleanText("DÉCAISSEMENTS (-)"), c3X + 4, cardY + 6);
+
+  doc.setTextColor(159, 18, 57);
+  doc.setFontSize(9.5);
+  doc.text(`-${formatSimpleNumber(decaissements, currency)}`, c3X + 4, cardY + 16);
+
+  // Card 4: Solde Final Net (=)
+  const c4X = margin + 135;
+  doc.setFillColor(239, 246, 255);
+  doc.rect(c4X, cardY, cardWidth + 3, cardHeight, 'F');
+  doc.setDrawColor(191, 219, 254);
+  doc.rect(c4X, cardY, cardWidth + 3, cardHeight, 'S');
+
+  doc.setTextColor(29, 78, 216);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.text(cleanText("SOLDE FINAL DE CLÔTURE"), c4X + 4, cardY + 6);
+
+  doc.setTextColor(30, 58, 138);
+  doc.setFontSize(10);
+  doc.text(formatSimpleNumber(finalBalance, currency), c4X + 4, cardY + 16);
+
+  // 6. Narrative Human Explanation Box
+  const expY = 82;
+  doc.setFillColor(248, 250, 252);
+  doc.rect(margin, expY, pageWidth - (margin * 2), 16, 'F');
+  doc.setDrawColor(226, 232, 240);
+  doc.rect(margin, expY, pageWidth - (margin * 2), 16, 'S');
+
+  doc.setTextColor(51, 65, 85);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+
+  const netText = netFlow >= 0 
+    ? `Analyse humaine : Durant cette période, la trésorerie affiche un solde net positif de +${formatSimpleNumber(netFlow, currency)}, témoignant d'une bonne rentabilité globale et d'entrées financières suffisantes.`
+    : `Analyse humaine : La trésorerie enregistre un déficit temporaire de ${formatSimpleNumber(netFlow, currency)} sur la période, principalement attribuable aux dépenses d'exploitation et aux règlements effectués.`;
+
+  const expLines = doc.splitTextToSize(cleanText(netText), pageWidth - (margin * 2) - 8);
+  doc.text(expLines, margin + 4, expY + 6);
+
+  // 7. Table of Movements
+  const tableData = periodTransactions.map(t => {
+    const isEncaissement = t.type === 'VENTE';
+    const natureStr = isEncaissement ? "Encaissement Client" : (t.type === 'ABONNEMENT' ? "Charge d'Abonnement" : "Décaissement Fournisseur");
+    const amountVal = t.montantTotal || t.montant || 0;
+    const formattedVal = (isEncaissement ? "+" : "-") + formatSimpleNumber(amountVal, currency);
+
+    return [
       new Date(t.date).toLocaleDateString('fr-FR'),
-      t.reference || '',
-      t.tiersNom || '',
-      t.type === 'VENTE' ? 'Encaissement' : 'Décaissement',
-      formatCurrency(t.montantTotal || t.montant || 0),
-      t.statut || 'N/A'
-    ]),
-    theme: 'striped',
-    headStyles: { fillColor: [15, 23, 42] },
-    styles: { fontSize: 9 }
+      cleanText(t.reference || t.id || "N/A"),
+      cleanText(t.tiersNom || (isEncaissement ? "Client" : "Fournisseur / Prestataire")),
+      cleanText(natureStr),
+      cleanText(t.modePaiement || "Comptant"),
+      formattedVal,
+      cleanText(t.statut || "PAYÉ")
+    ];
   });
 
-  // Footer
+  autoTable(doc, {
+    startY: 104,
+    margin: { left: margin, right: margin },
+    head: [[
+      cleanText("Date"),
+      cleanText("Référence"),
+      cleanText("Partenaire / Tiers"),
+      cleanText("Nature Mouvement"),
+      cleanText("Mode Règlement"),
+      cleanText("Montant Net"),
+      cleanText("Statut")
+    ]],
+    body: tableData.length > 0 ? tableData : [[
+      cleanText("Aucune opération enregistrée sur cette période"), "", "", "", "", "", ""
+    ]],
+    theme: 'striped',
+    styles: {
+      font: 'helvetica',
+      fontSize: 8.5,
+      cellPadding: 4,
+      valign: 'middle'
+    },
+    headStyles: {
+      fillColor: [15, 23, 42],
+      textColor: [255, 255, 255],
+      fontSize: 8.5,
+      fontStyle: 'bold',
+      halign: 'left'
+    },
+    columnStyles: {
+      0: { cellWidth: 22, halign: 'left' },
+      1: { cellWidth: 28, halign: 'left' },
+      2: { cellWidth: 38, halign: 'left' },
+      3: { cellWidth: 32, halign: 'left' },
+      4: { cellWidth: 22, halign: 'left' },
+      5: { cellWidth: 28, halign: 'right', fontStyle: 'bold' },
+      6: { cellWidth: 10, halign: 'center' }
+    }
+  });
+
+  // Footer & Page Numbers
   const pageCount = (doc as any).internal.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
-    doc.setFontSize(8);
-    doc.setTextColor(150);
+    
+    // Footer line
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.3);
+    doc.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15);
+
+    doc.setFontSize(7.5);
+    doc.setTextColor(148, 163, 184);
     doc.text(
-      `Document généré par KONTROL le ${new Date().toLocaleString('fr-FR')} - Page ${i} sur ${pageCount}`,
+      cleanText(`Rapport certifié de trésorerie KONTROL ERP - ${companyName} - Page ${i} sur ${pageCount}`),
       pageWidth / 2,
-      doc.internal.pageSize.height - 10,
+      pageHeight - 9,
       { align: 'center' }
     );
   }
 
-  doc.save(`Flux_Tresorerie_${dateRange.start}_${dateRange.end}.pdf`);
+  doc.save(`Rapport_Tresorerie_KONTROL_${start.toISOString().substring(0, 10)}.pdf`);
 };

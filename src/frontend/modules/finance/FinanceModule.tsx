@@ -501,180 +501,264 @@ export function FinanceModule({ user, currentUserProfile }: FinanceModuleProps) 
     try {
       const module = await import('jspdf');
       const jsPDF = module.default;
-        const doc = new jsPDF('p', 'mm', 'a4');
-        const pageWidth = doc.internal.pageSize.width;
-        const pageHeight = doc.internal.pageSize.height;
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.width;
+      const pageHeight = doc.internal.pageSize.height;
 
-        // Draw elegant border & background
-        doc.setFillColor(248, 250, 252); // light background slate-50
-        doc.rect(0, 0, pageWidth, pageHeight, 'F');
+      const cleanTextLocal = (str: string): string => {
+        if (!str) return '';
+        return str
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/œ/g, 'oe')
+          .replace(/Œ/g, 'OE')
+          .replace(/æ/g, 'ae')
+          .replace(/Æ/g, 'AE')
+          .replace(/’/g, "'")
+          .replace(/[^\x00-\x7F]/g, " ");
+      };
 
-        // Main outer frame
-        doc.setDrawColor(15, 23, 42); // slate-900
-        doc.setLineWidth(1.5);
-        doc.rect(10, 10, pageWidth - 20, pageHeight - 20);
+      const formatSimpleNumberLocal = (num: number, currency: string = "XOF") => {
+        const rounded = Math.round(num || 0);
+        const formatted = rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+        return `${formatted} ${cleanTextLocal(currency)}`;
+      };
 
-        // Nested fancy frame
-        doc.setDrawColor(37, 99, 235); // blue-600
-        doc.setLineWidth(0.4);
-        doc.rect(12, 12, pageWidth - 24, pageHeight - 24);
-        doc.setFillColor(15, 23, 42); // slate-900
-        doc.rect(15, 15, pageWidth - 30, 36, 'F');
+      // Background canvas fill
+      doc.setFillColor(252, 253, 255);
+      doc.rect(0, 0, pageWidth, pageHeight, 'F');
 
-        // Draw KONTROL Logo in the header
-        const ctrX = pageWidth / 2;
-        const ctrY = 22;
-        
-        // Swirling rings (concentric blue and orange rings)
-        doc.setDrawColor(125, 211, 252); // light blue
-        doc.setLineWidth(1.0);
-        doc.circle(ctrX, ctrY, 6, 'S');
-        
-        const orangeColorValue = 22;
-        doc.setDrawColor(249, 115, orangeColorValue);
-        doc.setLineWidth(1.0);
-        doc.circle(ctrX, ctrY, 4.2, 'S');
-        
-        // Arrow (solid blue triangle and stem)
-        doc.setFillColor(37, 99, 235); // Blue
-        doc.triangle(ctrX, ctrY - 2.5, ctrX - 3, ctrY + 1.2, ctrX + 3, ctrY + 1.2, 'F');
-        doc.rect(ctrX - 1.0, ctrY + 1.2, 2.0, 2.5, 'F');
+      // Outer border
+      doc.setDrawColor(15, 23, 42);
+      doc.setLineWidth(1.2);
+      doc.rect(10, 10, pageWidth - 20, pageHeight - 20);
 
-        // Header Text
-        doc.setTextColor(255, 255, 255);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(18);
-        doc.text('KONTROL', pageWidth / 2, 34, { align: 'center' });
-        doc.setFontSize(9.5);
-        doc.setTextColor(239, 68, 68); // Red accent for "CERTIFICATE"
-        doc.setFont('helvetica', 'bold');
-        doc.text('CERTIFICAT ÉVOLUTIF D\'ÉLIGIBILITÉ AU FINANCEMENT', pageWidth / 2, 44, { align: 'center' });
+      // Inner border frame
+      doc.setDrawColor(37, 99, 235);
+      doc.setLineWidth(0.4);
+      doc.rect(12, 12, pageWidth - 24, pageHeight - 24);
 
-        // Certificate Body
-        doc.setTextColor(30, 41, 59); // slate-800
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        
-        let y = 66;
-        doc.text('Le présent certificat atteste officiellement que l\'entreprise désignée ci-dessous :', 30, y);
-        
-        y += 9;
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(14);
-        doc.setTextColor(15, 23, 42);
-        doc.text(currentUserProfile?.companyName || 'KONTROL CLIENT', pageWidth / 2, y, { align: 'center' });
+      // Header Banner Box
+      doc.setFillColor(15, 23, 42);
+      doc.rect(15, 15, pageWidth - 30, 32, 'F');
 
-        y += 7;
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8.5);
-        doc.setTextColor(100);
-        doc.text(`Identifiant d'entité : ${currentUserProfile?.companyId || 'N/A'}`, pageWidth / 2, y, { align: 'center' });
+      // KONTROL Logo Header
+      const ctrX = 28;
+      const ctrY = 31;
+      
+      doc.setDrawColor(125, 211, 252);
+      doc.setLineWidth(1.0);
+      doc.circle(ctrX, ctrY, 6, 'S');
+      
+      doc.setDrawColor(249, 115, 22);
+      doc.setLineWidth(0.8);
+      doc.circle(ctrX, ctrY, 4.2, 'S');
+      
+      doc.setFillColor(37, 99, 235);
+      doc.triangle(ctrX, ctrY - 2.5, ctrX - 3, ctrY + 1.2, ctrX + 3, ctrY + 1.2, 'F');
+      doc.rect(ctrX - 1.0, ctrY + 1.2, 2.0, 2.5, 'F');
 
-        y += 12;
-        doc.setFontSize(9.5);
-        doc.setTextColor(71, 85, 105);
-        const text1 = 'A fait l\'objet d\'un audit prévisionnel automatisé en date de ce jour, basé sur l\'analyse';
-        const text2 = 'systématique de ses flux réels de trésorerie, de ses actifs circulants et des encaissements';
-        const text3 = 'enregistrés en continu sur sa plateforme de gestion KONTROL.';
-        doc.text(text1, 30, y);
-        y += 5;
-        doc.text(text2, 30, y);
-        y += 5;
-        doc.text(text3, 30, y);
+      // Header Branding
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.text('KONTROL ERP', 38, 28);
+      
+      doc.setFontSize(8.5);
+      doc.setTextColor(148, 163, 184);
+      doc.setFont('helvetica', 'normal');
+      doc.text(cleanTextLocal("SERVICE DE FINANCEMENT PARTENAIRE & GARANTIE BRIDGE"), 38, 34);
 
-        y += 12;
-        // Eligibility Card Background - compact and elegant
-        const cardHeight = 34;
-        doc.setFillColor(241, 245, 249); // slate-100
-        doc.rect(30, y, pageWidth - 60, cardHeight, 'F');
-        doc.setDrawColor(203, 213, 225); // slate-300
-        doc.setLineWidth(0.5);
-        doc.rect(30, y, pageWidth - 60, cardHeight);
+      // Top Right Header Badge
+      const randHash = Math.random().toString(36).substring(2, 10).toUpperCase();
+      const certId = `CERT-BRIDGE-${Date.now().toString().slice(-6)}-${randHash}`;
+      
+      doc.setTextColor(239, 68, 68);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text(cleanTextLocal("ATTESTATION OFFICIELLE"), pageWidth - 20, 26, { align: 'right' });
+      
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.text(certId, pageWidth - 20, 32, { align: 'right' });
 
-        // Inside Card Info (Compact)
-        const insideY = y + 8;
-        doc.setTextColor(15, 23, 42);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(9.5);
-        doc.text('MONTANT ACTUEL EFFORTABLE GARANTI (BRIDGE OFFER) :', pageWidth / 2, insideY, { align: 'center' });
+      // Title Banner under header
+      let y = 54;
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.text(cleanTextLocal("ATTESTATION D'ÉLIGIBILITÉ ET DE GARANTIE AU CRÉDIT BRIDGE"), pageWidth / 2, y, { align: 'center' });
 
-        doc.setTextColor(37, 99, 235); // blue-600
-        doc.setFontSize(22);
-        doc.setFont('helvetica', 'bold');
-        doc.text(formatCurrency(bridgeResult.amount_eligible), pageWidth / 2, insideY + 10, { align: 'center' });
+      y += 6;
+      doc.setDrawColor(37, 99, 235);
+      doc.setLineWidth(0.8);
+      doc.line(40, y, pageWidth - 40, y);
 
-        doc.setTextColor(16, 185, 129); // emerald-500
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Taux de Garantie Préférentiel KONTROL : 3.5% ANNUEL', pageWidth / 2, insideY + 18, { align: 'center' });
+      // Section 1: Identification entreprise
+      y += 10;
+      doc.setFillColor(248, 250, 252);
+      doc.rect(20, y, pageWidth - 40, 22, 'F');
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.3);
+      doc.rect(20, y, pageWidth - 40, 22, 'S');
 
-        y += cardHeight;
+      const companyName = cleanTextLocal(currentUserProfile?.companyName || 'ENTREPRISE PARTENAIRE');
+      const companyId = cleanTextLocal(currentUserProfile?.companyId || 'ENT-KONTROL-01');
 
-        y += 12;
-        doc.setTextColor(100);
-        doc.setFont('helvetica', 'italic');
-        doc.setFontSize(8.5);
-        doc.text('Ce titre constitue une attestation d\'éligibilité certifiée émise par KONTROL.', 30, y);
+      doc.setTextColor(100, 116, 139);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7.5);
+      doc.text(cleanTextLocal("ENTREPRISE BÉNÉFICIAIRE :"), 25, y + 6);
 
-        const dateInscription = currentUserProfile?.createdAt 
-          ? new Date(currentUserProfile.createdAt).toLocaleDateString('fr-FR') 
-          : '12/04/2026'; // fallback to requested pattern
-        const dateImpression = new Date().toLocaleDateString('fr-FR');
-        const totalEntrees = payments.filter(p => p.type === 'ENCAISSEMENT').reduce((acc, p) => acc + p.montant, 0);
-        const totalSorties = payments.filter(p => p.type === 'DECAISSEMENT').reduce((acc, p) => acc + p.montant, 0);
-        const soldeProvisoire = totalEntrees - totalSorties;
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text(companyName, 25, y + 13);
 
-        y += 7;
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9);
-        doc.setTextColor(30, 41, 59);
-        const textMouvement = `Il certifie des mouvements de trésorerie effectués sur notre application depuis son inscription le ${dateInscription} à ce jour (${dateImpression}) :`;
-        const textLines = doc.splitTextToSize(textMouvement, pageWidth - 60);
-        doc.text(textLines, 30, y);
-        y += (textLines.length * 4.5);
+      doc.setTextColor(71, 85, 105);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text(cleanTextLocal(`Identifiant Réseau : ${companyId}`), pageWidth - 25, y + 13, { align: 'right' });
 
-        y += 2;
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(9);
-        doc.setTextColor(71, 85, 105);
-        doc.text(`• Entrées : ${formatCurrency(totalEntrees)}`, 35, y);
-        y += 5;
-        doc.text(`• Sorties : ${formatCurrency(totalSorties)}`, 35, y);
-        y += 5;
-        doc.setTextColor(37, 99, 235); 
-        doc.text(`• Solde provisoire : ${formatCurrency(soldeProvisoire)}`, 35, y);
+      // Section 2: Statement text
+      y += 28;
+      doc.setTextColor(51, 65, 85);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
 
-        // Signatures block & Official Seal
-        y += 15;
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(10);
-        doc.setTextColor(15, 23, 42);
-        doc.text('La Direction Générale', 30, y);
-        doc.text('Emplacement Sceau & Signature', pageWidth - 95, y);
+      const introText = "Le présent certificat atteste que l'entreprise ci-dessus a fait l'objet d'une évaluation financière automatisée. Cette analyse s'appuie sur la régularité des flux de trésorerie, la solvabilité de la clientèle et l'historique des opérations enregistrées sur la plateforme de gestion KONTROL.";
+      const introLines = doc.splitTextToSize(cleanTextLocal(introText), pageWidth - 50);
+      doc.text(introLines, 25, y);
 
-        y += 5;
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(100);
-        doc.setFontSize(8.5);
-        doc.text('Document revêtu du sceau KONTROL', 30, y);
+      y += (introLines.length * 4.5) + 6;
 
-        // Thin elegant frame for the physical stamp
-        doc.setDrawColor(203, 213, 225); // slate-300
-        doc.setLineWidth(0.3);
-        doc.rect(pageWidth - 95, y + 2, 65, 28);
+      // Section 3: High-impact Guarantee Box
+      const boxHeight = 44;
+      doc.setFillColor(239, 246, 255);
+      doc.rect(20, y, pageWidth - 40, boxHeight, 'F');
+      doc.setDrawColor(191, 219, 254);
+      doc.setLineWidth(0.6);
+      doc.rect(20, y, pageWidth - 40, boxHeight, 'S');
 
-        // Footer Metadata (Centered and Elevated for visibility)
-        doc.setTextColor(100);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8.5);
-        const randHash = Math.random().toString(36).substring(2, 10).toUpperCase();
-        const docIdText = `Identifiant Certificat : KT-${Date.now().toString().slice(-6)}-${randHash}`;
-        const genTimeText = `Généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`;
-        const isoText = `Document certifié ISO 9001`;
-        doc.text(`${docIdText}  •  ${genTimeText}  •  ${isoText}`, pageWidth / 2, pageHeight - 20, { align: 'center' });
+      const insideBoxY = y + 8;
+      doc.setTextColor(30, 58, 138);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text(cleanTextLocal("MONTANT MAXIMUM D'AVANCE DE TRÉSORERIE GARANTI (OFFRE BRIDGE) :"), pageWidth / 2, insideBoxY, { align: 'center' });
 
-        doc.save(`Certificat_Eligibilite_${currentUserProfile?.companyName || 'Client'}.pdf`);
-        setBridgeResult(null);
+      doc.setTextColor(37, 99, 235);
+      doc.setFontSize(22);
+      doc.setFont('helvetica', 'bold');
+      const amountEligible = bridgeResult.amount_eligible || 500000;
+      doc.text(formatSimpleNumberLocal(amountEligible, "XOF"), pageWidth / 2, insideBoxY + 12, { align: 'center' });
+
+      doc.setTextColor(16, 185, 129);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text(cleanTextLocal("Conditions privilège : Taux d'intérêt annuel préférentiel de 3.5% sans frais cachés"), pageWidth / 2, insideBoxY + 22, { align: 'center' });
+
+      doc.setTextColor(100, 116, 139);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.text(cleanTextLocal("Déblocage possible sous 24h ouvrées après validation auprès de l'établissement financier partenaire."), pageWidth / 2, insideBoxY + 29, { align: 'center' });
+
+      y += boxHeight + 10;
+
+      // Section 4: Key Financial Indicators Table Summary
+      const dateInscription = currentUserProfile?.createdAt 
+        ? new Date(currentUserProfile.createdAt).toLocaleDateString('fr-FR') 
+        : '12/04/2026';
+      const dateImpression = new Date().toLocaleDateString('fr-FR');
+      
+      const totalEntrees = payments.filter(p => p.type === 'ENCAISSEMENT').reduce((acc, p) => acc + p.montant, 0);
+      const totalSorties = payments.filter(p => p.type === 'DECAISSEMENT').reduce((acc, p) => acc + p.montant, 0);
+      const soldeProvisoire = totalEntrees - totalSorties;
+
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9.5);
+      doc.text(cleanTextLocal("SYNTHÈSE DE L'AUDIT COMPTABLE ET DES FLUX TRAITÉS"), 25, y);
+
+      y += 4;
+      doc.setTextColor(100, 116, 139);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text(cleanTextLocal(`Période d'activité analysée : du ${dateInscription} au ${dateImpression}`), 25, y + 2);
+
+      y += 8;
+      // Table box
+      const tableBoxY = y;
+      doc.setFillColor(248, 250, 252);
+      doc.rect(20, tableBoxY, pageWidth - 40, 28, 'F');
+      doc.setDrawColor(226, 232, 240);
+      doc.rect(20, tableBoxY, pageWidth - 40, 28, 'S');
+
+      doc.setTextColor(51, 65, 85);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+
+      doc.text(cleanTextLocal("• Total des encaissements enregistrés (Entrées) :"), 25, tableBoxY + 7);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(16, 185, 129);
+      doc.text(formatSimpleNumberLocal(totalEntrees, "XOF"), pageWidth - 25, tableBoxY + 7, { align: 'right' });
+
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(51, 65, 85);
+      doc.text(cleanTextLocal("• Total des décaissements et charges (Sorties) :"), 25, tableBoxY + 14);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(225, 29, 72);
+      doc.text(formatSimpleNumberLocal(totalSorties, "XOF"), pageWidth - 25, tableBoxY + 14, { align: 'right' });
+
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(51, 65, 85);
+      doc.text(cleanTextLocal("• Solde provisoire de trésorerie disponible :"), 25, tableBoxY + 21);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(37, 99, 235);
+      doc.text(formatSimpleNumberLocal(soldeProvisoire, "XOF"), pageWidth - 25, tableBoxY + 21, { align: 'right' });
+
+      y += 38;
+
+      // Section 5: Signature & Official Seal Block
+      const sigY = y;
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text(cleanTextLocal("Pour KONTROL Financial Services"), 25, sigY);
+      doc.text(cleanTextLocal("Sceau Officiel et Signature"), pageWidth - 80, sigY);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text(cleanTextLocal("Direction Générale de l'Audit"), 25, sigY + 5);
+
+      // Signature Stamp Box Frame
+      doc.setDrawColor(203, 213, 225);
+      doc.setLineWidth(0.3);
+      doc.rect(pageWidth - 80, sigY + 3, 55, 22);
+
+      doc.setTextColor(37, 99, 235);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.text("KONTROL GUARANTEE", pageWidth - 78, sigY + 10);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(100, 116, 139);
+      doc.text(cleanTextLocal("Certifié conforme par INNOV'KORP"), pageWidth - 78, sigY + 15);
+      doc.text(cleanTextLocal(`Réf: ${certId.substring(0, 16)}`), pageWidth - 78, sigY + 19);
+
+      // Footer
+      doc.setFontSize(7);
+      doc.setTextColor(148, 163, 184);
+      doc.text(
+        cleanTextLocal(`Attestation générée automatiquement le ${dateImpression} par KONTROL ERP. Document certifié sans signature manuscrite.`),
+        pageWidth / 2,
+        pageHeight - 16,
+        { align: 'center' }
+      );
+
+      doc.save(`Certificat_Eligibilite_Bridge_${cleanTextLocal(companyName).replace(/\s+/g, '_')}.pdf`);
+      setBridgeResult(null);
     } catch (e) {
       console.error("Certificate Generation Error:", e);
       alert("Erreur lors de la génération du certificat.");

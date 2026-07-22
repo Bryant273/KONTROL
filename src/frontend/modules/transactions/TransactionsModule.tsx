@@ -260,6 +260,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
     tiersId: '',
     tiersNom: '',
     modePaiement: 'Espèces',
+    referencePaiement: '',
     devise: 'XOF',
     tauxChange: 1,
     montantDevise: 0,
@@ -394,6 +395,7 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
           tiersId: '', 
           tiersNom: '', 
           modePaiement: 'Espèces', 
+          referencePaiement: '',
           devise: 'XOF', 
           tauxChange: 1,
           montantDevise: 0,
@@ -687,6 +689,60 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
                       />
                     )}
                   </div>
+                </div>
+              </div>
+
+              {/* Payment Method & Reference Group */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 bg-kontrol-bg/50 rounded-xl border border-kontrol-border/60">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Moyen de règlement</label>
+                  <select 
+                    className="w-full px-3 py-2 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:border-kontrol-blue text-[13px]"
+                    value={newTrans.modePaiement}
+                    onChange={(e) => setNewTrans({...newTrans, modePaiement: e.target.value})}
+                  >
+                    <option value="Espèces">Espèces</option>
+                    <option value="Chèque bancaire">Chèque bancaire</option>
+                    <option value="Virement bancaire">Virement bancaire</option>
+                    <option value="Mobile Money">Mobile Money (Wave, Orange, MTN, Moov)</option>
+                    <option value="Bon de caisse">Bon de caisse</option>
+                    <option value="Carte bancaire">Carte bancaire</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-kontrol-ink-muted uppercase tracking-wider">
+                    {newTrans.modePaiement === 'Chèque bancaire' 
+                      ? 'Numéro de chèque' 
+                      : newTrans.modePaiement === 'Bon de caisse' 
+                        ? 'Numéro de bon de caisse' 
+                        : newTrans.modePaiement === 'Virement bancaire'
+                          ? 'Référence de virement / IBAN'
+                          : newTrans.modePaiement === 'Mobile Money'
+                            ? 'Numéro de transaction Mobile'
+                            : newTrans.modePaiement === 'Carte bancaire'
+                              ? "N° d'autorisation Carte"
+                              : 'Référence du reçu / Pièce'}
+                  </label>
+                  <input 
+                    type="text"
+                    placeholder={
+                      newTrans.modePaiement === 'Chèque bancaire' 
+                        ? 'ex: CHQ-904812' 
+                        : newTrans.modePaiement === 'Bon de caisse' 
+                          ? 'ex: BC-2026-014' 
+                          : newTrans.modePaiement === 'Virement bancaire'
+                            ? 'ex: VIR-2026-00392'
+                            : newTrans.modePaiement === 'Mobile Money'
+                              ? 'ex: MM-849201'
+                              : newTrans.modePaiement === 'Carte bancaire'
+                                ? 'ex: AUTH-38102'
+                                : 'ex: REF-0012'
+                    }
+                    className="w-full px-3 py-2 bg-white border border-kontrol-border rounded-lg focus:outline-none focus:border-kontrol-blue text-[13px]"
+                    value={newTrans.referencePaiement}
+                    onChange={(e) => setNewTrans({...newTrans, referencePaiement: e.target.value})}
+                  />
                 </div>
               </div>
 
@@ -1177,7 +1233,14 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
                     <CreditCard size={14} className="text-kontrol-ink-muted shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
                       <p className="text-kontrol-ink-muted text-[11px] font-bold uppercase tracking-tighter">{t('finance.form.method')}</p>
-                      <p className="text-kontrol-ink-soft font-medium">{selectedTrans.modePaiement}</p>
+                      <p className="text-kontrol-ink-soft font-medium">
+                        {selectedTrans.modePaiement || 'Comptant'}
+                        {(selectedTrans.referencePaiement || selectedTrans.numCheque || selectedTrans.numBonCaisse) && (
+                          <span className="block text-[11px] font-mono text-kontrol-blue font-bold mt-0.5">
+                            Réf: {selectedTrans.referencePaiement || selectedTrans.numCheque || selectedTrans.numBonCaisse}
+                          </span>
+                        )}
+                      </p>
                     </div>
                   </div>
                   <div className="flex gap-3 text-[12.5px]">

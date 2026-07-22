@@ -128,20 +128,20 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
       console.warn("Firestore subscription_requests update failed", reqErr);
     }
 
-    // Register payment in the core 'payments' collection so it displays on the main dashboard
+    // Register payment in the core 'payments' collection so it displays as a cash outflow on the main dashboard & treasury
     try {
       await addDoc(collection(db, 'payments'), {
-        description: `Abonnement KONTROL Standard - 30 jours (Réf: ${reference})`,
+        description: `Abonnement KONTROL Standard - 30 jours (Prestataire: INNOV'KORP)`,
         montant: 15000,
-        type: 'ENCAISSEMENT',
+        type: 'DECAISSEMENT',
         modePaiement: 'GeniusPay',
         date: Date.now(),
-        tiersId: 'system',
-        tiersNom: 'GeniusPay',
+        tiersId: 'innov_korp',
+        tiersNom: "INNOV'KORP",
         ownerId: profile.companyId,
         createdAt: Date.now()
       });
-      console.log("[AUTO-DEBLOCAGE] payment logged in core payments collection!");
+      console.log("[AUTO-DEBLOCAGE] outflow payment logged in core payments collection!");
     } catch (payErr) {
       console.warn("Failed to create entry in core payments collection", payErr);
     }
@@ -150,14 +150,15 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
     try {
       await addDoc(collection(db, 'transactions'), {
         reference: `FAC-${reference.toUpperCase()}`,
-        description: `Abonnement KONTROL Standard - 30 jours (Réf: ${reference})`,
+        description: `Abonnement KONTROL Standard - 30 jours (Prestataire: INNOV'KORP)`,
         montantTotal: 15000,
-        type: 'VENTE',
+        type: 'ACHAT',
         modePaiement: 'GeniusPay',
         devise: 'XOF',
         tauxChange: 1,
         montantDevise: 15000,
         statut: 'PAYE',
+        tiersNom: "INNOV'KORP",
         ownerId: profile.companyId,
         companyId: profile.companyId,
         createdAt: Date.now(),
@@ -309,30 +310,31 @@ export function SubscriptionsModule({ profile }: SubscriptionsModuleProps) {
               updatedAt: Date.now()
             });
 
-            // 3. Register payment in the core 'payments' collection so it shows on the dashboard
+            // 3. Register payment in the core 'payments' collection so it displays as a cash outflow in treasury
             await addDoc(collection(db, 'payments'), {
-              description: `Abonnement KONTROL Standard - 30 jours (Réf: ${req.transactionId})`,
+              description: `Abonnement KONTROL Standard - 30 jours (Prestataire: INNOV'KORP)`,
               montant: 15000,
-              type: 'ENCAISSEMENT',
+              type: 'DECAISSEMENT',
               modePaiement: 'GeniusPay',
               date: Date.now(),
-              tiersId: 'system',
-              tiersNom: 'GeniusPay',
+              tiersId: 'innov_korp',
+              tiersNom: "INNOV'KORP",
               ownerId: profile.companyId,
               createdAt: Date.now()
             });
 
-            // 4. Register transaction in the core 'transactions' collection so it shows on the dashboard
+            // 4. Register transaction in the core 'transactions' collection so it displays on the main dashboard
             await addDoc(collection(db, 'transactions'), {
               reference: `FAC-${req.transactionId.toUpperCase()}`,
-              description: `Abonnement KONTROL Standard - 30 jours (Réf: ${req.transactionId})`,
+              description: `Abonnement KONTROL Standard - 30 jours (Prestataire: INNOV'KORP)`,
               montantTotal: 15000,
-              type: 'VENTE',
+              type: 'ACHAT',
               modePaiement: 'GeniusPay',
               devise: 'XOF',
               tauxChange: 1,
               montantDevise: 15000,
               statut: 'PAYE',
+              tiersNom: "INNOV'KORP",
               ownerId: profile.companyId,
               companyId: profile.companyId,
               createdAt: Date.now(),

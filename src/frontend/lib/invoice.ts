@@ -1,13 +1,13 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-// Robust helper to strip any accents or non-standard characters from text strings,
-// preventing the classic jsPDF encoding bug where accents appear as human-unreadable symbols.
-const cleanText = (str: string): string => {
+// Robust helper to strip accents and non-standard characters from text strings,
+// preventing jsPDF character encoding defects where accents turn into unreadable symbols.
+export const cleanText = (str: string): string => {
   if (!str) return '';
   return str
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // Remove all combining diacritical marks (accents)
+    .replace(/[\u0300-\u036f]/g, "") // Remove combining diacritical marks (accents)
     .replace(/œ/g, 'oe')
     .replace(/Œ/g, 'OE')
     .replace(/æ/g, 'ae')
@@ -17,26 +17,27 @@ const cleanText = (str: string): string => {
 };
 
 // Formats amount with a clean space separator to avoid non-breaking space issues.
-const formatSimpleNumber = (num: number, currency: string) => {
-  const formatted = num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-  return `${formatted} ${cleanText(currency)}`;
+export const formatSimpleNumber = (num: number, currency: string) => {
+  const rounded = Math.round(num || 0);
+  const formatted = rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  return `${formatted} ${cleanText(currency || 'XOF')}`;
 };
 
-const drawKontrolLogo = (doc: jsPDF, x: number, y: number, size: number) => {
+export const drawKontrolLogo = (doc: jsPDF, x: number, y: number, size: number) => {
   const cx = x + size * 0.5;
   const cy = y + size * 0.5;
 
-  // Draw light blue outer swirl/circle segment
+  // Outer sky blue ring
   doc.setDrawColor(125, 211, 252);
   doc.setLineWidth(size * 0.12);
   doc.circle(cx, cy, size * 0.42, 'S');
 
-  // Draw orange inner swirl/circle segment
+  // Orange inner swirl/circle segment
   doc.setDrawColor(249, 115, 22);
   doc.setLineWidth(size * 0.1);
   doc.circle(cx, cy, size * 0.32, 'S');
 
-  // Draw the central blue arrow
+  // Central blue arrow
   doc.setFillColor(59, 130, 246);
   doc.triangle(
     x + size * 0.5, y + size * 0.22,
@@ -52,7 +53,7 @@ const drawKontrolLogo = (doc: jsPDF, x: number, y: number, size: number) => {
 };
 
 // Simple padlock vector drawer for digital seal
-const drawPadlockIcon = (doc: jsPDF, x: number, y: number, size: number) => {
+export const drawPadlockIcon = (doc: jsPDF, x: number, y: number, size: number) => {
   doc.setDrawColor(37, 99, 235);
   doc.setLineWidth(0.5);
   doc.circle(x + size / 2, y + size / 3, size / 4, 'S');
@@ -63,31 +64,39 @@ const drawPadlockIcon = (doc: jsPDF, x: number, y: number, size: number) => {
 };
 
 export const generateInvoicePDF = (transaction: any, userProfile?: any) => {
-  const reference = transaction.transactionId || transaction.id || "GP-TX-UNKNOWN";
-  const amount = transaction.amount || 15000;
-  const currency = transaction.currency || "XOF";
+  const type = transaction.type || 'VENTE';
+  const isSubscription = type === 'ABONNEMENT' || (transaction.description && transaction.description.toLowerCase().includes('abonnement'));
+  const isSale = type === 'VENTE' && !isSubscription;
+  const isPurchase = type === 'ACHAT' || type === 'CHARGE';
+
+  const reference = transaction.reference || transaction.transactionId || transaction.id || "KT-REF-UNKNOWN";
+  const amount = transaction.montantTotal || transaction.montant || transaction.amount || 0;
+  const currency = transaction.devise || transaction.currency || "XOF";
   
-  const rawDate = new Date(transaction.createdAt || Date.now());
+  const rawDate = new Date(transaction.createdAt || transaction.date || Date.now());
   const dateStr = rawDate.toLocaleDateString('fr-FR', {
     day: 'numeric',
     month: 'long',
     year: 'numeric'
   });
 
-  // Calculate Échéances (Previous and New due dates)
-  const prevDueDateObj = transaction.previousDueDate ? new Date(transaction.previousDueDate) : rawDate;
+  // Calculate Due Date if present
   const nextDueDateObj = transaction.nextDueDate 
     ? new Date(transaction.nextDueDate) 
     : new Date(rawDate.getTime() + 30 * 24 * 60 * 60 * 1000);
-
-  const prevDueDateStr = prevDueDateObj.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
   const nextDueDateStr = nextDueDateObj.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-  
-  const invoiceNumber = `KT-FAC-${reference.substring(0, 10).toUpperCase()}`;
-  
-  const companyName = cleanText(userProfile?.companyName || userProfile?.companyAbbreviation || "Votre Entreprise");
-  const userName = cleanText(userProfile?.displayName || userProfile?.email || "Utilisateur KONTROL");
-  const userEmail = cleanText(userProfile?.email || "");
+
+  const invoiceNumber = reference.startsWith('FAC') || reference.startsWith('KT-FAC')
+    ? reference
+    : `KT-FAC-${reference.substring(0, 10).toUpperCase()}`;
+
+  // User / Company details
+  const myCompany = cleanText(userProfile?.companyName || userProfile?.companyAbbreviation || "Votre Entreprise");
+  const myUserName = cleanText(userProfile?.displayName || userProfile?.email || "Gestionnaire KONTROL");
+  const myUserEmail = cleanText(userProfile?.email || "");
+
+  // Counterparty details
+  const partnerName = cleanText(transaction.tiersNom || (isSale ? "Client Tiers" : "Fournisseur Tiers"));
 
   // Initialize jsPDF (A4, portrait, mm)
   const doc = new jsPDF({
@@ -99,11 +108,11 @@ export const generateInvoicePDF = (transaction: any, userProfile?: any) => {
   const margin = 15;
   const pageWidth = 210;
 
-  // 1. Decorative Header Strip
+  // 1. Top Decorative Strip
   doc.setFillColor(37, 99, 235);
   doc.rect(0, 0, pageWidth, 4, 'F');
 
-  // 2. Draw Vector KONTROL Logo
+  // 2. KONTROL Vector Logo
   drawKontrolLogo(doc, margin, 14, 16);
 
   // 3. App branding text next to Logo
@@ -118,10 +127,16 @@ export const generateInvoicePDF = (transaction: any, userProfile?: any) => {
   doc.text(cleanText("GESTION ERP INTELLIGENTE par INNOV'KORP"), 35, 28);
 
   // 4. Invoice Title & ID (Top Right)
+  const docTitle = isSubscription 
+    ? "FACTURE D'ABONNEMENT" 
+    : isSale 
+      ? "FACTURE DE VENTE" 
+      : "FACTURE D'ACHAT";
+
   doc.setTextColor(15, 23, 42);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
-  doc.text(cleanText("FACTURE D'ABONNEMENT"), pageWidth - margin, 22, { align: 'right' });
+  doc.text(cleanText(docTitle), pageWidth - margin, 22, { align: 'right' });
 
   doc.setTextColor(37, 99, 235);
   doc.setFont('helvetica', 'bold');
@@ -133,132 +148,212 @@ export const generateInvoicePDF = (transaction: any, userProfile?: any) => {
   doc.setLineWidth(0.5);
   doc.line(margin, 35, pageWidth - margin, 35);
 
-  // 5. Metadata Layout:
-  // - ÉMETTEUR (Issuer) on the LEFT at y = 42
-  // - CLIENT (Facturé à) slightly BELOW on the RIGHT at y = 54
+  // 5. Parties Layout:
+  // - ÉMETTEUR (Prestataire/Vendeur) on the LEFT at y = 42
+  // - CLIENT / DESTINATAIRE slightly BELOW on the RIGHT at y = 54
   
-  // Left Side: ÉMETTEUR
   const issuerY = 42;
-  doc.setTextColor(100, 116, 139);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
-  doc.text(cleanText("EMETTEUR (PRESTATAIRE)"), margin, issuerY);
-
-  doc.setTextColor(15, 23, 42);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.text("INNOV'KORP", margin, issuerY + 6);
-
-  doc.setTextColor(51, 65, 85);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.text("Email : Innov.korp@gmail.com", margin, issuerY + 11);
-
-  // Right Side: CLIENT / FACTURÉ À (slanted/staggered slightly below at y = 54)
   const clientY = 54;
-  doc.setTextColor(100, 116, 139);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
-  doc.text(cleanText("CLIENT (FACTURE A)"), 115, clientY);
 
-  doc.setTextColor(15, 23, 42);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.text(companyName, 115, clientY + 6);
+  if (isSubscription) {
+    // Left: INNOV'KORP
+    doc.setTextColor(100, 116, 139);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.text(cleanText("ÉMETTEUR (PRESTATAIRE)"), margin, issuerY);
 
-  doc.setTextColor(51, 65, 85);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.text(cleanText(`A l'attention de : ${userName}`), 115, clientY + 11);
-  doc.text(`Email : ${userEmail}`, 115, clientY + 16);
+    doc.setTextColor(15, 23, 42);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text("INNOV'KORP", margin, issuerY + 6);
 
-  // Horizontal divider before payment details & due dates
+    doc.setTextColor(51, 65, 85);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text("Email : Innov.korp@gmail.com", margin, issuerY + 11);
+
+    // Right: User's Company
+    doc.setTextColor(100, 116, 139);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.text(cleanText("CLIENT (FACTURÉ À)"), 115, clientY);
+
+    doc.setTextColor(15, 23, 42);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text(myCompany, 115, clientY + 6);
+
+    doc.setTextColor(51, 65, 85);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text(cleanText(`À l'attention de : ${myUserName}`), 115, clientY + 11);
+    doc.text(`Email : ${myUserEmail}`, 115, clientY + 16);
+  } else if (isSale) {
+    // Left: User's Company (Vendeur)
+    doc.setTextColor(100, 116, 139);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.text(cleanText("ÉMETTEUR (VENDEUR / PRESTATAIRE)"), margin, issuerY);
+
+    doc.setTextColor(15, 23, 42);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text(myCompany, margin, issuerY + 6);
+
+    doc.setTextColor(51, 65, 85);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text(cleanText(`Représentant : ${myUserName}`), margin, issuerY + 11);
+    doc.text(`Email : ${myUserEmail}`, margin, issuerY + 16);
+
+    // Right: Client Tiers
+    doc.setTextColor(100, 116, 139);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.text(cleanText("CLIENT (FACTURÉ À)"), 115, clientY);
+
+    doc.setTextColor(15, 23, 42);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text(partnerName, 115, clientY + 6);
+
+    doc.setTextColor(51, 65, 85);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text(cleanText("Partenaire enregistré sur KONTROL ERP"), 115, clientY + 11);
+  } else {
+    // Purchase: Left = Supplier Tiers, Right = User's Company
+    doc.setTextColor(100, 116, 139);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.text(cleanText("ÉMETTEUR (FOURNISSEUR)"), margin, issuerY);
+
+    doc.setTextColor(15, 23, 42);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text(partnerName, margin, issuerY + 6);
+
+    doc.setTextColor(51, 65, 85);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text(cleanText("Prestataire externe certifié"), margin, issuerY + 11);
+
+    // Right: User's Company
+    doc.setTextColor(100, 116, 139);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.text(cleanText("DESTINATAIRE (ACHETEUR)"), 115, clientY);
+
+    doc.setTextColor(15, 23, 42);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text(myCompany, 115, clientY + 6);
+
+    doc.setTextColor(51, 65, 85);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text(cleanText(`Responsable : ${myUserName}`), 115, clientY + 11);
+    doc.text(`Email : ${myUserEmail}`, 115, clientY + 16);
+  }
+
+  // Horizontal divider
   doc.setDrawColor(241, 245, 249);
   doc.setLineWidth(0.5);
   doc.line(margin, 76, pageWidth - margin, 76);
 
-  // 6. Payment Details & Échéance Section Box
+  // 6. Payment & Details Section Box
   const detailsY = 82;
 
-  // Box background for Payment & Dates
   doc.setFillColor(248, 250, 252);
   doc.rect(margin, detailsY, pageWidth - (margin * 2), 24, 'F');
   doc.setDrawColor(226, 232, 240);
   doc.setLineWidth(0.3);
   doc.rect(margin, detailsY, pageWidth - (margin * 2), 24, 'S');
 
-  // Left Column inside details box: Transaction Details
+  // Left Column inside details box: Payment details
+  const modePaiement = cleanText(transaction.modePaiement || transaction.paymentMethod || "Paiement Comptant");
+  const refPaiement = cleanText(transaction.referencePaiement || transaction.numCheque || transaction.numBonCaisse || transaction.reference || "N/A");
+
   doc.setTextColor(100, 116, 139);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
-  doc.text(cleanText("DETAILS DU RÈGLEMENT"), margin + 5, detailsY + 6);
+  doc.text(cleanText("RÈGLEMENT & RENSEIGNEMENTS"), margin + 5, detailsY + 6);
 
   doc.setTextColor(51, 65, 85);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
-  doc.text(cleanText(`Date d'emission : `), margin + 5, detailsY + 12);
+  doc.text(cleanText(`Date d'émission : `), margin + 5, detailsY + 12);
   doc.setFont('helvetica', 'bold');
   doc.text(cleanText(dateStr), margin + 35, detailsY + 12);
 
   doc.setFont('helvetica', 'normal');
-  doc.text(cleanText("Reglement : "), margin + 5, detailsY + 18);
+  doc.text(cleanText("Mode de règlement : "), margin + 5, detailsY + 18);
   doc.setFont('helvetica', 'bold');
-  doc.text("GeniusPay (Mobile Money)", margin + 27, detailsY + 18);
+  doc.text(modePaiement, margin + 38, detailsY + 18);
 
-  // Right Column inside details box: Nouvelle Échéance
-  const echeanceX = 115;
+  // Right Column: Reference / Due Date
+  const colRightX = 115;
   doc.setTextColor(100, 116, 139);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
-  doc.text(cleanText("ÉCHÉANCE DE L'ABONNEMENT"), echeanceX, detailsY + 6);
+  doc.text(cleanText(isSubscription ? "ÉCHÉANCE DE L'ABONNEMENT" : "RÉFÉRENCE ET JUSTIFICATIF"), colRightX, detailsY + 6);
 
-  doc.setTextColor(37, 99, 235); // Blue for new due date
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8.5);
-  doc.text(cleanText("Nouvelle echeance : "), echeanceX, detailsY + 14);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9.5);
-  doc.text(cleanText(nextDueDateStr), echeanceX + 34, detailsY + 14);
+  if (isSubscription) {
+    doc.setTextColor(37, 99, 235);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.text(cleanText("Nouvelle échéance : "), colRightX, detailsY + 14);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9.5);
+    doc.text(cleanText(nextDueDateStr), colRightX + 34, detailsY + 14);
+  } else {
+    doc.setTextColor(51, 65, 85);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.text(cleanText("Réf. Pièce / Transaction : "), colRightX, detailsY + 12);
+    doc.setFont('helvetica', 'bold');
+    doc.text(refPaiement.substring(0, 24), colRightX + 42, detailsY + 12);
 
-  // 7. Draw Table for Subscriptions
+    doc.setFont('helvetica', 'normal');
+    doc.text(cleanText("Statut du paiement : "), colRightX, detailsY + 18);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(16, 185, 129);
+    doc.text(cleanText(transaction.statut || "PAYÉ / RÈGLÉ"), colRightX + 35, detailsY + 18);
+  }
+
+  // 7. Table for Items / Articles
   const formattedAmount = formatSimpleNumber(amount, currency);
 
-  const descriptionText = [
-    "ABONNEMENT: KONTROL STANDARD",
-    "",
-    "Acces complet aux modules de l'ERP :",
-    "- Achats et Ventes (Facturation, devis, gestion clients)",
-    "- Stocks et Logistique (Inventaire en temps reel)",
-    "- Tresorerie et Flux de caisse (Rapprochements)",
-    "- Blue AI Assistant (Analyses predictives)",
-    "- Synchronisation instantanee et sauvegarde securisee cloud",
-    "",
-    `Nouvelle echeance d'abonnement : ${cleanText(nextDueDateStr)}`,
-    "Support technique dedie d'INNOV'KORP : Innov.korp@gmail.com"
-  ].map(line => cleanText(line)).join("\n");
+  let tableHead = [cleanText("Désignation des articles / prestations"), cleanText("Qté"), cleanText("Prix Unitaire"), cleanText("Montant Net")];
+  let tableRows: any[] = [];
+
+  if (transaction.articles && Array.isArray(transaction.articles) && transaction.articles.length > 0) {
+    tableRows = transaction.articles.map((art: any) => [
+      cleanText(art.designation || art.produitId || "Article / Prestation"),
+      art.quantite || 1,
+      formatSimpleNumber(art.prixUnitaire || 0, currency),
+      formatSimpleNumber(art.total || (art.quantite * art.prixUnitaire) || 0, currency)
+    ]);
+  } else {
+    let desc = cleanText(transaction.description || (isSubscription ? "Abonnement KONTROL Standard - 30 jours" : `Opération de ${docTitle.toLowerCase()}`));
+    tableRows = [[
+      desc,
+      "1",
+      formattedAmount,
+      formattedAmount
+    ]];
+  }
 
   autoTable(doc, {
     startY: 112,
     margin: { left: margin, right: margin },
-    head: [[
-      cleanText("Description des services d'abonnement"),
-      cleanText("Qte"),
-      cleanText("Prix Unitaire"),
-      cleanText("Montant Net")
-    ]],
-    body: [
-      [
-        descriptionText,
-        "1",
-        formattedAmount,
-        formattedAmount
-      ]
-    ],
+    head: [tableHead],
+    body: tableRows,
     theme: 'striped',
     styles: {
       font: 'helvetica',
-      fontSize: 9.5,
-      cellPadding: 5,
+      fontSize: 9,
+      cellPadding: 4.5,
       valign: 'middle'
     },
     headStyles: {
@@ -292,7 +387,7 @@ export const generateInvoicePDF = (transaction: any, userProfile?: any) => {
 
   doc.setTextColor(100, 116, 139);
   doc.setFont('helvetica', 'normal');
-  doc.text(cleanText("TVA (0% - Exonere) :"), totalsLeftX, totalsY + 12);
+  doc.text(cleanText("TVA (0% - Exonéré) :"), totalsLeftX, totalsY + 12);
   doc.setTextColor(51, 65, 85);
   doc.setFont('helvetica', 'bold');
   doc.text(formatSimpleNumber(0, currency), pageWidth - margin, totalsY + 12, { align: 'right' });
@@ -304,7 +399,7 @@ export const generateInvoicePDF = (transaction: any, userProfile?: any) => {
   doc.setTextColor(15, 23, 42);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
-  doc.text("Montant net paye :", totalsLeftX, totalsY + 22);
+  doc.text("Montant total net :", totalsLeftX, totalsY + 22);
   
   doc.setTextColor(37, 99, 235);
   doc.setFontSize(12);
@@ -331,17 +426,17 @@ export const generateInvoicePDF = (transaction: any, userProfile?: any) => {
   doc.setTextColor(6, 95, 70);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
-  doc.text("PAYEE", margin + 12, totalsY + 9);
+  doc.text("PAYÉE ET VALITÉE", margin + 12, totalsY + 9);
 
   doc.setTextColor(4, 120, 87);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
-  doc.text(cleanText("Reglement securise via GeniusPay"), margin + 12, totalsY + 14);
+  doc.text(cleanText(`Moyen : ${modePaiement}`), margin + 12, totalsY + 14);
   doc.setFont('courier', 'normal');
   doc.setFontSize(7.5);
-  doc.text(`Ref : ${reference.substring(0, 16)}...`, margin + 12, totalsY + 19);
+  doc.text(`Réf : ${reference.substring(0, 18)}`, margin + 12, totalsY + 19);
 
-  // 8. Cachet Numérique de KONTROL (Security Digital Seal)
+  // 8. Digital Security Seal
   const sealY = totalsY + 34;
   
   doc.setFillColor(248, 250, 252);
@@ -356,17 +451,17 @@ export const generateInvoicePDF = (transaction: any, userProfile?: any) => {
   doc.setTextColor(30, 41, 59);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
-  doc.text(cleanText("CACHET NUMERIQUE DE CERTIFICATION KONTROL"), margin + 17, sealY + 7);
+  doc.text(cleanText("CACHET NUMÉRIQUE DE CERTIFICATION KONTROL"), margin + 17, sealY + 7);
 
   doc.setTextColor(71, 85, 105);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
-  doc.text(cleanText("Document certifie conforme et signe numeriquement par la cle de securite cryptographique KONTROL."), margin + 17, sealY + 12);
+  doc.text(cleanText("Document certifié conforme, archivé en registre infalsifiable et signé cryptographiquement par KONTROL."), margin + 17, sealY + 12);
   
   doc.setFont('courier', 'normal');
   doc.setTextColor(100, 116, 139);
   doc.setFontSize(7);
-  doc.text(`Verification ID: SEC-KEY-SHA256-${reference.substring(0, 12).toUpperCase()}-VERIFIED-BY-INNOV-KORP`, margin + 17, sealY + 17);
+  doc.text(`Verification ID: SEC-KEY-SHA256-${reference.substring(0, 12).toUpperCase()}-VERIFIED-KONTROL`, margin + 17, sealY + 17);
 
   // 9. Footer (Anchored to bottom at Y=264)
   const footerY = 264;
@@ -378,21 +473,21 @@ export const generateInvoicePDF = (transaction: any, userProfile?: any) => {
   doc.setTextColor(71, 85, 105);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
-  doc.text("INNOV'KORP", pageWidth / 2, footerY, { align: 'center' });
+  doc.text(myCompany, pageWidth / 2, footerY, { align: 'center' });
 
   doc.setTextColor(37, 99, 235);
   doc.setFont('helvetica', 'semibold');
   doc.setFontSize(8);
-  doc.text("Email de contact d'INNOV'KORP : Innov.korp@gmail.com", pageWidth / 2, footerY + 4, { align: 'center' });
+  doc.text(`Contact : ${myUserEmail || 'Innov.korp@gmail.com'}`, pageWidth / 2, footerY + 4, { align: 'center' });
 
   doc.setTextColor(148, 163, 184);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
-  doc.text(cleanText("Facture generee automatiquement et certifiee conforme. Aucune signature manuscrite n'est requise."), pageWidth / 2, footerY + 9, { align: 'center' });
-  doc.text(cleanText("Merci pour votre abonnement et votre confiance envers nos solutions."), pageWidth / 2, footerY + 13, { align: 'center' });
+  doc.text(cleanText("Facture générée automatiquement et certifiée conforme sur KONTROL. Aucune signature manuscrite n'est requise."), pageWidth / 2, footerY + 9, { align: 'center' });
+  doc.text(cleanText("Merci pour votre confiance envers nos services et notre plateforme ERP."), pageWidth / 2, footerY + 13, { align: 'center' });
 
-  // Trigger download of generated PDF
-  doc.save(`Facture_INNOV_KORP_${invoiceNumber}.pdf`);
+  // Trigger download
+  doc.save(`Facture_${cleanText(myCompany).replace(/\s+/g, '_')}_${invoiceNumber}.pdf`);
 };
 
 export const generateReceiptPDF = (transaction: any, userProfile?: any) => {
