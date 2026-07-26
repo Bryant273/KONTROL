@@ -240,13 +240,13 @@ export function Dashboard({ user, currentUserProfile, onNavigate, onStartGuide }
       
       m.net = m.ca - (m.achats + m.charges);
       
-      // Treasury at end of month (simplified: current balance minus flows after that month)
+      // Treasury at end of month (current balance minus flows occurring after that month)
+      const totalCurrentBalance = payments.reduce((acc, p) => acc + (p.type === 'ENCAISSEMENT' ? (p.montant || 0) : -(p.montant || 0)), 0);
       const flowsAfter = payments
         .filter(p => p.date > m.end)
         .reduce((acc, p) => acc + (p.type === 'ENCAISSEMENT' ? (p.montant || 0) : -(p.montant || 0)), 0);
       
-      // This is an approximation based on current total treasury and retroactive flows
-      // In a real app we would have historically stored balances
+      m.tresorerie = Math.max(0, totalCurrentBalance - flowsAfter);
     });
 
     setMonthlyData(months);

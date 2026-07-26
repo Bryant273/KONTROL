@@ -14,6 +14,8 @@ import {
   FileText,
   Trash2,
   CheckCircle2,
+  XCircle,
+  Clock,
   Package,
   Printer,
   Receipt,
@@ -304,6 +306,15 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
     window.addEventListener('select-entity-transactions', listener);
     return () => window.removeEventListener('select-entity-transactions', listener);
   }, []);
+
+  const statsMemo = React.useMemo(() => {
+    const ventesPayees = transactions.filter(t => t.type === 'VENTE' && t.statut === 'PAYE').reduce((acc, t) => acc + (t.montantTotal || 0), 0);
+    const achatsPayes = transactions.filter(t => t.type === 'ACHAT' && t.statut === 'PAYE').reduce((acc, t) => acc + (t.montantTotal || 0), 0);
+    const enAttente = transactions.filter(t => t.statut === 'ATTENTE').reduce((acc, t) => acc + (t.montantTotal || 0), 0);
+    const annuleCount = transactions.filter(t => t.statut === 'ANNULE').length;
+    const annuleMontant = transactions.filter(t => t.statut === 'ANNULE').reduce((acc, t) => acc + (t.montantTotal || 0), 0);
+    return { ventesPayees, achatsPayes, enAttente, annuleCount, annuleMontant };
+  }, [transactions]);
 
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -971,6 +982,45 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
               <Plus size={14} /> {t('transactions.new_transaction')}
             </button>
           )}
+        </div>
+      </div>
+
+      {/* Real-time Summary KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="card p-3.5 bg-white border border-kontrol-border rounded-xl">
+          <div className="flex items-center justify-between text-emerald-600 mb-1">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Ventes Encaissées</span>
+            <ArrowUpRight size={16} />
+          </div>
+          <div className="text-base sm:text-lg font-black text-kontrol-dark">{formatCurrency(statsMemo.ventesPayees)}</div>
+          <p className="text-[10px] text-emerald-600 font-bold mt-0.5">Transactions payées</p>
+        </div>
+
+        <div className="card p-3.5 bg-white border border-kontrol-border rounded-xl">
+          <div className="flex items-center justify-between text-blue-600 mb-1">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Achats Payés</span>
+            <ArrowDownLeft size={16} />
+          </div>
+          <div className="text-base sm:text-lg font-black text-kontrol-dark">{formatCurrency(statsMemo.achatsPayes)}</div>
+          <p className="text-[10px] text-blue-600 font-bold mt-0.5">Approvisionnements payés</p>
+        </div>
+
+        <div className="card p-3.5 bg-white border border-kontrol-border rounded-xl">
+          <div className="flex items-center justify-between text-amber-500 mb-1">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">En Attente</span>
+            <Clock size={16} />
+          </div>
+          <div className="text-base sm:text-lg font-black text-amber-600">{formatCurrency(statsMemo.enAttente)}</div>
+          <p className="text-[10px] text-amber-600 font-bold mt-0.5">Créances & Engagements</p>
+        </div>
+
+        <div className="card p-3.5 bg-white border border-rose-100 bg-rose-50/20 rounded-xl">
+          <div className="flex items-center justify-between text-rose-500 mb-1">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-kontrol-ink-muted">Annulations</span>
+            <XCircle size={16} />
+          </div>
+          <div className="text-base sm:text-lg font-black text-rose-600">{formatCurrency(statsMemo.annuleMontant)}</div>
+          <p className="text-[10px] text-rose-500 font-bold mt-0.5">{statsMemo.annuleCount} opérations annulées</p>
         </div>
       </div>
 

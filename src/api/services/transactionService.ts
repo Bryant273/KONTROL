@@ -25,30 +25,33 @@ export class TransactionService extends BaseFirestoreService<Transaction> {
         createdAt: Date.now()
       });
 
-      // 2. Update product stock and create stock movements
-      for (const article of transaction.articles) {
-        const productRef = doc(db, 'produits', article.produitId);
-        
-        // Update stock
-        const stockChange = transaction.type === 'VENTE' ? -article.quantite : article.quantite;
-        batch.update(productRef, {
-          stock: increment(stockChange)
-        });
+      // 2. Update product stock and create stock movements (only if active transaction)
+      if (transaction.statut !== 'ANNULE') {
+        for (const article of transaction.articles || []) {
+          if (!article.produitId) continue;
+          const productRef = doc(db, 'produits', article.produitId);
+          
+          // Update stock
+          const stockChange = transaction.type === 'VENTE' ? -article.quantite : article.quantite;
+          batch.update(productRef, {
+            stock: increment(stockChange)
+          });
 
-        // Create stock movement
-        const movementRef = doc(collection(db, 'stock_movements'));
-        batch.set(movementRef, {
-          produitId: article.produitId,
-          designation: article.designation,
-          type: transaction.type === 'VENTE' ? 'SORTIE' : 'ENTREE',
-          quantite: article.quantite,
-          prixUnitaire: article.prixUnitaire,
-          source: 'TRANSACTION',
-          referenceId: transactionId,
-          date: Date.now(),
-          ownerId: transaction.ownerId,
-          createdAt: Date.now()
-        });
+          // Create stock movement
+          const movementRef = doc(collection(db, 'stock_movements'));
+          batch.set(movementRef, {
+            produitId: article.produitId,
+            designation: article.designation,
+            type: transaction.type === 'VENTE' ? 'SORTIE' : 'ENTREE',
+            quantite: article.quantite,
+            prixUnitaire: article.prixUnitaire,
+            source: 'TRANSACTION',
+            referenceId: transactionId,
+            date: Date.now(),
+            ownerId: transaction.ownerId,
+            createdAt: Date.now()
+          });
+        }
       }
 
       // 3. Create payment if status is PAYE
@@ -120,13 +123,61 @@ export class TransactionService extends BaseFirestoreService<Transaction> {
       const oldData = transDoc.data() as Transaction;
       const newData = { ...oldData, ...updates };
 
-      // 1. Update the transaction document
+      const isCancelling = (oldData.statut !== 'ANNULE') && (newData.statut === 'ANNULE');
+      const isReactivating = (oldData.statut === 'ANNULE') && (newData.statut !== 'ANNULE');
+
+      // 1. Handle Stock Adjustments on Status Change
+      if (isCancelling) {
+        // Revert stock changes made when the transaction was active
+        for (const article of oldData.articles || []) {
+          if (!article.produitId) continue;
+          const productRef = doc(db, 'produits', article.produitId);
+          // For VENTE, stock was deducted -> add it back (+quantite)
+          // For ACHAT, stock was added -> deduct it (-quantite)
+          const stockChange = oldData.type === 'VENTE' ? article.quantite : -article.quantite;
+          batch.update(productRef, {
+            stock: increment(stockChange)
+          });
+        }
+
+        // Delete associated stock movements
+        const movementsQuery = query(collection(db, 'stock_movements'), where('referenceId', '==', id));
+        const movementsSnapshot = await getDocs(movementsQuery);
+        movementsSnapshot.forEach((mDoc) => batch.delete(mDoc.ref));
+      } else if (isReactivating) {
+        // Re-apply stock changes
+        for (const article of newData.articles || []) {
+          if (!article.produitId) continue;
+          const productRef = doc(db, 'produits', article.produitId);
+          const stockChange = newData.type === 'VENTE' ? -article.quantite : article.quantite;
+          batch.update(productRef, {
+            stock: increment(stockChange)
+          });
+
+          // Create fresh stock movement
+          const movementRef = doc(collection(db, 'stock_movements'));
+          batch.set(movementRef, {
+            produitId: article.produitId,
+            designation: article.designation,
+            type: newData.type === 'VENTE' ? 'SORTIE' : 'ENTREE',
+            quantite: article.quantite,
+            prixUnitaire: article.prixUnitaire,
+            source: 'TRANSACTION',
+            referenceId: id,
+            date: Date.now(),
+            ownerId: newData.ownerId,
+            createdAt: Date.now()
+          });
+        }
+      }
+
+      // 2. Update the transaction document
       batch.update(transRef, {
         ...updates,
         updatedAt: Date.now()
       });
 
-      // 2. Handle Payment Synchronization
+      // 3. Handle Payment Synchronization
       const paymentsQuery = query(collection(db, 'payments'), where('transactionId', '==', id));
       const paymentsSnapshot = await getDocs(paymentsQuery);
       const existingPayment = !paymentsSnapshot.empty ? paymentsSnapshot.docs[0] : null;
@@ -157,8 +208,8 @@ export class TransactionService extends BaseFirestoreService<Transaction> {
             createdAt: Date.now()
           });
         }
-      } else if (newData.statut === 'ATTENTE' && existingPayment) {
-        // Delete payment if status changed to ATTENTE
+      } else if ((newData.statut === 'ATTENTE' || newData.statut === 'ANNULE') && existingPayment) {
+        // Delete payment if status changed to ATTENTE or ANNULE
         batch.delete(existingPayment.ref);
       }
 
@@ -171,7 +222,7 @@ export class TransactionService extends BaseFirestoreService<Transaction> {
           profile.uid,
           profile.displayName,
           "MODIFICATION_TRANSACTION",
-          `Modification de la ${oldData.type} #${oldData.reference}`
+          `Modification/Annulation de la ${oldData.type} #${oldData.reference} (Statut: ${newData.statut})`
         );
       }
     } catch (error) {
@@ -189,13 +240,16 @@ export class TransactionService extends BaseFirestoreService<Transaction> {
       if (!transDoc.exists()) return;
       const transaction = transDoc.data() as Transaction;
 
-      // 2. Reverse stock changes
-      for (const article of transaction.articles) {
-        const productRef = doc(db, 'produits', article.produitId);
-        const stockChange = transaction.type === 'VENTE' ? article.quantite : -article.quantite;
-        batch.update(productRef, {
-          stock: increment(stockChange)
-        });
+      // 2. Reverse stock changes only if transaction was NOT already cancelled
+      if (transaction.statut !== 'ANNULE') {
+        for (const article of transaction.articles || []) {
+          if (!article.produitId) continue;
+          const productRef = doc(db, 'produits', article.produitId);
+          const stockChange = transaction.type === 'VENTE' ? article.quantite : -article.quantite;
+          batch.update(productRef, {
+            stock: increment(stockChange)
+          });
+        }
       }
 
       // 3. Delete associated stock movements
