@@ -34,7 +34,7 @@ Chaque module métier de l'interface graphique ne dialogue jamais directement av
     ├── emailService.ts          - Notifications par courriel lors des facturations tiers
     ├── financeService.ts        - Trésorerie globale, calculs de soldes de comptes et du bridge financier
     ├── notificationService.ts   - Hub unifié de gestion des alertes d'inventaires physiques et d'abonnements
-    ├── productService.ts        - Gestion du catalogue, liaison aux codes à barres et de stocks
+    ├── productService.ts        - Abonnement temps réel au catalogue complet (souscriptions NoSQL triées par date de création, sans restriction de date du jour)
     ├── stockService.ts          - Enregistrement des flux d'entrées et de sorties physiques marchandises
     ├── tiersService.ts          - Annuaire des comptes de clients et de fournisseurs (CRMs)
     ├── transactionService.ts    - Soumission, lettrage, modification et annulation de facturations

@@ -66,8 +66,6 @@ export function TicketsModule({ user, currentUserProfile }: TicketsModuleProps) 
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const itemsPerPage = 10;
 
-  const isKontrolAdmin = false;
-
   const [replyText, setReplyText] = React.useState('');
   const [isAiDrafting, setIsAiDrafting] = React.useState(false);
   const [isSubmittingReply, setIsSubmittingReply] = React.useState(false);
@@ -168,7 +166,7 @@ Ne retourne aucune autre phrase, ni balises markdown \`\`\`json \`\`\``;
 
       await updateDoc(doc(db, 'tickets', selectedTicket.id), {
         replies: updatedReplies,
-        status: isKontrolAdmin ? 'OPEN' : 'PENDING',
+        status: 'PENDING',
         updatedAt: new Date().toISOString()
       });
 
@@ -177,29 +175,17 @@ Ne retourne aucune autre phrase, ni balises markdown \`\`\`json \`\`\``;
         return {
           ...prev,
           replies: updatedReplies,
-          status: isKontrolAdmin ? 'OPEN' : 'PENDING'
+          status: 'PENDING'
         };
       });
 
-      if (isKontrolAdmin) {
-        if (selectedTicket.userId) {
-          await sendNotification({
-            companyId: selectedTicket.companyId || '',
-            userId: selectedTicket.userId,
-            title: t('tickets.notif.update_title') || "Réponse à votre ticket",
-            message: `${currentUserProfile?.displayName || 'Le support'} a ajouté un nouveau commentaire sur votre ticket: "${selectedTicket.subject}"`,
-            type: 'info'
-          });
-        }
-      } else {
-        await sendNotification({
-          companyId: 'SYSTEM',
-          title: "Nouveau commentaire client",
-          message: `${currentUserProfile?.displayName || user.email} a répondu au ticket: "${selectedTicket.subject}"`,
-          type: 'info',
-          link: '/admin?tab=tickets'
-        });
-      }
+      await sendNotification({
+        companyId: 'SYSTEM',
+        title: "Nouveau commentaire client",
+        message: `${currentUserProfile?.displayName || user.email} a répondu au ticket: "${selectedTicket.subject}"`,
+        type: 'info',
+        link: '/tickets'
+      });
 
       setReplyText('');
     } catch (error) {
@@ -280,17 +266,9 @@ Ne retourne aucune autre phrase, ni balises markdown \`\`\`json \`\`\``;
   };
 
   const handleExportPDF = () => {
-    const headers = isKontrolAdmin 
-      ? [t('tickets.labels.date'), t('tickets.labels.client'), t('tickets.labels.email'), t('produits.form.designation') || 'Sujet', t('common.status.active')]
-      : [t('tickets.labels.date'), t('produits.form.designation') || 'Sujet', t('tickets.labels.message') || 'Message', 'Réponses', t('common.status.active')];
+    const headers = [t('tickets.labels.date'), t('produits.form.designation') || 'Sujet', t('tickets.labels.message') || 'Message', 'Réponses', t('common.status.active')];
 
-    const data = filteredTickets.map(t => isKontrolAdmin ? [
-      new Date(t.createdAt).toLocaleDateString(),
-      t.name,
-      t.email,
-      t.subject,
-      getStatusLabel(t.status)
-    ] : [
+    const data = filteredTickets.map(t => [
       new Date(t.createdAt).toLocaleDateString(),
       t.subject,
       t.message,
@@ -302,28 +280,20 @@ Ne retourne aucune autre phrase, ni balises markdown \`\`\`json \`\`\``;
   };
 
   const handleExportExcel = () => {
-    const data = filteredTickets.map(t => isKontrolAdmin ? {
-      Date: new Date(t.createdAt).toLocaleDateString(),
-      Client: t.name,
-      Email: t.email,
-      Sujet: t.subject,
-      Statut: getStatusLabel(t.status)
-    } : {
+    const data = filteredTickets.map(t => ({
       Date: new Date(t.createdAt).toLocaleDateString(),
       Sujet: t.subject,
       Message: t.message,
       ['Réponses']: t.replies ? t.replies.length : 0,
       Statut: getStatusLabel(t.status)
-    });
+    }));
     exportToExcel(data, 'Tickets_KONTROL');
   };
 
   React.useEffect(() => {
     if (!user?.email) return;
 
-    const q = isKontrolAdmin 
-      ? query(collection(db, 'tickets'), orderBy('createdAt', 'desc'))
-      : query(collection(db, 'tickets'), where('email', '==', user.email), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'tickets'), where('email', '==', user.email), orderBy('createdAt', 'desc'));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setTickets(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Ticket)));
@@ -444,14 +414,12 @@ Ne retourne aucune autre phrase, ni balises markdown \`\`\`json \`\`\``;
           <p className="text-[13px] text-kontrol-ink-muted mt-1">{t('tickets.subtitle')}</p>
         </div>
         <div className="flex gap-2">
-          {!isKontrolAdmin && (
-            <button 
-              onClick={() => setIsCreating(true)}
-              className="btn-primary text-xs py-1.5 px-4 flex items-center gap-2 shadow-lg shadow-kontrol-blue/20"
-            >
-              <Plus size={14} /> {t('tickets.new_ticket')}
-            </button>
-          )}
+          <button 
+            onClick={() => setIsCreating(true)}
+            className="btn-primary text-xs py-1.5 px-4 flex items-center gap-2 shadow-lg shadow-kontrol-blue/20"
+          >
+            <Plus size={14} /> {t('tickets.new_ticket')}
+          </button>
           <button 
             onClick={handleExportPDF}
             className="btn-outline text-xs py-1.5 px-3 flex items-center gap-2"

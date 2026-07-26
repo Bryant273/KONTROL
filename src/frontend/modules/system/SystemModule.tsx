@@ -52,7 +52,6 @@ interface SystemModuleProps {
 }
 
 export function SystemModule({ currentUserProfile }: SystemModuleProps) {
-  const isKontrolAdmin = currentUserProfile?.role === 'ADMINISTRATEUR_ERP' || currentUserProfile?.role === 'ADMINISTRATEUR_KONTROL';
   const [activeTab, setActiveTab] = useState<'dashboard' | 'tenants' | 'users' | 'plans' | 'flags' | 'monitoring' | 'audit'>('dashboard');
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeletingUser, setIsDeletingUser] = useState<string | null>(null);
@@ -653,7 +652,7 @@ export function SystemModule({ currentUserProfile }: SystemModuleProps) {
                     <td className="px-6 py-4">
                       <span className={cn(
                         "px-2 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider",
-                        (user.role === 'ADMINISTRATEUR_ERP' || user.role === 'ADMINISTRATEUR_KONTROL') ? "bg-rose-50 text-rose-600" : "bg-kontrol-blue/5 text-kontrol-blue"
+                        user.role === 'ADMINISTRATEUR_ENTREPRISE' ? "bg-rose-50 text-rose-600" : "bg-kontrol-blue/5 text-kontrol-blue"
                       )}>
                         {formatRole(user.role)}
                       </span>

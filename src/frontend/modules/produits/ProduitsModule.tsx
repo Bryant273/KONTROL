@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, Package, AlertCircle, Loader2, X, Boxes, History, Trash2, Edit2, FileText, Table, Upload, Download, Calendar, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { Plus, Search, Package, AlertCircle, Loader2, X, Boxes, History, Trash2, Edit2, FileText, Table, Upload, Download, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { exportToPDF, exportToExcel, exportToCSV } from '../../lib/export';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
@@ -11,7 +11,6 @@ import { cn, formatCurrency } from '../../lib/utils';
 import { logAction, handleFirestoreError, OperationType, auth } from '../../../api/firebase';
 import { hasPermission } from '../../lib/permissions';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
-import { CompanySelector } from '../../components/common/CompanySelector';
 import { productService } from '../../../api/services/productService';
 import { motion } from 'motion/react';
 import { User as FirebaseUser } from 'firebase/auth';
@@ -26,16 +25,10 @@ interface ProduitsModuleProps {
 
 export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps) {
   const { t } = useTranslation();
-  const isERPAdmin = currentUserProfile?.role === 'ADMINISTRATEUR_ERP' || currentUserProfile?.role === 'GESTIONNAIRE_ERP';
-  const [selectedCompanyId, setSelectedCompanyId] = React.useState<string | null>(currentUserProfile?.companyId || null);
-  
-  const companyId = isERPAdmin 
-    ? (selectedCompanyId || currentUserProfile?.companyId || user.uid) 
-    : (currentUserProfile?.companyId || user.uid);
+  const companyId = currentUserProfile?.companyId || user.uid;
   const [produits, setProduits] = React.useState<Produit[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
-  const [filterDate, setFilterDate] = React.useState<string>(new Date().toISOString().split('T')[0]);
   const [isAdding, setIsAdding] = React.useState(false);
   const [isEditing, setIsEditing] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
@@ -304,16 +297,13 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
   React.useEffect(() => {
     if (!currentUserProfile) return;
     
-    const constraints: any[] = [orderBy('createdAt', 'desc')];
-    if (!(isERPAdmin && !selectedCompanyId)) {
-      constraints.unshift(where('ownerId', '==', companyId));
-    }
+    const constraints: any[] = [where('ownerId', '==', companyId), orderBy('createdAt', 'desc')];
 
     const unsubscribe = productService.subscribeToAll(setProduits, user, constraints);
     setLoading(false);
 
     return () => unsubscribe();
-  }, [user, companyId, currentUserProfile, selectedCompanyId]);
+  }, [user, companyId, currentUserProfile]);
 
   React.useEffect(() => {
     const checkTargetId = () => {
@@ -343,7 +333,6 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
   const filteredProduits = produits.filter(p => {
     const matchesSearch = p.designation.toLowerCase().includes(searchTerm.toLowerCase()) || 
                          p.reference.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesDate = !filterDate || new Date(p.createdAt).toISOString().split('T')[0] === filterDate;
     
     let matchesCategory = true;
     if (selectedCategory === 'IN_STOCK') {
@@ -354,15 +343,13 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
       matchesCategory = p.stock <= 0;
     }
     
-    return matchesSearch && matchesDate && matchesCategory;
+    return matchesSearch && matchesCategory;
   });
 
   React.useEffect(() => {
     if (selectedId && produits.length > 0) {
       const match = produits.find(p => p.id === selectedId);
       if (match) {
-        // Clear date filter (making it match all)
-        setFilterDate('');
         // Clear category filter
         setSelectedCategory('ALL');
         // Clear search
@@ -554,14 +541,6 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
             <h2 className="text-xl font-extrabold text-kontrol-dark tracking-tight">{t('produits.title')}</h2>
             <p className="text-[13px] text-kontrol-ink-muted mt-1">{t('produits.subtitle')}</p>
           </div>
-          {isERPAdmin && (
-            <div className="hidden md:block">
-              <CompanySelector 
-                selectedId={selectedCompanyId} 
-                onSelect={setSelectedCompanyId} 
-              />
-            </div>
-          )}
         </div>
         <div className="flex gap-2">
           {hasPermission(currentUserProfile?.role, 'PRODUCT_CREATE') && (
@@ -690,19 +669,6 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
             <span className="w-1.5 h-1.5 bg-rose-500 rounded-full" />
             {t('produits.status_out') || "Rupture"}
           </button>
-        </div>
-
-        <div className="flex items-center gap-2 bg-kontrol-bg border border-kontrol-border rounded-lg px-3 py-1.5">
-          <Calendar size={14} className="text-kontrol-ink-muted" />
-          <input 
-            type="date"
-            className="bg-transparent border-none outline-none text-[13px] font-medium text-kontrol-ink-soft"
-            value={filterDate}
-            onChange={(e) => {
-              setFilterDate(e.target.value);
-              setCurrentPage(1);
-            }}
-          />
         </div>
       </div>
 

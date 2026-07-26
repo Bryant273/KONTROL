@@ -46,7 +46,7 @@ L'expérience utilisateur s'articule autour des grandes sections de navigation :
 
 ### B. Gestion Commerciale, Financière & Facturation
 * **Tiers (Clients et Fournisseurs)** : Annuaire complet avec recherche prédictive, types d'entité, contacts associés, conditions de paiement individuelles et historique des transactions liées.
-* **Produits & Services** : Catalogue d'articles avec références (SKU), prix d'achat, prix de vente standard, marge brute et suivi automatique des niveaux de stock.
+* **Produits & Services** : Catalogue complet des articles et services (sans masque ou filtrage restrictif par date du jour, affichage exhaustif garanti) avec références (SKU), prix d'achat, prix de vente standard, marge brute, filtres par statut de stock et suivi automatique des niveaux de stock.
 * **Transactions & Encaissements Multi-Canaux** :
   * Enregistrement des ventes et achats avec déduction/réapprovisionnement instantané des stocks.
   * **Passerelles de Paiement Intégrées (GeniusPay & Kkiapay & Wave)** : Génération de liens de paiement rapides et boutons sécurisés pour encaissement par Mobile Money (Wave, Orange Money, MTN MoMo, Moov Money) ou Carte Bancaire.

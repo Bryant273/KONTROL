@@ -44,7 +44,7 @@ Dans le strict respect de la **Charte d'Honnêteté Architecturale d'Innov'Korp*
 └── 📂 modules/                  -> Écrans métiers majeurs (Modules autonomes orientés cas d'usage)
     ├── finance/                 - Suivi de trésorerie, bridge de crédit et générateur PDF du Certificat d'Éligibilité
     ├── transactions/            - Facturation de ventes et d'achats avec réduction de stocks dynamique & liens GeniusPay/Wave
-    ├── stocks/ & produits/      - Inventaire d'entrepôt, alertes de sous-produits et mouvements physiques
+    ├── stocks/ & produits/      - Inventaire d'entrepôt, catalogue complet sans masque temporel (affichage permanent de l'intégralité des références), alertes stock et mouvements physiques
     ├── blue/                    - Salon de consultation avec l'assistant virtuel BLUE AI
     ├── system/                  - SignatureModule (Signature & Cachet), NotificationsCenterModule, DataExchangeModule
     └── companies/               - CompanyHubModule, CompanyProfileModule
@@ -68,6 +68,11 @@ Inclus dans la section **Système** du menu latéral :
 ### 3.3. Intégrations de Paiement (GeniusPay, Kkiapay, Wave)
 * Prise en charge des paiements par Mobile Money et Carte Bancaire pour les renouvellements d'abonnements et le paiement de factures.
 * Boutons d'encaissement direct et codes QR configurés dynamiquement.
+
+### 3.4. Catalogue Produits Complètement Déplafonné (`/src/frontend/modules/produits/ProduitsModule.tsx`)
+* **Vision Globale de l'Inventaire** : Suppression intégrale du filtre de date quotidien afin d'offrir un affichage exhaustif de tous les articles et services créés.
+* **Navigation par Filtres Thématiques** : Recherche textuelle instantanée (référence/désignation) et onglets de statut de stock (`Tous`, `En Stock`, `Stock Faible`, `Rupture`).
+* **Imports & Exports** : Téléchargement de modèles Excel avec nettoyage intelligent, prévisualisation interactive, et exports PDF/CSV/Excel.
 
 ---
 

@@ -46,6 +46,7 @@ Décrit l'habilitation d'accès basée sur les rôles (RBAC).
 ### 3.2 Catalogue et Gestion de Stock : `produits.sql`
 Modélise la table des biens matériels consommables ou commercialisés par l'ETI cliente.
 *   **Caractéristiques clés** : Code-barres ou SKU unique, prix unitaire de vente, coût de revient d'acquisition, quantité actuelle en stock physique réel, et quantité minimale d'alerte (`stock_alerte`).
+*   **Visibilité & Requêtage Unifié** : Les produits sont extraits sans cloisonnement temporel ou masquage par date du jour pour garantir la restitution intégrale du catalogue actif sur l'interface utilisateur.
 *   **Alerte Automatique** : Si le stock disponible chute sous le seuil `stock_alerte`, l'ERP déclenche une notification visuelle et prépare un brouillon de réapprovisionnement pour le pôle des achats.
 
 ### 3.3 Clients & Fournisseurs : `tiers.sql`

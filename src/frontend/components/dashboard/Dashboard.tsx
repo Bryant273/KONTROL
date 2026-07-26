@@ -99,7 +99,6 @@ const formatActionTimestamp = (timestamp: any) => {
 
 export function Dashboard({ user, currentUserProfile, onNavigate, onStartGuide }: DashboardProps) {
   const { t, i18n } = useTranslation();
-  const isKontrolAdmin = false;
   const companyId = currentUserProfile?.companyId || user.uid;
 
   const now = new Date();
@@ -148,7 +147,7 @@ export function Dashboard({ user, currentUserProfile, onNavigate, onStartGuide }
 
   // Reactive subscription alert and trial tracker computed directly from the live profile in real-time
   const subscriptionAlertMemo = React.useMemo(() => {
-    if (!currentUserProfile || isKontrolAdmin) return null;
+    if (!currentUserProfile) return null;
     
     const isSubscribed = currentUserProfile.subscriptionStatus === 'ACTIVE' && !currentUserProfile.isDemo;
     const endDate = currentUserProfile.subscriptionEndDate || 0;
@@ -193,7 +192,7 @@ export function Dashboard({ user, currentUserProfile, onNavigate, onStartGuide }
     }
     
     return null;
-  }, [currentUserProfile, isKontrolAdmin, nowTime]);
+  }, [currentUserProfile, nowTime]);
   
   const [monthlyData, setMonthlyData] = React.useState<any[]>([]);
   
@@ -253,73 +252,7 @@ export function Dashboard({ user, currentUserProfile, onNavigate, onStartGuide }
     setMonthlyData(months);
   };
 
-  React.useEffect(() => {
-    if (!isKontrolAdmin) return;
 
-    // Fetch Global Stats for ERP Admin
-    const unsubUsers = onSnapshot(collection(db, 'users'), (snap) => {
-      const users = snap.docs.map(d => d.data());
-      const companies = new Set(users.map(u => u.companyId).filter(Boolean));
-      setGlobalStats(prev => ({ 
-        ...prev, 
-        totalUsers: snap.size,
-        activeCompanies: companies.size
-      }));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'users', user, false));
-
-    const unsubTickets = onSnapshot(query(collection(db, 'tickets'), where('status', '==', 'NEW')), (snap) => {
-      setGlobalStats(prev => ({ ...prev, pendingTickets: snap.size }));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'tickets', user, false));
-
-    const unsubTrans = onSnapshot(collection(db, 'transactions'), (snap) => {
-      const total = snap.docs.reduce((acc, doc) => acc + (doc.data().montantTotal || 0), 0);
-      
-      // Group by month for chart
-      const months: Record<string, number> = {};
-      snap.docs.forEach(doc => {
-        const date = new Date(doc.data().date || Date.now());
-        const month = date.toLocaleString('default', { month: 'short' });
-        months[month] = (months[month] || 0) + (doc.data().montantTotal || 0);
-      });
-
-      const sortedMonths = Object.entries(months).sort((a, b) => {
-        const monthsOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const monthsOrderFr = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
-        const getIdx = (m: string) => {
-          const idx = monthsOrder.indexOf(m);
-          return idx !== -1 ? idx : monthsOrderFr.indexOf(m.toLowerCase());
-        };
-        return getIdx(a[0]) - getIdx(b[0]);
-      });
-
-      const chartData = sortedMonths.map(([month, total]) => ({ month, total }));
-      setGlobalStats(prev => ({ ...prev, totalRevenue: total, revenueData: chartData }));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'transactions', user, false));
-
-    const unsubPayments = onSnapshot(collection(db, 'payments'), (snap) => {
-      const total = snap.docs.reduce((acc, doc) => {
-        const p = doc.data();
-        return acc + (p.type === 'ENCAISSEMENT' ? (p.montant || 0) : -(p.montant || 0));
-      }, 0);
-      setGlobalStats(prev => ({ ...prev, totalTreasury: total }));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'payments', user, false));
-
-    const unsubActions = onSnapshot(query(
-      collection(db, 'actions'), 
-      orderBy('timestamp', 'desc'), 
-      limit(20)
-    ), (snap) => {
-      setGlobalStats(prev => ({ ...prev, recentActions: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'actions', user, false));
-
-    return () => {
-      unsubUsers();
-      unsubTickets();
-      unsubTrans();
-      unsubPayments();
-      unsubActions();
-    };
-  }, [isKontrolAdmin]);
 
   const handleAIAnalysis = async () => {
     setIsAIModalOpen(true);
@@ -386,161 +319,127 @@ export function Dashboard({ user, currentUserProfile, onNavigate, onStartGuide }
     setLoading(true);
     const unsubscribes: (() => void)[] = [];
 
-    if (isKontrolAdmin) {
-      // ERP Admin Stats
-      const qUsers = query(collection(db, 'users'));
-      unsubscribes.push(onSnapshot(qUsers, (snapshot) => {
-        const users = snapshot.docs.map(doc => doc.data());
-        const companies = new Set(users.map(u => u.companyId).filter(Boolean));
-        setStats(prev => ({ 
-          ...prev, 
-          totalUsers: snapshot.size,
-          totalCompanies: companies.size
-        }));
-      }, (error) => handleFirestoreError(error, OperationType.LIST, 'users', user, false)));
+    // Company Stats
+    let loadedCount = 0;
+    const totalSnapshots = 6;
+    const checkLoading = () => {
+      loadedCount++;
+      if (loadedCount >= totalSnapshots) setLoading(false);
+    };
 
-      const qTickets = query(collection(db, 'tickets'), orderBy('createdAt', 'desc'));
-      unsubscribes.push(onSnapshot(qTickets, (snapshot) => {
-        setRecentTickets(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        setStats(prev => ({ ...prev, totalTickets: snapshot.size }));
-      }, (error) => handleFirestoreError(error, OperationType.LIST, 'tickets', user, false)));
+    const qPayments = query(collection(db, 'payments'), where('ownerId', '==', companyId));
+    unsubscribes.push(onSnapshot(qPayments, (snapshot) => {
+      const totalTresorerie = snapshot.docs.reduce((acc, doc) => {
+        const p = doc.data();
+        return acc + (p.type === 'ENCAISSEMENT' ? (p.montant || 0) : -(p.montant || 0));
+      }, 0);
+      setStats(prev => ({ ...prev, tresorerie: totalTresorerie }));
+      checkLoading();
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'payments', user, false)));
 
-      const qActions = query(
-        collection(db, 'actions'), 
-        orderBy('timestamp', 'desc'),
-        limit(30)
-      );
-      unsubscribes.push(onSnapshot(qActions, (snapshot) => {
-        setRecentActions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        setLoading(false);
-      }, (error) => handleFirestoreError(error, OperationType.LIST, 'actions', user, false)));
-    } else {
-      // Regular Company Stats
-      let loadedCount = 0;
-      const totalSnapshots = 6;
-      const checkLoading = () => {
-        loadedCount++;
-        if (loadedCount >= totalSnapshots) setLoading(false);
-      };
+    const qTransactions = query(collection(db, 'transactions'), where('ownerId', '==', companyId));
+    unsubscribes.push(onSnapshot(qTransactions, (snapshot) => {
+      const docs = snapshot.docs.map(d => d.data());
+      const totalCA = docs
+        .filter(doc => doc.type === 'VENTE' && (doc.statut === 'PAYE' || doc.status === 'COMPLETED'))
+        .reduce((acc, doc) => acc + (doc.montantTotal || doc.montant || 0), 0);
+      const caMois = docs
+        .filter(doc => doc.type === 'VENTE' && (doc.statut === 'PAYE' || doc.status === 'COMPLETED') && doc.date >= startOfThisMonth)
+        .reduce((acc, doc) => acc + (doc.montantTotal || doc.montant || 0), 0);
+      const caMoisPrecedent = docs
+        .filter(doc => doc.type === 'VENTE' && (doc.statut === 'PAYE' || doc.status === 'COMPLETED') && doc.date >= startOfLastMonth && doc.date <= endOfLastMonth)
+        .reduce((acc, doc) => acc + (doc.montantTotal || doc.montant || 0), 0);
 
-      const qPayments = query(collection(db, 'payments'), where('ownerId', '==', companyId));
-      unsubscribes.push(onSnapshot(qPayments, (snapshot) => {
-        const totalTresorerie = snapshot.docs.reduce((acc, doc) => {
-          const p = doc.data();
-          return acc + (p.type === 'ENCAISSEMENT' ? (p.montant || 0) : -(p.montant || 0));
-        }, 0);
-        setStats(prev => ({ ...prev, tresorerie: totalTresorerie }));
-        checkLoading();
-      }, (error) => handleFirestoreError(error, OperationType.LIST, 'payments', user, false)));
+      const totalAchats = docs
+        .filter(doc => doc.type === 'ACHAT' && (doc.statut === 'PAYE' || doc.status === 'COMPLETED'))
+        .reduce((acc, doc) => acc + (doc.montantTotal || doc.montant || 0), 0);
+      const achatsMois = docs
+        .filter(doc => doc.type === 'ACHAT' && (doc.statut === 'PAYE' || doc.status === 'COMPLETED') && doc.date >= startOfThisMonth)
+        .reduce((acc, doc) => acc + (doc.montantTotal || doc.montant || 0), 0);
+      const achatsMoisPrecedent = docs
+        .filter(doc => doc.type === 'ACHAT' && (doc.statut === 'PAYE' || doc.status === 'COMPLETED') && doc.date >= startOfLastMonth && doc.date <= endOfLastMonth)
+        .reduce((acc, doc) => acc + (doc.montantTotal || doc.montant || 0), 0);
 
-      const qTransactions = query(collection(db, 'transactions'), where('ownerId', '==', companyId));
-      unsubscribes.push(onSnapshot(qTransactions, (snapshot) => {
-        const docs = snapshot.docs.map(d => d.data());
-        // ...Existing CA/Achat calculations...
-        const totalCA = docs
-          .filter(doc => doc.type === 'VENTE' && (doc.statut === 'PAYE' || doc.status === 'COMPLETED'))
-          .reduce((acc, doc) => acc + (doc.montantTotal || doc.montant || 0), 0);
-        const caMois = docs
-          .filter(doc => doc.type === 'VENTE' && (doc.statut === 'PAYE' || doc.status === 'COMPLETED') && doc.date >= startOfThisMonth)
-          .reduce((acc, doc) => acc + (doc.montantTotal || doc.montant || 0), 0);
-        const caMoisPrecedent = docs
-          .filter(doc => doc.type === 'VENTE' && (doc.statut === 'PAYE' || doc.status === 'COMPLETED') && doc.date >= startOfLastMonth && doc.date <= endOfLastMonth)
-          .reduce((acc, doc) => acc + (doc.montantTotal || doc.montant || 0), 0);
+      setStats(prev => ({ 
+        ...prev, 
+        ca: totalCA, 
+        caMois, 
+        caMoisPrecedent,
+        achats: totalAchats,
+        achatsMois,
+        achatsMoisPrecedent
+      }));
 
-        const totalAchats = docs
-          .filter(doc => doc.type === 'ACHAT' && (doc.statut === 'PAYE' || doc.status === 'COMPLETED'))
-          .reduce((acc, doc) => acc + (doc.montantTotal || doc.montant || 0), 0);
-        const achatsMois = docs
-          .filter(doc => doc.type === 'ACHAT' && (doc.statut === 'PAYE' || doc.status === 'COMPLETED') && doc.date >= startOfThisMonth)
-          .reduce((acc, doc) => acc + (doc.montantTotal || doc.montant || 0), 0);
-        const achatsMoisPrecedent = docs
-          .filter(doc => doc.type === 'ACHAT' && (doc.statut === 'PAYE' || doc.status === 'COMPLETED') && doc.date >= startOfLastMonth && doc.date <= endOfLastMonth)
-          .reduce((acc, doc) => acc + (doc.montantTotal || doc.montant || 0), 0);
+      syncTrendsData().catch(e => console.error("Snapshot syncTrendsData error:", e));
+      checkLoading();
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'transactions', user, false)));
 
-        setStats(prev => ({ 
-          ...prev, 
-          ca: totalCA, 
-          caMois, 
-          caMoisPrecedent,
-          achats: totalAchats,
-          achatsMois,
-          achatsMoisPrecedent
-        }));
+    const qCharges = query(collection(db, 'charges'), where('ownerId', '==', companyId));
+    unsubscribes.push(onSnapshot(qCharges, (snapshot) => {
+      const docs = snapshot.docs.map(d => d.data());
+      const totalDepenses = docs.reduce((acc, doc) => acc + (doc.montant || 0), 0);
+      const depensesMois = docs
+        .filter(doc => (doc.date || doc.createdAt) >= startOfThisMonth)
+        .reduce((acc, doc) => acc + (doc.montant || 0), 0);
+      const depensesMoisPrecedent = docs
+        .filter(doc => (doc.date || doc.createdAt) >= startOfLastMonth && (doc.date || doc.createdAt) <= endOfLastMonth)
+        .reduce((acc, doc) => acc + (doc.montant || 0), 0);
 
-        // Lazy compute trends when we have all data
-        syncTrendsData().catch(e => console.error("Snapshot syncTrendsData error:", e));
-        checkLoading();
-      }, (error) => handleFirestoreError(error, OperationType.LIST, 'transactions', user, false)));
+      setStats(prev => ({ 
+        ...prev, 
+        depenses: totalDepenses,
+        depensesMois,
+        depensesMoisPrecedent
+      }));
+      syncTrendsData().catch(e => console.error("Snapshot syncTrendsData error:", e));
+      checkLoading();
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'charges', user, false)));
 
-      const qCharges = query(collection(db, 'charges'), where('ownerId', '==', companyId));
-      unsubscribes.push(onSnapshot(qCharges, (snapshot) => {
-        const docs = snapshot.docs.map(d => d.data());
-        const totalDepenses = docs.reduce((acc, doc) => acc + (doc.montant || 0), 0);
-        const depensesMois = docs
-          .filter(doc => (doc.date || doc.createdAt) >= startOfThisMonth)
-          .reduce((acc, doc) => acc + (doc.montant || 0), 0);
-        const depensesMoisPrecedent = docs
-          .filter(doc => (doc.date || doc.createdAt) >= startOfLastMonth && (doc.date || doc.createdAt) <= endOfLastMonth)
-          .reduce((acc, doc) => acc + (doc.montant || 0), 0);
+    const syncTrendsData = async () => {
+      try {
+        const [tSnap, pSnap, cSnap] = await Promise.all([
+          getDocs(query(collection(db, 'transactions'), where('ownerId', '==', companyId))),
+          getDocs(query(collection(db, 'payments'), where('ownerId', '==', companyId))),
+          getDocs(query(collection(db, 'charges'), where('ownerId', '==', companyId)))
+        ]);
+        calculateMonthlyTrends(
+          tSnap.docs.map(d => d.data()),
+          pSnap.docs.map(d => d.data()),
+          cSnap.docs.map(d => d.data())
+        );
+      } catch (e) {
+        console.error("Error syncing dashboard trends:", e);
+      }
+    };
 
-        setStats(prev => ({ 
-          ...prev, 
-          depenses: totalDepenses,
-          depensesMois,
-          depensesMoisPrecedent
-        }));
-        syncTrendsData().catch(e => console.error("Snapshot syncTrendsData error:", e));
-        checkLoading();
-      }, (error) => handleFirestoreError(error, OperationType.LIST, 'charges', user, false)));
+    const qTiers = query(collection(db, 'tiers'), where('ownerId', '==', companyId));
+    unsubscribes.push(onSnapshot(qTiers, (snapshot) => {
+      const clients = snapshot.docs.filter(d => d.data().type === 'CLIENT').length;
+      const fournisseurs = snapshot.docs.filter(d => d.data().type === 'FOURNISSEUR').length;
+      setStats(prev => ({ ...prev, clients, fournisseurs }));
+      checkLoading();
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'tiers', user, false)));
 
-      const syncTrendsData = async () => {
-        try {
-          const [tSnap, pSnap, cSnap] = await Promise.all([
-            getDocs(query(collection(db, 'transactions'), where('ownerId', '==', companyId))),
-            getDocs(query(collection(db, 'payments'), where('ownerId', '==', companyId))),
-            getDocs(query(collection(db, 'charges'), where('ownerId', '==', companyId)))
-          ]);
-          calculateMonthlyTrends(
-            tSnap.docs.map(d => d.data()),
-            pSnap.docs.map(d => d.data()),
-            cSnap.docs.map(d => d.data())
-          );
-        } catch (e) {
-          console.error("Error syncing dashboard trends:", e);
-        }
-      };
+    const qProduits = query(collection(db, 'produits'), where('ownerId', '==', companyId));
+    unsubscribes.push(onSnapshot(qProduits, (snapshot) => {
+      const totalStock = snapshot.docs.reduce((acc, doc) => acc + ((doc.data().stock || 0) * (doc.data().prixVente || 0)), 0);
+      setStats(prev => ({ ...prev, stockValue: totalStock, produits: snapshot.size }));
+      checkLoading();
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'produits', user, false)));
 
-      const qTiers = query(collection(db, 'tiers'), where('ownerId', '==', companyId));
-      unsubscribes.push(onSnapshot(qTiers, (snapshot) => {
-        const clients = snapshot.docs.filter(d => d.data().type === 'CLIENT').length;
-        const fournisseurs = snapshot.docs.filter(d => d.data().type === 'FOURNISSEUR').length;
-        setStats(prev => ({ ...prev, clients, fournisseurs }));
-        checkLoading();
-      }, (error) => handleFirestoreError(error, OperationType.LIST, 'tiers', user, false)));
-
-      const qProduits = query(collection(db, 'produits'), where('ownerId', '==', companyId));
-      unsubscribes.push(onSnapshot(qProduits, (snapshot) => {
-        const totalStock = snapshot.docs.reduce((acc, doc) => acc + ((doc.data().stock || 0) * (doc.data().prixVente || 0)), 0);
-        setStats(prev => ({ ...prev, stockValue: totalStock, produits: snapshot.size }));
-        checkLoading();
-      }, (error) => handleFirestoreError(error, OperationType.LIST, 'produits', user, false)));
-
-      const qActions = query(
-        collection(db, 'actions'), 
-        where('companyId', '==', companyId), 
-        orderBy('timestamp', 'desc'),
-        limit(30)
-      );
-      unsubscribes.push(onSnapshot(qActions, (snapshot) => {
-        setRecentActions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        checkLoading();
-      }, (error) => handleFirestoreError(error, OperationType.LIST, 'actions', user, false)));
-
-      // Real-time subscription and trial info is computed reactively from currentUserProfile
-    }
+    const qActions = query(
+      collection(db, 'actions'), 
+      where('companyId', '==', companyId), 
+      orderBy('timestamp', 'desc'),
+      limit(30)
+    );
+    unsubscribes.push(onSnapshot(qActions, (snapshot) => {
+      setRecentActions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      checkLoading();
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'actions', user, false)));
 
     return () => unsubscribes.forEach(unsub => unsub());
-  }, [user, companyId, currentUserProfile, isKontrolAdmin]);
+  }, [user, companyId, currentUserProfile]);
 
   const { totalExpenses, totalExpensesMois, totalExpensesMoisPrecedent, benefice, beneficeMois, beneficeMoisPrecedent, rendement, performanceData } = React.useMemo(() => {
     const totalExpenses = stats.depenses + stats.achats;
@@ -575,7 +474,6 @@ export function Dashboard({ user, currentUserProfile, onNavigate, onStartGuide }
   }, [stats]);
 
   const setupPercent = React.useMemo(() => {
-    if (isKontrolAdmin) return 0;
     const steps = [
       Boolean(currentUserProfile?.companyName && currentUserProfile?.companyLogo),
       stats.produits > 0,
@@ -585,7 +483,7 @@ export function Dashboard({ user, currentUserProfile, onNavigate, onStartGuide }
     ];
     const completedCount = steps.filter(Boolean).length;
     return Math.round((completedCount / steps.length) * 100);
-  }, [currentUserProfile, stats, isKontrolAdmin]);
+  }, [currentUserProfile, stats]);
 
   const getKPICommentary = (current: number, previous: number, type: 'positive' | 'negative' | 'neutral' = 'positive') => {
     if (previous === 0) {
@@ -798,7 +696,6 @@ export function Dashboard({ user, currentUserProfile, onNavigate, onStartGuide }
           <h3 className="kpi-val">{formatCurrency(stats.stockValue)}</h3>
         </div>
 
-        {!isKontrolAdmin && (
           <div className="kpi bg-gradient-to-br from-white via-slate-50 to-slate-100 border border-dashed border-kontrol-dark/15 flex flex-col justify-between gap-3 p-3.5 shadow-xs transition-colors hover:border-kontrol-blue/50">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-black uppercase tracking-widest text-kontrol-blue font-sans">
@@ -837,7 +734,6 @@ export function Dashboard({ user, currentUserProfile, onNavigate, onStartGuide }
               </button>
             </div>
           </div>
-        )}
       </div>
 
 

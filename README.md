@@ -138,7 +138,7 @@ Sur le Tableau de Bord (Pilotage) :
 
 1. **Dashboard / Pilotage** : Vue d'ensemble des KPIs, solde de trésorerie, statut d'abonnement actif, barre de progression et décompte direct.
 2. **Tiers** : Annuaire des clients et fournisseurs, coordonnées, conditions de règlement et historique des opérations.
-3. **Produits & Services** : Catalogue, SKUs, marges brutes et contrôle strict du stock (blocage des ventes à découvert).
+3. **Produits & Services** : Catalogue complet (affichage exhaustif de tous les articles sans filtre restrictif par date), SKUs, marges brutes, filtres par état de stock (Tous, En Stock, Stock Faible, Rupture), import/export Excel/CSV/PDF et contrôle strict du stock (blocage des ventes à découvert).
 4. **Transactions** : Enregistrement des ventes et achats, liens de paiement GeniusPay / Kkiapay / Wave.
 5. **Finance & Trésorerie** : Graphiques `Recharts`, rapports de liquidités et simulateur de financement de trésorerie.
 6. **Charges** : Suivi analytique des charges fixes et variables.

@@ -139,13 +139,12 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
         uid: 'blue-ai',
         displayName: 'BLUE AI Assistant',
         email: 'blue-ai@kontrol.ai',
-        role: 'Assistant Virtuel' as any,
-        avatar_url: '',
+        role: 'UTILISATEUR',
         companyId: profile.companyId || 'SYSTEM',
-        status: 'ONLINE',
-        last_login: Date.now(),
+        active: true,
+        isProfileComplete: true,
         createdAt: Date.now()
-      });
+      } as UserProfile);
       setAllUsers(users);
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'users', user, false));
     return () => unsub();
@@ -312,8 +311,6 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
       }
     }
   };
-
-  const isKontrolAdmin = false;
 
   const getOtherParticipant = (participants: string[]) => {
     if (!participants || !Array.isArray(participants)) return undefined;
