@@ -12,7 +12,9 @@ import {
   Package,
   Info,
   Upload,
-  Download
+  Download,
+  Calendar,
+  CalendarDays
 } from 'lucide-react';
 import { exportToPDF, exportToExcel } from '../../lib/export';
 import * as XLSX from 'xlsx';
@@ -55,6 +57,8 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
   const [activeView, setActiveView] = React.useState<'MOVEMENTS' | 'INVENTORY'>('MOVEMENTS');
   const [currentPage, setCurrentPage] = React.useState(1);
   const itemsPerPage = 10;
+  const [filterDate, setFilterDate] = React.useState<string>('');
+  const [isTodayOnly, setIsTodayOnly] = React.useState<boolean>(false);
 
   const [excelPreviewData, setExcelPreviewData] = React.useState<any[] | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
@@ -263,15 +267,24 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
     return () => unsubscribes.forEach(unsub => unsub());
   }, [user, companyId, currentUserProfile]);
 
-  const filteredMovements = movements.filter(m => 
-    m.designation.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    m.produitId.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const todayStr = new Date().toISOString().split('T')[0];
+  const activeDate = isTodayOnly ? todayStr : filterDate;
 
-  const filteredInventory = produits.filter(p => 
-    p.designation.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.reference.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredMovements = movements.filter(m => {
+    const matchesSearch = m.designation.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                         m.produitId.toLowerCase().includes(searchTerm.toLowerCase());
+    const mDateStr = m.date ? new Date(m.date).toISOString().split('T')[0] : '';
+    const matchesDate = !activeDate || mDateStr === activeDate;
+    return matchesSearch && matchesDate;
+  });
+
+  const filteredInventory = produits.filter(p => {
+    const matchesSearch = p.designation.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                         p.reference.toLowerCase().includes(searchTerm.toLowerCase());
+    const pDateStr = p.createdAt ? new Date(p.createdAt).toISOString().split('T')[0] : '';
+    const matchesDate = !activeDate || pDateStr === activeDate;
+    return matchesSearch && matchesDate;
+  });
 
   const totalPages = Math.ceil((activeView === 'MOVEMENTS' ? filteredMovements.length : filteredInventory.length) / itemsPerPage);
   const paginatedData = (activeView === 'MOVEMENTS' ? filteredMovements : filteredInventory).slice(
@@ -390,7 +403,7 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
 
       {/* Search & Tools */}
       <div className="bg-white border border-kontrol-border rounded-lg p-2.5 flex flex-wrap items-center gap-2">
-        <div className="flex-1 min-w-[200px] flex items-center gap-2 bg-kontrol-bg border border-kontrol-border rounded-lg px-3 py-1.5 focus-within:border-kontrol-blue transition-all">
+        <div className="flex-1 min-w-[180px] flex items-center gap-2 bg-kontrol-bg border border-kontrol-border rounded-lg px-3 py-1.5 focus-within:border-kontrol-blue transition-all">
           <Search size={14} className="text-kontrol-ink-muted" />
           <input 
             type="text"
@@ -400,6 +413,62 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+
+        {/* Quick Date Filter */}
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => {
+              const nextState = !isTodayOnly;
+              setIsTodayOnly(nextState);
+              if (nextState) {
+                setFilterDate(todayStr);
+              } else {
+                setFilterDate('');
+              }
+              setCurrentPage(1);
+            }}
+            className={cn(
+              "px-3 py-1.5 text-[12px] font-bold rounded-lg transition-all flex items-center gap-1.5 border shadow-xs",
+              isTodayOnly
+                ? "bg-kontrol-blue text-white border-kontrol-blue"
+                : "bg-white text-kontrol-ink-soft border-kontrol-border hover:border-kontrol-blue/40"
+            )}
+          >
+            <CalendarDays size={13} />
+            {isTodayOnly ? "Données du jour (Actif)" : "Données du jour"}
+          </button>
+
+          <div className="flex items-center gap-1 bg-kontrol-bg border border-kontrol-border rounded-lg px-2.5 py-1">
+            <Calendar size={13} className="text-kontrol-ink-muted" />
+            <input 
+              type="date"
+              className="bg-transparent border-none outline-none text-[12px] font-medium text-kontrol-ink-soft"
+              value={filterDate}
+              onChange={(e) => {
+                const val = e.target.value;
+                setFilterDate(val);
+                setIsTodayOnly(val === todayStr);
+                setCurrentPage(1);
+              }}
+            />
+            {filterDate && (
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterDate('');
+                  setIsTodayOnly(false);
+                  setCurrentPage(1);
+                }}
+                className="text-xs text-kontrol-ink-muted hover:text-rose-500 font-bold px-1"
+                title="Réinitialiser la date"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        </div>
+
         <div className="flex gap-2">
           <input 
             type="file" 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, Package, AlertCircle, Loader2, X, Boxes, History, Trash2, Edit2, FileText, Table, Upload, Download, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { Plus, Search, Package, AlertCircle, Loader2, X, Boxes, History, Trash2, Edit2, FileText, Table, Upload, Download, ArrowDownLeft, ArrowUpRight, Calendar, CalendarDays } from 'lucide-react';
 import { exportToPDF, exportToExcel, exportToCSV } from '../../lib/export';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
@@ -37,6 +37,8 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
   const [currentPage, setCurrentPage] = React.useState(1);
   const itemsPerPage = 10;
   const [selectedCategory, setSelectedCategory] = React.useState<'ALL' | 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK'>('ALL');
+  const [filterDate, setFilterDate] = React.useState<string>('');
+  const [isTodayOnly, setIsTodayOnly] = React.useState<boolean>(false);
 
   const [currentProduit, setCurrentProduit] = React.useState({
     reference: '',
@@ -329,6 +331,8 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
   }, []);
 
   const selectedProduit = produits.find(p => p.id === selectedId);
+  const todayStr = new Date().toISOString().split('T')[0];
+  const activeDate = isTodayOnly ? todayStr : filterDate;
   
   const filteredProduits = produits.filter(p => {
     const matchesSearch = p.designation.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -342,8 +346,11 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
     } else if (selectedCategory === 'OUT_OF_STOCK') {
       matchesCategory = p.stock <= 0;
     }
+
+    const pDateStr = p.createdAt ? new Date(p.createdAt).toISOString().split('T')[0] : '';
+    const matchesDate = !activeDate || pDateStr === activeDate;
     
-    return matchesSearch && matchesCategory;
+    return matchesSearch && matchesCategory && matchesDate;
   });
 
   React.useEffect(() => {
@@ -616,59 +623,115 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
           />
         </div>
 
-        {/* Categories Tabs */}
-        <div className="flex flex-wrap items-center gap-1 bg-kontrol-bg p-1 rounded-xl border border-kontrol-border">
-          <button
-            type="button"
-            onClick={() => { setSelectedCategory('ALL'); setCurrentPage(1); }}
-            className={cn(
-              "px-3 py-1 text-[12px] font-bold rounded-lg transition-all",
-              selectedCategory === 'ALL' 
-                ? "bg-white text-kontrol-dark shadow-xs border border-kontrol-border" 
-                : "text-kontrol-ink-muted hover:text-kontrol-dark"
-            )}
-          >
-            Tous
-          </button>
-          <button
-            type="button"
-            onClick={() => { setSelectedCategory('IN_STOCK'); setCurrentPage(1); }}
-            className={cn(
-              "px-3 py-1 text-[12px] font-bold rounded-lg transition-all flex items-center gap-1.5",
-              selectedCategory === 'IN_STOCK' 
-                ? "bg-white text-emerald-600 shadow-xs border border-emerald-100" 
-                : "text-kontrol-ink-muted hover:text-emerald-600"
-            )}
-          >
-            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-            {t('produits.status_in') || "En Stock"}
-          </button>
-          <button
-            type="button"
-            onClick={() => { setSelectedCategory('LOW_STOCK'); setCurrentPage(1); }}
-            className={cn(
-              "px-3 py-1 text-[12px] font-bold rounded-lg transition-all flex items-center gap-1.5",
-              selectedCategory === 'LOW_STOCK' 
-                ? "bg-white text-orange-600 shadow-xs border border-orange-100" 
-                : "text-kontrol-ink-muted hover:text-orange-505"
-            )}
-          >
-            <span className="w-1.5 h-1.5 bg-orange-500 rounded-full" />
-            {t('produits.status_low') || "Stock Faible"}
-          </button>
-          <button
-            type="button"
-            onClick={() => { setSelectedCategory('OUT_OF_STOCK'); setCurrentPage(1); }}
-            className={cn(
-              "px-3 py-1 text-[12px] font-bold rounded-lg transition-all flex items-center gap-1.5",
-              selectedCategory === 'OUT_OF_STOCK' 
-                ? "bg-white text-rose-600 shadow-xs border border-rose-100" 
-                : "text-kontrol-ink-muted hover:text-rose-505"
-            )}
-          >
-            <span className="w-1.5 h-1.5 bg-rose-500 rounded-full" />
-            {t('produits.status_out') || "Rupture"}
-          </button>
+        {/* Categories & Date Tabs */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1 bg-kontrol-bg p-1 rounded-xl border border-kontrol-border">
+            <button
+              type="button"
+              onClick={() => { setSelectedCategory('ALL'); setCurrentPage(1); }}
+              className={cn(
+                "px-3 py-1 text-[12px] font-bold rounded-lg transition-all",
+                selectedCategory === 'ALL' 
+                  ? "bg-white text-kontrol-dark shadow-xs border border-kontrol-border" 
+                  : "text-kontrol-ink-muted hover:text-kontrol-dark"
+              )}
+            >
+              Tous
+            </button>
+            <button
+              type="button"
+              onClick={() => { setSelectedCategory('IN_STOCK'); setCurrentPage(1); }}
+              className={cn(
+                "px-3 py-1 text-[12px] font-bold rounded-lg transition-all flex items-center gap-1.5",
+                selectedCategory === 'IN_STOCK' 
+                  ? "bg-white text-emerald-600 shadow-xs border border-emerald-100" 
+                  : "text-kontrol-ink-muted hover:text-emerald-600"
+              )}
+            >
+              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+              {t('produits.status_in') || "En Stock"}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setSelectedCategory('LOW_STOCK'); setCurrentPage(1); }}
+              className={cn(
+                "px-3 py-1 text-[12px] font-bold rounded-lg transition-all flex items-center gap-1.5",
+                selectedCategory === 'LOW_STOCK' 
+                  ? "bg-white text-orange-600 shadow-xs border border-orange-100" 
+                  : "text-kontrol-ink-muted hover:text-orange-505"
+              )}
+            >
+              <span className="w-1.5 h-1.5 bg-orange-500 rounded-full" />
+              {t('produits.status_low') || "Stock Faible"}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setSelectedCategory('OUT_OF_STOCK'); setCurrentPage(1); }}
+              className={cn(
+                "px-3 py-1 text-[12px] font-bold rounded-lg transition-all flex items-center gap-1.5",
+                selectedCategory === 'OUT_OF_STOCK' 
+                  ? "bg-white text-rose-600 shadow-xs border border-rose-100" 
+                  : "text-kontrol-ink-muted hover:text-rose-505"
+              )}
+            >
+              <span className="w-1.5 h-1.5 bg-rose-500 rounded-full" />
+              {t('produits.status_out') || "Rupture"}
+            </button>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                const nextState = !isTodayOnly;
+                setIsTodayOnly(nextState);
+                if (nextState) {
+                  setFilterDate(todayStr);
+                } else {
+                  setFilterDate('');
+                }
+                setCurrentPage(1);
+              }}
+              className={cn(
+                "px-3 py-1 text-[12px] font-bold rounded-xl transition-all flex items-center gap-1.5 border shadow-xs",
+                isTodayOnly
+                  ? "bg-kontrol-blue text-white border-kontrol-blue"
+                  : "bg-white text-kontrol-ink-soft border-kontrol-border hover:border-kontrol-blue/40"
+              )}
+            >
+              <CalendarDays size={13} />
+              {isTodayOnly ? "Données du jour (Actif)" : "Données du jour"}
+            </button>
+
+            <div className="flex items-center gap-1 bg-kontrol-bg border border-kontrol-border rounded-xl px-2.5 py-1">
+              <Calendar size={13} className="text-kontrol-ink-muted" />
+              <input 
+                type="date"
+                className="bg-transparent border-none outline-none text-[12px] font-medium text-kontrol-ink-soft"
+                value={filterDate}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setFilterDate(val);
+                  setIsTodayOnly(val === todayStr);
+                  setCurrentPage(1);
+                }}
+              />
+              {filterDate && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilterDate('');
+                    setIsTodayOnly(false);
+                    setCurrentPage(1);
+                  }}
+                  className="text-xs text-kontrol-ink-muted hover:text-rose-500 font-bold px-1"
+                  title="Réinitialiser la date"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
