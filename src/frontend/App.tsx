@@ -290,6 +290,7 @@ export default function App() {
   };
 
   const [companyHubSubTab, setCompanyHubSubTab] = useState<'profile' | 'team'>('profile');
+  const [lastVisitedModule, setLastVisitedModule] = useState<string>('dashboard');
 
   const handleTabChange = (tab: string, section: string, label: string, subTab?: 'profile' | 'team') => {
     let targetTab = tab;
@@ -300,6 +301,10 @@ export default function App() {
       setCompanyHubSubTab(subTab);
     } else if (tab === 'company_hub') {
       setCompanyHubSubTab('profile');
+    }
+
+    if (tab !== 'ai' && tab !== 'chat') {
+      setLastVisitedModule(tab);
     }
 
     setActiveTab(targetTab);
@@ -391,7 +396,7 @@ export default function App() {
           {activeTab === 'devis' && user && <QuotesModule user={user} currentUserProfile={profile} />}
           {activeTab === 'stocks' && <StocksModule user={user} currentUserProfile={profile} />}
           {activeTab === 'finance' && <FinanceModule user={user} currentUserProfile={profile} />}
-          {activeTab === 'ai' && <BlueAIModule user={user} currentUserProfile={profile} />}
+          {activeTab === 'ai' && <BlueAIModule user={user} currentUserProfile={profile} activeModule={lastVisitedModule} />}
           {activeTab === 'chat' && user && <KChatModule user={user} profile={profile} />}
           {activeTab === 'tickets' && <TicketsModule user={user} currentUserProfile={profile} />}
           {activeTab === 'company_hub' && <CompanyHubModule user={user} profile={profile} initialSubTab={companyHubSubTab} />}

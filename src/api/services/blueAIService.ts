@@ -10,6 +10,7 @@ import {
   serverTimestamp,
   doc,
   updateDoc,
+  deleteDoc,
   getDoc,
   writeBatch,
   auth,
@@ -18,6 +19,7 @@ import {
 } from '../firebase';
 import { Transaction, Produit, Charge, UserProfile, Wallet } from '../../frontend/types';
 import { apiClient } from '../lib/api-client';
+import { ragService } from './ragService';
 
 export enum BlueFunction {
   CHAT = 'CHAT',
@@ -26,6 +28,18 @@ export enum BlueFunction {
   TUTO = 'TUTO',
   ALERT = 'ALERT',
   CODE_ANALYSER = 'CODE_ANALYSER'
+}
+
+export interface AIMemory {
+  id?: string;
+  companyId: string;
+  userId: string;
+  category: 'FACT' | 'PREFERENCE' | 'DECISION' | 'GOAL' | 'SUMMARY';
+  content: string;
+  source?: string;
+  confidence?: number;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface BlueMessage {
@@ -108,6 +122,83 @@ class BlueAIService {
     }
   }
 
+  async getMemories(companyId: string, userId: string): Promise<AIMemory[]> {
+    try {
+      if (!companyId || companyId === 'public') return [];
+      const q = query(
+        collection(db, 'ai_memories'),
+        where('companyId', '==', companyId),
+        limit(20)
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as AIMemory));
+    } catch (error) {
+      console.warn("[BlueAI] Memory fetch warning:", error);
+      return [];
+    }
+  }
+
+  async addMemory(
+    companyId: string, 
+    userId: string, 
+    category: 'FACT' | 'PREFERENCE' | 'DECISION' | 'GOAL' | 'SUMMARY', 
+    content: string,
+    source: string = 'User Direct Input'
+  ): Promise<AIMemory> {
+    const memoryData: Omit<AIMemory, 'id'> = {
+      companyId,
+      userId,
+      category,
+      content,
+      source,
+      confidence: 0.98,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+    try {
+      const docRef = await addDoc(collection(db, 'ai_memories'), memoryData);
+      return { id: docRef.id, ...memoryData };
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'ai_memories', auth.currentUser, false);
+      return { id: 'temp_' + Date.now(), ...memoryData };
+    }
+  }
+
+  async deleteMemory(memoryId: string): Promise<void> {
+    try {
+      await deleteDoc(doc(db, 'ai_memories', memoryId));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `ai_memories/${memoryId}`, auth.currentUser, false);
+    }
+  }
+
+  async autoExtractAndSaveMemories(prompt: string, response: string, companyId: string, userId: string): Promise<void> {
+    if (!companyId || companyId === 'public') return;
+
+    try {
+      const lowerPrompt = prompt.toLowerCase();
+      let extractedFact: { category: 'FACT' | 'PREFERENCE' | 'DECISION' | 'GOAL' | 'SUMMARY'; content: string } | null = null;
+
+      if (lowerPrompt.includes("objectif") || lowerPrompt.includes("notre but") || lowerPrompt.includes("cible")) {
+        extractedFact = { category: 'GOAL', content: `Objectif exprimé: "${prompt.substring(0, 120)}"` };
+      } else if (lowerPrompt.includes("préférence") || lowerPrompt.includes("toujours") || lowerPrompt.includes("préfère")) {
+        extractedFact = { category: 'PREFERENCE', content: `Préférence utilisateur: "${prompt.substring(0, 120)}"` };
+      } else if (lowerPrompt.includes("décision") || lowerPrompt.includes("validé") || lowerPrompt.includes("décidé")) {
+        extractedFact = { category: 'DECISION', content: `Décision d'affaires: "${prompt.substring(0, 120)}"` };
+      }
+
+      if (extractedFact) {
+        const existing = await this.getMemories(companyId, userId);
+        const duplicate = existing.some(m => m.content === extractedFact!.content);
+        if (!duplicate) {
+          await this.addMemory(companyId, userId, extractedFact.category, extractedFact.content, 'Blue AI Auto-Extraction');
+        }
+      }
+    } catch (e) {
+      console.warn("Auto memory extraction skipped:", e);
+    }
+  }
+
   async processRequest(
     userId: string, 
     companyId: string, 
@@ -163,17 +254,21 @@ class BlueAIService {
       handleFirestoreError(error, OperationType.CREATE, 'messages', auth.currentUser, false);
     }
 
-    // 4. Fetch Live Company Data Context from Firestore
+    // 4. Fetch Live Company Data Context from Firestore & RAG vector search & Memory Layer
     const companyContextData = await this.getCompanyData(companyId);
+    const ragRetrieval = ragService.retrieveRelevantChunks(message, companyContextData, 5);
+    const memoryNodes = await this.getMemories(companyId, userId);
 
-    // 5. Generate AI Response via Blue Neural Engine
+    // 5. Generate AI Response via Blue Neural Engine with RAG & Memory Layer
     try {
       const neuralData = await apiClient.post('/api/ai/blue-brain', {
         prompt: message,
         user_id: userId,
         companyId: companyId,
         companyContextData: companyContextData,
-        conversationHistory: conversationHistory
+        conversationHistory: conversationHistory,
+        ragChunks: ragRetrieval.chunks,
+        memoryNodes: memoryNodes
       });
       
       const assistantContent = neuralData.response || "Désolé, le cerveau neuronal de KONTROL rencontre une latence temporaire.";
@@ -205,9 +300,14 @@ class BlueAIService {
         handleFirestoreError(error, OperationType.UPDATE, `conversations/${currentConvId}`, auth.currentUser, false);
       }
 
+      // 8. Auto extract memory node asynchronously
+      this.autoExtractAndSaveMemories(message, assistantContent, companyId, userId).catch(() => {});
+
       return {
         content: assistantContent,
-        conversationId: currentConvId
+        conversationId: currentConvId,
+        ragRetrieval,
+        memoryNodes
       };
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'ai/blue-brain', auth.currentUser, true);

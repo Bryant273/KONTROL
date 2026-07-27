@@ -128,7 +128,9 @@ export class BlueNeuralBrain {
     userId: string = 'system', 
     companyId?: string,
     companyContextData?: any,
-    conversationHistory?: any[]
+    conversationHistory?: any[],
+    memoryNodes?: any[],
+    ragChunks?: any[]
   ) {
     const id = Date.now().toString();
     console.log(`[NEURAL-BRAIN] Multi-Model Inference starting for prompt: ${prompt.substring(0, 40)}...`);
@@ -370,6 +372,14 @@ Bonjour **${userProfile?.displayName || 'Cher utilisateur'}** ! Je suis **BLUE A
 *Comment puis-je vous assister davantage aujourd'hui ? (Analyse de coûts, prévisionnel de trésorerie, calcul de BFR, simulation de crédit Bridge, ou stratégie commerciale)*`;
     }
 
+    const ragContextText = (Array.isArray(ragChunks) && ragChunks.length > 0)
+      ? ragChunks.map(c => `- **[RAG Vector / ${c.sourceType}]** ${c.title} => ${c.content}`).join('\n')
+      : "Aucun segment vectoriel RAG spécifique requis pour cette requête.";
+
+    const memoryLayerText = (Array.isArray(memoryNodes) && memoryNodes.length > 0)
+      ? memoryNodes.map(m => `- **[Mémoire Long Terme - ${m.category}]** ${m.content}`).join('\n')
+      : "Aucun fait spécifique enregistré dans la mémoire à long terme.";
+
     const systemInstruction = `Tu es BLUE AI (version 4.5 Pro), le Cerveau Stratégique, Expert Fiduciaire, Financier et Opérationnel de niveau mondial (équivalent GPT-4 et Qwen 3) intégré à la plateforme de gestion d'entreprise KONTROL.
 
 Tu accompagnes l'utilisateur avec une intelligence cognitive élevée, un raisonnement rigoureux, un sens aigu de la collaboration d'affaires et une maîtrise parfaite de la comptabilité (normes SYSCOHADA / UEMOA / CEMAC et normes internationales).
@@ -382,6 +392,12 @@ Tu accompagnes l'utilisateur avec une intelligence cognitive élevée, un raison
 - TRÉSORERIE NETTE : ${formatFCFA(netTreasury)}
 - PORTES-FEUILLES & CAISSES :
 ${walletsCtx}
+
+--- SÉLECTION VECTORIELLE RAG (RETRIEVAL-AUGMENTED GENERATION) ---
+${ragContextText}
+
+--- COUCHES DE MÉMOIRE LONG TERME PERSISTANTE (MEMORY LAYER FIRESTORE) ---
+${memoryLayerText}
 
 --- DONNÉES EN TEMPS RÉEL DE L'ENTREPRISE (SYSTÈME KONTROL) ---
 1. TRANSACTIONS & FLUX DE TRÉSORERIE (Extrait des dernières écritures) :

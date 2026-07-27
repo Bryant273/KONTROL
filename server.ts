@@ -487,7 +487,9 @@ async function startServer() {
     user_id: z.string().min(1).max(128),
     companyId: z.string().max(128).optional(),
     companyContextData: z.any().optional(),
-    conversationHistory: z.array(z.any()).optional()
+    conversationHistory: z.array(z.any()).optional(),
+    memoryNodes: z.array(z.any()).optional(),
+    ragChunks: z.array(z.any()).optional()
   });
 
   const AiAnalyzeSchema = z.object({
@@ -720,8 +722,8 @@ async function startServer() {
   const aiExpert = {
     blueBrain: async (req: any, res: any) => {
       try {
-        const { prompt, user_id, companyId, companyContextData, conversationHistory } = AiBrainSchema.parse(req.body);
-        const result = await neuralBrain.infer(prompt, user_id, companyId, companyContextData, conversationHistory);
+        const { prompt, user_id, companyId, companyContextData, conversationHistory, memoryNodes, ragChunks } = AiBrainSchema.parse(req.body);
+        const result = await neuralBrain.infer(prompt, user_id, companyId, companyContextData, conversationHistory, memoryNodes, ragChunks);
         res.json({
           engine: "PYTHON_NEURAL_ENSEMBLE",
           models: ["Qwen 3", "GPT-4", "Gemini 3.6"],
