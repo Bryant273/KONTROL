@@ -64,6 +64,8 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
   const [loading, setLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [filterDate, setFilterDate] = React.useState<string>('');
+  const [roleFilter, setRoleFilter] = React.useState<'ALL' | 'ADMINISTRATEUR_ENTREPRISE' | 'GESTIONNAIRE_ENTREPRISE' | 'UTILISATEUR'>('ALL');
+  const [statusFilter, setStatusFilter] = React.useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
   const [isAdding, setIsAdding] = React.useState(false);
   const [selectedUser, setSelectedUser] = React.useState<UserProfile | null>(null);
   const [idCopied, setIdCopied] = React.useState(false);
@@ -223,10 +225,19 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
     const data = filteredUsers.map(u => [
       u.displayName,
       u.email,
-      u.role,
+      u.role === 'ADMINISTRATEUR_ENTREPRISE' ? 'Administrateur' : u.role === 'GESTIONNAIRE_ENTREPRISE' ? 'Gestionnaire' : 'Collaborateur',
       u.active !== false ? t('common.active', 'Actif') : t('common.inactive', 'Inactif')
     ]);
-    exportToPDF(`${t('users.title')} - KONTROL`, headers, data, 'Utilisateurs_KONTROL', currentUserProfile?.companyLogo || currentUserProfile?.logoUrl);
+    exportToPDF(
+      `${t('users.title')} - ${currentUserProfile?.companyName || 'KONTROL'}`,
+      headers,
+      data,
+      'Utilisateurs_Entreprise',
+      {
+        companyName: currentUserProfile?.companyName,
+        companyLogo: currentUserProfile?.companyLogo || currentUserProfile?.logoUrl
+      }
+    );
   };
 
   const handleExportExcel = () => {
@@ -367,15 +378,41 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
     }
   };
 
+  const handleUpdateRole = async (userId: string, newRole: UserRole, userName: string) => {
+    if (!canUpdateUser) return;
+    try {
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, { role: newRole });
+      toast.success(`Rôle de ${userName} mis à jour : ${newRole === 'ADMINISTRATEUR_ENTREPRISE' ? 'Administrateur' : newRole === 'GESTIONNAIRE_ENTREPRISE' ? 'Gestionnaire' : 'Collaborateur'}`);
+      
+      if (currentUserProfile) {
+        await logAction(
+          currentUserProfile.companyId,
+          user.uid,
+          currentUserProfile.displayName,
+          "Changement de rôle utilisateur",
+          `Utilisateur: ${userName} -> Nouveau rôle: ${newRole}`
+        ).catch(() => {});
+      }
+      
+      if (selectedUser && (selectedUser.id === userId || selectedUser.uid === userId)) {
+        setSelectedUser(prev => prev ? { ...prev, role: newRole } : null);
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'users', user, false);
+    }
+  };
+
   const filteredUsers = users
     .filter(u => {
       const matchesSearch = (u.displayName || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
                            (u.email || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchesDate = !filterDate || new Date(u.createdAt).toISOString().split('T')[0] === filterDate;
-      return matchesSearch && matchesDate;
+      const matchesRole = roleFilter === 'ALL' || u.role === roleFilter;
+      const matchesStatus = statusFilter === 'ALL' || (statusFilter === 'ACTIVE' ? u.active !== false : u.active === false);
+      return matchesSearch && matchesDate && matchesRole && matchesStatus;
     })
     .sort((a, b) => {
-      // Sort priority: ERP Admin > Enterprise Admin > Manager > User
       const rolePriority: Record<string, number> = {
         'ADMINISTRATEUR_ENTREPRISE': 0,
         'GESTIONNAIRE_ENTREPRISE': 1,
@@ -689,23 +726,146 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
         </div>
       </div>
 
-              {/* Search & Stats */}
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-                <div className="lg:col-span-3 bg-white border border-kontrol-border rounded-2xl p-2 flex items-center gap-2 shadow-sm">
-                  <div className="flex-1 flex items-center gap-3 bg-kontrol-bg/50 border border-kontrol-border rounded-xl px-4 py-2 focus-within:border-kontrol-blue focus-within:bg-white transition-all">
-                    <Search size={16} className="text-kontrol-ink-muted" />
-                    <input 
-                      type="text"
-                      placeholder={t('users.search_placeholder', 'Rechercher par nom, email, rôle...')}
-                      className="bg-transparent border-none outline-none text-[13px] w-full text-kontrol-ink placeholder:text-kontrol-ink-muted font-medium"
-                      value={searchTerm}
-                      onChange={(e) => {
-                        setSearchTerm(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                    />
-                  </div>
-          <div className="flex items-center gap-2 bg-kontrol-bg/50 border border-kontrol-border rounded-xl px-4 py-2">
+      {/* Stats Summary Bar */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white border border-kontrol-border rounded-2xl p-4 flex items-center justify-between shadow-sm">
+          <div>
+            <p className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-wider">Total Membres</p>
+            <p className="text-2xl font-black text-kontrol-dark mt-0.5">{users.length}</p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-kontrol-blue/10 text-kontrol-blue flex items-center justify-center font-bold">
+            <Users size={20} />
+          </div>
+        </div>
+
+        <div className="bg-white border border-kontrol-border rounded-2xl p-4 flex items-center justify-between shadow-sm">
+          <div>
+            <p className="text-[10px] font-extrabold text-kontrol-orange uppercase tracking-wider">Administrateurs</p>
+            <p className="text-2xl font-black text-kontrol-dark mt-0.5">
+              {users.filter(u => u.role === 'ADMINISTRATEUR_ENTREPRISE').length}
+            </p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-kontrol-orange/10 text-kontrol-orange flex items-center justify-center font-bold">
+            <Shield size={20} />
+          </div>
+        </div>
+
+        <div className="bg-white border border-kontrol-border rounded-2xl p-4 flex items-center justify-between shadow-sm">
+          <div>
+            <p className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider">Gestionnaires</p>
+            <p className="text-2xl font-black text-kontrol-dark mt-0.5">
+              {users.filter(u => u.role === 'GESTIONNAIRE_ENTREPRISE').length}
+            </p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+            <UserCheck size={20} />
+          </div>
+        </div>
+
+        <div className="bg-white border border-kontrol-border rounded-2xl p-4 flex items-center justify-between shadow-sm">
+          <div>
+            <p className="text-[10px] font-extrabold text-emerald-600 uppercase tracking-wider">Comptes Actifs</p>
+            <p className="text-2xl font-black text-emerald-600 mt-0.5">
+              {users.filter(u => u.active !== false).length}
+            </p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+            <Building2 size={20} />
+          </div>
+        </div>
+      </div>
+
+      {/* Filter Tabs & Search Bar */}
+      <div className="bg-white border border-kontrol-border rounded-2xl p-4 space-y-4 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          {/* Role Filter Tabs */}
+          <div className="flex flex-wrap items-center gap-1.5 bg-kontrol-bg/60 p-1.5 rounded-xl border border-kontrol-border">
+            <button
+              onClick={() => { setRoleFilter('ALL'); setCurrentPage(1); }}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all",
+                roleFilter === 'ALL' ? "bg-white text-kontrol-dark shadow-sm" : "text-kontrol-ink-muted hover:text-kontrol-dark"
+              )}
+            >
+              Tous ({users.length})
+            </button>
+            <button
+              onClick={() => { setRoleFilter('ADMINISTRATEUR_ENTREPRISE'); setCurrentPage(1); }}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all",
+                roleFilter === 'ADMINISTRATEUR_ENTREPRISE' ? "bg-white text-kontrol-orange shadow-sm" : "text-kontrol-ink-muted hover:text-kontrol-dark"
+              )}
+            >
+              Admins ({users.filter(u => u.role === 'ADMINISTRATEUR_ENTREPRISE').length})
+            </button>
+            <button
+              onClick={() => { setRoleFilter('GESTIONNAIRE_ENTREPRISE'); setCurrentPage(1); }}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all",
+                roleFilter === 'GESTIONNAIRE_ENTREPRISE' ? "bg-white text-indigo-600 shadow-sm" : "text-kontrol-ink-muted hover:text-kontrol-dark"
+              )}
+            >
+              Gestionnaires ({users.filter(u => u.role === 'GESTIONNAIRE_ENTREPRISE').length})
+            </button>
+            <button
+              onClick={() => { setRoleFilter('UTILISATEUR'); setCurrentPage(1); }}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all",
+                roleFilter === 'UTILISATEUR' ? "bg-white text-kontrol-blue shadow-sm" : "text-kontrol-ink-muted hover:text-kontrol-dark"
+              )}
+            >
+              Collaborateurs ({users.filter(u => u.role === 'UTILISATEUR').length})
+            </button>
+          </div>
+
+          {/* Status Filter Tabs */}
+          <div className="flex items-center gap-1.5 bg-kontrol-bg/60 p-1.5 rounded-xl border border-kontrol-border self-start md:self-auto">
+            <button
+              onClick={() => { setStatusFilter('ALL'); setCurrentPage(1); }}
+              className={cn(
+                "px-2.5 py-1 rounded-lg text-xs font-bold transition-all",
+                statusFilter === 'ALL' ? "bg-white text-kontrol-dark shadow-sm" : "text-kontrol-ink-muted"
+              )}
+            >
+              Statut: Tous
+            </button>
+            <button
+              onClick={() => { setStatusFilter('ACTIVE'); setCurrentPage(1); }}
+              className={cn(
+                "px-2.5 py-1 rounded-lg text-xs font-bold transition-all",
+                statusFilter === 'ACTIVE' ? "bg-emerald-500 text-white shadow-sm" : "text-kontrol-ink-muted hover:text-emerald-600"
+              )}
+            >
+              Actifs
+            </button>
+            <button
+              onClick={() => { setStatusFilter('INACTIVE'); setCurrentPage(1); }}
+              className={cn(
+                "px-2.5 py-1 rounded-lg text-xs font-bold transition-all",
+                statusFilter === 'INACTIVE' ? "bg-rose-500 text-white shadow-sm" : "text-kontrol-ink-muted hover:text-rose-600"
+              )}
+            >
+              Suspendus
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          <div className="flex-1 w-full flex items-center gap-3 bg-kontrol-bg/50 border border-kontrol-border rounded-xl px-4 py-2 focus-within:border-kontrol-blue focus-within:bg-white transition-all">
+            <Search size={16} className="text-kontrol-ink-muted" />
+            <input 
+              type="text"
+              placeholder={t('users.search_placeholder', 'Rechercher un membre par nom, email, rôle...')}
+              className="bg-transparent border-none outline-none text-[13px] w-full text-kontrol-ink placeholder:text-kontrol-ink-muted font-medium"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+
+          <div className="flex items-center gap-2 bg-kontrol-bg/50 border border-kontrol-border rounded-xl px-4 py-2 w-full sm:w-auto">
             <Calendar size={16} className="text-kontrol-ink-muted" />
             <input 
               type="date"
@@ -716,14 +876,15 @@ export function UsersModule({ user, currentUserProfile }: UsersModuleProps) {
                 setCurrentPage(1);
               }}
             />
+            {filterDate && (
+              <button 
+                onClick={() => setFilterDate('')}
+                className="text-xs text-rose-500 hover:underline font-bold ml-1"
+              >
+                Effacer
+              </button>
+            )}
           </div>
-        </div>
-        <div className="bg-kontrol-blue/5 border border-kontrol-blue/10 rounded-2xl p-4 flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-bold text-kontrol-blue uppercase tracking-widest">{t('users.active_count')}</p>
-            <p className="text-2xl font-extrabold text-kontrol-blue">{users.length}</p>
-          </div>
-          <Users className="text-kontrol-blue/20" size={32} />
         </div>
       </div>
 

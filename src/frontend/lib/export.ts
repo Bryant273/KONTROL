@@ -42,14 +42,21 @@ export const exportToPDF = (title: string, headers: string[], data: any[][], fil
   const pageWidth = doc.internal.pageSize.width;
   
   // Decide what to do with options
-  let companyInfo = { name: 'KONTROL' };
+  let companyInfo = { name: 'KONTROL', logo: '' };
   let clientInfo = null;
   let footer = 'Merci de votre confiance. Document généré par KONTROL.';
+  let isKontrolContract = false;
   
-  if (typeof options === 'object' && options !== null) {
+  if (typeof options === 'string') {
+    companyInfo.logo = options;
+  } else if (typeof options === 'object' && options !== null) {
     if (options.companyInfo) companyInfo = { ...companyInfo, ...options.companyInfo };
+    if (options.companyLogo) companyInfo.logo = options.companyLogo;
+    if (options.logoUrl) companyInfo.logo = options.logoUrl;
+    if (options.companyName) companyInfo.name = options.companyName;
     if (options.clientInfo) clientInfo = options.clientInfo;
     if (options.footer) footer = options.footer;
+    if (options.isKontrolContract) isKontrolContract = options.isKontrolContract;
   }
   
   // Elegant Light Header background
@@ -79,19 +86,37 @@ export const exportToPDF = (title: string, headers: string[], data: any[][], fil
       .replace(/[^\x00-\x7F]/g, '');
   };
 
-  // Draw vector KONTROL Logo - fully visible with bright contrast
-  drawKontrolLogo(doc, 15, 11, 18);
+  // Try drawing Company Logo if provided, else fallback to vector KONTROL Logo
+  let hasDrawnLogo = false;
+  if (!isKontrolContract && companyInfo.logo && typeof companyInfo.logo === 'string' && companyInfo.logo.trim().length > 0) {
+    try {
+      let format = 'PNG';
+      if (companyInfo.logo.includes('image/jpeg') || companyInfo.logo.includes('image/jpg')) {
+        format = 'JPEG';
+      } else if (companyInfo.logo.includes('image/webp')) {
+        format = 'WEBP';
+      }
+      doc.addImage(companyInfo.logo, format, 15, 10, 20, 20);
+      hasDrawnLogo = true;
+    } catch (err) {
+      console.warn("Could not embed company logo in PDF export, using default logo:", err);
+    }
+  }
+
+  if (!hasDrawnLogo) {
+    drawKontrolLogo(doc, 15, 11, 18);
+  }
 
   // App Title / Company Logo Area (Top Left) - dark elegant text
   doc.setTextColor(15, 23, 42); // slate-900
-  doc.setFontSize(22);
+  doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
   doc.text(cleanText(companyInfo.name), 38, 23);
   
-  doc.setFontSize(10);
+  doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(71, 85, 105); // slate-600
-  doc.text('ERP de Gestion Intelligente', 38, 31);
+  doc.text('Document d\'État et Rapport de Gestion', 38, 30);
   
   // Client Info (Header Bottom Right) - beautifully colored
   if (clientInfo) {

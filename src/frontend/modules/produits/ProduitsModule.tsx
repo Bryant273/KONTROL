@@ -330,8 +330,18 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
     return () => window.removeEventListener('select-entity-produits', listener);
   }, []);
 
+  const toLocalDateStr = (val: number | string | Date) => {
+    if (!val) return '';
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return '';
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const selectedProduit = produits.find(p => p.id === selectedId);
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = toLocalDateStr(Date.now());
   const activeDate = isTodayOnly ? todayStr : filterDate;
   
   const filteredProduits = produits.filter(p => {
@@ -347,7 +357,7 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
       matchesCategory = p.stock <= 0;
     }
 
-    const pDateStr = p.createdAt ? new Date(p.createdAt).toISOString().split('T')[0] : '';
+    const pDateStr = p.createdAt ? toLocalDateStr(p.createdAt) : '';
     const matchesDate = !activeDate || pDateStr === activeDate;
     
     return matchesSearch && matchesCategory && matchesDate;

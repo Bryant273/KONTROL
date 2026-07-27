@@ -21,7 +21,9 @@ import {
   Send,
   Sparkles,
   Brain,
-  Loader2
+  Loader2,
+  Wrench,
+  Construction
 } from 'lucide-react';
 import { 
   collection, 
@@ -408,6 +410,26 @@ Ne retourne aucune autre phrase, ni balises markdown \`\`\`json \`\`\``;
 
   return (
     <div className="space-y-6">
+      {/* Page En Construction Banner */}
+      <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-amber-500/10 border-2 border-dashed border-amber-500/40 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
+        <div className="flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-600 flex items-center justify-center shrink-0">
+            <Construction size={22} className="animate-pulse" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-black uppercase tracking-wider bg-amber-500 text-white px-2 py-0.5 rounded-full">
+                En Construction
+              </span>
+              <h3 className="text-sm font-extrabold text-amber-900">Support Technique KONTROL</h3>
+            </div>
+            <p className="text-xs text-amber-800/80 mt-0.5 font-medium">
+              Ce module de support et d'assistance est actuellement en cours d'optimisation par l'équipe technique INNOV'KORP. Vous pouvez néanmoins soumettre vos tickets ci-dessous.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-extrabold text-kontrol-dark tracking-tight">{t('tickets.title')}</h2>

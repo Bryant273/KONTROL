@@ -117,19 +117,44 @@ export const generateInvoicePDF = (transaction: any, userProfile?: any) => {
   doc.setFillColor(37, 99, 235);
   doc.rect(0, 0, pageWidth, 4, 'F');
 
-  // 2. KONTROL Vector Logo
-  drawKontrolLogo(doc, margin, 14, 16);
+  // 2. Logo drawing (Company Logo for sale/purchase documents, KONTROL logo for subscription documents)
+  const companyLogo = userProfile?.companyLogo || userProfile?.logoUrl;
+  let hasDrawnLogo = false;
 
-  // 3. App branding text next to Logo
+  if (!isSubscription && companyLogo && typeof companyLogo === 'string' && companyLogo.trim().length > 0) {
+    try {
+      let format = 'PNG';
+      if (companyLogo.includes('image/jpeg') || companyLogo.includes('image/jpg')) {
+        format = 'JPEG';
+      } else if (companyLogo.includes('image/webp')) {
+        format = 'WEBP';
+      }
+      doc.addImage(companyLogo, format, margin, 10, 18, 18);
+      hasDrawnLogo = true;
+    } catch (err) {
+      console.warn("Could not embed company logo in invoice PDF:", err);
+    }
+  }
+
+  if (!hasDrawnLogo) {
+    drawKontrolLogo(doc, margin, 14, 16);
+  }
+
+  // 3. Branding & Company Name text next to Logo
   doc.setTextColor(15, 23, 42);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
-  doc.text('KONTROL.', 35, 23);
+  doc.setFontSize(18);
+
+  const headerTitle = (!isSubscription && myCompany) ? myCompany : 'KONTROL ERP';
+  doc.text(cleanText(headerTitle), 36, 22);
 
   doc.setTextColor(100, 116, 139);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
-  doc.text(cleanText("GESTION ERP INTELLIGENTE par INNOV'KORP"), 35, 28);
+  const headerSubtitle = (!isSubscription && myCompany) 
+    ? `DOCUMENT OFFICIEL · ${myCompany.toUpperCase()}` 
+    : "GESTION ERP INTELLIGENTE par INNOV'KORP";
+  doc.text(cleanText(headerSubtitle), 36, 28);
 
   // 4. Invoice Title & ID (Top Right)
   const docTitle = isSubscription 

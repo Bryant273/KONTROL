@@ -13,7 +13,7 @@ interface HeaderProps {
   user: User;
   profile: UserProfile | null;
   onLogout: () => void;
-  onTabChange: (tab: string, section: string, label: string) => void;
+  onTabChange: (tab: string, section: string, label: string, subTab?: 'profile' | 'team') => void;
   toggleSidebar: () => void;
   isSidebarOpen: boolean;
   onStartGuide?: () => void;
@@ -108,8 +108,10 @@ export function Header({ section, page, user, profile, onLogout, onTabChange, to
 
       <div className="flex-1 flex items-center gap-3 min-w-0">
         <div className="hidden lg:flex items-center gap-2 pr-4 border-r border-kontrol-border">
-          <Logo companyLogo={profile?.companyLogo} size="sm" className="bg-transparent border-none" />
-          <span className="text-lg font-extrabold tracking-tighter text-kontrol-dark uppercase">KONTROL</span>
+          <Logo companyLogo={profile?.companyLogo || profile?.logoUrl} size="sm" className="bg-transparent border-none" />
+          <span className="text-lg font-extrabold tracking-tighter text-kontrol-dark uppercase truncate max-w-[180px]" title={profile?.companyName || 'KONTROL'}>
+            {(profile?.companyName || profile?.companyAbbreviation || 'KONTROL').replace(' ERP', '').trim()}
+          </span>
         </div>
         <div className="flex items-center gap-1.5 overflow-hidden">
           {section && section.trim() !== "" && section !== page && (
@@ -221,7 +223,7 @@ export function Header({ section, page, user, profile, onLogout, onTabChange, to
               </button>
               <button 
                 onClick={() => {
-                  onTabChange('utilisateurs', t('sections.system'), t('common.users'));
+                  onTabChange('company_hub', t('sections.system'), t('common.company_hub'), 'team');
                   setIsDropdownOpen(false);
                 }}
                 className="w-full flex items-center gap-2 px-3.5 py-2.5 text-[13px] text-kontrol-ink-soft hover:bg-kontrol-bg transition-colors"

@@ -289,11 +289,23 @@ export default function App() {
     }
   };
 
-  const handleTabChange = (tab: string, section: string, label: string) => {
-    setActiveTab(tab);
+  const [companyHubSubTab, setCompanyHubSubTab] = useState<'profile' | 'team'>('profile');
+
+  const handleTabChange = (tab: string, section: string, label: string, subTab?: 'profile' | 'team') => {
+    let targetTab = tab;
+    if (tab === 'utilisateurs') {
+      targetTab = 'company_hub';
+      setCompanyHubSubTab('team');
+    } else if (subTab) {
+      setCompanyHubSubTab(subTab);
+    } else if (tab === 'company_hub') {
+      setCompanyHubSubTab('profile');
+    }
+
+    setActiveTab(targetTab);
     setActiveSection(section);
     setActiveLabel(label);
-    localStorage.setItem('activeTab', tab);
+    localStorage.setItem('activeTab', targetTab);
     localStorage.setItem('activeSection', section);
     localStorage.setItem('activeLabel', label);
     if (window.innerWidth < 1024) {
@@ -382,8 +394,8 @@ export default function App() {
           {activeTab === 'ai' && <BlueAIModule user={user} currentUserProfile={profile} />}
           {activeTab === 'chat' && user && <KChatModule user={user} profile={profile} />}
           {activeTab === 'tickets' && <TicketsModule user={user} currentUserProfile={profile} />}
-          {activeTab === 'company_hub' && <CompanyHubModule user={user} profile={profile} />}
-          {activeTab === 'company_profile' && <CompanyHubModule user={user} profile={profile} />}
+          {activeTab === 'company_hub' && <CompanyHubModule user={user} profile={profile} initialSubTab={companyHubSubTab} />}
+          {activeTab === 'company_profile' && <CompanyHubModule user={user} profile={profile} initialSubTab="profile" />}
           {activeTab === 'abonnements' && <SubscriptionsModule profile={profile} />}
           {activeTab === 'notifications' && <NotificationsCenterModule profile={profile} onNavigate={handleTabChange} />}
           {activeTab === 'profil' && <ProfileModule profile={profile} initialSection="MENU" />}

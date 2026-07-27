@@ -148,6 +148,123 @@ export function NotificationsCenterModule({ profile, onNavigate }: Notifications
     return matchesSearch && matchesType && matchesUnread;
   });
 
+  const resolveNotificationDestination = (notif: any): { tab: string; section: string; label: string; entityId: string } | null => {
+    const linkStr = (notif.link || '').trim();
+    let tab = '';
+    let section = 'Gestion';
+    let label = '';
+    let entityId = notif.productId || notif.metadata?.productId || notif.transactionId || notif.metadata?.transactionId || '';
+
+    if (linkStr && linkStr.includes(':')) {
+      const parts = linkStr.split(':');
+      const entityType = parts[0].toLowerCase().trim();
+      if (parts[1]) entityId = parts[1].trim();
+
+      if (entityType.startsWith('transaction') || entityType.startsWith('vente') || entityType.startsWith('achat')) {
+        tab = 'transactions';
+        label = 'Transactions';
+      } else if (entityType.startsWith('product') || entityType.startsWith('produit')) {
+        tab = 'produits';
+        label = 'Produits & Services';
+      } else if (entityType.startsWith('stock')) {
+        tab = 'stocks';
+        label = 'Stocks & Inventaire';
+      } else if (entityType.startsWith('tier') || entityType.startsWith('client') || entityType.startsWith('fournisseur')) {
+        tab = 'tiers';
+        label = 'Partenaires & Tiers';
+      } else if (entityType.startsWith('charge') || entityType.startsWith('depense')) {
+        tab = 'charges';
+        label = 'Dépenses & Charges';
+      } else if (entityType.startsWith('ticket')) {
+        tab = 'tickets';
+        section = 'Support';
+        label = 'Tickets Support';
+      } else if (entityType.startsWith('subscription') || entityType.startsWith('abonnement')) {
+        tab = 'abonnements';
+        section = 'Système';
+        label = 'Mon Abonnement';
+      }
+    }
+
+    if (!tab && linkStr) {
+      const lowerLink = linkStr.toLowerCase();
+      if (lowerLink.includes('stock')) {
+        tab = 'stocks';
+        label = 'Stocks & Inventaire';
+      } else if (lowerLink.includes('product') || lowerLink.includes('produit')) {
+        tab = 'produits';
+        label = 'Produits & Services';
+      } else if (lowerLink.includes('transaction') || lowerLink.includes('vente') || lowerLink.includes('achat')) {
+        tab = 'transactions';
+        label = 'Transactions';
+      } else if (lowerLink.includes('charge') || lowerLink.includes('depense')) {
+        tab = 'charges';
+        label = 'Dépenses & Charges';
+      } else if (lowerLink.includes('ticket')) {
+        tab = 'tickets';
+        section = 'Support';
+        label = 'Tickets Support';
+      } else if (lowerLink.includes('subscription') || lowerLink.includes('abonnement')) {
+        tab = 'abonnements';
+        section = 'Système';
+        label = 'Mon Abonnement';
+      } else if (lowerLink.includes('company') || lowerLink.includes('admin') || lowerLink.includes('entreprise')) {
+        tab = 'company_hub';
+        section = 'Système';
+        label = 'Entreprise';
+      }
+    }
+
+    if (!tab) {
+      if (notif.isStockAlert || notif.metadata?.isStockAlert) {
+        tab = 'stocks';
+        label = 'Stocks & Inventaire';
+      } else if (notif.isPaymentError || notif.metadata?.isPaymentError) {
+        tab = 'transactions';
+        label = 'Transactions';
+      } else if (notif.isSecurityAlert || notif.metadata?.isSecurityAlert) {
+        tab = 'journal';
+        section = 'Système';
+        label = "Journal d'Actions";
+      }
+    }
+
+    if (!tab) {
+      const text = `${notif.title || ''} ${notif.message || ''}`.toLowerCase();
+      if (text.includes('stock') || text.includes('rupture') || text.includes('inventaire') || text.includes('seuil')) {
+        tab = 'stocks';
+        label = 'Stocks & Inventaire';
+      } else if (text.includes('produit') || text.includes('article') || text.includes('service')) {
+        tab = 'produits';
+        label = 'Produits & Services';
+      } else if (text.includes('transaction') || text.includes('vente') || text.includes('achat') || text.includes('facture') || text.includes('commande') || text.includes('encaissement') || text.includes('décaissement')) {
+        tab = 'transactions';
+        label = 'Transactions';
+      } else if (text.includes('charge') || text.includes('dépense') || text.includes('depense')) {
+        tab = 'charges';
+        label = 'Dépenses & Charges';
+      } else if (text.includes('ticket') || text.includes('support')) {
+        tab = 'tickets';
+        section = 'Support';
+        label = 'Tickets Support';
+      } else if (text.includes('abonnement') || text.includes('forfait') || text.includes('licence') || text.includes('expiration')) {
+        tab = 'abonnements';
+        section = 'Système';
+        label = 'Mon Abonnement';
+      } else if (text.includes('tiers') || text.includes('client') || text.includes('fournisseur') || text.includes('partenaire')) {
+        tab = 'tiers';
+        label = 'Partenaires & Tiers';
+      } else if (text.includes('sécurité') || text.includes('securite') || text.includes('action')) {
+        tab = 'journal';
+        section = 'Système';
+        label = "Journal d'Actions";
+      }
+    }
+
+    if (!tab) return null;
+    return { tab, section, label, entityId };
+  };
+
   const handleAction = (notif: any) => {
     if (!notif.read) markAsRead(notif.id);
     
@@ -165,76 +282,15 @@ export function NotificationsCenterModule({ profile, onNavigate }: Notifications
       return;
     }
 
-    if (notif.link && onNavigate) {
-      const linkStr = notif.link.trim();
-      let tab = '';
-      let section = 'Gestion';
-      let label = '';
-      let entityId = '';
-
-      if (linkStr.includes(':')) {
-        const parts = linkStr.split(':');
-        const entityType = parts[0].toLowerCase().trim();
-        entityId = parts[1].trim();
-
-        if (entityType.startsWith('transaction')) {
-          tab = 'transactions';
-          label = 'Transactions';
-        } else if (entityType.startsWith('product') || entityType.startsWith('produit')) {
-          tab = 'produits';
-          label = 'Produits';
-        } else if (entityType.startsWith('tier')) {
-          tab = 'tiers';
-          label = 'Partenaires & Tiers';
-        } else if (entityType.startsWith('charge')) {
-          tab = 'charges';
-          label = 'Dépenses & Charges';
-        } else if (entityType.startsWith('ticket')) {
-          tab = 'tickets';
-          section = 'Support';
-          label = 'Tickets Support';
-        } else if (entityType.startsWith('subscription') || entityType.startsWith('abonnement')) {
-          tab = 'abonnements';
-          section = 'Système';
-          label = 'Mon Abonnement';
-        }
-      } else {
-        // Fallback or exact matches
-        const lowerLink = linkStr.toLowerCase();
-        if (lowerLink.includes('admin') || lowerLink.includes('company')) {
-          tab = 'company_hub';
-          section = 'Système';
-          label = 'Entreprise';
-        } else if (lowerLink.includes('ticket')) {
-          tab = 'tickets';
-          section = 'Support';
-          label = 'Tickets Support';
-        } else if (lowerLink.includes('subscription') || lowerLink.includes('abonnement')) {
-          tab = 'abonnements';
-          section = 'Système';
-          label = 'Mon Abonnement';
-        } else if (lowerLink.includes('transaction')) {
-          tab = 'transactions';
-          label = 'Transactions';
-        } else if (lowerLink.includes('product') || lowerLink.includes('produit')) {
-          tab = 'produits';
-          label = 'Produits';
-        } else if (lowerLink.includes('tier')) {
-          tab = 'tiers';
-          label = 'Partenaires & Tiers';
-        } else if (lowerLink.includes('charge')) {
-          tab = 'charges';
-          label = 'Dépenses & Charges';
-        }
+    const dest = resolveNotificationDestination(notif);
+    if (dest && onNavigate) {
+      if (dest.entityId) {
+        localStorage.setItem(`selected_target_id_${dest.tab}`, dest.entityId);
+        window.dispatchEvent(new CustomEvent(`select-entity-${dest.tab}`, { detail: { id: dest.entityId } }));
+        window.dispatchEvent(new CustomEvent(`select-entity-produits`, { detail: { id: dest.entityId } }));
+        window.dispatchEvent(new CustomEvent(`select-entity-stocks`, { detail: { id: dest.entityId } }));
       }
-
-      if (tab) {
-        if (entityId) {
-          localStorage.setItem(`selected_target_id_${tab}`, entityId);
-          window.dispatchEvent(new CustomEvent(`select-entity-${tab}`, { detail: { id: entityId } }));
-        }
-        onNavigate(tab, section, label);
-      }
+      onNavigate(dest.tab, dest.section, dest.label);
     }
   };
 

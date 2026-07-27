@@ -11,11 +11,18 @@ import { hasPermission } from '../../lib/permissions';
 interface CompanyHubModuleProps {
   profile: UserProfile | null;
   user: User;
+  initialSubTab?: 'profile' | 'team';
 }
 
-export function CompanyHubModule({ profile, user }: CompanyHubModuleProps) {
+export function CompanyHubModule({ profile, user, initialSubTab = 'profile' }: CompanyHubModuleProps) {
   const { t } = useTranslation();
-  const [activeSubTab, setActiveSubTab] = useState<'profile' | 'team'>('profile');
+  const [activeSubTab, setActiveSubTab] = useState<'profile' | 'team'>(initialSubTab);
+
+  React.useEffect(() => {
+    if (initialSubTab) {
+      setActiveSubTab(initialSubTab);
+    }
+  }, [initialSubTab]);
 
   const isManager = profile?.role === 'GESTIONNAIRE_ENTREPRISE';
   const isAdmin = profile?.role === 'ADMINISTRATEUR_ENTREPRISE';

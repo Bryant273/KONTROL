@@ -57,8 +57,19 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
   const [activeView, setActiveView] = React.useState<'MOVEMENTS' | 'INVENTORY'>('MOVEMENTS');
   const [currentPage, setCurrentPage] = React.useState(1);
   const itemsPerPage = 10;
-  const [filterDate, setFilterDate] = React.useState<string>('');
-  const [isTodayOnly, setIsTodayOnly] = React.useState<boolean>(false);
+  const toLocalDateStr = (val: number | string | Date) => {
+    if (!val) return '';
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return '';
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const todayStr = toLocalDateStr(Date.now());
+  const [filterDate, setFilterDate] = React.useState<string>(todayStr);
+  const [isTodayOnly, setIsTodayOnly] = React.useState<boolean>(true);
 
   const [excelPreviewData, setExcelPreviewData] = React.useState<any[] | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
@@ -267,13 +278,24 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
     return () => unsubscribes.forEach(unsub => unsub());
   }, [user, companyId, currentUserProfile]);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  React.useEffect(() => {
+    const listener = (e: any) => {
+      if (e.detail?.id) {
+        setSearchTerm(e.detail.id);
+        setIsTodayOnly(false);
+        setFilterDate('');
+      }
+    };
+    window.addEventListener('select-entity-stocks', listener);
+    return () => window.removeEventListener('select-entity-stocks', listener);
+  }, []);
+
   const activeDate = isTodayOnly ? todayStr : filterDate;
 
   const filteredMovements = movements.filter(m => {
     const matchesSearch = m.designation.toLowerCase().includes(searchTerm.toLowerCase()) || 
                          m.produitId.toLowerCase().includes(searchTerm.toLowerCase());
-    const mDateStr = m.date ? new Date(m.date).toISOString().split('T')[0] : '';
+    const mDateStr = m.date ? toLocalDateStr(m.date) : '';
     const matchesDate = !activeDate || mDateStr === activeDate;
     return matchesSearch && matchesDate;
   });
@@ -281,7 +303,7 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
   const filteredInventory = produits.filter(p => {
     const matchesSearch = p.designation.toLowerCase().includes(searchTerm.toLowerCase()) || 
                          p.reference.toLowerCase().includes(searchTerm.toLowerCase());
-    const pDateStr = p.createdAt ? new Date(p.createdAt).toISOString().split('T')[0] : '';
+    const pDateStr = p.createdAt ? toLocalDateStr(p.createdAt) : '';
     const matchesDate = !activeDate || pDateStr === activeDate;
     return matchesSearch && matchesDate;
   });
@@ -539,7 +561,20 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
                 ) : filteredMovements.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-4 py-12 text-center text-kontrol-ink-muted">
-                      {t('stocks.no_movements')}
+                      <div className="space-y-2">
+                        <p className="font-semibold text-[13px]">
+                          {activeDate ? `Aucun mouvement enregistré pour le ${activeDate}.` : (t('stocks.no_movements') || "Aucun mouvement de stock.")}
+                        </p>
+                        {activeDate && (
+                          <button
+                            type="button"
+                            onClick={() => { setFilterDate(''); setIsTodayOnly(false); setCurrentPage(1); }}
+                            className="text-xs font-bold text-kontrol-blue hover:underline bg-kontrol-blue/10 px-3 py-1.5 rounded-lg border border-kontrol-blue/20"
+                          >
+                            Voir tous les mouvements (Historique complet)
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ) : (
@@ -632,7 +667,20 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
                 ) : filteredInventory.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-4 py-12 text-center text-kontrol-ink-muted">
-                      {t('stocks.no_inventory')}
+                      <div className="space-y-2">
+                        <p className="font-semibold text-[13px]">
+                          {activeDate ? `Aucun produit créé le ${activeDate}.` : (t('stocks.no_inventory') || "Aucun produit dans l'inventaire.")}
+                        </p>
+                        {activeDate && (
+                          <button
+                            type="button"
+                            onClick={() => { setFilterDate(''); setIsTodayOnly(false); setCurrentPage(1); }}
+                            className="text-xs font-bold text-kontrol-blue hover:underline bg-kontrol-blue/10 px-3 py-1.5 rounded-lg border border-kontrol-blue/20"
+                          >
+                            Voir tout l'inventaire
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ) : (

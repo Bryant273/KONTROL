@@ -47,6 +47,7 @@ export async function notifyPaymentError(companyId: string, userId: string, amou
     title: "❌ Échec de Paiement",
     message: `Une erreur est survenue lors d'une tentative de paiement de ${amount} FCFA. Détail: ${errorDetail}`,
     type: 'error',
+    link: 'transactions:error',
     metadata: {
       amount,
       errorDetail,
@@ -62,6 +63,7 @@ export async function notifySecurityEvent(companyId: string | 'system', userId: 
     title: "🛡️ Alerte Sécurité",
     message: `Événement de sécurité détecté: ${eventType}. ${details}`,
     type: 'warning',
+    link: 'journal:security',
     metadata: {
       eventType,
       details,
@@ -79,6 +81,7 @@ export async function checkAndNotifyLowStock(productId: string, productName: str
       title: "⚠️ Alerte Stock Faible",
       message: `Le produit "${productName}" est en rupture ou presque (Stock actuel: ${newStock}, Seuil: ${threshold}).`,
       type: 'warning',
+      link: `stocks:${productId}`,
       metadata: {
         productId,
         stockLevel: newStock,

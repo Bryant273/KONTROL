@@ -86,7 +86,7 @@ export function Sidebar({ activeTab, setActiveTab, user, profile, onLogout, isOp
         {/* Header / Logo */}
         <div className="h-14 flex items-center justify-between px-4 border-b border-white/10 shrink-0">
           <div className="flex items-center gap-2 overflow-hidden">
-            <Logo companyLogo={profile?.companyLogo} size="sm" className="bg-transparent border-white/10" />
+            <Logo companyLogo={profile?.companyLogo || profile?.logoUrl} size="sm" className="bg-transparent border-white/10" />
             {(() => {
               const name = (profile?.companyName || 'KONTROL').replace(' ERP', '').trim();
               return (
