@@ -53,6 +53,45 @@ import {
 import { hashPassword } from './lib/crypto';
 import { checkAndNotifyLowStock } from './services/notificationService';
 
+// Sanitize any legacy wrapped localStorage entries created by previous Storage.prototype wrappers
+(() => {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const keysToRemove: string[] = [];
+      const keysToFix: { key: string; val: string }[] = [];
+
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key) {
+          const raw = localStorage.getItem(key);
+          if (raw && (raw.includes('"_w":true') || raw.includes('{"_v":'))) {
+            try {
+              const parsed = JSON.parse(raw);
+              if (parsed && parsed._w && parsed._v !== undefined) {
+                if (key.includes('firestore') || key.includes('firebase') || key.includes('SharedClientState')) {
+                  keysToRemove.push(key);
+                } else {
+                  keysToFix.push({
+                    key,
+                    val: typeof parsed._v === 'string' ? parsed._v : JSON.stringify(parsed._v)
+                  });
+                }
+              }
+            } catch (e) {
+              // ignore
+            }
+          }
+        }
+      }
+
+      keysToRemove.forEach(k => localStorage.removeItem(k));
+      keysToFix.forEach(item => localStorage.setItem(item.key, item.val));
+    }
+  } catch (err) {
+    console.warn("[Firebase] LocalStorage sanitization warning:", err);
+  }
+})();
+
 const app = initializeApp(firebaseConfig);
 export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({

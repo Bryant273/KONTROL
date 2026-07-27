@@ -1,45 +1,117 @@
-import {StrictMode} from 'react';
-import {createRoot} from 'react-dom/client';
+import { Component, ErrorInfo, ReactNode, StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
 import App from './frontend/App.tsx';
 import './index.css';
 import './i18n/config';
 
-// --- LOCALSTORAGE 24H EXPIRATION OPTIMIZATION ---
-(() => {
-  const originalSetItem = Storage.prototype.setItem;
-  const originalGetItem = Storage.prototype.getItem;
-  const originalRemoveItem = Storage.prototype.removeItem;
+interface ErrorBoundaryProps {
+  children: ReactNode;
+}
 
-  Storage.prototype.setItem = function(key: string, value: string) {
-    const expiry = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
-    const wrappedValue = {
-      _v: value,
-      _e: expiry,
-      _w: true // Wrap indicator
-    };
-    originalSetItem.call(this, key, JSON.stringify(wrappedValue));
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  public state: ErrorBoundaryState = {
+    hasError: false,
+    error: null,
   };
 
-  Storage.prototype.getItem = function(key: string): string | null {
-    const rawValue = originalGetItem.call(this, key);
-    if (rawValue === null) return null;
+  public static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
 
-    try {
-      const parsed = JSON.parse(rawValue);
-      if (parsed && typeof parsed === 'object' && parsed._w === true) {
-        if (Date.now() > parsed._e) {
-          // Expired, delete the item and return null
-          originalRemoveItem.call(this, key);
-          return null;
-        }
-        return parsed._v;
-      }
-    } catch (e) {
-      // Not JSON or legacy key, fall back to returning original value
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("KONTROL Application Crash caught by ErrorBoundary:", error, errorInfo);
+  }
+
+  public render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          minHeight: '100vh',
+          backgroundColor: '#0a0a0a',
+          color: '#f0ede6',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '2rem',
+          fontFamily: 'sans-serif',
+          textAlign: 'center'
+        }}>
+          <div style={{
+            maxWidth: '500px',
+            backgroundColor: '#161616',
+            border: '1px solid #2a2a2a',
+            borderRadius: '1.5rem',
+            padding: '2.5rem',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+          }}>
+            <div style={{
+              width: '50px',
+              height: '50px',
+              borderRadius: '50%',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid rgba(239, 68, 68, 0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1.5rem auto',
+              color: '#ef4444',
+              fontSize: '24px'
+            }}>
+              âš 
+            </div>
+            <h1 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.75rem', color: '#f0ede6' }}>
+              KONTROL - DÃ©marrage du SystÃ¨me
+            </h1>
+            <p style={{ fontSize: '0.875rem', color: '#888', marginBottom: '1.5rem', lineHeight: '1.5' }}>
+              Un dysfonctionnement temporaire est survenu lors de l'initialisation de l'application. Veuillez rafraÃ®chir la page.
+            </p>
+            {this.state.error?.message && (
+              <div style={{
+                backgroundColor: '#0f0f0f',
+                border: '1px solid #222',
+                borderRadius: '0.75rem',
+                padding: '0.75rem 1rem',
+                fontSize: '0.75rem',
+                color: '#e24b4a',
+                fontFamily: 'monospace',
+                marginBottom: '1.5rem',
+                wordBreak: 'break-word',
+                textAlign: 'left'
+              }}>
+                {this.state.error.message}
+              </div>
+            )}
+            <button
+              onClick={() => window.location.reload()}
+              style={{
+                width: '100%',
+                padding: '0.75rem 1.5rem',
+                backgroundColor: '#185FA5',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '0.75rem',
+                fontSize: '0.875rem',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s'
+              }}
+            >
+              Recharger l'application
+            </button>
+          </div>
+        </div>
+      );
     }
-    return rawValue;
-  };
-})();
+
+    return this.props.children;
+  }
+}
 
 window.addEventListener('error', (event) => {
   console.error("!!! UNHANDLED ERROR DETECTED !!!");
@@ -136,7 +208,9 @@ if (!rootElement) {
 } else {
   createRoot(rootElement).render(
     <StrictMode>
-      <App />
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
     </StrictMode>,
   );
 }
