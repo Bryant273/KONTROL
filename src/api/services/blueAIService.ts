@@ -54,31 +54,39 @@ class BlueAIService {
         transactions: [],
         products: [],
         charges: [],
-        wallets: []
+        wallets: [],
+        tiers: [],
+        companyInfo: null
       };
     }
 
     try {
-      const [transactions, products, charges, wallets] = await Promise.all([
-        getDocs(query(collection(db, 'transactions'), where('ownerId', '==', companyId))),
-        getDocs(query(collection(db, 'produits'), where('ownerId', '==', companyId))),
-        getDocs(query(collection(db, 'charges'), where('ownerId', '==', companyId))),
-        getDocs(query(collection(db, 'wallets'), where('ownerId', '==', companyId)))
+      const [transactions, products, charges, wallets, tiers, companyDoc] = await Promise.all([
+        getDocs(query(collection(db, 'transactions'), where('ownerId', '==', companyId), limit(50))),
+        getDocs(query(collection(db, 'produits'), where('ownerId', '==', companyId), limit(50))),
+        getDocs(query(collection(db, 'charges'), where('ownerId', '==', companyId), limit(50))),
+        getDocs(query(collection(db, 'wallets'), where('ownerId', '==', companyId), limit(10))),
+        getDocs(query(collection(db, 'tiers'), where('ownerId', '==', companyId), limit(50))),
+        getDoc(doc(db, 'companies', companyId)).catch(() => null)
       ]);
 
       return {
-        transactions: transactions.docs.map(d => d.data() as Transaction),
-        products: products.docs.map(d => d.data() as Produit),
-        charges: charges.docs.map(d => d.data() as Charge),
-        wallets: wallets.docs.map(d => d.data() as Wallet)
+        companyInfo: companyDoc && companyDoc.exists() ? companyDoc.data() : null,
+        transactions: transactions.docs.map(d => ({ id: d.id, ...d.data() })),
+        products: products.docs.map(d => ({ id: d.id, ...d.data() })),
+        charges: charges.docs.map(d => ({ id: d.id, ...d.data() })),
+        wallets: wallets.docs.map(d => ({ id: d.id, ...d.data() })),
+        tiers: tiers.docs.map(d => ({ id: d.id, ...d.data() }))
       };
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'company_data', auth.currentUser, false);
+      console.warn("[BlueAI] Could not load company data context from Firestore:", error);
       return {
         transactions: [],
         products: [],
         charges: [],
-        wallets: []
+        wallets: [],
+        tiers: [],
+        companyInfo: null
       };
     }
   }
@@ -126,7 +134,22 @@ class BlueAIService {
       handleFirestoreError(error, OperationType.CREATE, 'conversations', auth.currentUser, false);
     }
 
-    // 2. Save User Message
+    // 2. Fetch recent conversation history if existing
+    let conversationHistory: any[] = [];
+    if (currentConvId) {
+      try {
+        const existingMsgs = await this.getMessages(currentConvId);
+        conversationHistory = existingMsgs.map(m => ({
+          role: m.role,
+          content: m.content,
+          senderId: (m as any).senderId
+        }));
+      } catch (hErr) {
+        console.warn("[BlueAI] History fetch warning:", hErr);
+      }
+    }
+
+    // 3. Save User Message in Firestore
     try {
       await addDoc(collection(db, 'messages'), {
         conversationId: currentConvId,
@@ -140,22 +163,24 @@ class BlueAIService {
       handleFirestoreError(error, OperationType.CREATE, 'messages', auth.currentUser, false);
     }
 
-    // 3. Get Context Data
-    // const companyData = await this.getCompanyData(companyId); // Context could be used by engine
+    // 4. Fetch Live Company Data Context from Firestore
+    const companyContextData = await this.getCompanyData(companyId);
 
-    // 4. Generate AI Response via Blue Neural Engine
+    // 5. Generate AI Response via Blue Neural Engine
     try {
       const neuralData = await apiClient.post('/api/ai/blue-brain', {
         prompt: message,
         user_id: userId,
-        companyId: companyId
+        companyId: companyId,
+        companyContextData: companyContextData,
+        conversationHistory: conversationHistory
       });
       
       const assistantContent = neuralData.response || "Désolé, le cerveau neuronal de KONTROL rencontre une latence temporaire.";
       
       console.log("Blue AI (Neural Hive) Response received:", assistantContent.substring(0, 50) + "...");
 
-      // 5. Save Assistant Message
+      // 6. Save Assistant Message
       try {
         await addDoc(collection(db, 'messages'), {
           conversationId: currentConvId,
@@ -170,7 +195,7 @@ class BlueAIService {
         handleFirestoreError(error, OperationType.CREATE, 'messages/assistant', auth.currentUser, false);
       }
 
-      // 6. Update Conversation
+      // 7. Update Conversation
       try {
         await updateDoc(doc(db, 'conversations', currentConvId!), {
           lastMessage: assistantContent,
