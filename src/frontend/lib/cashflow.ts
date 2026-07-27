@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Transaction, UserProfile } from '../types';
+import { drawCompanyLogoOrBadge, loadImageDataUrl } from './invoice';
 
 // Helper to sanitize accents to prevent jsPDF text encoding bugs
 const cleanText = (str: string): string => {
@@ -53,7 +54,7 @@ const drawKontrolLogo = (doc: jsPDF, x: number, y: number, size: number) => {
   );
 };
 
-export const generateCashFlowPDF = (
+export const generateCashFlowPDF = async (
   transactions: Transaction[], 
   dateRange: { start: string, end: string },
   profile: UserProfile | null
@@ -101,11 +102,23 @@ export const generateCashFlowPDF = (
   doc.setFillColor(37, 99, 235);
   doc.rect(0, 0, pageWidth, 4, 'F');
 
-  // 2. KONTROL Logo
-  drawKontrolLogo(doc, margin, 14, 16);
-
-  // 3. Header Titles
+  // 2. Header Titles & Company Logo / Emblem
   const companyName = cleanText(profile?.companyName || profile?.companyAbbreviation || 'KONTROL ENTERPRISE');
+  let companyLogo = profile?.companyLogo || profile?.logoUrl || (profile as any)?.logo;
+  if (!companyLogo && typeof window !== 'undefined') {
+    try {
+      const cached = localStorage.getItem('kontrol_profile_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        companyLogo = parsed.companyLogo || parsed.logoUrl || parsed.logo;
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  const loadedLogoDataUrl = companyLogo ? await loadImageDataUrl(companyLogo) : '';
+  drawCompanyLogoOrBadge(doc, margin, 10, 16, companyName, loadedLogoDataUrl, false);
   
   doc.setTextColor(15, 23, 42);
   doc.setFont('helvetica', 'bold');

@@ -68,11 +68,124 @@ export const drawPadlockIcon = (doc: jsPDF, x: number, y: number, size: number) 
   doc.circle(x + size / 2, y + size * 0.55, size * 0.08, 'F');
 };
 
-export const generateInvoicePDF = (transaction: any, userProfile?: any) => {
+export const loadImageDataUrl = (url?: string): Promise<string> => {
+  return new Promise((resolve) => {
+    if (!url || typeof url !== 'string' || !url.trim()) {
+      return resolve('');
+    }
+
+    const trimmed = url.trim();
+
+    // If it's already a standard base64 PNG or JPEG data URL
+    if (
+      trimmed.startsWith('data:image/png;base64,') ||
+      trimmed.startsWith('data:image/jpeg;base64,') ||
+      trimmed.startsWith('data:image/jpg;base64,')
+    ) {
+      return resolve(trimmed);
+    }
+
+    // Load via HTMLImageElement to convert HTTP/HTTPS/relative/SVG URLs to a PNG data URL
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || img.width || 200;
+        canvas.height = img.naturalHeight || img.height || 200;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          const dataUrl = canvas.toDataURL('image/png');
+          return resolve(dataUrl);
+        }
+      } catch (err) {
+        console.warn("Could not convert image to canvas data URL:", err);
+      }
+      resolve(trimmed);
+    };
+
+    img.onerror = () => {
+      console.warn("Could not load image from URL:", trimmed);
+      resolve('');
+    };
+
+    img.src = trimmed;
+  });
+};
+
+export const drawCompanyLogoOrBadge = (
+  doc: jsPDF, 
+  x: number, 
+  y: number, 
+  size: number, 
+  companyName: string, 
+  logoUrl?: string, 
+  isSubscription: boolean = false
+) => {
+  if (isSubscription) {
+    drawKontrolLogo(doc, x, y, size);
+    return;
+  }
+
+  let drawn = false;
+
+  if (logoUrl && typeof logoUrl === 'string' && logoUrl.trim().length > 0) {
+    try {
+      let format = 'PNG';
+      if (logoUrl.includes('image/jpeg') || logoUrl.includes('image/jpg')) {
+        format = 'JPEG';
+      } else if (logoUrl.includes('image/webp')) {
+        format = 'WEBP';
+      }
+      doc.addImage(logoUrl, format, x, y, size, size);
+      drawn = true;
+    } catch (err) {
+      console.warn("Could not embed company logo in PDF:", err);
+    }
+  }
+
+  if (!drawn) {
+    // Light corporate emblem fallback (No dark black plate!)
+    doc.setFillColor(241, 245, 249); // slate-100
+    doc.setDrawColor(203, 213, 225); // slate-300
+    doc.roundedRect(x, y, size, size, 3, 3, 'FD');
+
+    // Top brand accent
+    doc.setFillColor(37, 99, 235); // blue-600
+    doc.rect(x, y, size, 1.8, 'F');
+
+    // Extract 2-letter initials
+    const cleanName = cleanText(companyName || 'ENTREPRISE').trim();
+    const words = cleanName.split(/\s+/).filter(w => w.length > 0);
+    let initials = 'E';
+    if (words.length >= 2) {
+      initials = (words[0][0] + words[1][0]).toUpperCase();
+    } else if (words.length === 1 && words[0].length >= 2) {
+      initials = words[0].substring(0, 2).toUpperCase();
+    }
+
+    doc.setTextColor(37, 99, 235); // royal blue
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(size > 15 ? 10 : 8);
+    
+    // Center text
+    doc.text(initials, x + (size / 2), y + (size / 2) + 1.8, { align: 'center' });
+  }
+};
+
+export const generateInvoicePDF = async (transaction: any, userProfile?: any) => {
   const type = transaction.type || 'VENTE';
-  const isSubscription = type === 'ABONNEMENT' || (transaction.description && transaction.description.toLowerCase().includes('abonnement'));
-  const isSale = type === 'VENTE' && !isSubscription;
-  const isPurchase = type === 'ACHAT' || type === 'CHARGE';
+  
+  // Only treat as KONTROL software subscription invoice if explicitly flagged
+  const isSubscription = transaction.isKontrolSubscription === true || 
+                         transaction.source === 'KONTROL_SUBSCRIPTION' ||
+                         transaction.category === 'ABONNEMENT_KONTROL' ||
+                         type === 'ABONNEMENT_KONTROL';
+
+  const isSale = !isSubscription && (type === 'VENTE' || type === 'REVENUE' || type === 'INCOME' || type === 'SALE' || !type);
+  const isPurchase = !isSubscription && (type === 'ACHAT' || type === 'CHARGE' || type === 'EXPENSE' || type === 'PURCHASE');
 
   const reference = transaction.reference || transaction.transactionId || transaction.id || "KT-REF-UNKNOWN";
   const amount = transaction.montantTotal || transaction.montant || transaction.amount || 0;
@@ -118,27 +231,31 @@ export const generateInvoicePDF = (transaction: any, userProfile?: any) => {
   doc.rect(0, 0, pageWidth, 4, 'F');
 
   // 2. Logo drawing (Company Logo for sale/purchase documents, KONTROL logo for subscription documents)
-  const companyLogo = userProfile?.companyLogo || userProfile?.logoUrl;
-  let hasDrawnLogo = false;
-
-  if (!isSubscription && companyLogo && typeof companyLogo === 'string' && companyLogo.trim().length > 0) {
+  let companyLogo = userProfile?.companyLogo || userProfile?.logoUrl || userProfile?.logo;
+  if (!companyLogo && typeof window !== 'undefined') {
     try {
-      let format = 'PNG';
-      if (companyLogo.includes('image/jpeg') || companyLogo.includes('image/jpg')) {
-        format = 'JPEG';
-      } else if (companyLogo.includes('image/webp')) {
-        format = 'WEBP';
+      const cached = localStorage.getItem('kontrol_profile_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        companyLogo = parsed.companyLogo || parsed.logoUrl || parsed.logo;
       }
-      doc.addImage(companyLogo, format, margin, 10, 18, 18);
-      hasDrawnLogo = true;
-    } catch (err) {
-      console.warn("Could not embed company logo in invoice PDF:", err);
+    } catch (e) {
+      // ignore
     }
   }
 
-  if (!hasDrawnLogo) {
-    drawKontrolLogo(doc, margin, 14, 16);
-  }
+  // Pre-load logo to base64 Data URL so jsPDF addImage never fails
+  const loadedLogoDataUrl = (!isSubscription && companyLogo) ? await loadImageDataUrl(companyLogo) : '';
+
+  drawCompanyLogoOrBadge(
+    doc,
+    margin,
+    10,
+    18,
+    myCompany,
+    loadedLogoDataUrl,
+    isSubscription
+  );
 
   // 3. Branding & Company Name text next to Logo
   doc.setTextColor(15, 23, 42);
@@ -541,6 +658,6 @@ export const generateInvoicePDF = (transaction: any, userProfile?: any) => {
   doc.save(`Facture_${cleanText(myCompany).replace(/\s+/g, '_')}_${invoiceNumber}.pdf`);
 };
 
-export const generateReceiptPDF = (transaction: any, userProfile?: any) => {
-  generateInvoicePDF(transaction, userProfile);
+export const generateReceiptPDF = async (transaction: any, userProfile?: any) => {
+  await generateInvoicePDF(transaction, userProfile);
 };

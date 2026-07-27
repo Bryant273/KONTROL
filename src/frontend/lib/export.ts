@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import { drawCompanyLogoOrBadge, loadImageDataUrl } from './invoice';
 
 const drawKontrolLogo = (doc: jsPDF, x: number, y: number, size: number) => {
   const ctrX = x + size / 2;
@@ -37,7 +38,7 @@ const drawKontrolLogo = (doc: jsPDF, x: number, y: number, size: number) => {
   doc.rect(rx, ry, rWidth, rHeight, 'F');
 };
 
-export const exportToPDF = (title: string, headers: string[], data: any[][], filename: string, options?: any) => {
+export const exportToPDF = async (title: string, headers: string[], data: any[][], filename: string, options?: any) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.width;
   
@@ -59,6 +60,9 @@ export const exportToPDF = (title: string, headers: string[], data: any[][], fil
     if (options.isKontrolContract) isKontrolContract = options.isKontrolContract;
   }
   
+  // Pre-load logo to base64 Data URL so jsPDF addImage never fails
+  const loadedLogoDataUrl = companyInfo.logo ? await loadImageDataUrl(companyInfo.logo) : '';
+
   // Elegant Light Header background
   doc.setFillColor(253, 254, 255); // pure clean light card
   doc.rect(0, 0, pageWidth, 40, 'F');
@@ -86,26 +90,16 @@ export const exportToPDF = (title: string, headers: string[], data: any[][], fil
       .replace(/[^\x00-\x7F]/g, '');
   };
 
-  // Try drawing Company Logo if provided, else fallback to vector KONTROL Logo
-  let hasDrawnLogo = false;
-  if (!isKontrolContract && companyInfo.logo && typeof companyInfo.logo === 'string' && companyInfo.logo.trim().length > 0) {
-    try {
-      let format = 'PNG';
-      if (companyInfo.logo.includes('image/jpeg') || companyInfo.logo.includes('image/jpg')) {
-        format = 'JPEG';
-      } else if (companyInfo.logo.includes('image/webp')) {
-        format = 'WEBP';
-      }
-      doc.addImage(companyInfo.logo, format, 15, 10, 20, 20);
-      hasDrawnLogo = true;
-    } catch (err) {
-      console.warn("Could not embed company logo in PDF export, using default logo:", err);
-    }
-  }
-
-  if (!hasDrawnLogo) {
-    drawKontrolLogo(doc, 15, 11, 18);
-  }
+  // Draw Company Logo or Emblem
+  drawCompanyLogoOrBadge(
+    doc,
+    15,
+    10,
+    18,
+    companyInfo.name,
+    loadedLogoDataUrl,
+    isKontrolContract
+  );
 
   // App Title / Company Logo Area (Top Left) - dark elegant text
   doc.setTextColor(15, 23, 42); // slate-900

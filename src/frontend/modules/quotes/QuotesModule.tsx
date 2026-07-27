@@ -37,6 +37,7 @@ import { User as FirebaseUser } from 'firebase/auth';
 import { collection, query, where, orderBy, getDocs, getDoc, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { drawCompanyLogoOrBadge, loadImageDataUrl } from '../../lib/invoice';
 
 export interface QuoteItem {
   produitId: string;
@@ -418,7 +419,7 @@ export function QuotesModule({ user, currentUserProfile }: QuotesModuleProps) {
   };
 
   // Export PDF Devis
-  const handlePrintQuotePDF = (quote: Quote) => {
+  const handlePrintQuotePDF = async (quote: Quote) => {
     try {
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       const currency = currentUserProfile?.currency || 'XOF';
@@ -430,16 +431,34 @@ export function QuotesModule({ user, currentUserProfile }: QuotesModuleProps) {
       pdf.setFillColor(37, 99, 235);
       pdf.rect(0, 0, pageWidth, 4, 'F');
 
-      // 2. Header
+      // 2. Header & Logo
+      let companyLogo = currentUserProfile?.companyLogo || currentUserProfile?.logoUrl;
+      if (!companyLogo && typeof window !== 'undefined') {
+        try {
+          const cached = localStorage.getItem('kontrol_profile_cache');
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            companyLogo = parsed.companyLogo || parsed.logoUrl || parsed.logo;
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      const loadedLogoDataUrl = companyLogo ? await loadImageDataUrl(companyLogo) : '';
+      const myCompany = cleanText(currentUserProfile?.companyName || currentUserProfile?.companyAbbreviation || 'Votre Entreprise');
+      
+      drawCompanyLogoOrBadge(pdf, margin, 10, 16, myCompany, loadedLogoDataUrl, false);
+
       pdf.setTextColor(15, 23, 42);
       pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(20);
-      pdf.text(cleanText(currentUserProfile?.companyName || 'KONTROL ERP'), margin, 18);
+      pdf.setFontSize(18);
+      pdf.text(myCompany, margin + 20, 18);
 
       pdf.setTextColor(100, 116, 139);
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(8.5);
-      pdf.text(cleanText(`Email: ${currentUserProfile?.email || '-'} · Tel: ${currentUserProfile?.phone || '-'}`), margin, 24);
+      pdf.text(cleanText(`Email: ${currentUserProfile?.email || '-'} · Tel: ${currentUserProfile?.phone || '-'}`), margin + 20, 24);
 
       // Title & Ref Right Aligned
       const titleText = quote.type === 'VENTE' ? "DEVIS PROFORMA" : "DEVIS D'ACHAT";
