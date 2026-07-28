@@ -445,10 +445,10 @@ export function QuotesModule({ user, currentUserProfile }: QuotesModuleProps) {
         }
       }
 
-      const loadedLogoDataUrl = companyLogo ? await loadImageDataUrl(companyLogo) : '';
+      const loadedLogo = companyLogo ? await loadImageDataUrl(companyLogo) : { dataUrl: '', width: 0, height: 0, aspectRatio: 1 };
       const myCompany = cleanText(currentUserProfile?.companyName || currentUserProfile?.companyAbbreviation || 'Votre Entreprise');
       
-      drawCompanyLogoOrBadge(pdf, margin, 10, 16, myCompany, loadedLogoDataUrl, false);
+      drawCompanyLogoOrBadge(pdf, margin, 10, 16, myCompany, loadedLogo.dataUrl, false, loadedLogo.aspectRatio);
 
       pdf.setTextColor(15, 23, 42);
       pdf.setFont('helvetica', 'bold');

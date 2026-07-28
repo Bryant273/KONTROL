@@ -60,8 +60,23 @@ export const exportToPDF = async (title: string, headers: string[], data: any[][
     if (options.isKontrolContract) isKontrolContract = options.isKontrolContract;
   }
   
+  if (!companyInfo.logo && typeof window !== 'undefined') {
+    try {
+      const cached = localStorage.getItem('kontrol_profile_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        companyInfo.logo = parsed.companyLogo || parsed.logoUrl || parsed.logo || '';
+        if ((!companyInfo.name || companyInfo.name === 'KONTROL') && (parsed.companyName || parsed.companyAbbreviation)) {
+          companyInfo.name = parsed.companyName || parsed.companyAbbreviation;
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+  
   // Pre-load logo to base64 Data URL so jsPDF addImage never fails
-  const loadedLogoDataUrl = companyInfo.logo ? await loadImageDataUrl(companyInfo.logo) : '';
+  const loadedLogo = companyInfo.logo ? await loadImageDataUrl(companyInfo.logo) : { dataUrl: '', width: 0, height: 0, aspectRatio: 1 };
 
   // Elegant Light Header background
   doc.setFillColor(253, 254, 255); // pure clean light card
@@ -97,8 +112,9 @@ export const exportToPDF = async (title: string, headers: string[], data: any[][
     10,
     18,
     companyInfo.name,
-    loadedLogoDataUrl,
-    isKontrolContract
+    loadedLogo.dataUrl,
+    isKontrolContract,
+    loadedLogo.aspectRatio
   );
 
   // App Title / Company Logo Area (Top Left) - dark elegant text

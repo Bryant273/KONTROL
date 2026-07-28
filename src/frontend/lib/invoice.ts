@@ -68,50 +68,65 @@ export const drawPadlockIcon = (doc: jsPDF, x: number, y: number, size: number) 
   doc.circle(x + size / 2, y + size * 0.55, size * 0.08, 'F');
 };
 
-export const loadImageDataUrl = (url?: string): Promise<string> => {
+export interface LoadedLogoInfo {
+  dataUrl: string;
+  width: number;
+  height: number;
+  aspectRatio: number;
+}
+
+export const loadImageDataUrl = (url?: string): Promise<LoadedLogoInfo> => {
   return new Promise((resolve) => {
     if (!url || typeof url !== 'string' || !url.trim()) {
-      return resolve('');
+      return resolve({ dataUrl: '', width: 0, height: 0, aspectRatio: 1 });
     }
 
     const trimmed = url.trim();
 
-    // If it's already a standard base64 PNG or JPEG data URL
-    if (
-      trimmed.startsWith('data:image/png;base64,') ||
-      trimmed.startsWith('data:image/jpeg;base64,') ||
-      trimmed.startsWith('data:image/jpg;base64,')
-    ) {
-      return resolve(trimmed);
+    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+      const img = new Image();
+
+      if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+        img.crossOrigin = 'Anonymous';
+      }
+
+      img.onload = () => {
+        try {
+          const w = img.naturalWidth || img.width || 200;
+          const h = img.naturalHeight || img.height || 200;
+          const aspectRatio = w / h;
+
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0);
+            const dataUrl = canvas.toDataURL('image/png');
+            return resolve({ dataUrl, width: w, height: h, aspectRatio });
+          }
+        } catch (err) {
+          console.warn("Canvas conversion failed, using raw logo string:", err);
+        }
+        resolve({ dataUrl: trimmed, width: 200, height: 200, aspectRatio: 1 });
+      };
+
+      img.onerror = () => {
+        console.warn("Image onload failed for logo:", trimmed.substring(0, 50));
+        if (trimmed.startsWith('data:image/')) {
+          return resolve({ dataUrl: trimmed, width: 200, height: 200, aspectRatio: 1 });
+        }
+        resolve({ dataUrl: '', width: 0, height: 0, aspectRatio: 1 });
+      };
+
+      img.src = trimmed;
+      return;
     }
 
-    // Load via HTMLImageElement to convert HTTP/HTTPS/relative/SVG URLs to a PNG data URL
-    const img = new Image();
-    img.crossOrigin = 'Anonymous';
-
-    img.onload = () => {
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth || img.width || 200;
-        canvas.height = img.naturalHeight || img.height || 200;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0);
-          const dataUrl = canvas.toDataURL('image/png');
-          return resolve(dataUrl);
-        }
-      } catch (err) {
-        console.warn("Could not convert image to canvas data URL:", err);
-      }
-      resolve(trimmed);
-    };
-
-    img.onerror = () => {
-      console.warn("Could not load image from URL:", trimmed);
-      resolve('');
-    };
-
-    img.src = trimmed;
+    if (trimmed.startsWith('data:image/')) {
+      return resolve({ dataUrl: trimmed, width: 200, height: 200, aspectRatio: 1 });
+    }
+    resolve({ dataUrl: '', width: 0, height: 0, aspectRatio: 1 });
   });
 };
 
@@ -122,7 +137,8 @@ export const drawCompanyLogoOrBadge = (
   size: number, 
   companyName: string, 
   logoUrl?: string, 
-  isSubscription: boolean = false
+  isSubscription: boolean = false,
+  aspectRatio: number = 1
 ) => {
   if (isSubscription) {
     drawKontrolLogo(doc, x, y, size);
@@ -133,16 +149,38 @@ export const drawCompanyLogoOrBadge = (
 
   if (logoUrl && typeof logoUrl === 'string' && logoUrl.trim().length > 0) {
     try {
+      let drawW = size;
+      let drawH = size;
+
+      if (aspectRatio > 0 && !isNaN(aspectRatio)) {
+        if (aspectRatio >= 1) {
+          drawW = size;
+          drawH = Math.max(4, size / aspectRatio);
+        } else {
+          drawH = size;
+          drawW = Math.max(4, size * aspectRatio);
+        }
+      }
+
+      const offsetY = y + (size - drawH) / 2;
+
       let format = 'PNG';
       if (logoUrl.includes('image/jpeg') || logoUrl.includes('image/jpg')) {
         format = 'JPEG';
       } else if (logoUrl.includes('image/webp')) {
         format = 'WEBP';
       }
-      doc.addImage(logoUrl, format, x, y, size, size);
+
+      doc.addImage(logoUrl, format, x, offsetY, drawW, drawH);
       drawn = true;
     } catch (err) {
-      console.warn("Could not embed company logo in PDF:", err);
+      console.warn("Primary doc.addImage failed, attempting without format:", err);
+      try {
+        doc.addImage(logoUrl, x, y, size, size);
+        drawn = true;
+      } catch (err2) {
+        console.warn("Secondary doc.addImage failed:", err2);
+      }
     }
   }
 
@@ -245,7 +283,9 @@ export const generateInvoicePDF = async (transaction: any, userProfile?: any) =>
   }
 
   // Pre-load logo to base64 Data URL so jsPDF addImage never fails
-  const loadedLogoDataUrl = (!isSubscription && companyLogo) ? await loadImageDataUrl(companyLogo) : '';
+  const loadedLogo = (!isSubscription && companyLogo) 
+    ? await loadImageDataUrl(companyLogo) 
+    : { dataUrl: '', width: 0, height: 0, aspectRatio: 1 };
 
   drawCompanyLogoOrBadge(
     doc,
@@ -253,8 +293,9 @@ export const generateInvoicePDF = async (transaction: any, userProfile?: any) =>
     10,
     18,
     myCompany,
-    loadedLogoDataUrl,
-    isSubscription
+    loadedLogo.dataUrl,
+    isSubscription,
+    loadedLogo.aspectRatio
   );
 
   // 3. Branding & Company Name text next to Logo

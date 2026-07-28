@@ -255,6 +255,22 @@ export default function App() {
     return () => unsubscribeCompany();
   }, [profile?.companyId]);
 
+  // Dynamic document title & tab favicon sync
+  useEffect(() => {
+    if (profile?.companyName) {
+      document.title = `${profile.companyName} | KONTROL ERP`;
+    } else {
+      document.title = `KONTROL - ERP & Gestion Intelligente`;
+    }
+
+    if (profile?.companyLogo && typeof document !== 'undefined') {
+      const existingFavicon = document.querySelector("link[rel*='icon']") as HTMLLinkElement;
+      if (existingFavicon && profile.companyLogo.trim()) {
+        existingFavicon.href = profile.companyLogo;
+      }
+    }
+  }, [profile?.companyName, profile?.companyLogo]);
+
 
   // Action Logging - Login
   useEffect(() => {

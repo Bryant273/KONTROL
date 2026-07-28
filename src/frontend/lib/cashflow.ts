@@ -117,8 +117,8 @@ export const generateCashFlowPDF = async (
     }
   }
 
-  const loadedLogoDataUrl = companyLogo ? await loadImageDataUrl(companyLogo) : '';
-  drawCompanyLogoOrBadge(doc, margin, 10, 16, companyName, loadedLogoDataUrl, false);
+  const loadedLogo = companyLogo ? await loadImageDataUrl(companyLogo) : { dataUrl: '', width: 0, height: 0, aspectRatio: 1 };
+  drawCompanyLogoOrBadge(doc, margin, 10, 16, companyName, loadedLogo.dataUrl, false, loadedLogo.aspectRatio);
   
   doc.setTextColor(15, 23, 42);
   doc.setFont('helvetica', 'bold');
