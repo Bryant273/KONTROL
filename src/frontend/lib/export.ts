@@ -62,12 +62,19 @@ export const exportToPDF = async (title: string, headers: string[], data: any[][
   
   if (!companyInfo.logo && typeof window !== 'undefined') {
     try {
-      const cached = localStorage.getItem('kontrol_profile_cache');
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        companyInfo.logo = parsed.companyLogo || parsed.logoUrl || parsed.logo || '';
-        if ((!companyInfo.name || companyInfo.name === 'KONTROL') && (parsed.companyName || parsed.companyAbbreviation)) {
-          companyInfo.name = parsed.companyName || parsed.companyAbbreviation;
+      const cachedLogo = localStorage.getItem('kontrol_company_logo_cache_v2');
+      if (cachedLogo) {
+        const parsed = JSON.parse(cachedLogo);
+        if (parsed?.logoUrl) companyInfo.logo = parsed.logoUrl;
+      }
+      if (!companyInfo.logo) {
+        const cached = localStorage.getItem('kontrol_profile_cache');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          companyInfo.logo = parsed.companyLogo || parsed.logoUrl || parsed.logo || '';
+          if ((!companyInfo.name || companyInfo.name === 'KONTROL') && (parsed.companyName || parsed.companyAbbreviation)) {
+            companyInfo.name = parsed.companyName || parsed.companyAbbreviation;
+          }
         }
       }
     } catch (e) {

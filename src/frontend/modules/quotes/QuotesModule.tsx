@@ -435,10 +435,17 @@ export function QuotesModule({ user, currentUserProfile }: QuotesModuleProps) {
       let companyLogo = currentUserProfile?.companyLogo || currentUserProfile?.logoUrl;
       if (!companyLogo && typeof window !== 'undefined') {
         try {
-          const cached = localStorage.getItem('kontrol_profile_cache');
-          if (cached) {
-            const parsed = JSON.parse(cached);
-            companyLogo = parsed.companyLogo || parsed.logoUrl || parsed.logo;
+          const cachedLogo = localStorage.getItem('kontrol_company_logo_cache_v2');
+          if (cachedLogo) {
+            const parsed = JSON.parse(cachedLogo);
+            if (parsed?.logoUrl) companyLogo = parsed.logoUrl;
+          }
+          if (!companyLogo) {
+            const cached = localStorage.getItem('kontrol_profile_cache');
+            if (cached) {
+              const parsed = JSON.parse(cached);
+              companyLogo = parsed.companyLogo || parsed.logoUrl || parsed.logo;
+            }
           }
         } catch (e) {
           // ignore

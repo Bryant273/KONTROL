@@ -112,9 +112,15 @@ export const loadImageDataUrl = (url?: string): Promise<LoadedLogoInfo> => {
       trimmed = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(trimmed);
     }
 
+    // Direct return for standard raster base64 Data URLs
+    if (trimmed.startsWith('data:image/png') || trimmed.startsWith('data:image/jpeg') || trimmed.startsWith('data:image/jpg') || trimmed.startsWith('data:image/webp')) {
+      return resolve({ dataUrl: trimmed, width: 200, height: 200, aspectRatio: 1 });
+    }
+
     if (typeof window !== 'undefined' && typeof document !== 'undefined') {
       const img = new Image();
 
+      // Only set crossOrigin for remote http(s) URLs
       if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
         img.crossOrigin = 'Anonymous';
       }
@@ -203,7 +209,7 @@ export const drawCompanyLogoOrBadge = (
       doc.addImage(logoUrl, format, x, offsetY, drawW, drawH);
       drawn = true;
     } catch (err) {
-      console.warn("Primary doc.addImage failed, attempting without format:", err);
+      console.warn("Primary doc.addImage failed, attempting direct addImage:", err);
       try {
         doc.addImage(logoUrl, x, y, size, size);
         drawn = true;
@@ -213,15 +219,20 @@ export const drawCompanyLogoOrBadge = (
     }
   }
 
+  // Fallback vector logo drawn directly on document (NO GREY CARD / NO BACKGROUND RECTANGLE)
   if (!drawn) {
-    // Light corporate emblem fallback (No dark black plate!)
-    doc.setFillColor(241, 245, 249); // slate-100
-    doc.setDrawColor(203, 213, 225); // slate-300
-    doc.roundedRect(x, y, size, size, 3, 3, 'FD');
+    const cx = x + size * 0.5;
+    const cy = y + size * 0.5;
 
-    // Top brand accent
-    doc.setFillColor(37, 99, 235); // blue-600
-    doc.rect(x, y, size, 1.8, 'F');
+    // Outer sky blue ring (vector precision, matching app logo style)
+    doc.setDrawColor(125, 211, 252); // sky-300
+    doc.setLineWidth(size * 0.12);
+    doc.circle(cx, cy, size * 0.42, 'S');
+
+    // Orange inner accent ring
+    doc.setDrawColor(249, 115, 22); // orange-500
+    doc.setLineWidth(size * 0.1);
+    doc.circle(cx, cy, size * 0.32, 'S');
 
     // Extract 2-letter initials
     const cleanName = cleanText(companyName || 'ENTREPRISE').trim();
@@ -235,10 +246,10 @@ export const drawCompanyLogoOrBadge = (
 
     doc.setTextColor(37, 99, 235); // royal blue
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(size > 15 ? 10 : 8);
+    doc.setFontSize(size * 0.42);
     
-    // Center text
-    doc.text(initials, x + (size / 2), y + (size / 2) + 1.8, { align: 'center' });
+    // Center text perfectly inside rings
+    doc.text(initials, cx, cy + (size * 0.14), { align: 'center' });
   }
 };
 
