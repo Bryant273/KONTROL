@@ -77,11 +77,40 @@ export interface LoadedLogoInfo {
 
 export const loadImageDataUrl = (url?: string): Promise<LoadedLogoInfo> => {
   return new Promise((resolve) => {
-    if (!url || typeof url !== 'string' || !url.trim()) {
+    let targetUrl = url;
+
+    // Fallback to local caches if url is missing
+    if (!targetUrl || typeof targetUrl !== 'string' || !targetUrl.trim()) {
+      if (typeof window !== 'undefined') {
+        try {
+          const cachedLogoData = localStorage.getItem('kontrol_company_logo_cache_v2');
+          if (cachedLogoData) {
+            const parsed = JSON.parse(cachedLogoData);
+            if (parsed?.logoUrl) targetUrl = parsed.logoUrl;
+          }
+          if (!targetUrl) {
+            const profileCache = localStorage.getItem('kontrol_profile_cache');
+            if (profileCache) {
+              const parsedProfile = JSON.parse(profileCache);
+              targetUrl = parsedProfile.companyLogo || parsedProfile.logoUrl || parsedProfile.logo;
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
+
+    if (!targetUrl || typeof targetUrl !== 'string' || !targetUrl.trim()) {
       return resolve({ dataUrl: '', width: 0, height: 0, aspectRatio: 1 });
     }
 
-    const trimmed = url.trim();
+    let trimmed = targetUrl.trim();
+
+    // If raw SVG string starting with <svg, convert to Data URL
+    if (trimmed.startsWith('<svg')) {
+      trimmed = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(trimmed);
+    }
 
     if (typeof window !== 'undefined' && typeof document !== 'undefined') {
       const img = new Image();

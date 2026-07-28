@@ -43,6 +43,7 @@ import { AlertTriangle, Clock, X, Loader2 } from 'lucide-react';
 import { KChatModule } from './modules/chat/KChatModule';
 import { NotificationsCenterModule } from './modules/system/NotificationsCenterModule';
 import { DataExchangeModule } from './modules/system/DataExchangeModule';
+import { updateFavicon, cacheCompanyLogo, getCachedCompanyLogo } from './lib/logoCache';
 import { SignatureModule } from './modules/system/SignatureModule';
 import { Toaster } from 'sonner';
 import { useTranslation } from 'react-i18next';
@@ -255,7 +256,16 @@ export default function App() {
     return () => unsubscribeCompany();
   }, [profile?.companyId]);
 
-  // Dynamic document title & tab favicon sync
+  // Initial cached logo restoration
+  useEffect(() => {
+    getCachedCompanyLogo().then(cachedLogo => {
+      if (cachedLogo) {
+        updateFavicon(cachedLogo);
+      }
+    });
+  }, []);
+
+  // Dynamic document title & tab favicon sync with caching
   useEffect(() => {
     if (profile?.companyName) {
       document.title = `${profile.companyName} | KONTROL ERP`;
@@ -263,11 +273,10 @@ export default function App() {
       document.title = `KONTROL - ERP & Gestion Intelligente`;
     }
 
-    if (profile?.companyLogo && typeof document !== 'undefined') {
-      const existingFavicon = document.querySelector("link[rel*='icon']") as HTMLLinkElement;
-      if (existingFavicon && profile.companyLogo.trim()) {
-        existingFavicon.href = profile.companyLogo;
-      }
+    if (profile?.companyLogo && profile.companyLogo.trim()) {
+      cacheCompanyLogo(profile.companyLogo);
+    } else if (!profile?.companyLogo) {
+      updateFavicon('/favicon.svg');
     }
   }, [profile?.companyName, profile?.companyLogo]);
 

@@ -44,6 +44,7 @@ import { cn } from '../../lib/utils';
 import { deleteCompanyAccount } from '../../../api/services/dataResetService';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { countries } from '../../lib/countries';
+import { cacheCompanyLogo, updateFavicon } from '../../lib/logoCache';
 import { motion, AnimatePresence } from 'motion/react';
 import { hasPermission } from '../../lib/permissions';
 
@@ -171,7 +172,10 @@ export function ProfileModule({ profile, initialSection = 'MENU' }: ProfileModul
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setCompanyFields(prev => ({ ...prev, logo: reader.result as string }));
+        const logoDataUrl = reader.result as string;
+        setCompanyFields(prev => ({ ...prev, logo: logoDataUrl }));
+        cacheCompanyLogo(logoDataUrl);
+        updateFavicon(logoDataUrl);
       };
       reader.readAsDataURL(file);
     }
@@ -243,6 +247,11 @@ export function ProfileModule({ profile, initialSection = 'MENU' }: ProfileModul
           city: companyFields.city,
           address: companyFields.address
         });
+      }
+
+      if (companyFields.logo) {
+        cacheCompanyLogo(companyFields.logo);
+        updateFavicon(companyFields.logo);
       }
 
       setCompanySuccess(true);

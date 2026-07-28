@@ -10,7 +10,10 @@ import {
   Loader2,
   CheckCircle2,
   Briefcase,
-  AlertCircle
+  AlertCircle,
+  Eye,
+  FileText,
+  Compass
 } from 'lucide-react';
 import { 
   db, 
@@ -24,6 +27,7 @@ import {
 import { UserProfile, Company } from '../../types';
 import { hasPermission } from '../../lib/permissions';
 import { cn } from '../../lib/utils';
+import { cacheCompanyLogo, updateFavicon } from '../../lib/logoCache';
 
 interface CompanyProfileModuleProps {
   currentUserProfile: UserProfile | null;
@@ -100,6 +104,12 @@ export function CompanyProfileModule({ currentUserProfile }: CompanyProfileModul
         });
       }
 
+      if (company.logo) {
+        await cacheCompanyLogo(company.logo);
+      } else {
+        updateFavicon('/favicon.svg');
+      }
+
       setMessage({ type: 'success', text: "Informations de l'entreprise mises à jour avec succès." });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, 'companies', auth.currentUser, false);
@@ -164,14 +174,50 @@ export function CompanyProfileModule({ currentUserProfile }: CompanyProfileModul
               <p className="text-[10px] text-kontrol-ink-muted mt-4 text-center">Format recommandé : PNG ou JPG (max 2MB)</p>
               
               {canUpdate && (
-                <div className="w-full mt-4">
+                <div className="w-full mt-4 space-y-2">
+                  <label className="w-full py-2 bg-kontrol-blue/10 hover:bg-kontrol-blue/20 text-kontrol-blue font-bold text-xs rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1.5 border border-kontrol-blue/20">
+                    <Upload size={14} />
+                    <span>Importer logo (PNG/JPG/SVG)</span>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          const dataUrl = reader.result as string;
+                          setCompany({ ...company, logo: dataUrl });
+                          updateFavicon(dataUrl);
+                        };
+                        reader.readAsDataURL(file);
+                      }} 
+                    />
+                  </label>
                   <input 
                     type="text" 
-                    placeholder="URL du logo..."
+                    placeholder="Ou URL du logo..."
                     className="w-full px-3 py-2 bg-kontrol-bg border border-kontrol-border rounded-xl text-xs outline-none focus:border-kontrol-blue"
                     value={company.logo || ''}
-                    onChange={(e) => setCompany({ ...company, logo: e.target.value })}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCompany({ ...company, logo: val });
+                      if (val) updateFavicon(val);
+                    }}
                   />
+                  {company.logo && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCompany({ ...company, logo: '' });
+                        updateFavicon('/favicon.svg');
+                      }}
+                      className="w-full py-1 text-[10px] text-rose-600 hover:text-rose-800 font-bold text-center"
+                    >
+                      Supprimer le logo
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -358,6 +404,88 @@ export function CompanyProfileModule({ currentUserProfile }: CompanyProfileModul
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+
+        {/* Live Preview Zone */}
+        <div className="card p-6 bg-slate-900 text-white rounded-3xl border border-slate-800 space-y-6">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+            <div className="flex items-center gap-2.5">
+              <Eye className="text-kontrol-sky" size={20} />
+              <div>
+                <h3 className="text-sm font-extrabold text-white uppercase tracking-wider">Zone de Prévisualisation en Direct</h3>
+                <p className="text-[11px] text-slate-400">Aperçu dynamique du logo sur vos documents et dans le navigateur avant enregistrement</p>
+              </div>
+            </div>
+            <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold rounded-full flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              Aperçu en temps réel
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Browser Tab Preview */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-[11px] font-bold text-slate-400">
+                <span className="flex items-center gap-1.5"><Compass size={14} className="text-kontrol-sky" /> 1. Onglet du Navigateur (Favicon)</span>
+                <span className="text-slate-500 text-[10px]">Sync Head Tag</span>
+              </div>
+              <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800">
+                <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-t-xl px-3 py-2.5 max-w-xs shadow-inner">
+                  <div className="w-5 h-5 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden shrink-0">
+                    {company.logo ? (
+                      <img src={company.logo} alt="Favicon" className="w-full h-full object-contain" />
+                    ) : (
+                      <span className="text-[9px] font-black text-kontrol-sky">{company.abbreviation || company.name.substring(0, 2) || 'K'}</span>
+                    )}
+                  </div>
+                  <span className="text-xs font-semibold text-slate-200 truncate">
+                    {company.name ? `${company.name} | KONTROL ERP` : 'KONTROL ERP'}
+                  </span>
+                  <span className="text-slate-500 ml-auto text-xs font-mono">×</span>
+                </div>
+                <div className="bg-slate-900/50 p-2.5 text-[10px] text-slate-400 border-t border-slate-800/80 rounded-b-xl flex items-center justify-between">
+                  <span>MIME Type : <code className="text-kontrol-sky">{company.logo ? (company.logo.includes('svg') ? 'image/svg+xml' : 'image/png') : 'image/svg+xml'}</code></span>
+                  <span className="text-emerald-400 font-medium">Injection instantanée</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Print Header Document Preview */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-[11px] font-bold text-slate-400">
+                <span className="flex items-center gap-1.5"><FileText size={14} className="text-kontrol-sky" /> 2. En-tête de Document Officiel (Factures/Devis)</span>
+                <span className="text-slate-500 text-[10px]">A4 Print Header</span>
+              </div>
+              <div className="bg-white text-slate-900 p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                <div className="flex items-start justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-200 p-1 flex items-center justify-center shrink-0 overflow-hidden">
+                      {company.logo ? (
+                        <img src={company.logo} alt="Logo Facture" className="max-w-full max-h-full object-contain" />
+                      ) : (
+                        <div className="w-9 h-9 rounded-lg bg-blue-600 text-white font-extrabold text-xs flex items-center justify-center">
+                          {company.abbreviation || company.name.substring(0, 2) || 'K'}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black text-slate-900 uppercase tracking-tight">{company.name || 'NOM DE VOTRE ENTREPRISE'}</h4>
+                      <p className="text-[10px] text-slate-500 font-medium">{company.address || 'Adresse du siège social, Ville'}</p>
+                      <p className="text-[10px] text-slate-500">{company.phone ? `Tél: ${company.phone}` : ''} {company.email ? `• ${company.email}` : ''}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="inline-block px-2 py-0.5 bg-blue-50 text-blue-700 font-extrabold text-[10px] rounded border border-blue-200">FACTURE N° FAC-2026-0001</span>
+                    <p className="text-[9px] text-slate-400 mt-1">Date : 28/07/2026</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
+                  <span>En-tête haute définition pour impression et export PDF</span>
+                  <span className="font-mono text-slate-600">jsPDF Ready</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
