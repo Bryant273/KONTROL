@@ -11,7 +11,11 @@ import {
   CheckCircle2,
   Rocket,
   ShieldCheck,
-  Zap
+  Zap,
+  Eye,
+  EyeOff,
+  Check,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
@@ -30,6 +34,9 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
   const [authMode, setAuthMode] = React.useState<'login' | 'register'>(initialMode);
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
+  const [confirmPassword, setConfirmPassword] = React.useState('');
+  const [showPassword, setShowPassword] = React.useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
   const [name, setName] = React.useState('');
   const [companyName, setCompanyName] = React.useState('');
   const [authError, setAuthError] = React.useState('');
@@ -38,6 +45,30 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
   const isLengthOk = password.length >= 8;
   const hasDigitOk = /\d/.test(password);
   const hasSpecialOk = /[^a-zA-Z0-9]/.test(password);
+  const hasUpperLowerOk = /[a-z]/.test(password) && /[A-Z]/.test(password);
+
+  // Calculate strength score (0 to 100%)
+  const calculateStrength = () => {
+    if (!password) return { percent: 0, label: 'Aucun', color: 'bg-slate-200', text: 'text-slate-400' };
+    let score = 0;
+    if (password.length >= 8) score += 25;
+    if (password.length >= 12) score += 15;
+    if (hasDigitOk) score += 20;
+    if (hasSpecialOk) score += 20;
+    if (hasUpperLowerOk) score += 20;
+
+    if (score < 40) {
+      return { percent: Math.max(score, 20), label: 'Faible', color: 'bg-rose-500', text: 'text-rose-600' };
+    } else if (score < 75) {
+      return { percent: score, label: 'Moyen', color: 'bg-amber-500', text: 'text-amber-600' };
+    } else {
+      return { percent: Math.min(score, 100), label: 'Fort', color: 'bg-emerald-500', text: 'text-emerald-600' };
+    }
+  };
+
+  const strength = calculateStrength();
+  const passwordsMatch = password.length > 0 && confirmPassword.length > 0 && password === confirmPassword;
+  const passwordMismatch = confirmPassword.length > 0 && password !== confirmPassword;
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,6 +77,10 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
     if (authMode === 'register') {
       if (!isLengthOk || !hasDigitOk || !hasSpecialOk) {
         setAuthError("Le mot de passe doit comporter au moins 8 caractères, un chiffre (0-9) et un symbole spécial (ex: @, #, !, $).");
+        return;
+      }
+      if (password !== confirmPassword) {
+        setAuthError("Les mots de passe ne correspondent pas. Veuillez vérifier la confirmation.");
         return;
       }
     }
@@ -281,22 +316,42 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
               </div>
               <div className="relative group">
                 <input 
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   required
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-4 py-2.5 bg-kontrol-bg/50 border border-transparent rounded-xl focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue focus:bg-white transition-all font-medium text-[13px]"
+                  className="w-full pl-10 pr-11 py-2.5 bg-kontrol-bg/50 border border-transparent rounded-xl focus:outline-none focus:ring-2 focus:ring-kontrol-blue/20 focus:border-kontrol-blue focus:bg-white transition-all font-medium text-[13px]"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
                 <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted group-focus-within:text-kontrol-blue transition-colors" />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 transition-colors"
+                  title={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
 
               {authMode === 'register' && (
-                <div className="mt-2 p-2 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1">
-                  <div className="text-slate-400 font-bold uppercase tracking-wider text-[9px] px-1">
-                    Sécurité requise par Firebase :
+                <div className="mt-2 p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2">
+                  {/* Gauge indicator */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center text-[10px] font-bold px-0.5">
+                      <span className="text-slate-500">Force du mot de passe :</span>
+                      <span className={cn("font-extrabold uppercase tracking-wider", strength.text)}>{strength.label}</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                      <div 
+                        className={cn("h-full transition-all duration-300 rounded-full", strength.color)}
+                        style={{ width: `${strength.percent}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-1 text-[10px] font-semibold">
+
+                  {/* Requirements checklist */}
+                  <div className="grid grid-cols-3 gap-1 text-[10px] font-semibold pt-0.5">
                     <span className={cn("px-1.5 py-1 rounded-md text-center transition-all flex items-center justify-center gap-1", isLengthOk ? "bg-emerald-100 text-emerald-800 font-bold" : "bg-slate-100 text-slate-400")}>
                       {isLengthOk ? "✓" : "○"} 8+ chars
                     </span>
@@ -310,6 +365,64 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
                 </div>
               )}
             </div>
+
+            {/* Confirm Password Field (Register Mode Only) */}
+            <AnimatePresence>
+              {authMode === 'register' && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="space-y-1.5 overflow-hidden"
+                >
+                  <label className="text-[10px] font-extrabold text-kontrol-ink-muted uppercase tracking-widest ml-1">
+                    Confirmer le mot de passe *
+                  </label>
+                  <div className="relative group">
+                    <input 
+                      type={showConfirmPassword ? "text" : "password"}
+                      required={authMode === 'register'}
+                      placeholder="••••••••"
+                      className={cn(
+                        "w-full pl-10 pr-11 py-2.5 bg-kontrol-bg/50 border rounded-xl focus:outline-none focus:ring-2 transition-all font-medium text-[13px]",
+                        passwordsMatch ? "border-emerald-500 focus:ring-emerald-500/20 focus:border-emerald-600 bg-emerald-50/20" :
+                        passwordMismatch ? "border-rose-500 focus:ring-rose-500/20 focus:border-rose-600 bg-rose-50/20" :
+                        "border-transparent focus:ring-kontrol-blue/20 focus:border-kontrol-blue focus:bg-white"
+                      )}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                    />
+                    <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted group-focus-within:text-kontrol-blue transition-colors" />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 transition-colors"
+                      title={showConfirmPassword ? "Masquer la confirmation" : "Afficher la confirmation"}
+                    >
+                      {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+
+                  {/* Match Indicator */}
+                  {confirmPassword.length > 0 && (
+                    <div className="ml-1 text-[11px] font-bold flex items-center gap-1.5 transition-all">
+                      {passwordsMatch ? (
+                        <span className="text-emerald-600 flex items-center gap-1">
+                          <Check size={14} className="stroke-[3]" />
+                          Les mots de passe sont identiques
+                        </span>
+                      ) : (
+                        <span className="text-rose-600 flex items-center gap-1">
+                          <X size={14} className="stroke-[3]" />
+                          Les mots de passe ne correspondent pas
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <motion.button 
               whileHover={{ scale: 1.01 }}
