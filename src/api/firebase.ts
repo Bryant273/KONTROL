@@ -181,10 +181,12 @@ export const registerWithEmail = async (email: string, pass: string, name: strin
   const minLength = pass.length >= 8;
   const hasDigit = /\d/.test(pass);
   const hasSpecial = /[^a-zA-Z0-9]/.test(pass);
+  const hasUpper = /[A-Z]/.test(pass);
 
-  if (!minLength || !hasDigit || !hasSpecial) {
+  if (!minLength || !hasDigit || !hasSpecial || !hasUpper) {
     const missing = [];
     if (!minLength) missing.push("au moins 8 caractères");
+    if (!hasUpper) missing.push("au moins 1 majuscule (A-Z)");
     if (!hasDigit) missing.push("au moins 1 chiffre (0-9)");
     if (!hasSpecial) missing.push("au moins 1 symbole spécial (ex: @, #, !, $)");
     throw new Error(`Exigences de mot de passe : veuillez inclure ${missing.join(', ')}.`);

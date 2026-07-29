@@ -43,9 +43,9 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
   const [authLoading, setAuthLoading] = React.useState(false);
 
   const isLengthOk = password.length >= 8;
+  const hasUpperOk = /[A-Z]/.test(password);
   const hasDigitOk = /\d/.test(password);
   const hasSpecialOk = /[^a-zA-Z0-9]/.test(password);
-  const hasUpperLowerOk = /[a-z]/.test(password) && /[A-Z]/.test(password);
 
   // Calculate strength score (0 to 100%)
   const calculateStrength = () => {
@@ -53,13 +53,13 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
     let score = 0;
     if (password.length >= 8) score += 25;
     if (password.length >= 12) score += 15;
+    if (hasUpperOk) score += 20;
     if (hasDigitOk) score += 20;
     if (hasSpecialOk) score += 20;
-    if (hasUpperLowerOk) score += 20;
 
     if (score < 40) {
       return { percent: Math.max(score, 20), label: 'Faible', color: 'bg-rose-500', text: 'text-rose-600' };
-    } else if (score < 75) {
+    } else if (score < 80) {
       return { percent: score, label: 'Moyen', color: 'bg-amber-500', text: 'text-amber-600' };
     } else {
       return { percent: Math.min(score, 100), label: 'Fort', color: 'bg-emerald-500', text: 'text-emerald-600' };
@@ -75,8 +75,8 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
     setAuthError('');
 
     if (authMode === 'register') {
-      if (!isLengthOk || !hasDigitOk || !hasSpecialOk) {
-        setAuthError("Le mot de passe doit comporter au moins 8 caractères, un chiffre (0-9) et un symbole spécial (ex: @, #, !, $).");
+      if (!isLengthOk || !hasUpperOk || !hasDigitOk || !hasSpecialOk) {
+        setAuthError("Le mot de passe doit comporter au moins 8 caractères, une majuscule (A-Z), un chiffre (0-9) et un symbole spécial (ex: @, #, !, $).");
         return;
       }
       if (password !== confirmPassword) {
@@ -351,15 +351,30 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
                   </div>
 
                   {/* Requirements checklist */}
-                  <div className="grid grid-cols-3 gap-1 text-[10px] font-semibold pt-0.5">
-                    <span className={cn("px-1.5 py-1 rounded-md text-center transition-all flex items-center justify-center gap-1", isLengthOk ? "bg-emerald-100 text-emerald-800 font-bold" : "bg-slate-100 text-slate-400")}>
-                      {isLengthOk ? "✓" : "○"} 8+ chars
+                  <div className="grid grid-cols-2 gap-1.5 text-[10px] font-semibold pt-0.5">
+                    <span className={cn("px-2 py-1 rounded-lg transition-all flex items-center gap-1.5", isLengthOk ? "bg-emerald-100/90 text-emerald-800 font-bold border border-emerald-200" : "bg-slate-100 text-slate-400 border border-slate-200/60")}>
+                      <span className={cn("w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px]", isLengthOk ? "bg-emerald-600 text-white font-black" : "bg-slate-300 text-slate-500")}>
+                        {isLengthOk ? "✓" : "•"}
+                      </span>
+                      8+ caractères
                     </span>
-                    <span className={cn("px-1.5 py-1 rounded-md text-center transition-all flex items-center justify-center gap-1", hasDigitOk ? "bg-emerald-100 text-emerald-800 font-bold" : "bg-slate-100 text-slate-400")}>
-                      {hasDigitOk ? "✓" : "○"} 1 chiffre
+                    <span className={cn("px-2 py-1 rounded-lg transition-all flex items-center gap-1.5", hasUpperOk ? "bg-emerald-100/90 text-emerald-800 font-bold border border-emerald-200" : "bg-slate-100 text-slate-400 border border-slate-200/60")}>
+                      <span className={cn("w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px]", hasUpperOk ? "bg-emerald-600 text-white font-black" : "bg-slate-300 text-slate-500")}>
+                        {hasUpperOk ? "✓" : "•"}
+                      </span>
+                      1 majuscule (A-Z)
                     </span>
-                    <span className={cn("px-1.5 py-1 rounded-md text-center transition-all flex items-center justify-center gap-1", hasSpecialOk ? "bg-emerald-100 text-emerald-800 font-bold" : "bg-slate-100 text-slate-400")}>
-                      {hasSpecialOk ? "✓" : "○"} 1 symbole
+                    <span className={cn("px-2 py-1 rounded-lg transition-all flex items-center gap-1.5", hasDigitOk ? "bg-emerald-100/90 text-emerald-800 font-bold border border-emerald-200" : "bg-slate-100 text-slate-400 border border-slate-200/60")}>
+                      <span className={cn("w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px]", hasDigitOk ? "bg-emerald-600 text-white font-black" : "bg-slate-300 text-slate-500")}>
+                        {hasDigitOk ? "✓" : "•"}
+                      </span>
+                      1 chiffre (0-9)
+                    </span>
+                    <span className={cn("px-2 py-1 rounded-lg transition-all flex items-center gap-1.5", hasSpecialOk ? "bg-emerald-100/90 text-emerald-800 font-bold border border-emerald-200" : "bg-slate-100 text-slate-400 border border-slate-200/60")}>
+                      <span className={cn("w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px]", hasSpecialOk ? "bg-emerald-600 text-white font-black" : "bg-slate-300 text-slate-500")}>
+                        {hasSpecialOk ? "✓" : "•"}
+                      </span>
+                      1 symbole (@, #...)
                     </span>
                   </div>
                 </div>
