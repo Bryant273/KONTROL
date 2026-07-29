@@ -101,7 +101,11 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
           window.location.reload();
         }
       } else {
-        await registerWithEmail(email, password, name, companyName);
+        const user = await registerWithEmail(email, password, name, companyName);
+        if (user && auth.currentUser?.uid !== user.uid) {
+          localStorage.setItem('customUser', JSON.stringify(user));
+          window.location.reload();
+        }
       }
     } catch (error: any) {
       let rawMsg = error.message || 'Erreur d\'authentification';

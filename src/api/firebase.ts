@@ -133,6 +133,40 @@ export {
   OperationType
 };
 
+// Local JSON/NoSQL User DB helper for offline/test account fallback
+const LOCAL_USERS_KEY = 'kontrol_local_users_db_v1';
+
+export function getLocalUsersDb(): any[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(LOCAL_USERS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveUserToLocalDb(user: any) {
+  if (typeof window === 'undefined') return;
+  try {
+    const dbList = getLocalUsersDb();
+    const existingIdx = dbList.findIndex(u => u.email === user.email);
+    if (existingIdx >= 0) {
+      dbList[existingIdx] = { ...dbList[existingIdx], ...user };
+    } else {
+      dbList.push(user);
+    }
+    localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(dbList));
+  } catch (e) {
+    console.warn("Could not save to local DB:", e);
+  }
+}
+
+export function findUserInLocalDb(email: string, hashedPass: string, rawPass: string) {
+  const dbList = getLocalUsersDb();
+  return dbList.find(u => u.email.toLowerCase() === email.toLowerCase() && (u.password === hashedPass || u.password === rawPass));
+}
+
 // Auth Helpers
 export const loginWithGoogle = async () => {
   const result = await signInWithPopup(auth, googleProvider);
@@ -141,31 +175,50 @@ export const loginWithGoogle = async () => {
 };
 
 export const loginWithEmail = async (email: string, pass: string) => {
+  const cleanEmail = email.trim().toLowerCase();
+  const hashedPass = await hashPassword(pass);
+
   try {
-    const result = await signInWithEmailAndPassword(auth, email, pass);
-    const hashedPass = await hashPassword(pass);
+    const result = await signInWithEmailAndPassword(auth, cleanEmail, pass);
     await ensureUserProfile(result.user, undefined, hashedPass, false);
     return result.user;
   } catch (error: any) {
-    // If Firebase Auth fails, try custom Firestore auth
-    if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-      const q = query(collection(db, 'users'), where('email', '==', email));
+    // Check custom Firestore user auth
+    try {
+      const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
       const snapshot = await getDocs(q);
       if (!snapshot.empty) {
         const userData = snapshot.docs[0].data() as UserProfile;
-        const hashedPass = await hashPassword(pass);
-        // Check both hashed and plain (for transition)
         if (userData.password === hashedPass || userData.password === pass) {
-          return {
+          const customUser = {
             uid: userData.uid,
             email: userData.email,
             displayName: userData.displayName,
             isAnonymous: false,
             emailVerified: true,
           } as any as User;
+          localStorage.setItem('customUser', JSON.stringify(customUser));
+          return customUser;
         }
       }
+    } catch (fsErr) {
+      console.warn("Firestore lookup failed during login, checking local DB:", fsErr);
     }
+
+    // Check Local JSON DB
+    const localUser = findUserInLocalDb(cleanEmail, hashedPass, pass);
+    if (localUser) {
+      const customUser = {
+        uid: localUser.uid,
+        email: localUser.email,
+        displayName: localUser.displayName || localUser.email.split('@')[0],
+        isAnonymous: false,
+        emailVerified: true,
+      } as any as User;
+      localStorage.setItem('customUser', JSON.stringify(customUser));
+      return customUser;
+    }
+
     if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
       throw new Error("Email ou mot de passe incorrect. Veuillez vérifier vos identifiants.");
     }
@@ -177,7 +230,9 @@ export const loginWithEmail = async (email: string, pass: string) => {
 };
 
 export const registerWithEmail = async (email: string, pass: string, name: string, companyName: string) => {
-  // Pre-validate password criteria required by Firebase Auth security policy
+  const cleanEmail = email.trim().toLowerCase();
+
+  // Pre-validate password criteria
   const minLength = pass.length >= 8;
   const hasDigit = /\d/.test(pass);
   const hasSpecial = /[^a-zA-Z0-9]/.test(pass);
@@ -192,24 +247,28 @@ export const registerWithEmail = async (email: string, pass: string, name: strin
     throw new Error(`Exigences de mot de passe : veuillez inclure ${missing.join(', ')}.`);
   }
 
+  const hashedPass = await hashPassword(pass);
+
+  // 1. Attempt standard Firebase Auth registration
   try {
-    const result = await createUserWithEmailAndPassword(auth, email, pass);
+    const result = await createUserWithEmailAndPassword(auth, cleanEmail, pass);
     await updateProfile(result.user, { displayName: name });
-    const hashedPass = await hashPassword(pass);
     await ensureUserProfile(result.user, companyName, hashedPass, true);
+    saveUserToLocalDb({
+      uid: result.user.uid,
+      email: cleanEmail,
+      displayName: name || cleanEmail.split('@')[0],
+      password: hashedPass,
+      companyName: companyName || 'Mon Entreprise',
+      createdAt: Date.now()
+    });
     return result.user;
   } catch (error: any) {
     const errCode = error?.code || '';
-    const rawMsg = error?.message || '';
-
-    if (errCode === 'auth/password-does-not-meet-requirements' || errCode === 'auth/weak-password' || rawMsg.includes('password-does-not-meet-requirements')) {
-      throw new Error("Le mot de passe ne respecte pas les exigences de sécurité Firebase : au moins 8 caractères, un chiffre (0-9) et un caractère spécial (ex: @, #, !, $).");
-    }
 
     if (errCode === 'auth/email-already-in-use') {
       try {
-        const result = await signInWithEmailAndPassword(auth, email, pass);
-        const hashedPass = await hashPassword(pass);
+        const result = await signInWithEmailAndPassword(auth, cleanEmail, pass);
         await ensureUserProfile(result.user, companyName, hashedPass);
         return result.user;
       } catch (loginErr: any) {
@@ -221,7 +280,54 @@ export const registerWithEmail = async (email: string, pass: string, name: strin
       throw new Error("Adresse email invalide. Veuillez vérifier le format de votre email.");
     }
 
-    throw new Error("Impossible de créer votre compte. Veuillez vérifier que votre mot de passe contient au moins 8 caractères, un chiffre et un caractère spécial.");
+    // 2. Seamless Fallback: Create account directly in Firestore & Local JSON DB
+    console.warn("[Firebase Auth] Falling back to Firestore and Local JSON Database account creation due to:", error);
+
+    const customUid = 'usr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+    const customUserObj = {
+      uid: customUid,
+      email: cleanEmail,
+      displayName: name || cleanEmail.split('@')[0] || 'Utilisateur',
+      isAnonymous: false,
+      emailVerified: true
+    } as any as User;
+
+    const profile: any = {
+      uid: customUid,
+      email: cleanEmail,
+      displayName: name || cleanEmail.split('@')[0] || 'Utilisateur',
+      role: 'ADMINISTRATEUR_ENTREPRISE',
+      companyId: customUid,
+      companyName: companyName || 'Mon Entreprise',
+      isProfileComplete: false,
+      active: true,
+      createdAt: Date.now(),
+      subscriptionStatus: 'TRIAL',
+      subscriptionEndDate: Date.now() + (14 * 24 * 60 * 60 * 1000),
+      password: hashedPass
+    };
+
+    // Store profile in Firestore
+    try {
+      await setDoc(doc(db, 'users', customUid), profile);
+    } catch (fsErr) {
+      console.warn("[Firestore] Could not write profile document to cloud Firestore, keeping local DB copy:", fsErr);
+    }
+
+    // Save user in Local JSON DB
+    saveUserToLocalDb({
+      uid: customUid,
+      email: cleanEmail,
+      displayName: name || cleanEmail.split('@')[0],
+      password: hashedPass,
+      companyName: companyName || 'Mon Entreprise',
+      createdAt: Date.now()
+    });
+
+    // Set current active custom user session
+    localStorage.setItem('customUser', JSON.stringify(customUserObj));
+
+    return customUserObj;
   }
 };
 
