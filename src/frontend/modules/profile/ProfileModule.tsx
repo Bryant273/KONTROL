@@ -284,8 +284,12 @@ export function ProfileModule({ profile, initialSection = 'MENU' }: ProfileModul
       return;
     }
 
-    if (passData.newPassword.length < 6) {
-      setPassError("Le mot de passe doit contenir au moins 6 caractères.");
+    const minLength = passData.newPassword.length >= 8;
+    const hasDigit = /\d/.test(passData.newPassword);
+    const hasSpecial = /[^a-zA-Z0-9]/.test(passData.newPassword);
+
+    if (!minLength || !hasDigit || !hasSpecial) {
+      setPassError("Le nouveau mot de passe doit comporter au moins 8 caractères, un chiffre (0-9) et un caractère spécial (ex: @, #, !, $).");
       return;
     }
 

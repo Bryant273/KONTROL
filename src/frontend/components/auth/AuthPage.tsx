@@ -35,9 +35,21 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
   const [authError, setAuthError] = React.useState('');
   const [authLoading, setAuthLoading] = React.useState(false);
 
+  const isLengthOk = password.length >= 8;
+  const hasDigitOk = /\d/.test(password);
+  const hasSpecialOk = /[^a-zA-Z0-9]/.test(password);
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
+
+    if (authMode === 'register') {
+      if (!isLengthOk || !hasDigitOk || !hasSpecialOk) {
+        setAuthError("Le mot de passe doit comporter au moins 8 caractères, un chiffre (0-9) et un symbole spécial (ex: @, #, !, $).");
+        return;
+      }
+    }
+
     setAuthLoading(true);
     try {
       // Set default navigation state for new login
@@ -57,10 +69,14 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
         await registerWithEmail(email, password, name, companyName);
       }
     } catch (error: any) {
-      setAuthError(error.message);
+      let rawMsg = error.message || 'Erreur d\'authentification';
+      if (rawMsg.includes('Missing password requirements') || rawMsg.includes('password-does-not-meet-requirements')) {
+        rawMsg = "Le mot de passe doit contenir au moins 8 caractères, un chiffre (0-9) et un caractère spécial (ex: @, #, !, $).";
+      }
+      setAuthError(rawMsg);
       // Notify security event for failed login
       if (authMode === 'login') {
-        notifySecurityEvent('system', null, 'Échec de Connexion', `Tentative échouée pour l'email: ${email}. Raison: ${error.message}`);
+        notifySecurityEvent('system', null, 'Échec de Connexion', `Tentative échouée pour l'email: ${email}. Raison: ${rawMsg}`);
       }
     } finally {
       setAuthLoading(false);
@@ -274,6 +290,25 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
                 />
                 <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-kontrol-ink-muted group-focus-within:text-kontrol-blue transition-colors" />
               </div>
+
+              {authMode === 'register' && (
+                <div className="mt-2 p-2 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1">
+                  <div className="text-slate-400 font-bold uppercase tracking-wider text-[9px] px-1">
+                    Sécurité requise par Firebase :
+                  </div>
+                  <div className="grid grid-cols-3 gap-1 text-[10px] font-semibold">
+                    <span className={cn("px-1.5 py-1 rounded-md text-center transition-all flex items-center justify-center gap-1", isLengthOk ? "bg-emerald-100 text-emerald-800 font-bold" : "bg-slate-100 text-slate-400")}>
+                      {isLengthOk ? "✓" : "○"} 8+ chars
+                    </span>
+                    <span className={cn("px-1.5 py-1 rounded-md text-center transition-all flex items-center justify-center gap-1", hasDigitOk ? "bg-emerald-100 text-emerald-800 font-bold" : "bg-slate-100 text-slate-400")}>
+                      {hasDigitOk ? "✓" : "○"} 1 chiffre
+                    </span>
+                    <span className={cn("px-1.5 py-1 rounded-md text-center transition-all flex items-center justify-center gap-1", hasSpecialOk ? "bg-emerald-100 text-emerald-800 font-bold" : "bg-slate-100 text-slate-400")}>
+                      {hasSpecialOk ? "✓" : "○"} 1 symbole
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
 
             <motion.button 

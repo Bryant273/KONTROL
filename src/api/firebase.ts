@@ -156,7 +156,6 @@ export const loginWithEmail = async (email: string, pass: string) => {
         const hashedPass = await hashPassword(pass);
         // Check both hashed and plain (for transition)
         if (userData.password === hashedPass || userData.password === pass) {
-          // Return a mock user object that matches Firebase User interface enough for the app
           return {
             uid: userData.uid,
             email: userData.email,
@@ -167,11 +166,30 @@ export const loginWithEmail = async (email: string, pass: string) => {
         }
       }
     }
+    if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+      throw new Error("Email ou mot de passe incorrect. Veuillez vérifier vos identifiants.");
+    }
+    if (error.code === 'auth/too-many-requests') {
+      throw new Error("Accès temporairement bloqué en raison de trop nombreuses tentatives de connexion. Veuillez réessayer plus tard.");
+    }
     throw error;
   }
 };
 
 export const registerWithEmail = async (email: string, pass: string, name: string, companyName: string) => {
+  // Pre-validate password criteria required by Firebase Auth security policy
+  const minLength = pass.length >= 8;
+  const hasDigit = /\d/.test(pass);
+  const hasSpecial = /[^a-zA-Z0-9]/.test(pass);
+
+  if (!minLength || !hasDigit || !hasSpecial) {
+    const missing = [];
+    if (!minLength) missing.push("au moins 8 caractères");
+    if (!hasDigit) missing.push("au moins 1 chiffre (0-9)");
+    if (!hasSpecial) missing.push("au moins 1 symbole spécial (ex: @, #, !, $)");
+    throw new Error(`Exigences de mot de passe : veuillez inclure ${missing.join(', ')}.`);
+  }
+
   try {
     const result = await createUserWithEmailAndPassword(auth, email, pass);
     await updateProfile(result.user, { displayName: name });
@@ -179,14 +197,29 @@ export const registerWithEmail = async (email: string, pass: string, name: strin
     await ensureUserProfile(result.user, companyName, hashedPass, true);
     return result.user;
   } catch (error: any) {
-    if (error.code === 'auth/email-already-in-use') {
-      // If user exists in Auth, try to sign in and then ensure profile
-      const result = await signInWithEmailAndPassword(auth, email, pass);
-      const hashedPass = await hashPassword(pass);
-      await ensureUserProfile(result.user, companyName, hashedPass);
-      return result.user;
+    const errCode = error?.code || '';
+    const rawMsg = error?.message || '';
+
+    if (errCode === 'auth/password-does-not-meet-requirements' || errCode === 'auth/weak-password' || rawMsg.includes('password-does-not-meet-requirements')) {
+      throw new Error("Le mot de passe ne respecte pas les exigences de sécurité Firebase : au moins 8 caractères, un chiffre (0-9) et un caractère spécial (ex: @, #, !, $).");
     }
-    throw error;
+
+    if (errCode === 'auth/email-already-in-use') {
+      try {
+        const result = await signInWithEmailAndPassword(auth, email, pass);
+        const hashedPass = await hashPassword(pass);
+        await ensureUserProfile(result.user, companyName, hashedPass);
+        return result.user;
+      } catch (loginErr: any) {
+        throw new Error("Un compte existe déjà avec cet email. Veuillez utiliser l'onglet 'Connexion'.");
+      }
+    }
+
+    if (errCode === 'auth/invalid-email') {
+      throw new Error("Adresse email invalide. Veuillez vérifier le format de votre email.");
+    }
+
+    throw new Error("Impossible de créer votre compte. Veuillez vérifier que votre mot de passe contient au moins 8 caractères, un chiffre et un caractère spécial.");
   }
 };
 
