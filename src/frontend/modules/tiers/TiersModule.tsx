@@ -27,6 +27,8 @@ import {
 } from '../../../api/firebase';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
 
+import { useDataFetcher } from '../../hooks/useDataFetcher';
+
 interface TiersModuleProps {
   user: User;
   currentUserProfile: UserProfile | null;
@@ -286,30 +288,14 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
     setIsEditing(true);
   };
 
+  const { data: fetchedTiers, loading: fetchLoading } = useDataFetcher<Tiers>('tiers', companyId, user);
+
   React.useEffect(() => {
-    if (!currentUserProfile) return;
-    const path = 'tiers';
-    
-    const q = query(
-      collection(db, path),
-      where('ownerId', '==', companyId),
-      orderBy('createdAt', 'desc')
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const tiersData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Tiers[];
-      setTiers(tiersData);
-      setLoading(false);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, path, user, false);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [user, companyId, currentUserProfile]);
+    if (fetchedTiers) {
+      setTiers(fetchedTiers);
+      setLoading(fetchLoading);
+    }
+  }, [fetchedTiers, fetchLoading]);
 
   React.useEffect(() => {
     const checkTargetId = () => {

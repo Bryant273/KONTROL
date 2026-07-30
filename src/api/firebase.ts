@@ -102,6 +102,37 @@ export const db = initializeFirestore(app, {
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
+// Initialize Firebase Storage with safe fallback
+let storageInstance: any = null;
+try {
+  const { getStorage } = require('firebase/storage');
+  storageInstance = getStorage(app);
+} catch (e) {
+  console.warn("[Firebase] Storage initialization notice:", e);
+}
+export const storage = storageInstance;
+
+export const uploadCompanyFile = async (file: File, path: string): Promise<string> => {
+  try {
+    if (storage) {
+      const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
+      const storageRef = ref(storage, path);
+      const snapshot = await uploadBytes(storageRef, file);
+      const downloadUrl = await getDownloadURL(snapshot.ref);
+      return downloadUrl;
+    }
+  } catch (error) {
+    console.warn("Firebase Storage upload fallback to DataURL:", error);
+  }
+  
+  // Safe fallback to base64 DataURL
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.readAsDataURL(file);
+  });
+};
+
 // Export Firestore functions
 export type { User };
 export { 

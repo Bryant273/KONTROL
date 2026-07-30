@@ -38,6 +38,7 @@ import { AppGuideAssistant } from './components/common/AppGuideAssistant';
 import { LoadingScreen } from './components/common/LoadingScreen';
 import { cn, formatCurrency } from './lib/utils';
 import { UserProfile } from './types';
+import { Gatekeeper } from './components/auth/Gatekeeper';
 import { AlertTriangle, Clock, X, Loader2 } from 'lucide-react';
 
 import { KChatModule } from './modules/chat/KChatModule';
@@ -197,7 +198,7 @@ export default function App() {
         const profileData = snapshot.data() as UserProfile;
         setProfile(profileData);
         localStorage.setItem('kontrol_profile_cache', JSON.stringify(profileData));
-        if (!profileData.isProfileComplete && (profileData.role === 'ADMINISTRATEUR_ENTREPRISE' || profileData.role === 'GESTIONNAIRE_ENTREPRISE')) {
+        if (!profileData.isProfileComplete) {
           setShowSetup(true);
         }
         setLoading(false);
@@ -370,104 +371,95 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-kontrol-bg flex overflow-hidden">
-      {/* REACT SENTINEL - DEBUG ONLY */}
-      <div className="fixed top-0 left-0 w-full h-1 bg-gradient-to-r from-kontrol-blue to-kontrol-orange z-[9999]" />
-      
-      {showSetup && profile && (
-        <CompanySetupModal 
-          profile={profile} 
-          onClose={() => setShowSetup(false)} 
-          onComplete={(updated) => {
-            setProfile(updated);
-            setShowSetup(false);
-          }}
+    <Gatekeeper profile={profile} onProfileUpdate={(updated) => setProfile(updated)}>
+      <div className="min-h-screen bg-kontrol-bg flex overflow-hidden">
+        {/* REACT SENTINEL - DEBUG ONLY */}
+        <div className="fixed top-0 left-0 w-full h-1 bg-gradient-to-r from-kontrol-blue to-kontrol-orange z-[9999]" />
+        
+        {showSetup && profile && (
+          <CompanySetupModal 
+            profile={profile} 
+            onClose={() => setShowSetup(false)} 
+            onComplete={(updated) => {
+              setProfile(updated);
+              setShowSetup(false);
+            }}
+          />
+        )}
+
+        <Sidebar 
+          activeTab={activeTab} 
+          setActiveTab={handleTabChange} 
+          user={user} 
+          profile={profile}
+          onLogout={handleLogout}
+          isOpen={isSidebarOpen}
+          setIsOpen={setIsSidebarOpen}
         />
-      )}
-
-      <Sidebar 
-        activeTab={activeTab} 
-        setActiveTab={handleTabChange} 
-        user={user} 
-        profile={profile}
-        onLogout={handleLogout}
-        isOpen={isSidebarOpen}
-        setIsOpen={setIsSidebarOpen}
-      />
-      
-      <Header 
-        section={activeSection} 
-        page={activeLabel} 
-        user={user} 
-        profile={profile}
-        onLogout={handleLogout}
-        onTabChange={handleTabChange}
-        toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-        isSidebarOpen={isSidebarOpen}
-        onStartGuide={() => setForceGuide(true)}
-        activeTab={activeTab}
-      />
-
-      <main className={cn(
-        "flex-1 pt-14 h-screen overflow-y-auto transition-all duration-300 ease-in-out",
-        isSidebarOpen ? "lg:pl-[250px]" : "pl-0"
-      )}>
-        <div className="p-6 lg:p-10 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-2 duration-500">
-          {activeTab === 'dashboard' && <Dashboard user={user} currentUserProfile={profile} onNavigate={handleTabChange} onStartGuide={() => setForceGuide(true)} />}
-          {activeTab === 'tiers' && <TiersModule user={user} currentUserProfile={profile} />}
-          {activeTab === 'produits' && <ProduitsModule user={user} currentUserProfile={profile} />}
-          {activeTab === 'transactions' && <TransactionsModule user={user} currentUserProfile={profile} />}
-          {activeTab === 'charges' && <ChargesModule user={user} currentUserProfile={profile} />}
-          {activeTab === 'devis' && user && <QuotesModule user={user} currentUserProfile={profile} />}
-          {activeTab === 'stocks' && <StocksModule user={user} currentUserProfile={profile} />}
-          {activeTab === 'finance' && <FinanceModule user={user} currentUserProfile={profile} />}
-          {activeTab === 'ai' && <BlueAIModule user={user} currentUserProfile={profile} activeModule={lastVisitedModule} />}
-          {activeTab === 'chat' && user && <KChatModule user={user} profile={profile} />}
-          {activeTab === 'tickets' && <TicketsModule user={user} currentUserProfile={profile} />}
-          {activeTab === 'company_hub' && <CompanyHubModule user={user} profile={profile} initialSubTab={companyHubSubTab} />}
-          {activeTab === 'company_profile' && <CompanyHubModule user={user} profile={profile} initialSubTab="profile" />}
-          {activeTab === 'abonnements' && <SubscriptionsModule profile={profile} />}
-          {activeTab === 'notifications' && <NotificationsCenterModule profile={profile} onNavigate={handleTabChange} />}
-          {activeTab === 'profil' && <ProfileModule profile={profile} initialSection="MENU" />}
-          {activeTab === 'signature' && <SignatureModule profile={profile} onProfileUpdate={setProfile} />}
-          {activeTab === 'actions' && <ActionsModule user={user} currentUserProfile={profile} />}
-          {activeTab === 'data_exchange' && <DataExchangeModule currentUserProfile={profile} />}
-        </div>
-      </main>
-
-      {showSetup && profile && (
-        <CompanySetupModal 
-          profile={profile} 
-          onClose={() => setShowSetup(false)} 
-          onComplete={(updated) => {
-            setProfile(updated);
-            setShowSetup(false);
-          }}
+        
+        <Header 
+          section={activeSection} 
+          page={activeLabel} 
+          user={user} 
+          profile={profile}
+          onLogout={handleLogout}
+          onTabChange={handleTabChange}
+          toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          isSidebarOpen={isSidebarOpen}
+          onStartGuide={() => setForceGuide(true)}
+          activeTab={activeTab}
         />
-      )}
 
-      <AppGuideAssistant 
-        activeTab={activeTab} 
-        forceOpen={forceGuide} 
-        onCloseForce={() => setForceGuide(false)} 
-        suppressAutoOpen={showSetup || showContractPopup}
-      />
-      <Chatbot profile={profile} />
-      <Toaster position="top-right" expand={false} richColors />
-      
-      <VersionDetailsModal 
-        version={updateVersionData} 
-        isOpen={isUpdateModalOpen} 
-        onClose={() => setIsUpdateModalOpen(false)} 
-      />
+        <main className={cn(
+          "flex-1 pt-14 h-screen overflow-y-auto transition-all duration-300 ease-in-out",
+          isSidebarOpen ? "lg:pl-[250px]" : "pl-0"
+        )}>
+          <div className="p-6 lg:p-10 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-2 duration-500">
+            {activeTab === 'dashboard' && <Dashboard user={user} currentUserProfile={profile} onNavigate={handleTabChange} onStartGuide={() => setForceGuide(true)} />}
+            {activeTab === 'tiers' && <TiersModule user={user} currentUserProfile={profile} />}
+            {activeTab === 'produits' && <ProduitsModule user={user} currentUserProfile={profile} />}
+            {activeTab === 'transactions' && <TransactionsModule user={user} currentUserProfile={profile} />}
+            {activeTab === 'charges' && <ChargesModule user={user} currentUserProfile={profile} />}
+            {activeTab === 'devis' && user && <QuotesModule user={user} currentUserProfile={profile} />}
+            {activeTab === 'stocks' && <StocksModule user={user} currentUserProfile={profile} />}
+            {activeTab === 'finance' && <FinanceModule user={user} currentUserProfile={profile} />}
+            {activeTab === 'ai' && <BlueAIModule user={user} currentUserProfile={profile} activeModule={lastVisitedModule} />}
+            {activeTab === 'chat' && user && <KChatModule user={user} profile={profile} />}
+            {activeTab === 'tickets' && <TicketsModule user={user} currentUserProfile={profile} />}
+            {activeTab === 'company_hub' && <CompanyHubModule user={user} profile={profile} initialSubTab={companyHubSubTab} />}
+            {activeTab === 'company_profile' && <CompanyHubModule user={user} profile={profile} initialSubTab="profile" />}
+            {activeTab === 'abonnements' && <SubscriptionsModule profile={profile} />}
+            {activeTab === 'notifications' && <NotificationsCenterModule profile={profile} onNavigate={handleTabChange} />}
+            {activeTab === 'profil' && <ProfileModule profile={profile} initialSection="MENU" />}
+            {activeTab === 'signature' && <SignatureModule profile={profile} onProfileUpdate={setProfile} />}
+            {activeTab === 'actions' && <ActionsModule user={user} currentUserProfile={profile} />}
+            {activeTab === 'data_exchange' && <DataExchangeModule currentUserProfile={profile} />}
+          </div>
+        </main>
 
-      <SubscriptionContractModal 
-        profile={profile}
-        isOpen={showContractPopup}
-        onClose={() => setShowContractPopup(false)}
-        onSigned={(updated) => setProfile(updated)}
-        isMandatoryPopup={true}
-      />
-    </div>
+        <AppGuideAssistant 
+          activeTab={activeTab} 
+          forceOpen={forceGuide} 
+          onCloseForce={() => setForceGuide(false)} 
+          suppressAutoOpen={showSetup || showContractPopup}
+        />
+        <Chatbot profile={profile} />
+        <Toaster position="top-right" expand={false} richColors />
+        
+        <VersionDetailsModal 
+          version={updateVersionData} 
+          isOpen={isUpdateModalOpen} 
+          onClose={() => setIsUpdateModalOpen(false)} 
+        />
+
+        <SubscriptionContractModal 
+          profile={profile}
+          isOpen={showContractPopup}
+          onClose={() => setShowContractPopup(false)}
+          onSigned={(updated) => setProfile(updated)}
+          isMandatoryPopup={true}
+        />
+      </div>
+    </Gatekeeper>
   );
 }
