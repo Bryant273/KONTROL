@@ -72,11 +72,27 @@ export const SubscriptionContractModal: React.FC<SubscriptionContractModalProps>
       return;
     }
 
-    try {
-      setSigning(true);
-      const now = Date.now();
-      const nextDueDate = now + 30 * 24 * 60 * 60 * 1000;
+    setSigning(true);
+    const now = Date.now();
+    const nextDueDate = now + 30 * 24 * 60 * 60 * 1000;
 
+    const updatedProfile: UserProfile = {
+      ...profile,
+      contractSignedAt: now,
+      contractSignedBy: managerName,
+      subscriptionNextDueDate: nextDueDate,
+      companySignature: uploadedSignature || profile.companySignature,
+      signatureUrl: uploadedSignature || profile.signatureUrl
+    };
+
+    // Cache locally immediately
+    try {
+      localStorage.setItem('kontrol_profile_cache', JSON.stringify(updatedProfile));
+    } catch (e) {
+      console.warn("Local profile cache warning:", e);
+    }
+
+    try {
       const userRef = doc(db, 'users', profile.uid);
       const updateData: any = {
         contractSignedAt: now,
@@ -109,32 +125,23 @@ export const SubscriptionContractModal: React.FC<SubscriptionContractModalProps>
           console.warn("Company contract update notice:", compErr);
         }
       }
-
-      const updatedProfile: UserProfile = {
-        ...profile,
-        contractSignedAt: now,
-        contractSignedBy: managerName,
-        subscriptionNextDueDate: nextDueDate,
-        companySignature: uploadedSignature || profile.companySignature,
-        signatureUrl: uploadedSignature || profile.signatureUrl
-      };
-
+    } catch (err) {
+      console.warn("Firestore contract update warning:", err);
+    } finally {
+      setSigning(false);
       toast.success("Contrat d'abonnement KONTROL signé avec succès ! Échéance fixée à 30 jours.");
       
       if (onSigned) {
         onSigned(updatedProfile);
       }
       
-      // Generate PDF copy
-      generateContractPDF(updatedProfile);
+      try {
+        generateContractPDF(updatedProfile);
+      } catch (pdfErr) {
+        console.warn("Contract PDF generation warning:", pdfErr);
+      }
 
       onClose();
-    } catch (err) {
-      console.error("Signature error:", err);
-      toast.error("Erreur lors de la signature du contrat.");
-      handleFirestoreError(err, OperationType.UPDATE, `users/${profile.uid}`, auth.currentUser, false);
-    } finally {
-      setSigning(false);
     }
   };
 

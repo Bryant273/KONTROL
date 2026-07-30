@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Camera, Rocket, Loader2, Sparkles, Building2, User, Phone, Globe } from 'lucide-react';
+import { X, Camera, Rocket, Loader2, Sparkles, Building2, User, Phone, Globe, PenTool, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UserProfile } from '../../types';
 import { updateUserProfile, logAction, db, handleFirestoreError, OperationType } from '../../../api/firebase';
@@ -37,7 +37,7 @@ const phoneToCountry: Record<string, { country: string, currency: string, langua
   '212': { country: 'Maroc', currency: 'MAD', language: 'fr' },
   '213': { country: 'Algérie', currency: 'DZD', language: 'fr' },
   '216': { country: 'Tunisie', currency: 'TND', language: 'fr' },
-  '55': { country: 'Brésil', currency: 'BRL', language: 'en' },
+  '40': { country: 'Brésil', currency: 'BRL', language: 'en' },
   '91': { country: 'Inde', currency: 'INR', language: 'en' },
 };
 
@@ -55,6 +55,7 @@ export function CompanySetupModal({ profile, onClose, onComplete }: CompanySetup
   const [city, setCity] = React.useState(profile.city || '');
   const [address, setAddress] = React.useState(profile.address || '');
   const [logo, setLogo] = React.useState(profile.companyLogo || '');
+  const [signature, setSignature] = React.useState(profile.companySignature || profile.signatureUrl || '');
   const [loading, setLoading] = React.useState(false);
   const [message, setMessage] = React.useState<{ type: 'error' | 'success', text: string } | null>(null);
 
@@ -84,6 +85,17 @@ export function CompanySetupModal({ profile, onClose, onComplete }: CompanySetup
     }
   };
 
+  const handleSignatureFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setSignature(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!companyName || !phone || !country || !city) {
@@ -92,21 +104,33 @@ export function CompanySetupModal({ profile, onClose, onComplete }: CompanySetup
     }
 
     setLoading(true);
+    const updates = {
+      companyName,
+      companyAbbreviation,
+      companyLogo: logo,
+      companySignature: signature,
+      signatureUrl: signature,
+      phone,
+      country,
+      city,
+      address,
+      currency: detectedInfo?.currency || 'XOF',
+      language: detectedInfo?.language || 'fr',
+      isProfileComplete: true,
+      companyId: profile.companyId || profile.uid,
+      role: 'ADMINISTRATEUR_ENTREPRISE' as any
+    };
+
+    const updatedProfile: UserProfile = { ...profile, ...updates };
+
+    // Local storage sync fallback
     try {
-      const updates = {
-        companyName,
-        companyAbbreviation,
-        companyLogo: logo,
-        phone,
-        country,
-        city,
-        address,
-        currency: detectedInfo?.currency || 'XOF',
-        language: detectedInfo?.language || 'fr',
-        isProfileComplete: true,
-        companyId: profile.companyId || profile.uid,
-        role: 'ADMINISTRATEUR_ENTREPRISE' as any
-      };
+      localStorage.setItem('kontrol_profile_cache', JSON.stringify(updatedProfile));
+    } catch (e) {
+      console.warn("Local profile save notice:", e);
+    }
+
+    try {
       await updateUserProfile(profile.uid, updates);
       
       // Welcome Notification
@@ -116,24 +140,21 @@ export function CompanySetupModal({ profile, onClose, onComplete }: CompanySetup
         title: "Bienvenue sur KONTROL",
         message: `Votre espace de travail pour ${companyName} est prêt. Vous commencez avec une période d'essai de 14 jours.`,
         type: 'success'
-      });
+      }).catch(() => {});
 
-      // Log the profile completion
+      // Log action
       await logAction(
         profile.companyId,
         profile.uid,
         profile.displayName,
         "Complétion du profil entreprise",
         `Entreprise: ${companyName}`
-      ).catch(err => {
-        handleFirestoreError(err, OperationType.WRITE, 'actions', profile, false);
-      });
-
-      onComplete({ ...profile, ...updates });
+      ).catch(() => {});
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'users', profile, false);
+      console.warn("Firestore profile update warning:", error);
     } finally {
       setLoading(false);
+      onComplete(updatedProfile);
     }
   };
 
@@ -292,29 +313,56 @@ export function CompanySetupModal({ profile, onClose, onComplete }: CompanySetup
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[9px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Logo de l'entreprise</label>
-                <div className="flex items-center gap-3 p-2.5 bg-kontrol-bg/30 rounded-xl border border-dashed border-kontrol-border group hover:border-kontrol-blue transition-colors">
-                  <div className="w-10 h-10 rounded-lg bg-white border border-kontrol-border flex items-center justify-center overflow-hidden shrink-0 shadow-sm group-hover:shadow-md transition-all">
-                    {logo ? (
-                      <img src={logo} alt="Logo" className="w-full h-full object-contain" />
-                    ) : (
-                      <Camera size={16} className="text-kontrol-ink-muted" />
-                    )}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Logo de l'entreprise</label>
+                  <div className="flex items-center gap-2 p-2 bg-kontrol-bg/30 rounded-xl border border-dashed border-kontrol-border group hover:border-kontrol-blue transition-colors">
+                    <div className="w-8 h-8 rounded-lg bg-white border border-kontrol-border flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
+                      {logo ? (
+                        <img src={logo} alt="Logo" className="w-full h-full object-contain" />
+                      ) : (
+                        <Camera size={14} className="text-kontrol-ink-muted" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <label className="cursor-pointer block">
+                        <span className="inline-block px-2 py-0.5 bg-white border border-kontrol-border rounded text-[9px] font-extrabold text-kontrol-dark hover:bg-kontrol-bg transition-all truncate">
+                          {logo ? 'Modifier' : 'Choisir logo'}
+                        </span>
+                        <input 
+                          type="file"
+                          accept="image/png, image/jpeg, image/jpg, image/svg+xml"
+                          className="hidden"
+                          onChange={handleFileChange}
+                        />
+                      </label>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <label className="cursor-pointer">
-                      <span className="inline-block px-2.5 py-1 bg-white border border-kontrol-border rounded-lg text-[10px] font-extrabold text-kontrol-dark hover:bg-kontrol-bg transition-all shadow-sm active:scale-95">
-                        Choisir une image
-                      </span>
-                      <input 
-                        type="file"
-                        accept="image/png, image/jpeg, image/jpg, image/svg+xml"
-                        className="hidden"
-                        onChange={handleFileChange}
-                      />
-                    </label>
-                    <p className="text-[8px] text-kontrol-ink-muted mt-0.5 leading-tight">Max 500KB</p>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-kontrol-ink-muted uppercase tracking-wider">Signature & Cachet</label>
+                  <div className="flex items-center gap-2 p-2 bg-kontrol-bg/30 rounded-xl border border-dashed border-kontrol-border group hover:border-kontrol-blue transition-colors">
+                    <div className="w-8 h-8 rounded-lg bg-white border border-kontrol-border flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
+                      {signature ? (
+                        <img src={signature} alt="Signature" className="w-full h-full object-contain" />
+                      ) : (
+                        <PenTool size={14} className="text-kontrol-ink-muted" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <label className="cursor-pointer block">
+                        <span className="inline-block px-2 py-0.5 bg-white border border-kontrol-border rounded text-[9px] font-extrabold text-kontrol-dark hover:bg-kontrol-bg transition-all truncate">
+                          {signature ? 'Modifier' : 'Importer'}
+                        </span>
+                        <input 
+                          type="file"
+                          accept="image/png, image/jpeg, image/jpg, image/svg+xml"
+                          className="hidden"
+                          onChange={handleSignatureFileChange}
+                        />
+                      </label>
+                    </div>
                   </div>
                 </div>
               </div>

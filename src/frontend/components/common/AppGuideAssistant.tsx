@@ -33,9 +33,10 @@ interface AppGuideAssistantProps {
   activeTab: string;
   forceOpen?: boolean;
   onCloseForce?: () => void;
+  suppressAutoOpen?: boolean;
 }
 
-export function AppGuideAssistant({ activeTab, forceOpen = false, onCloseForce }: AppGuideAssistantProps) {
+export function AppGuideAssistant({ activeTab, forceOpen = false, onCloseForce, suppressAutoOpen = false }: AppGuideAssistantProps) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
@@ -209,7 +210,7 @@ export function AppGuideAssistant({ activeTab, forceOpen = false, onCloseForce }
   const activeGuide = tours[activeTab];
 
   useEffect(() => {
-    if (!activeGuide) return;
+    if (!activeGuide || suppressAutoOpen) return;
 
     const alreadySeen = localStorage.getItem(`kontrol_guide_${activeTab}_seen`);
     
@@ -223,7 +224,7 @@ export function AppGuideAssistant({ activeTab, forceOpen = false, onCloseForce }
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [activeTab, activeGuide, forceOpen]);
+  }, [activeTab, activeGuide, forceOpen, suppressAutoOpen]);
 
   // Handle active element spotlight bounding box
   const stepsLength = activeGuide?.steps?.length || 0;

@@ -446,7 +446,12 @@ export default function App() {
         />
       )}
 
-      <AppGuideAssistant activeTab={activeTab} forceOpen={forceGuide} onCloseForce={() => setForceGuide(false)} />
+      <AppGuideAssistant 
+        activeTab={activeTab} 
+        forceOpen={forceGuide} 
+        onCloseForce={() => setForceGuide(false)} 
+        suppressAutoOpen={showSetup || showContractPopup}
+      />
       <Chatbot profile={profile} />
       <Toaster position="top-right" expand={false} richColors />
       

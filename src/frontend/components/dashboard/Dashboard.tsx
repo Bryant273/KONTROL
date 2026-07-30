@@ -327,6 +327,11 @@ export function Dashboard({ user, currentUserProfile, onNavigate, onStartGuide }
       if (loadedCount >= totalSnapshots) setLoading(false);
     };
 
+    // Safety timeout to guarantee loading state completes within 2.5s
+    const safetyTimeout = setTimeout(() => {
+      setLoading(false);
+    }, 2500);
+
     const qPayments = query(collection(db, 'payments'), where('ownerId', '==', companyId));
     unsubscribes.push(onSnapshot(qPayments, (snapshot) => {
       const totalTresorerie = snapshot.docs.reduce((acc, doc) => {
@@ -335,7 +340,10 @@ export function Dashboard({ user, currentUserProfile, onNavigate, onStartGuide }
       }, 0);
       setStats(prev => ({ ...prev, tresorerie: totalTresorerie }));
       checkLoading();
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'payments', user, false)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'payments', user, false);
+      checkLoading();
+    }));
 
     const qTransactions = query(collection(db, 'transactions'), where('ownerId', '==', companyId));
     unsubscribes.push(onSnapshot(qTransactions, (snapshot) => {
@@ -372,7 +380,10 @@ export function Dashboard({ user, currentUserProfile, onNavigate, onStartGuide }
 
       syncTrendsData().catch(e => console.error("Snapshot syncTrendsData error:", e));
       checkLoading();
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'transactions', user, false)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'transactions', user, false);
+      checkLoading();
+    }));
 
     const qCharges = query(collection(db, 'charges'), where('ownerId', '==', companyId));
     unsubscribes.push(onSnapshot(qCharges, (snapshot) => {
@@ -393,7 +404,10 @@ export function Dashboard({ user, currentUserProfile, onNavigate, onStartGuide }
       }));
       syncTrendsData().catch(e => console.error("Snapshot syncTrendsData error:", e));
       checkLoading();
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'charges', user, false)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'charges', user, false);
+      checkLoading();
+    }));
 
     const syncTrendsData = async () => {
       try {
@@ -418,14 +432,20 @@ export function Dashboard({ user, currentUserProfile, onNavigate, onStartGuide }
       const fournisseurs = snapshot.docs.filter(d => d.data().type === 'FOURNISSEUR').length;
       setStats(prev => ({ ...prev, clients, fournisseurs }));
       checkLoading();
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'tiers', user, false)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'tiers', user, false);
+      checkLoading();
+    }));
 
     const qProduits = query(collection(db, 'produits'), where('ownerId', '==', companyId));
     unsubscribes.push(onSnapshot(qProduits, (snapshot) => {
       const totalStock = snapshot.docs.reduce((acc, doc) => acc + ((doc.data().stock || 0) * (doc.data().prixVente || 0)), 0);
       setStats(prev => ({ ...prev, stockValue: totalStock, produits: snapshot.size }));
       checkLoading();
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'produits', user, false)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'produits', user, false);
+      checkLoading();
+    }));
 
     const qActions = query(
       collection(db, 'actions'), 
@@ -436,9 +456,15 @@ export function Dashboard({ user, currentUserProfile, onNavigate, onStartGuide }
     unsubscribes.push(onSnapshot(qActions, (snapshot) => {
       setRecentActions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       checkLoading();
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'actions', user, false)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'actions', user, false);
+      checkLoading();
+    }));
 
-    return () => unsubscribes.forEach(unsub => unsub());
+    return () => {
+      clearTimeout(safetyTimeout);
+      unsubscribes.forEach(unsub => unsub());
+    };
   }, [user, companyId, currentUserProfile]);
 
   const { totalExpenses, totalExpensesMois, totalExpensesMoisPrecedent, benefice, beneficeMois, beneficeMoisPrecedent, rendement, performanceData } = React.useMemo(() => {
