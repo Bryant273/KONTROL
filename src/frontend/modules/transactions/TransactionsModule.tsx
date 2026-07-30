@@ -46,7 +46,6 @@ import { User as FirebaseUser } from 'firebase/auth';
 import { where, orderBy } from 'firebase/firestore';
 
 import { ModuleActivityLog } from '../../components/common/ModuleActivityLog';
-import { useDataFetcher } from '../../hooks/useDataFetcher';
 
 interface TransactionsModuleProps {
   user: FirebaseUser;
@@ -265,16 +264,25 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
     articles: [] as { produitId: string; designation: string; quantite: number; prixUnitaire: number; total: number }[]
   });
 
-  const { data: fetchedTrans, loading: fetchTransLoading } = useDataFetcher<Transaction>('transactions', companyId, user);
-  const { data: fetchedTiers } = useDataFetcher<Tiers>('tiers', companyId, user);
-  const { data: fetchedProduits } = useDataFetcher<Produit>('produits', companyId, user);
-
   React.useEffect(() => {
-    if (fetchedTrans) setTransactions(fetchedTrans);
-    if (fetchedTiers) setTiers(fetchedTiers);
-    if (fetchedProduits) setProduits(fetchedProduits);
-    setLoading(fetchTransLoading);
-  }, [fetchedTrans, fetchedTiers, fetchedProduits, fetchTransLoading]);
+    if (!currentUserProfile) return;
+    const unsubscribes: (() => void)[] = [];
+
+    // Transactions
+    const transConstraints: any[] = [where('ownerId', '==', companyId), orderBy('createdAt', 'desc')];
+    unsubscribes.push(transactionService.subscribeToAll(setTransactions, user, transConstraints));
+
+    // Tiers
+    const tiersConstraints = [where('ownerId', '==', companyId)];
+    unsubscribes.push(tiersService.subscribeToAll(setTiers, user, tiersConstraints));
+
+    // Produits
+    const prodConstraints = [where('ownerId', '==', companyId)];
+    unsubscribes.push(productService.subscribeToAll(setProduits, user, prodConstraints));
+
+    setLoading(false);
+    return () => unsubscribes.forEach(unsub => unsub());
+  }, [user, companyId, currentUserProfile]);
 
   React.useEffect(() => {
     const checkTargetId = () => {

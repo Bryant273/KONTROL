@@ -2,7 +2,7 @@ import React from 'react';
 import { X, Camera, Rocket, Loader2, Sparkles, Building2, User, Phone, Globe, PenTool, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UserProfile } from '../../types';
-import { updateUserProfile, logAction, db, handleFirestoreError, OperationType, uploadCompanyFile } from '../../../api/firebase';
+import { updateUserProfile, logAction, db, handleFirestoreError, OperationType } from '../../../api/firebase';
 import { countries } from '../../lib/countries';
 import { cn } from '../../lib/utils';
 import { sendNotification } from '../../../api/services/notificationService';
@@ -74,14 +74,9 @@ export function CompanySetupModal({ profile, onClose, onComplete }: CompanySetup
     return null;
   }, [phone]);
 
-  const [logoFile, setLogoFile] = React.useState<File | null>(null);
-  const [signatureFile, setSignatureFile] = React.useState<File | null>(null);
-  const [uploadingFiles, setUploadingFiles] = React.useState(false);
-
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setLogoFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setLogo(reader.result as string);
@@ -93,7 +88,6 @@ export function CompanySetupModal({ profile, onClose, onComplete }: CompanySetup
   const handleSignatureFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setSignatureFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setSignature(reader.result as string);
@@ -110,31 +104,12 @@ export function CompanySetupModal({ profile, onClose, onComplete }: CompanySetup
     }
 
     setLoading(true);
-    setUploadingFiles(true);
-
-    const targetCompanyId = profile.companyId || profile.uid;
-    let finalLogoUrl = logo;
-    let finalSignatureUrl = signature;
-
-    try {
-      if (logoFile) {
-        finalLogoUrl = await uploadCompanyFile(logoFile, `companies/${targetCompanyId}/logo_${Date.now()}`);
-      }
-      if (signatureFile) {
-        finalSignatureUrl = await uploadCompanyFile(signatureFile, `companies/${targetCompanyId}/signature_${Date.now()}`);
-      }
-    } catch (err) {
-      console.warn("Storage upload notice:", err);
-    } finally {
-      setUploadingFiles(false);
-    }
-
     const updates = {
       companyName,
       companyAbbreviation,
-      companyLogo: finalLogoUrl,
-      companySignature: finalSignatureUrl,
-      signatureUrl: finalSignatureUrl,
+      companyLogo: logo,
+      companySignature: signature,
+      signatureUrl: signature,
       phone,
       country,
       city,
@@ -142,7 +117,7 @@ export function CompanySetupModal({ profile, onClose, onComplete }: CompanySetup
       currency: detectedInfo?.currency || 'XOF',
       language: detectedInfo?.language || 'fr',
       isProfileComplete: true,
-      companyId: targetCompanyId,
+      companyId: profile.companyId || profile.uid,
       role: 'ADMINISTRATEUR_ENTREPRISE' as any
     };
 

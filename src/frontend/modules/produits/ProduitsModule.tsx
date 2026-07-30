@@ -17,7 +17,6 @@ import { User as FirebaseUser } from 'firebase/auth';
 import { where, orderBy } from 'firebase/firestore';
 
 import { ModuleActivityLog } from '../../components/common/ModuleActivityLog';
-import { useDataFetcher } from '../../hooks/useDataFetcher';
 
 interface ProduitsModuleProps {
   user: FirebaseUser;
@@ -297,14 +296,16 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
     setIsEditing(true);
   };
 
-  const { data: fetchedProduits, loading: fetchLoading } = useDataFetcher<Produit>('produits', companyId, user);
-
   React.useEffect(() => {
-    if (fetchedProduits) {
-      setProduits(fetchedProduits);
-      setLoading(fetchLoading);
-    }
-  }, [fetchedProduits, fetchLoading]);
+    if (!currentUserProfile) return;
+    
+    const constraints: any[] = [where('ownerId', '==', companyId), orderBy('createdAt', 'desc')];
+
+    const unsubscribe = productService.subscribeToAll(setProduits, user, constraints);
+    setLoading(false);
+
+    return () => unsubscribe();
+  }, [user, companyId, currentUserProfile]);
 
   React.useEffect(() => {
     const checkTargetId = () => {
