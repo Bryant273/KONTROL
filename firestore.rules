@@ -88,16 +88,11 @@ service cloud.firestore {
     // --- 4. SECURE COLLECTIONS ---
 
     match /users/{userId} {
-      allow get: if isSignedIn() && (request.auth.uid == userId || belongsToCompany(getUserField('companyId', '')));
-      allow list: if isSignedIn() && resource.data.companyId == getUserField('companyId', '');
-      allow create: if isSignedIn() && request.auth.uid == userId; 
-      allow update: if isEmailVerified() && request.auth.uid == userId;
+      allow get, list, create, update: if isSignedIn();
     }
 
     match /companies/{companyId} {
-      allow read, list: if isEmailVerified();
-      allow create, update: if isEmailVerified();
-      allow delete: if isEmailVerified() && isCompanyAdmin(companyId);
+      allow read, list, create, update, delete: if isSignedIn();
     }
 
     match /notifications/{notificationId} {

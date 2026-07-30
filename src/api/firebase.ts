@@ -398,6 +398,41 @@ export async function ensureUserProfile(user: User, companyName?: string, hashed
 export const updateUserProfile = async (uid: string, data: Partial<UserProfile>) => {
   try {
     await setDoc(doc(db, 'users', uid), data, { merge: true });
+    
+    // Auto-save persistence to the Firestore company document
+    const targetCompanyId = data.companyId || uid;
+    if (targetCompanyId) {
+      const compRef = doc(db, 'companies', targetCompanyId);
+      const companyData: Record<string, any> = {
+        id: targetCompanyId,
+        ownerId: uid,
+        updatedAt: Date.now()
+      };
+
+      if (data.companyName !== undefined) companyData.name = data.companyName;
+      if (data.companyName !== undefined) companyData.companyName = data.companyName;
+      if (data.companyAbbreviation !== undefined) companyData.abbreviation = data.companyAbbreviation;
+      if (data.companyLogo !== undefined) companyData.logo = data.companyLogo;
+      if (data.companyLogo !== undefined) companyData.companyLogo = data.companyLogo;
+      if (data.companySignature !== undefined) companyData.companySignature = data.companySignature;
+      if (data.signatureUrl !== undefined || data.companySignature !== undefined) {
+        companyData.signatureUrl = data.signatureUrl || data.companySignature;
+      }
+      if (data.phone !== undefined) companyData.phone = data.phone;
+      if (data.country !== undefined) companyData.country = data.country;
+      if (data.city !== undefined) companyData.city = data.city;
+      if (data.address !== undefined) companyData.address = data.address;
+      if (data.currency !== undefined) companyData.currency = data.currency;
+      if (data.language !== undefined) companyData.language = data.language;
+      if (data.isProfileComplete !== undefined) companyData.isProfileComplete = data.isProfileComplete;
+      if (data.contractSignedAt !== undefined) companyData.contractSignedAt = data.contractSignedAt;
+      if (data.contractSignedBy !== undefined) companyData.contractSignedBy = data.contractSignedBy;
+      if (data.subscriptionNextDueDate !== undefined) companyData.subscriptionNextDueDate = data.subscriptionNextDueDate;
+
+      await setDoc(compRef, companyData, { merge: true }).catch(err => {
+        console.warn("Notice: Firestore company auto-save info:", err);
+      });
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `users/${uid}`, auth.currentUser, false);
   }
