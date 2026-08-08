@@ -149,6 +149,7 @@ Sur le Tableau de Bord (Pilotage) :
 11. **BLUE AI** : Directeur Financier virtuel propulsé par Gemini AI.
 12. **Échange de Données XML** : Imports/exports structurés.
 13. **Company Hub & Profil** : Identité, logo, adresse et informations d'entreprise.
+14. **Guide Interactif Pas à Pas (`AppGuideAssistant`)** : Assistant de visite guidée avec détourage optique spotlight (SVG cutout) sur les 18 modules, conseils d'experts métier "Astuces KONTROL Pro" et parcours d'onboarding contextuel.
 
 ---
 

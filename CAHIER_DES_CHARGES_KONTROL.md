@@ -3,13 +3,13 @@
 **Version d'Écosystème & de Saisie Unique :** Version 1.0.0 (Alignée sur l'Interface Utilisateur active)  
 **Sécurité & Intégration API :** Architecture Full-Stack sécurisée unifiée par variables d'environnement distantes. Passerelles de paiement (GeniusPay, Kkiapay, Wave) et clés d'Intelligence Artificielle (Gemini API) gérées côté serveur.
 
-Ce document constitue la référence exhaustive de l'architecture fonctionnelle, des processus de souscription, de l'imputation documentaire certifiée, de l'interface utilisateur et des exigences logicielles de la plateforme **KONTROL**, un ERP de Gestion Intelligente pour les Petites et Moyennes Entreprises (PME).
+Ce document constitue la référence exhaustive de l'architecture fonctionnelle, des processus de souscription, de l'imputation documentaire certifiée, de l'interface utilisateur, du système de guidage interactif et des exigences logicielles de la plateforme **KONTROL**, un ERP de Gestion Intelligente pour les Petites et Moyennes Entreprises (PME).
 
 ---
 
 ## 1. Présentation Générale de l’Application
 
-**KONTROL** est un Écosystème ERP Full-Stack modulaire permettant de centraliser l'intégralité du pilotage opérationnel et financier des entreprises. Il résout la fragmentation des données en interconnectant les achats, les ventes, les stocks, la trésorerie, la facturation certifiée, les abonnements et le conseil stratégique assisté par l'Intelligence Artificielle.
+**KONTROL** est un Écosystème ERP Full-Stack modulaire permettant de centraliser l'intégralité du pilotage opérationnel et financier des entreprises. Il résout la fragmentation des données en interconnectant les achats, les ventes, les stocks, la trésorerie, la facturation certifiée, les abonnements, le guidage utilisateur pas à pas et le conseil stratégique assisté par l'Intelligence Artificielle.
 
 L'application est dédiée aux dirigeants, comptables et gestionnaires pour administrer l'activité commerciale quotidienne, gérer l'empreinte documentaire (signatures/cachets) et suivre leur abonnement en toute autonomie.
 
@@ -28,6 +28,10 @@ L'interface de KONTROL respecte une charte professionnelle stricte, privilégian
   * Corps de texte & UI générale : **Inter** / **Plus Jakarta Sans** pour une lisibilité optimale.
   * Données chiffrées & Logs d'audit : **JetBrains Mono** pour un alignement tabulaire irréprochable.
 * **Animations & Micro-interactions** : Transitions réactives fluides via `motion` (fondu à l'apparition, expansion des menus latéraux, états réactifs au survol des cartes et boutons).
+* **Système de Guidage Interactif Intégré (`AppGuideAssistant`)** :
+  * Assistant de visite guidée en surimpression avec détourage optique dynamique (spotlight SVG cutout) encadrant précisément l'élément cible sur l'écran.
+  * Parcours d'onboarding contextuel structuré pour chacun des 18 modules fonctionnels.
+  * Conseils d'experts métier ("Astuces KONTROL Pro") intégrés à chaque étape du parcours.
 
 ---
 
@@ -52,6 +56,7 @@ L'expérience utilisateur s'articule autour des grandes sections de navigation :
   * **Passerelles de Paiement Intégrées (GeniusPay & Kkiapay & Wave)** : Génération de liens de paiement rapides et boutons sécurisés pour encaissement par Mobile Money (Wave, Orange Money, MTN MoMo, Moov Money) ou Carte Bancaire.
 * **Finance & Trésorerie** : Analyses graphiques interactives via `Recharts`, rapports de liquidités exportables et calcul de l'éligibilité au financement de trésorerie.
 * **Charges** : Gestionnaire analytique des dépenses fixes et variables (loyers, électricité, abonnements tiers) avec catégorisation et filtres intelligents.
+* **Devis & Propositions Commerciales** : Création de devis personnalisés, suivi des statuts de validation et conversion instantanée en facture définitive sans re-saisie.
 
 ### C. Gestion des Stocks
 * **Mouvements de Stocks** : Historique chronologique des entrées (approvisionnements) et sorties (livraisons clients, pertes).
@@ -62,7 +67,11 @@ L'expérience utilisateur s'articule autour des grandes sections de navigation :
 * **Chat Interne (K-Chat)** : Messagerie collaborative en temps réel permettant aux membres d'une même entreprise d'échanger des instructions opérationnelles.
 * **Tickets de Support** : Portail d'ouverture et de suivi de fiches d'assistance pour vos demandes auprès du support KONTROL.
 
-### E. Système, Paramètres & Signature Officielle
+### E. Système, Paramètres, Signature & Guidage
+* **Assistant Guide Interactif (`/guide`)** :
+  * Déclenchement automatique lors de la première découverte d'un module ou sur demande via le bouton d'aide du header (`Guide Interactif`).
+  * Découpage pédagogique : Titre de l'élément, badge de fonction, description d'usage et astuce métier Pro.
+  * Repérage automatique d'éléments dans le DOM avec centrage fluide (`scrollIntoView`) et masque d'ombrage interactif.
 * **Signature & Cachet Officiel d'Entreprise (`/signature`)** :
   * Module dédié dans le menu Système pour téléverser l'image officielle de la signature manuscrite ou du tampon d'entreprise (PNG/JPG jusqu'à 5 Mo).
   * Aperçu en temps réel de l'apposition sur les spécimens de contrats, factures et devis.
@@ -125,12 +134,22 @@ Pour fluidifier le règlement des abonnements et des factures clients, KONTROL i
 ```
 [Utilisateur Entreprise]
        │
+       ├─► [Guide Interactif / AppGuideAssistant] ─────────────► Découverte pas à pas avec Spotlight
+       │                                                         │
        ├─► [Menu Système -> Signature & Cachet] ──► Téléversement Image Signature/Tampon
        │                                                         │
        ├─► [Souscription / Modale Contrat] ──────────────────────┼─► Apposition Automatique sur PDF
        │     (Signature Électronique + CGU OHADA)                │   (Contrats, Factures & Devis)
        │                                                         │
-       ├─► [Reglement Abonnement] ───────────────────────────────┴─► GeniusPay / Kkiapay / Wave
+       ├─► [Règlement Abonnement] ───────────────────────────────┴─► GeniusPay / Kkiapay / Wave
+       │     (Paiement Mobile Money & Carte)
+       │
+       └─► [Tableau de Bord / Pilotage] ──► Suivi Temps Réel "Abonnement en cours" + Décompte (Jours/Heures)
+                                           + Barre de Progression Réelle (% Écoulé)
+```
+
+---
+*Ce document constitue le cahier des charges officiel mis à jour pour la version 1.0.0 de la plateforme **KONTROL ERP**.*usPay / Kkiapay / Wave
        │     (Paiement Mobile Money & Carte)
        │
        └─► [Tableau de Bord / Pilotage] ──► Suivi Temps Réel "Abonnement en cours" + Décompte (Jours/Heures)

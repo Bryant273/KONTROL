@@ -169,7 +169,7 @@ export function LegalTerms({ type, onClose }: LegalTermsProps) {
           </div>
           <div className="pt-4">
              <span className="px-4 py-2 bg-white border border-kontrol-border rounded-full text-[10px] font-black text-kontrol-ink-muted uppercase tracking-[0.2em] shadow-sm">
-                Révision : 30 Avril 2026 • v2.1
+                Révision : 7 Août 2026 • v2.2 (Mise à jour intégrale)
              </span>
           </div>
         </div>
