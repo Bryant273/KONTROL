@@ -292,8 +292,7 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
     
     const q = query(
       collection(db, path),
-      where('ownerId', '==', companyId),
-      orderBy('createdAt', 'desc')
+      where('ownerId', '==', companyId)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -301,6 +300,7 @@ export function TiersModule({ user, currentUserProfile }: TiersModuleProps) {
         id: doc.id,
         ...doc.data()
       })) as Tiers[];
+      tiersData.sort((a, b) => ((b as any).createdAt || 0) - ((a as any).createdAt || 0));
       setTiers(tiersData);
       setLoading(false);
     }, (error) => {

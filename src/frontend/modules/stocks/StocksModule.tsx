@@ -238,11 +238,12 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
     // Fetch Movements
     const qMovements = query(
       collection(db, 'stock_movements'),
-      where('ownerId', '==', companyId),
-      orderBy('date', 'desc')
+      where('ownerId', '==', companyId)
     );
     unsubscribes.push(onSnapshot(qMovements, (snapshot) => {
-      setMovements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as StockMovement[]);
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as StockMovement[];
+      data.sort((a, b) => ((b as any).date || (b as any).createdAt || 0) - ((a as any).date || (a as any).createdAt || 0));
+      setMovements(data);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'stock_movements', user, false);
     }));
@@ -250,11 +251,11 @@ export function StocksModule({ user, currentUserProfile }: StocksModuleProps) {
     // Fetch Produits for Inventory View
     const qProduits = query(
       collection(db, 'produits'),
-      where('ownerId', '==', companyId),
-      orderBy('designation', 'asc')
+      where('ownerId', '==', companyId)
     );
     unsubscribes.push(onSnapshot(qProduits, (snapshot) => {
       const pData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Produit[];
+      pData.sort((a, b) => (a.designation || '').localeCompare(b.designation || ''));
       setProduits(pData);
       setLoading(false);
 

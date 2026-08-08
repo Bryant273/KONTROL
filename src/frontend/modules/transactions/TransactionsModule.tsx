@@ -269,8 +269,11 @@ export function TransactionsModule({ user, currentUserProfile }: TransactionsMod
     const unsubscribes: (() => void)[] = [];
 
     // Transactions
-    const transConstraints: any[] = [where('ownerId', '==', companyId), orderBy('createdAt', 'desc')];
-    unsubscribes.push(transactionService.subscribeToAll(setTransactions, user, transConstraints));
+    const transConstraints: any[] = [where('ownerId', '==', companyId)];
+    unsubscribes.push(transactionService.subscribeToAll((data) => {
+      const sorted = [...data].sort((a: any, b: any) => (b.createdAt || b.date || 0) - (a.createdAt || a.date || 0));
+      setTransactions(sorted);
+    }, user, transConstraints));
 
     // Tiers
     const tiersConstraints = [where('ownerId', '==', companyId)];

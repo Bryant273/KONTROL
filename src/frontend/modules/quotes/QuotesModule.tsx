@@ -137,14 +137,14 @@ export function QuotesModule({ user, currentUserProfile }: QuotesModuleProps) {
 
       const q = query(
         collection(db, 'quotes'),
-        where('companyId', '==', companyId),
-        orderBy('createdAt', 'desc')
+        where('companyId', '==', companyId)
       );
       const snapshot = await getDocs(q);
       const loadedQuotes: Quote[] = snapshot.docs.map(docSnap => ({
         id: docSnap.id,
         ...docSnap.data()
       } as Quote));
+      loadedQuotes.sort((a, b) => ((b as any).createdAt || 0) - ((a as any).createdAt || 0));
 
       setQuotes(loadedQuotes);
     } catch (error) {

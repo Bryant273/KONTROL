@@ -287,8 +287,7 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
     const path = 'charges';
     const q = query(
       collection(db, path),
-      where('ownerId', '==', companyId),
-      orderBy('date', 'desc')
+      where('ownerId', '==', companyId)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -296,6 +295,7 @@ export function ChargesModule({ user, currentUserProfile }: ChargesModuleProps) 
         id: doc.id,
         ...doc.data()
       })) as Charge[];
+      chargesData.sort((a, b) => ((b as any).date || (b as any).createdAt || 0) - ((a as any).date || (a as any).createdAt || 0));
       setCharges(chargesData);
       setLoading(false);
     }, (error) => {

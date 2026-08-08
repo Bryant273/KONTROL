@@ -31,8 +31,10 @@ import { ProfileModule } from './modules/profile/ProfileModule';
 import { ActionsModule } from './modules/actions/ActionsModule';
 import { SubscriptionsModule } from './modules/subscriptions/SubscriptionsModule';
 import { CompanySetupModal } from './components/auth/CompanySetupModal';
+import { CompanySetupPage } from './components/auth/CompanySetupPage';
 import { LandingPage } from './components/landing/LandingPage';
 import { AuthPage } from './components/auth/AuthPage';
+import { SubscriptionContractPage } from './components/subscription/SubscriptionContractPage';
 import { Chatbot } from './components/common/Chatbot';
 import { AppGuideAssistant } from './components/common/AppGuideAssistant';
 import { LoadingScreen } from './components/common/LoadingScreen';
@@ -369,21 +371,39 @@ export default function App() {
     );
   }
 
+  // ONBOARDING STEP 3: Full Page Company Configuration
+  if (profile && !profile.isProfileComplete && (profile.role === 'ADMINISTRATEUR_ENTREPRISE' || profile.role === 'GESTIONNAIRE_ENTREPRISE')) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-white">
+        <CompanySetupPage 
+          profile={profile}
+          onComplete={(updated) => setProfile(updated)}
+          onLogout={handleLogout}
+        />
+        <Toaster position="top-right" expand={false} richColors />
+      </div>
+    );
+  }
+
+  // ONBOARDING STEP 4: Full Page Subscription Contract
+  if (profile && profile.isProfileComplete && !profile.contractSignedAt) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-white">
+        <SubscriptionContractPage 
+          profile={profile}
+          onSigned={(updated) => setProfile(updated)}
+          onLogout={handleLogout}
+        />
+        <Toaster position="top-right" expand={false} richColors />
+      </div>
+    );
+  }
+
+  // ONBOARDING STEP 5: Workspace Dashboard Layout
   return (
     <div className="min-h-screen bg-kontrol-bg flex overflow-hidden">
       {/* REACT SENTINEL - DEBUG ONLY */}
       <div className="fixed top-0 left-0 w-full h-1 bg-gradient-to-r from-kontrol-blue to-kontrol-orange z-[9999]" />
-      
-      {showSetup && profile && (
-        <CompanySetupModal 
-          profile={profile} 
-          onClose={() => setShowSetup(false)} 
-          onComplete={(updated) => {
-            setProfile(updated);
-            setShowSetup(false);
-          }}
-        />
-      )}
 
       <Sidebar 
         activeTab={activeTab} 
@@ -435,17 +455,6 @@ export default function App() {
         </div>
       </main>
 
-      {showSetup && profile && (
-        <CompanySetupModal 
-          profile={profile} 
-          onClose={() => setShowSetup(false)} 
-          onComplete={(updated) => {
-            setProfile(updated);
-            setShowSetup(false);
-          }}
-        />
-      )}
-
       <AppGuideAssistant 
         activeTab={activeTab} 
         forceOpen={forceGuide} 
@@ -459,14 +468,6 @@ export default function App() {
         version={updateVersionData} 
         isOpen={isUpdateModalOpen} 
         onClose={() => setIsUpdateModalOpen(false)} 
-      />
-
-      <SubscriptionContractModal 
-        profile={profile}
-        isOpen={showContractPopup}
-        onClose={() => setShowContractPopup(false)}
-        onSigned={(updated) => setProfile(updated)}
-        isMandatoryPopup={true}
       />
     </div>
   );

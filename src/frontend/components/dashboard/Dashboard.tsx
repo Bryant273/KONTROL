@@ -449,12 +449,16 @@ export function Dashboard({ user, currentUserProfile, onNavigate, onStartGuide }
 
     const qActions = query(
       collection(db, 'actions'), 
-      where('companyId', '==', companyId), 
-      orderBy('timestamp', 'desc'),
-      limit(30)
+      where('companyId', '==', companyId)
     );
     unsubscribes.push(onSnapshot(qActions, (snapshot) => {
-      setRecentActions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      docs.sort((a: any, b: any) => {
+        const tA = a.timestamp?.toMillis ? a.timestamp.toMillis() : (typeof a.timestamp === 'number' ? a.timestamp : 0);
+        const tB = b.timestamp?.toMillis ? b.timestamp.toMillis() : (typeof b.timestamp === 'number' ? b.timestamp : 0);
+        return tB - tA;
+      });
+      setRecentActions(docs.slice(0, 30));
       checkLoading();
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'actions', user, false);

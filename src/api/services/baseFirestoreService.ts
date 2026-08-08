@@ -99,9 +99,10 @@ export class BaseFirestoreService<T extends { id?: string }> {
   }
 
   subscribeByOwner(ownerId: string, callback: (data: T[]) => void, user?: any, extraConstraints: any[] = []) {
-    const q = query(this.collectionRef, where('companyId', '==', ownerId), orderBy('createdAt', 'desc'), ...extraConstraints);
+    const q = query(this.collectionRef, where('companyId', '==', ownerId), ...extraConstraints);
     return onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T));
+      data.sort((a: any, b: any) => (b.createdAt || b.timestamp || 0) - (a.createdAt || a.timestamp || 0));
       callback(data);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, this.collectionName, user || auth.currentUser, false);

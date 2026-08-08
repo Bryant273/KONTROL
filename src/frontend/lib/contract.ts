@@ -353,10 +353,10 @@ export const generateContractPDF = (profile: UserProfile | null) => {
   if (isSigned) {
     // Green box for certified signed contract
     doc.setFillColor(236, 253, 245);
-    doc.rect(margin, y, contentWidth, 30, 'F');
+    doc.rect(margin, y, contentWidth, 32, 'F');
     doc.setDrawColor(16, 185, 129);
     doc.setLineWidth(0.4);
-    doc.rect(margin, y, contentWidth, 30, 'S');
+    doc.rect(margin, y, contentWidth, 32, 'S');
 
     doc.setTextColor(6, 95, 70);
     doc.setFont('helvetica', 'bold');
@@ -367,27 +367,24 @@ export const generateContractPDF = (profile: UserProfile | null) => {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.text(cleanText(`Editeur : INNOV'KORP · Signature electronique certifiée apposee`), margin + 4, y + 11);
-    doc.text(cleanText(`Abonné Souscripteur : ${managerName} (${companyName})`), margin + 4, y + 16);
-    doc.text(cleanText(`Horodatage certifie : ${signDateStr}`), margin + 4, y + 21);
-    doc.text(cleanText(`Echéance d'abonnement effective (30 jours) : ${dueDateStr}`), margin + 4, y + 26);
+    doc.text(cleanText(`Abonné Souscripteur : ${managerName.substring(0, 32)}`), margin + 4, y + 16);
+    doc.text(cleanText(`Société : ${companyName.substring(0, 35)}`), margin + 4, y + 21);
+    doc.text(cleanText(`Horodatage certifie : ${signDateStr}`), margin + 4, y + 26);
 
-    // Digital Seal Badge
+    // Digital Seal Badge (Far right)
     doc.setFillColor(16, 185, 129);
-    doc.rect(pageWidth - margin - 48, y + 6, 44, 18, 'F');
+    doc.rect(pageWidth - margin - 48, y + 4, 44, 11, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7.5);
-    doc.text("CONTRAT SIGNE", pageWidth - margin - 26, y + 13, { align: 'center' });
-    doc.setFontSize(6.5);
-    doc.setFont('helvetica', 'normal');
-    doc.text("KONTROL VERIFIED", pageWidth - margin - 26, y + 18, { align: 'center' });
+    doc.setFontSize(7);
+    doc.text("CONTRAT SIGNE", pageWidth - margin - 26, y + 9, { align: 'center' });
 
-    // Embed company signature image if provided in profile
+    // Embed company signature image directly below seal badge without overlapping left text
     const signatureImg = profile?.companySignature || profile?.signatureUrl;
     if (signatureImg && signatureImg.startsWith('data:image')) {
       try {
         const format = signatureImg.includes('image/png') ? 'PNG' : 'JPEG';
-        doc.addImage(signatureImg, format, pageWidth - margin - 85, y + 5, 32, 18);
+        doc.addImage(signatureImg, format, pageWidth - margin - 48, y + 16, 44, 14);
       } catch (e) {
         console.warn("Could not embed company signature in contract PDF:", e);
       }

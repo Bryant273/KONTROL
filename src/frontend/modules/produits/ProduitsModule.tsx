@@ -299,9 +299,12 @@ export function ProduitsModule({ user, currentUserProfile }: ProduitsModuleProps
   React.useEffect(() => {
     if (!currentUserProfile) return;
     
-    const constraints: any[] = [where('ownerId', '==', companyId), orderBy('createdAt', 'desc')];
+    const constraints: any[] = [where('ownerId', '==', companyId)];
 
-    const unsubscribe = productService.subscribeToAll(setProduits, user, constraints);
+    const unsubscribe = productService.subscribeToAll((data) => {
+      const sorted = [...data].sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0));
+      setProduits(sorted);
+    }, user, constraints);
     setLoading(false);
 
     return () => unsubscribe();

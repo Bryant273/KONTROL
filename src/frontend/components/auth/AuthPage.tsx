@@ -29,6 +29,41 @@ interface AuthPageProps {
   initialMode?: 'login' | 'register';
 }
 
+const getFriendlyAuthErrorMessage = (error: any): string => {
+  if (!error) return "Une erreur d'authentification est survenue. Veuillez réessayer.";
+  
+  const code = error.code || '';
+  const message = (error.message || '').toLowerCase();
+
+  if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found' || message.includes('invalid-credential') || message.includes('wrong-password') || message.includes('user-not-found')) {
+    return "Adresse e-mail ou mot de passe incorrect. Veuillez vérifier vos identifiants.";
+  }
+  if (code === 'auth/email-already-in-use' || message.includes('email-already-in-use') || message.includes('email_exists')) {
+    return "Cette adresse e-mail est déjà associée à un compte. Veuillez vous connecter.";
+  }
+  if (code === 'auth/weak-password' || message.includes('weak-password') || message.includes('password requirements')) {
+    return "Le mot de passe doit contenir au moins 8 caractères, une majuscule, un chiffre et un caractère spécial.";
+  }
+  if (code === 'auth/invalid-email' || message.includes('invalid-email')) {
+    return "L'adresse e-mail saisie n'est pas valide.";
+  }
+  if (code === 'auth/user-disabled' || message.includes('user-disabled')) {
+    return "Ce compte d'utilisateur a été désactivé par l'administrateur.";
+  }
+  if (code === 'auth/too-many-requests' || message.includes('too-many-requests')) {
+    return "Nombreux essais infructueux détectés. Par mesure de sécurité, veuillez patienter quelques minutes avant de réadapter la tentative.";
+  }
+  if (code === 'auth/network-request-failed' || message.includes('network')) {
+    return "Connexion réseau impossible. Veuillez vérifier votre accès à Internet.";
+  }
+  
+  if (message.includes('firestore') || message.includes('firebase') || message.includes('database') || message.includes('sql') || message.includes('permission-denied') || message.includes('internal')) {
+    return "Erreur de connexion aux services. Veuillez vérifier votre réseau ou réessayer dans un instant.";
+  }
+
+  return "Identifiants invalides ou service indisponible. Veuillez réessayer.";
+};
+
 export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
   const { t } = useTranslation();
   const [authMode, setAuthMode] = React.useState<'login' | 'register'>(initialMode);
@@ -108,14 +143,11 @@ export function AuthPage({ onBack, initialMode = 'login' }: AuthPageProps) {
         }
       }
     } catch (error: any) {
-      let rawMsg = error.message || 'Erreur d\'authentification';
-      if (rawMsg.includes('Missing password requirements') || rawMsg.includes('password-does-not-meet-requirements')) {
-        rawMsg = "Le mot de passe doit contenir au moins 8 caractères, un chiffre (0-9) et un caractère spécial (ex: @, #, !, $).";
-      }
-      setAuthError(rawMsg);
+      const friendlyMsg = getFriendlyAuthErrorMessage(error);
+      setAuthError(friendlyMsg);
       // Notify security event for failed login
       if (authMode === 'login') {
-        notifySecurityEvent('system', null, 'Échec de Connexion', `Tentative échouée pour l'email: ${email}. Raison: ${rawMsg}`);
+        notifySecurityEvent('system', null, 'Échec de Connexion', `Tentative échouée pour l'email: ${email}. Motif: ${friendlyMsg}`);
       }
     } finally {
       setAuthLoading(false);

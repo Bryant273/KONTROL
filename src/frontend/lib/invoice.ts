@@ -675,35 +675,43 @@ export const generateInvoicePDF = async (transaction: any, userProfile?: any) =>
   const sealY = totalsY + 34;
   
   doc.setFillColor(248, 250, 252);
-  doc.rect(margin, sealY, pageWidth - (margin * 2), 22, 'F');
+  doc.rect(margin, sealY, pageWidth - (margin * 2), 24, 'F');
 
   doc.setDrawColor(203, 213, 225);
   doc.setLineWidth(0.35);
-  doc.rect(margin, sealY, pageWidth - (margin * 2), 22, 'S');
+  doc.rect(margin, sealY, pageWidth - (margin * 2), 24, 'S');
 
-  drawPadlockIcon(doc, margin + 5, sealY + 4, 8);
+  drawPadlockIcon(doc, margin + 5, sealY + 5, 8);
 
   doc.setTextColor(30, 41, 59);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
-  doc.text(cleanText("CACHET NUMERIQUE DE CERTIFICATION KONTROL"), margin + 17, sealY + 7);
+  doc.text(cleanText("CACHET NUMERIQUE ET CERTIFICATION DE PIECE"), margin + 16, sealY + 7);
 
   doc.setTextColor(71, 85, 105);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
-  doc.text(cleanText("Document certifie conforme, archive en registre infalsifiable et signe cryptographiquement par KONTROL."), margin + 17, sealY + 12);
+  doc.text(cleanText("Document certifie conforme, archive en registre infalsifiable et authentifie."), margin + 16, sealY + 12);
   
   doc.setFont('courier', 'normal');
   doc.setTextColor(100, 116, 139);
   doc.setFontSize(7);
-  doc.text(`Verification ID: SEC-KEY-SHA256-${reference.substring(0, 12).toUpperCase()}-VERIFIED-KONTROL`, margin + 17, sealY + 17);
+  doc.text(`Verification ID: SEC-KEY-SHA256-${reference.substring(0, 12).toUpperCase()}-VERIFIED-KONTROL`, margin + 16, sealY + 18);
 
-  // Embed official company signature if provided
+  // Embed official company signature if provided in dedicated right section
   const companySig = userProfile?.companySignature || userProfile?.signatureUrl;
   if (companySig && companySig.startsWith('data:image')) {
     try {
+      doc.setDrawColor(226, 232, 240);
+      doc.line(pageWidth - margin - 45, sealY + 2, pageWidth - margin - 45, sealY + 22);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(6.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text("SIGNATURE EMETTEUR", pageWidth - margin - 22, sealY + 5, { align: 'center' });
+
       const format = companySig.includes('image/png') ? 'PNG' : 'JPEG';
-      doc.addImage(companySig, format, pageWidth - margin - 35, sealY + 2, 30, 17);
+      doc.addImage(companySig, format, pageWidth - margin - 42, sealY + 7, 40, 15);
     } catch (e) {
       console.warn("Could not embed company signature in invoice PDF:", e);
     }

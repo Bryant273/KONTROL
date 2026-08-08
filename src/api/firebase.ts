@@ -302,8 +302,8 @@ export const registerWithEmail = async (email: string, pass: string, name: strin
       isProfileComplete: false,
       active: true,
       createdAt: Date.now(),
-      subscriptionStatus: 'TRIAL',
-      subscriptionEndDate: Date.now() + (14 * 24 * 60 * 60 * 1000),
+      subscriptionStatus: 'ACTIVE',
+      subscriptionEndDate: Date.now() + (30 * 24 * 60 * 60 * 1000),
       password: hashedPass
     };
 
@@ -364,8 +364,8 @@ export async function ensureUserProfile(user: User, companyName?: string, hashed
         isProfileComplete: false,
         active: true,
         createdAt: serverTimestamp(),
-        subscriptionStatus: 'TRIAL',
-        subscriptionEndDate: Date.now() + (14 * 24 * 60 * 60 * 1000) // 14 days trial
+        subscriptionStatus: 'ACTIVE',
+        subscriptionEndDate: Date.now() + (30 * 24 * 60 * 60 * 1000) // 30 days active subscription
       };
       if (hashedPassword) {
         profile.password = hashedPassword;
