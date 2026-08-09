@@ -1,11 +1,12 @@
 import React from 'react';
-import { Menu, Bell, ChevronDown, UserCircle, Shield, LogOut, Globe, Sparkles, Maximize2, Minimize2 } from 'lucide-react';
+import { Menu, Bell, ChevronDown, UserCircle, Shield, LogOut, Globe, Sparkles, Maximize2, Minimize2, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { User, db, doc, updateDoc, handleFirestoreError, OperationType } from '../../../api/firebase';
 import { cn } from '../../lib/utils';
 import { UserProfile } from '../../types';
 import { NotificationCenter } from '../notifications/NotificationCenter';
 import { Logo } from '../common/Logo';
+import { initOfflineSyncManager, getOfflineQueue, syncOfflineQueue } from '../../lib/offlineSync';
 
 interface HeaderProps {
   section: string;
@@ -25,6 +26,23 @@ export function Header({ section, page, user, profile, onLogout, onTabChange, to
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = React.useState(false);
+  const [isOnline, setIsOnline] = React.useState(navigator.onLine);
+  const [offlineQueueCount, setOfflineQueueCount] = React.useState(0);
+  const [isSyncing, setIsSyncing] = React.useState(false);
+
+  React.useEffect(() => {
+    initOfflineSyncManager(({ isOnline: online, queueLength }) => {
+      setIsOnline(online);
+      setOfflineQueueCount(queueLength);
+    });
+  }, []);
+
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    await syncOfflineQueue();
+    setIsSyncing(false);
+    setOfflineQueueCount(getOfflineQueue().length);
+  };
 
   React.useEffect(() => {
     const handleFullscreenChange = () => {
@@ -125,6 +143,35 @@ export function Header({ section, page, user, profile, onLogout, onTabChange, to
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
+        {/* PWA & Network Sync Status Pill */}
+        <div className="flex items-center gap-1.5">
+          {!isOnline ? (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-600 text-[10.5px] font-bold">
+              <WifiOff size={13} className="text-amber-500" />
+              <span>Hors-Ligne PWA</span>
+              {offlineQueueCount > 0 && (
+                <span className="ml-1 px-1.5 py-0.2 bg-amber-500 text-white font-extrabold rounded-full text-[9px]">
+                  {offlineQueueCount}
+                </span>
+              )}
+            </div>
+          ) : offlineQueueCount > 0 ? (
+            <button
+              onClick={handleManualSync}
+              disabled={isSyncing}
+              className="flex items-center gap-1.5 px-2.5 py-1 bg-kontrol-blue/10 border border-kontrol-blue/30 rounded-lg text-kontrol-blue text-[10.5px] font-bold hover:bg-kontrol-blue/20 transition-all cursor-pointer"
+            >
+              <RefreshCw size={13} className={cn("text-kontrol-blue", isSyncing && "animate-spin")} />
+              <span>Synchro DB ({offlineQueueCount})</span>
+            </button>
+          ) : (
+            <div className="hidden md:flex items-center gap-1 px-2 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-600 text-[10px] font-extrabold">
+              <Wifi size={12} className="text-emerald-500" />
+              <span>PWA Sync</span>
+            </div>
+          )}
+        </div>
+
         <div className="relative group">
           <button className="flex items-center gap-2 px-3 py-1.5 bg-kontrol-bg border border-kontrol-border rounded-lg hover:bg-kontrol-border transition-colors">
             <Globe size={14} className="text-kontrol-blue" />

@@ -14,6 +14,8 @@ import { BlueNeuralBrain } from "./src/api/lib/blue-neural-brain.ts";
 import { initializeApp } from "firebase/app";
 import { initializeFirestore, doc, updateDoc, addDoc, collection, query, where, getDocs } from "firebase/firestore";
 
+import { polyglotEngine } from "./src/api/lib/polyglot-microservices.ts";
+
 dotenv.config();
 
 console.log("[SYSTEM] Orchestrator booting...");
@@ -841,6 +843,59 @@ async function startServer() {
   app.get("/api/system/audit-logs", systemExpert.auditLogs);
   app.get("/api/user/profile/:uid", systemExpert.profile);
 
+  // --- POLYGLOT MICROSERVICES ENDPOINTS (Go Gateway, Java Core, Rust Shield) ---
+  app.get("/api/polyglot/status", async (req, res) => {
+    try {
+      const health = await polyglotEngine.getHealthStatus();
+      res.json({ status: "OPERATIONAL", microservices: health });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/polyglot/go/gateway", (req, res) => {
+    const shieldToken = req.headers['x-kontrol-shield'] as string;
+    const ip = req.ip || '127.0.0.1';
+    const result = polyglotEngine.validateGoGateway(ip, shieldToken);
+    res.json({ service: 'GO_GATEWAY_PROXY', ...result });
+  });
+
+  app.post("/api/polyglot/java/ohada-audit", (req, res) => {
+    const txs = dbClient.prepare("SELECT * FROM transactions").all();
+    const result = polyglotEngine.executeJavaAccountingAudit(txs);
+    res.json({ service: 'JAVA_CORE_OHADA_ENGINE', ...result });
+  });
+
+  app.post("/api/polyglot/rust/shield", (req, res) => {
+    const { payload = 'DEFAULT_TOKEN' } = req.body;
+    const result = polyglotEngine.executeRustShieldVerification(payload);
+    res.json({ service: 'RUST_MEMORY_SHIELD', ...result });
+  });
+
+  // --- OFFLINE DATA SYNC API ---
+  app.post("/api/enterprise/sync-offline", (req, res) => {
+    const { actions = [] } = req.body;
+    let synced = 0;
+    
+    actions.forEach((act: any) => {
+      try {
+        if (act.type === 'TRANSACTION') {
+          dbClient.prepare("INSERT OR REPLACE INTO transactions (id, amount, type, category, description, createdAt) VALUES (?, ?, ?, ?, ?, ?)")
+            .run(act.payload.id || Date.now().toString(), act.payload.amount, act.payload.type || 'ENCAISSEMENT', act.payload.category || 'GENERAL', act.payload.description || 'Offline Synced', act.payload.createdAt || Date.now());
+          synced++;
+        } else if (act.type === 'CHAT_MESSAGE') {
+          dbClient.prepare("INSERT OR REPLACE INTO messages (id, sender_id, receiver_id, content, channel, createdAt) VALUES (?, ?, ?, ?, ?, ?)")
+            .run(act.payload.id || Date.now().toString(), act.payload.senderId, act.payload.receiverId || 'general', act.payload.content, act.payload.channel || 'DIRECT', act.payload.createdAt || Date.now());
+          synced++;
+        }
+      } catch (err) {
+        console.warn("[OFFLINE-SYNC-SERVER] Item sync error:", err);
+      }
+    });
+
+    res.json({ success: true, count: synced });
+  });
+
   app.get("/api/admin/system/metrics", (req, res) => {
     try {
       const memory = process.memoryUsage();
@@ -1581,6 +1636,24 @@ async function startServer() {
           const parsed = JSON.parse(msg.toString());
           if (parsed.type === "pong") {
             // Heartbeat received
+          } else if (parsed.type && parsed.type.startsWith("chat:")) {
+            // Persist message to SQLite if it's a message
+            if (parsed.type === "chat:message" && parsed.content && parsed.conversationId) {
+              try {
+                const msgId = `ws_msg_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+                dbClient.prepare("INSERT INTO messages (id, sender_id, receiver_id, content, channel, createdAt) VALUES (?, ?, ?, ?, ?, ?)")
+                  .run(msgId, parsed.senderId || 'anon', parsed.conversationId, parsed.content, 'DIRECT', parsed.timestamp || Date.now());
+              } catch (dbErr) {
+                console.warn("[KONTROL-WS-SERVER] Message DB persist warning:", dbErr);
+              }
+            }
+            
+            // Broadcast real-time chat message or event to all connected clients
+            wss.clients.forEach((client) => {
+              if (client.readyState === 1 /* OPEN */) {
+                client.send(JSON.stringify(parsed));
+              }
+            });
           }
         } catch {
           // Ignore

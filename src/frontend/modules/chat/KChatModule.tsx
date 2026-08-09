@@ -53,6 +53,8 @@ import { UserProfile, UserRole } from '../../types';
 import { cn } from '../../lib/utils';
 import { User as FirebaseUser } from 'firebase/auth';
 import { blueAIService } from '../../../api/services/blueAIService';
+import { wsChatClient } from '../../lib/wsChatClient';
+import { enqueueOfflineAction } from '../../lib/offlineSync';
 
 interface Message {
   id: string;
@@ -105,9 +107,61 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
   const [viewMode, setViewMode] = useState<'CHAT' | 'MANAGE'>('CHAT');
   const [currentPage, setCurrentPage] = useState(1);
   const [isAiTyping, setIsAiTyping] = useState(false);
+  const [wsConnected, setWsConnected] = useState(false);
   const itemsPerPage = 8;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const optionsRef = useRef<HTMLDivElement>(null);
+
+  // Initialize Real-Time WebSocket Connection
+  useEffect(() => {
+    wsChatClient.connect();
+    const unsubscribeConn = wsChatClient.subscribeConnection(setWsConnected);
+    
+    const unsubscribeMsg = wsChatClient.subscribeMessages((incoming) => {
+      if (incoming.type === 'chat:message' && incoming.conversationId && incoming.content) {
+        setMessages((prev) => {
+          // Avoid duplicate messages
+          if (prev.some(m => m.timestamp === incoming.timestamp && m.senderId === incoming.senderId)) {
+            return prev;
+          }
+          return [
+            ...prev,
+            {
+              id: `ws_${incoming.timestamp}_${incoming.senderId}`,
+              conversationId: incoming.conversationId,
+              senderId: incoming.senderId,
+              senderName: incoming.senderName,
+              content: incoming.content,
+              timestamp: incoming.timestamp,
+              readBy: [incoming.senderId],
+              type: 'text'
+            }
+          ];
+        });
+
+        // Update active conversation preview in conversation list
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === incoming.conversationId
+              ? {
+                  ...c,
+                  lastMessage: incoming.content,
+                  lastMessageAt: incoming.timestamp,
+                  lastMessageSenderId: incoming.senderId,
+                  lastMessageSenderName: incoming.senderName,
+                  updatedAt: incoming.timestamp
+                }
+              : c
+          )
+        );
+      }
+    });
+
+    return () => {
+      unsubscribeConn();
+      unsubscribeMsg();
+    };
+  }, []);
 
   // Scroll typing indicator into view
   useEffect(() => {
@@ -286,28 +340,82 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
         setIsAiTyping(false);
       }
     } else {
-      try {
-        const msgData = {
-          conversationId: activeConversation.id,
-          senderId: user.uid,
-          senderName: profile.displayName || profile.email,
-          content: msgText,
-          timestamp: Date.now(),
-          type: 'text',
-          readBy: [user.uid]
-        };
+      const now = Date.now();
+      const senderName = profile.displayName || profile.email;
 
-        await addDoc(collection(db, 'messages'), msgData);
-        
-        await updateDoc(doc(db, 'conversations', activeConversation.id), {
-          lastMessage: msgText,
-          lastMessageAt: Date.now(),
-          lastMessageSenderId: user.uid,
-          lastMessageSenderName: profile.displayName || profile.email,
-          updatedAt: Date.now()
+      // 1. Send via WebSocket in real-time
+      wsChatClient.sendMessage({
+        type: 'chat:message',
+        conversationId: activeConversation.id,
+        senderId: user.uid,
+        senderName,
+        content: msgText,
+        timestamp: now
+      });
+
+      // Optimistically push message locally
+      const localMsg: Message = {
+        id: `local_${now}`,
+        conversationId: activeConversation.id,
+        senderId: user.uid,
+        senderName,
+        content: msgText,
+        timestamp: now,
+        readBy: [user.uid],
+        type: 'text'
+      };
+      setMessages(prev => [...prev, localMsg]);
+
+      // 2. Persist to Firestore or Queue for Offline Sync if network drops
+      if (!navigator.onLine) {
+        enqueueOfflineAction({
+          type: 'CHAT_MESSAGE',
+          endpoint: '/api/enterprise/communication/chat/send',
+          method: 'POST',
+          payload: {
+            conversationId: activeConversation.id,
+            senderId: user.uid,
+            senderName,
+            content: msgText,
+            createdAt: now
+          }
         });
-      } catch (error) {
-        handleFirestoreError(error, OperationType.WRITE, 'chat/send', user, false);
+      } else {
+        try {
+          const msgData = {
+            conversationId: activeConversation.id,
+            senderId: user.uid,
+            senderName,
+            content: msgText,
+            timestamp: now,
+            type: 'text',
+            readBy: [user.uid]
+          };
+
+          await addDoc(collection(db, 'messages'), msgData);
+          
+          await updateDoc(doc(db, 'conversations', activeConversation.id), {
+            lastMessage: msgText,
+            lastMessageAt: now,
+            lastMessageSenderId: user.uid,
+            lastMessageSenderName: senderName,
+            updatedAt: now
+          });
+        } catch (error) {
+          console.warn("Firestore save fallback to local offline queue:", error);
+          enqueueOfflineAction({
+            type: 'CHAT_MESSAGE',
+            endpoint: '/api/enterprise/communication/chat/send',
+            method: 'POST',
+            payload: {
+              conversationId: activeConversation.id,
+              senderId: user.uid,
+              senderName,
+              content: msgText,
+              createdAt: now
+            }
+          });
+        }
       }
     }
   };
@@ -1032,10 +1140,15 @@ export function KChatModule({ user, profile }: KChatModuleProps) {
                     {activeConversation.type === 'DIRECT' ? (getOtherParticipant(activeConversation.participants)?.displayName || 'Discussion') : activeConversation.title}
                   </h3>
                   <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className={cn("w-2 h-2 rounded-full", wsConnected ? "bg-emerald-500 animate-pulse" : "bg-amber-500")} />
                     <span className="text-[10px] text-kontrol-ink-muted font-bold uppercase tracking-wider">
-                      {activeConversation.type === 'DIRECT' ? "En ligne" : `${activeConversation.participants?.length || 0} membres`}
+                      {activeConversation.type === 'DIRECT' ? (wsConnected ? "En ligne (WebSocket)" : "En ligne") : `${activeConversation.participants?.length || 0} membres`}
                     </span>
+                    {wsConnected && (
+                      <span className="px-1.5 py-0.5 text-[9px] font-black bg-emerald-500/10 text-emerald-600 rounded-md border border-emerald-500/20">
+                        WS ACTIVE
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>

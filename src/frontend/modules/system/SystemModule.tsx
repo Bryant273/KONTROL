@@ -68,12 +68,14 @@ export function SystemModule({ currentUserProfile }: SystemModuleProps) {
     totalTransactions: 0,
     growthData: [] as any[],
     serviceHealth: [
-      { name: 'Frontend App', tech: 'React 18 + Vite', status: 'ok', cpu: 12, mem: 34, latency: '15ms', uptime: '99.99%' },
+      { name: 'Go Ingress Gateway', tech: 'Go 1.22 + RateLimiter', status: 'ok', cpu: 2, mem: 14, latency: '<2ms', uptime: '100%' },
+      { name: 'Java Financial Core', tech: 'Java 21 + OHADA Rules', status: 'ok', cpu: 14, mem: 48, latency: '<4ms', uptime: '99.99%' },
+      { name: 'Rust Security Shield', tech: 'Rust 2024 + ZK Crypt', status: 'ok', cpu: 1, mem: 8, latency: '1ms', uptime: '100%' },
+      { name: 'Frontend App & PWA', tech: 'React 18 + Service Worker', status: 'ok', cpu: 12, mem: 34, latency: '15ms', uptime: '99.99%' },
+      { name: 'WebSocket Realtime Engine', tech: 'WS Server (/api/ws)', status: 'ok', cpu: 4, mem: 18, latency: '<1ms', uptime: '100%' },
       { name: 'Auth Service', tech: 'Firebase Auth', status: 'ok', cpu: 5, mem: 12, latency: '45ms', uptime: '100%' },
-      { name: 'Database', tech: 'Firestore NoSQL', status: 'ok', cpu: 22, mem: 45, latency: '32ms', uptime: '99.99%' },
-      { name: 'Blue AI Core', tech: 'Gemini 3.1 Flash', status: 'ok', cpu: 45, mem: 62, latency: '450ms', uptime: '99.95%' },
-      { name: 'Storage', tech: 'Firebase Storage', status: 'ok', cpu: 8, mem: 28, latency: '85ms', uptime: '99.99%' },
-      { name: 'Cloud Runtime', tech: 'Google Cloud Run', status: 'ok', cpu: 15, mem: 42, latency: '10ms', uptime: '100%' }
+      { name: 'Database', tech: 'Firestore + SQLite Sync', status: 'ok', cpu: 22, mem: 45, latency: '32ms', uptime: '99.99%' },
+      { name: 'Blue AI Core', tech: 'Gemini 3.1 Flash', status: 'ok', cpu: 45, mem: 62, latency: '450ms', uptime: '99.95%' }
     ],
     flags: [
       { key: 'blue_ai_chat', desc: 'Chat comptable RAG', scope: 'Global', enabled: true },
